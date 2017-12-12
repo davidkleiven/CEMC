@@ -11,10 +11,16 @@ import io
 import wltools
 from ase.db import connect
 from ase.visualize import view
+import mod_factor_updater as mfu
+import converged_histogram_policy as chp
+from settings import SimulationState
+import logging
+import time
 
 class WangLandauSGC( object ):
     def __init__( self, db_name, db_id, site_types=None, site_elements=None, Nbins=100, initial_f=2.71,
-    flatness_criteria=0.8, fmin=1E-8, Emin=0.0, Emax=1.0, conv_check="flathist", scheme="fixed_f", nsteps_per_update=10 ):
+    flatness_criteria=0.8, fmin=1E-8, Emin=0.0, Emax=1.0, conv_check="flathist", scheme="fixed_f", nsteps_per_update=10,
+    logfile="default.log" ):
         """
         Class for running Wang Landau Simulations in the Semi Grand Cannonical Ensemble
 
@@ -44,6 +50,12 @@ class WangLandauSGC( object ):
                  fixed_f - Stop when the convergence criteria is met. This scheme typically have to be run multiple times
                            and then the results should be averaged
         """
+        self.logger = logging.getLogger( "WangLandauSGC" )
+        self.logger.setLevel( logging.DEBUG )
+        ch = logging.StreamHandler()
+        ch.setLevel( logging.INFO )
+        self.logger.addHandler(ch)
+
         self.atoms = None
         self.initialized = False
         self.site_types = site_types
@@ -75,7 +87,7 @@ class WangLandauSGC( object ):
         self.read_params()
         self.initialize()
         self.has_found_at_least_one_structure_within_range = False
-        all_schemes = ["lower_f", "fixed_f"]
+        all_schemes = ["fixed_f","inverse_time"]
         all_conv_checks = ["flathist", "histstd"]
         if ( not conv_check in all_conv_checks ):
             raise ValueError( "conv_check has to be one of {}".format(all_conv_checks) )
@@ -96,6 +108,11 @@ class WangLandauSGC( object ):
         self.prev_number_of_converged = 0
         self.prev_number_of_known_bins = 0
         self.n_steps_without_progress = 0
+        self.mod_factor_updater = mfu.ModificationFactorUpdater(self)
+        self.on_converged_hist = chp.ConvergedHistogramPolicy(self)
+        if ( scheme == "inverse_time" ):
+            self.mod_factor_updater = mfu.InverseTimeScheme(self,fmin=fmin)
+            self.on_converged_hist = chp.LowerModificationFactor(self,fmin=fmin)
 
         if (len(self.atoms) != len(self.site_types )):
             raise ValueError( "A site type for each site has to be specified!" )
@@ -108,6 +125,15 @@ class WangLandauSGC( object ):
             for elem in site_elem:
                 if ( not elem in self.chem_pot.keys() ):
                     raise ValueError("A chemical potential for {} was not specified".format(elem) )
+
+        self.logger.info( "Wang Landau class initialized" )
+        current_time = time.localtime()
+        self.logger.info( "Simulation starts at: %s"%(time.strftime("%Y-%m-%d %H:%M:%S",current_time)))
+        self.logger.info( "WL-scheme: {}".format(self.scheme) )
+        self.logger.info( "Convergence check: {}".format(conv_check) )
+        self.logger.info( "Initial modification factor,f: {}".format(self.f))
+        self.logger.info( "fmin: {} (only relevant if the scheme changes the modification factor f)".format(fmin))
+        self.logger.info( "Checking convergence every {}".format(self.check_convergence_every))
 
     def initialize( self ):
         """
@@ -161,7 +187,6 @@ class WangLandauSGC( object ):
             self.Emin = np.min(self.E)
             self.Emax = np.max(self.E)+eps
             #self.smallest_energy_ever = entries[11]
-
         if ( queued != 0 ):
             #self.dos = wltools.convert_array(entries[1])
             self.entropy = wltools.convert_array(entries[1])
@@ -200,7 +225,7 @@ class WangLandauSGC( object ):
         """
         If something goes wrong, reset to default
         """
-        print ("Something went wrong when reading arrays")
+        self.logger.error("Something went wrong when reading arrays")
         self.E = np.linspace( 0.0, 1.0, self.Nbins )
         self.histogram = np.zeros(self.Nbins, dtype=int )
         self.entropy = np.zeros( self.Nbins )
@@ -290,6 +315,7 @@ class WangLandauSGC( object ):
         self.cummulated_variance += (1.0/self.Nbins)**2
         self.cummulated_variance[self.current_bin] += (1.0 - 2.0/self.Nbins)
         self.iter += 1
+        self.mod_factor_updater.update()
 
     def wl_update( self, selected_bin ):
         """
@@ -361,6 +387,7 @@ class WangLandauSGC( object ):
         cur.execute( "update simulations set gs_energy=? where uid=?", (self.smallest_energy_ever,self.db_id))
         conn.commit()
         conn.close()
+        self.logger.info( "Results saved to database {} with ID {}".format(self.db_name,self.db_id) )
 
     def set_number_of_bins( self, N ):
         """
@@ -501,15 +528,14 @@ class WangLandauSGC( object ):
         for i in range(len(self.histogram)):
             if ( self.histogram[i] == 0 ):
                 continue
-            #if ( self.structures[i] is None ):
-                # Ignore bins that has not been visited during the round
-            #    continue
             if ( self.histogram[i] <= factor*growth_fluct[i] ):
                 converged = False
             else:
                 number_of_converged += 1
             tot_number += 1
-        print ( "%d of %d bins (with known structures) has converged"%(number_of_converged,tot_number))
+        current_time = time.localtime()
+        timestr = time.strftime( "%H:%M:%S", current_time)
+        self.logger.info( "%s %d of %d bins (with known structures) has converged"%(timestr,number_of_converged,tot_number))
         if ( number_of_converged != 0 and number_of_converged == self.prev_number_of_converged and tot_number == self.prev_number_of_known_bins ):
             self.n_steps_without_progress += 1
         else:
@@ -555,22 +581,15 @@ class WangLandauSGC( object ):
 
             if ( i%self.check_convergence_every == 0 ):
                 if ( self.has_converged() ):
-                    if ( self.scheme == "lower_f" ):
-                        self.histogram[:] = 0
-                        self.f *= 0.5
-                        if ( self.f < self.fmin ):
-                            f_small_enough = True
-                            self.converged = True
-                            break
-                    elif ( self.scheme == "fixed_f" ):
+                    status = self.on_converged_hist()
+                    if ( status == SimulationState.CONVERGED ):
                         self.converged = True
+                        self.logger.info( "DOS has converged" )
                         break
         self.dos = np.exp(self.entropy - np.mean(self.entropy))
-        print (self.histogram)
-        print (self.E)
         with open(self.struct_file, "wb" ) as outfile:
             pkl.dump( self.structures, outfile )
-        print ("Current f: {}".format(self.f))
+        self.logger.info( "Simulation ended with a modification factor of {}".format(self.f) )
 
     def plot_dos( self ):
         fig = plt.figure()

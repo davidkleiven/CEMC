@@ -1,5 +1,6 @@
 import sys
 from ase.calculators.emt import EMT
+#from asap3 import EMT
 from ase.build import bulk
 from wang_landau_scg import WangLandauSGC
 from matplotlib import pyplot as plt
@@ -9,7 +10,7 @@ from wang_landau_db_manger import WangLandauDBManger
 import numpy as np
 from sa_sgc import SimmualtedAnnealingSGC
 
-db_name = "/home/davidkl/Documents/GPAWTutorial/CE_extensions/WangLandau/wl_au_cu_1000bins.db"
+db_name = "/home/davidkl/Documents/GPAWTutorial/CE_extensions/WangLandau/wl_au_cu_1000bins_inverse_time.db"
 def plot_probablility_distribution(wl):
     T = [100,200,300,400,500,800,1000,1200]
     fig = plt.figure()
@@ -89,8 +90,8 @@ def analyze():
 def main( runID ):
     site_types = [0 for _ in range(64)]
     site_elements = [["Cu","Au"]]
-    wl = WangLandauSGC( db_name, runID, site_types=site_types, site_elements=site_elements, Nbins=100, scheme="fixed_f", conv_check="histstd" )
-    wl.run( maxsteps=100000 )
+    wl = WangLandauSGC( db_name, runID, site_types=site_types, site_elements=site_elements, Nbins=100, scheme="inverse_time", conv_check="histstd" )
+    wl.run( maxsteps=1000000 )
     #wl.explore_energy_space( nsteps=1000 )
     wl.save_db()
     #wl.plot_dos()
