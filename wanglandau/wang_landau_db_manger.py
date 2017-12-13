@@ -19,7 +19,7 @@ class WangLandauDBManger( object ):
         required_fields = {
         "simulations":["uid","dos","energy","histogram","fmin","current_f","initial_f","converged",
         "queued","Nbins","flatness","growth_variance","Emin","Emax","initialized","struct_file",
-        "gs_energy","atomID"],
+        "gs_energy","atomID","n_iter"],
         "chemical_potentials":["uid","element","id","potential"]
         }
         required_tables = ["simulations"]
@@ -43,7 +43,8 @@ class WangLandauDBManger( object ):
             "initialized":"integer",
             "struct_file":"text",
             "gs_energy":"float",
-            "atomID":"integer"
+            "atomID":"integer",
+            "n_iter":"integer"
         }
 
         conn = sq.connect( self.db_name )
@@ -108,6 +109,7 @@ class WangLandauDBManger( object ):
         cur.execute( "insert into simulations (uid,initial_f,current_f,flatness,fmin,queued,Nbins,atomID) values (?,?,?,?,?,?,?,?)",
         (newID, initial_f,initial_f,flatness,fmin,0,Nbins,atomID) )
         cur.execute( "update simulations set initialized=? where uid=?", (0,newID) )
+        cur.execute( "update simulations set n_iter=? where uid=?", (1,newID) )
         conn.commit()
 
         Emin,Emax = self.get_energy_range( atomID, Tmax, n_kbT )

@@ -19,7 +19,7 @@ import time
 
 class WangLandauSGC( object ):
     def __init__( self, db_name, db_id, site_types=None, site_elements=None, Nbins=100, initial_f=2.71,
-    flatness_criteria=0.8, fmin=1E-8, Emin=0.0, Emax=1.0, conv_check="flathist", scheme="fixed_f", nsteps_per_update=10,
+    flatness_criteria=0.8, fmin=1E-6, Emin=0.0, Emax=1.0, conv_check="flathist", scheme="fixed_f", nsteps_per_update=10,
     logfile="default.log" ):
         """
         Class for running Wang Landau Simulations in the Semi Grand Cannonical Ensemble
@@ -79,7 +79,7 @@ class WangLandauSGC( object ):
         self.flatness_criteria = flatness_criteria
         self.atoms_count = {}
         self.current_bin = 0
-        self.fmin = 1E-8
+        self.fmin = 1E-6
         self.structures = [None for _ in range(self.Nbins)]
         self.db_name = db_name
         self.db_id = db_id
@@ -134,6 +134,9 @@ class WangLandauSGC( object ):
         self.logger.info( "Initial modification factor,f: {}".format(self.f))
         self.logger.info( "fmin: {} (only relevant if the scheme changes the modification factor f)".format(fmin))
         self.logger.info( "Checking convergence every {}".format(self.check_convergence_every))
+        self.logger.info( "Number of bins: {}".format(self.Nbins) )
+        self.logger.info( "Emin: {} eV".format(self.Emin) )
+        self.logger.info( "Emax: {} eV".format(self.Emax) )
 
     def initialize( self ):
         """
@@ -172,7 +175,7 @@ class WangLandauSGC( object ):
         """
         conn = sq.connect( self.db_name )
         cur = conn.cursor()
-        cur.execute( "SELECT energy,dos,histogram,fmin,current_f,initial_f,queued,flatness,growth_variance,initialized,struct_file,gs_energy,atomID from simulations where uid=?", (self.db_id,) )
+        cur.execute( "SELECT energy,dos,histogram,fmin,current_f,initial_f,queued,flatness,growth_variance,initialized,struct_file,gs_energy,atomID,n_iter from simulations where uid=?", (self.db_id,) )
         entries = cur.fetchone()
         conn.close()
 
@@ -180,6 +183,7 @@ class WangLandauSGC( object ):
         self.initialized = entries[9]
         self.struct_file = entries[10]
         atomID = int(entries[12])
+        self.iter = int(entries[13])
 
         if ( self.initialized != 0 ):
             self.E = wltools.convert_array(entries[0])
@@ -290,6 +294,9 @@ class WangLandauSGC( object ):
                 return
             self.redistribute_hist(self.Emin,energy)
 
+        # Update the modification factor
+        self.mod_factor_updater.update()
+        
         selected_bin = self.get_bin(energy)
         rand_num = np.random.rand()
         diff = self.entropy[self.current_bin]-self.entropy[selected_bin]
@@ -315,7 +322,6 @@ class WangLandauSGC( object ):
         self.cummulated_variance += (1.0/self.Nbins)**2
         self.cummulated_variance[self.current_bin] += (1.0 - 2.0/self.Nbins)
         self.iter += 1
-        self.mod_factor_updater.update()
 
     def wl_update( self, selected_bin ):
         """
@@ -385,6 +391,7 @@ class WangLandauSGC( object ):
         cur.execute( "update simulations set Emin=?, Emax=? where uid=?", (self.Emin,self.Emax,self.db_id) )
         cur.execute( "update simulations set initialized=?, struct_file=? where uid=?", (1,self.struct_file,self.db_id) )
         cur.execute( "update simulations set gs_energy=? where uid=?", (self.smallest_energy_ever,self.db_id))
+        cur.execute( "update simulations set n_iter=? where uid=?", (self.iter,self.db_id) )
         conn.commit()
         conn.close()
         self.logger.info( "Results saved to database {} with ID {}".format(self.db_name,self.db_id) )

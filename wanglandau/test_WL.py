@@ -23,7 +23,7 @@ def plot_probablility_distribution(wl):
 
 def initialize_db():
     manager = WangLandauDBManger( db_name )
-    manager.prepare_from_ground_states( 900.0, initial_f=1.6, Nbins=1000, n_kbT=40 )
+    manager.prepare_from_ground_states( 900.0, initial_f=2.71, Nbins=150, n_kbT=40 )
 
 def find_GS():
     atoms = bulk("Au")
@@ -90,7 +90,7 @@ def analyze():
 def main( runID ):
     site_types = [0 for _ in range(64)]
     site_elements = [["Cu","Au"]]
-    wl = WangLandauSGC( db_name, runID, site_types=site_types, site_elements=site_elements, Nbins=100, scheme="inverse_time", conv_check="histstd" )
+    wl = WangLandauSGC( db_name, runID, site_types=site_types, site_elements=site_elements, fmin=1E-5, scheme="inverse_time", conv_check="histstd" )
     wl.run( maxsteps=1000000 )
     #wl.explore_energy_space( nsteps=1000 )
     wl.save_db()

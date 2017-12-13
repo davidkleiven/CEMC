@@ -28,9 +28,10 @@ class LowerModificationFactor( ConvergedHistogramPolicy ):
         """
         Divide the modification factor by m reset the histogram
         """
-        if ( self.wl_sim.f <= fmin ):
+        if ( self.wl_sim.f <= self.fmin ):
             return SimulationState.CONVERGED
-        self.wl_sim.f /= m
+        self.wl_sim.f /= self.m
+        self.wl_sim.logger.info( "Resetting histogram" )
         self.wl_sim.histogram[:] = 0.0
-        self.wl_sim.logger.info( "Lowering the modification factor. New f: {}".format(self.f))
+        self.wl_sim.logger.info( "Lowering the modification factor. New f: {}".format(self.wl_sim.f))
         return SimulationState.CONTINUE

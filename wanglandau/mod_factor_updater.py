@@ -21,7 +21,7 @@ class InverseTimeScheme( ModificationFactorUpdater ):
     Fast algorithm to calculate density of states, R.E. Belardinelli and V.D. Pereyra
     """
 
-    def __init__( self, wl_sim, fmin=1E-8 ):
+    def __init__( self, wl_sim, fmin=1E-6 ):
         ModificationFactorUpdater.__init__( self, wl_sim )
         self.inverse_time_scheme_active = False
         self.fmin = fmin
@@ -42,7 +42,7 @@ class InverseTimeScheme( ModificationFactorUpdater ):
         time = float(self.wl_sim.iter)/self.wl_sim.Nbins
         if ( 1.0/time > 1.0 ):
             return SimulationState.CONTINUE
-        
+
         if ( self.wl_sim.f < 1.0/time and not self.inverse_time_scheme_active ):
             self.wl_sim.logger.info( "Changing to inverse time scheme" )
             self.wl_sim.logger.info( "Number of MC steps until converged: {}".format(self.estimate_number_of_MC_steps_left()) )
