@@ -7,6 +7,8 @@ from ase.ce.settings import BulkCrystal
 from sa_sgc import SimmualtedAnnealingSGC
 from ase.visualize import view
 from matplotlib import pyplot as plt
+from mcmc import montecarlo as mc
+import numpy as np
 
 # Hard coded ECIs obtained from the ce_hydrostatic.db runs
 ecis = {'c3_1225_4_1': -0.00028826723864655595,
@@ -24,7 +26,44 @@ ecis = {'c3_1225_4_1': -0.00028826723864655595,
         'c3_1225_3_1': -0.011318935831421125,
         u'c0': -2.6466290360293874}
 
-def main():
+ecis = {'c3_1225_4_1': -0.00028826723864655595,
+        'c2_1000_1_1': -0.012304759727020153,
+        'c4_1225_7_1': 0.00018000893943061064,
+        'c2_707_1_1': 0.01078731693580544,
+        'c4_1225_3_1': 0.00085623111812932343,
+        'c2_1225_1_1': -0.010814400169849577,
+        'c4_1000_1_1': 0.0016577886586285448,
+        'c4_1225_2_1': 0.01124654696678576,
+        'c3_1225_2_1': -0.017523737495758165,
+        'c4_1225_6_1': 0.0038879587131474451,
+        'c4_1225_5_1': 0.00060830459771275532,
+        'c3_1225_3_1': -0.011318935831421125
+        }
+
+def mcmc( ceBulk, c_mg ):
+
+    n_mg = int( c_mg*len(ceBulk.atoms) )
+    for i in range(n_mg):
+        ceBulk.atoms._calc.update_cf(i,"Al","Mg")
+    ceBulk.atoms._calc.clear_history()
+    mc_obj = mc.Montecarlo( ceBulk.atoms, 2000.0 )
+
+    # Run Monte Carlo
+    tot_en_1 = mc_obj.runMC( steps=1000 )
+    view( ceBulk.atoms )
+
+    mc_obj = mc.Montecarlo( ceBulk.atoms, 200 )
+    tot_en = mc_obj.runMC( steps=100000 )
+    view( ceBulk.atoms )
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1,1,1)
+    ax.plot( tot_en )
+    ax.plot( np.cumsum(tot_en)/(np.arange(len(tot_en))+1.0) )
+    ax.plot( tot_en_1 )
+    plt.show()
+
+def main( run ):
     atoms = bulk("Al")
     atoms = atoms*(4,4,4)
     atoms[0].symbol = "Mg"
@@ -40,17 +79,21 @@ def main():
     calc = CE( ceBulk, ecis, initial_cf=init_cf )
     ceBulk.atoms.set_calculator( calc )
 
-    chem_pot = {
-    "Al":0.0,
-    "Mg":0.0
-    }
-    ecis["c1_1"] = 0.025# Change the single particle interaction term to mimic a chemical potential
-    gs_finder = SimmualtedAnnealingSGC( ceBulk.atoms, chem_pot, "test_db.db" )
-    gs_finder.run( n_steps=1000, Tmin=400, ntemps=10 )
-    gs_finder.show_visit_stat()
-    gs_finder.show_compositions()
+    if ( run == "MC" ):
+        mcmc( ceBulk, 0.1 )
+    else:
+        chem_pot = {
+        "Al":0.0,
+        "Mg":0.0
+        }
+        ecis["c1_1"] = 0.025# Change the single particle interaction term to mimic a chemical potential
+        gs_finder = SimmualtedAnnealingSGC( ceBulk.atoms, chem_pot, "test_db.db" )
+        gs_finder.run( n_steps=1000, Tmin=400, ntemps=10 )
+        gs_finder.show_visit_stat()
+        gs_finder.show_compositions()
     view( ceBulk.atoms )
-    plt.show()
+    #plt.show()
 
 if __name__ == "__main__":
-    main()
+    run = sys.argv[1] # Run is WL or MC
+    main( run )
