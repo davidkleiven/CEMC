@@ -8,6 +8,7 @@ from sa_sgc import SimmualtedAnnealingSGC
 from ase.visualize import view
 from matplotlib import pyplot as plt
 from mcmc import montecarlo as mc
+from mcmc import mc_observers as mc_obs
 import numpy as np
 
 # Hard coded ECIs obtained from the ce_hydrostatic.db runs
@@ -49,12 +50,19 @@ def mcmc( ceBulk, c_mg ):
     mc_obj = mc.Montecarlo( ceBulk.atoms, 2000.0 )
 
     # Run Monte Carlo
+    obs_pre = mc_obs.CorrelationFunctionTracker( ceBulk.atoms._calc )
+    mc_obj.attach( obs_pre )
     tot_en_1 = mc_obj.runMC( steps=1000 )
+    obs_pre.plot_history( max_size=3 )
+    plt.show()
     view( ceBulk.atoms )
 
-    mc_obj = mc.Montecarlo( ceBulk.atoms, 200 )
-    tot_en = mc_obj.runMC( steps=100000 )
+    observer = mc_obs.CorrelationFunctionTracker( ceBulk.atoms._calc )
+    mc_obj = mc.Montecarlo( ceBulk.atoms, 10.0 )
+    mc_obj.attach( observer, interval=1 )
+    tot_en = mc_obj.runMC( steps=10000 )
     view( ceBulk.atoms )
+    observer.plot_history(max_size=3)
 
     fig = plt.figure()
     ax = fig.add_subplot(1,1,1)
@@ -73,7 +81,7 @@ def main( run ):
         "conc_ratio_min_1":[[60,4]],
         "conc_ratio_max_1":[[64,0]],
     }
-    ceBulk = BulkCrystal( "fcc", 4.05, [7,7,7], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, reconf_db=False)
+    ceBulk = BulkCrystal( "fcc", 4.05, [7,7,7], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, reconf_db=False )
     init_cf = {key:1.0 for key in ecis.keys()}
 
     calc = CE( ceBulk, ecis, initial_cf=init_cf )

@@ -118,10 +118,11 @@ class Montecarlo:
         # occupy some sites
         symb_a = self.atoms[rand_a].symbol
         symb_b = self.atoms[rand_b].symbol
-        self.atoms[rand_a].symbol = symb_b
-        self.atoms[rand_b].symbol = symb_a
+        #self.atoms[rand_a].symbol = symb_b
+        #self.atoms[rand_b].symbol = symb_a
         system_changes = [(rand_a,symb_a,symb_b),(rand_b,symb_b,symb_a)]
         new_energy = self.atoms._calc.calculate( self.atoms, ["energy"], system_changes )
+
         if ( verbose ):
             print(new_energy,self.current_energy)
 
@@ -133,33 +134,34 @@ class Montecarlo:
             kT = self.T*units.kB
             energy_diff = new_energy-self.current_energy
             probability = np.exp(-energy_diff/kT)
-            if np.random.rand() <= probability:
+            if ( np.random.rand() <= probability ):
                 self.current_energy = new_energy
                 accept = True
             else:
                 # Reset the sytem back to original
-                self.atoms[rand_a].symbol,self.atoms[rand_b].symbol = self.atoms[rand_b].symbol,self.atoms[rand_a].symbol
+                self.atoms[rand_a].symbol = symb_a
+                self.atoms[rand_b].symbol = symb_b
                 accept = False
-
-        for entry in self.observers:
-            interval = entry[0]
-            if ( self.current_step%interval == 0 ):
-                obs = entry[1]
-                if ( accept ):
-                    obs(rand_a,rand_b)
-                else:
-                    obs(rand_a,rand_a)
 
         if ( accept ):
             # Update the atom_indices
             self.atoms_indx[symb_a][selected_a] = rand_b
             self.atoms_indx[symb_b][selected_b] = rand_a
+        else:
+            system_changes = [(rand_a,symb_a,symb_a),(rand_b,symb_b,symb_b)] # No changes to the system
 
         # TODO: Wrap this functionality into a cleaning object
-        if ( not getattr(self.atoms._calc,"clear_history",None) is None and not getattr(self.atoms._calc,"undo_changes",None) is None ):
+        if ( hasattr(self.atoms._calc,"clear_history") and hasattr(self.atoms._calc,"undo_changes") ):
             # The calculator is a CE calculator which support clear_history and undo_changes
             if ( accept ):
                 self.atoms._calc.clear_history()
             else:
                 self.atoms._calc.undo_changes()
+
+        # Execute all observers
+        for entry in self.observers:
+            interval = entry[0]
+            if ( self.current_step%interval == 0 ):
+                obs = entry[1]
+                obs(system_changes)
         return self.current_energy,accept

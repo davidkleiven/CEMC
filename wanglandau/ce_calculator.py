@@ -9,8 +9,9 @@ from itertools import product
 import os
 import numpy as np
 import copy
-
-
+import matplotlib as mpl
+mpl.rcParams["svg.fonttype"] = "none"
+from matplotlib import pyplot as plt
 
 class CE( Calculator ):
     """
@@ -57,13 +58,14 @@ class CE( Calculator ):
         """
         Changing one element and update the correlation functions
         """
+        self.old_cfs.append( copy.deepcopy(self.cf) )
         if ( old_symb == new_symb ):
             return self.cf
-        self.old_cfs.append( copy.deepcopy(self.cf) )
         natoms = len(self.atoms)
         bf_list = list(range(len(self.BC.basis_functions)))
 
         self.atoms[indx].symbol = new_symb
+
         bf = self.BC.basis_functions
         for name in self.eci.keys():
             if ( name == "c0" ):
@@ -131,8 +133,8 @@ class CE( Calculator ):
         Calculates the energy. The system_changes is assumed to be a list
         of tuples of the form (indx,old_symb,new_symb)
         """
+        self.changes += system_changes
         for entry in system_changes:
-            self.changes.append( (entry[0],entry[1],entry[2]) )
             self.update_cf( entry[0], entry[1], entry[2] )
         self.results["energy"] = self.get_energy()
         return self.results["energy"]
