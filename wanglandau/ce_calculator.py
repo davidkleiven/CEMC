@@ -10,7 +10,13 @@ import os
 import numpy as np
 import copy
 
+
+
 class CE( Calculator ):
+    """
+    Class for updating the CE when symbols change
+    """
+
     implemented_properties = ["energy"]
     def __init__( self, BC, eci, initial_cf=None ):
         Calculator.__init__( self )
@@ -25,6 +31,8 @@ class CE( Calculator ):
         self.old_atoms = self.atoms.copy()
         self.eci = eci
         self.changes = []
+        self.ctype = {}
+        self.create_ctype_lookup()
 
     def get_energy( self ):
         """
@@ -34,6 +42,16 @@ class CE( Calculator ):
         for key,value in self.eci.iteritems():
             energy += value*self.cf[key]
         return energy*len(self.atoms)
+
+    def create_ctype_lookup( self ):
+        """
+        Creates a lookup table for cluster types based on the prefix
+        """
+        for n in range(2,len(self.BC.cluster_names)):
+            for ctype in range(len(self.BC.cluster_names[n])):
+                name = self.BC.cluster_names[n][ctype]
+                prefix = name#name.rpartition('_')[0]
+                self.ctype[prefix] = (n,ctype)
 
     def update_cf( self, indx, old_symb, new_symb ):
         """
@@ -57,19 +75,22 @@ class CE( Calculator ):
             prefix = name.rpartition('_')[0]
             dec = int(name.rpartition('_')[-1]) - 1
 
-            for n in range(2, len(self.BC.cluster_names)):
-                try:
-                    ctype = self.BC.cluster_names[n].index(prefix)
-                    num = n
-                    break
-                except ValueError:
-                    continue
+            res = self.ctype[prefix]
+            num = res[0]
+            ctype = res[1]
+            #for n in range(2, len(self.BC.cluster_names)):
+            #    try:
+            #        ctype = self.BC.cluster_names[n].index(prefix)
+            #        num = n
+            #        break
+            #    except ValueError:
+            #        continue
             perm = list(product(bf_list, repeat=num))
             count = len(self.BC.cluster_indx[num][ctype])*natoms
             sp = self.spin_product_one_atom( indx, self.BC.cluster_indx[num][ctype], perm[dec] )
             sp /= count
             bf_indx = perm[dec][0]
-            self.cf[name] += n*( bf[bf_indx][new_symb] - bf[bf_indx][old_symb] )*sp
+            self.cf[name] += num*( bf[bf_indx][new_symb] - bf[bf_indx][old_symb] )*sp
         return self.cf
 
     def spin_product_one_atom( self, ref_indx, indx_list, dec ):
@@ -92,10 +113,10 @@ class CE( Calculator ):
         This function undo all changes stored in all symbols starting from the
         last one
         """
-        for i in range(len(self.changes)-1,0,-1):
-            entries = self.changes[i]
+        for i in range(len(self.changes),0,-1):
+            entry = self.changes[i-1]
             self.atoms[entry[0]].symbol = entry[1]
-            self.cf = self.old_cfs[i]
+            self.cf = self.old_cfs[i-1]
         self.clear_history()
 
     def clear_history( self ):
@@ -130,6 +151,7 @@ class TestCE( unittest.TestCase ):
         ceBulk = BulkCrystal( "fcc", 4.05, [4,4,4], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, reconf_db=False)
         calc = CE( ceBulk, eci )
         calc.eci = {key:0.0 for key in calc.cf}
+        eci = calc.eci
         n_tests = 10
         for i in range(n_tests):
             updated_cf = calc.update_cf( i+1, "Al", "Mg" )
