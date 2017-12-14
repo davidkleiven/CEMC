@@ -5,6 +5,8 @@ from __future__ import division
 import numpy as np
 import ase.units as units
 from wanglandau import ce_calculator
+import time
+import logging
 #from ase.io.trajectory import Trajectory
 
 
@@ -34,7 +36,25 @@ class Montecarlo:
                             # similar to the ones used in the optimization routines
 
         self.current_step = 0
+        self.status_every_sec = 60
+        self.atoms_indx = {}
+        self.symbols = []
+        self.build_atoms_list()
+        print (self.symbols)
+        print (self.atoms_indx)
 
+
+    def build_atoms_list( self ):
+        """
+        Creates a dictionary of the indices of each atom which is used to
+        make sure that two equal atoms cannot be swapped
+        """
+        for atom in self.atoms:
+            if ( not atom.symbol in self.atoms_indx.keys() ):
+                self.atoms_indx[atom.symbol] = [atom.index]
+            else:
+                self.atoms_indx[atom.symbol].append(atom.index)
+        self.symbols = self.atoms_indx.keys()
 
     def attach( self, obs, interval=1 ):
         """
@@ -59,26 +79,39 @@ class Montecarlo:
 
         totalenergies = []
         totalenergies.append(self.current_energy)
+        start = time.time()
+        prev = 0
         for step in range(steps):
             en, accept = self._mc_step( verbose=verbose )
-            if ( verbose ):
-                print(accept)
             totalenergies.append(en)
+
+            if ( time.time()-start > self.status_every_sec ):
+                print ("%d of %d steps. %.2f ms per step"%(step,steps,1000.0*self.status_every_sec/float(step-prev)))
+                prev = step
+                start = time.time()
 
         return totalenergies
 
 
     def _mc_step(self, verbose = False ):
-        """ Make one Monte Carlo step by swithing two atoms """
+        """
+        Make one Monte Carlo step by swithing two atoms
+        """
         number_of_atoms = len(self.atoms)
 
         rand_a = self.indeces[np.random.randint(0,len(self.indeces))]
         rand_b = self.indeces[np.random.randint(0,len(self.indeces))]
-        # At the moment rand_a and rand_b could be the same atom
+        symb_a = self.symbols[np.random.randint(0,len(self.symbols))]
+        symb_b = symb_a
+        while ( symb_b == symb_a ):
+            symb_b = self.symbols[np.random.randint(0,len(self.symbols))]
 
-#        rand_b = np.random.randint(0,number_of_atoms)
-        #while (rand_a == rand_b):
-        #    rand_b = np.random.randint(0,number_of_atoms)
+        Na = len(self.atoms_indx[symb_a])
+        Nb = len(self.atoms_indx[symb_b])
+        selected_a = np.random.randint(0,Na)
+        selected_b = np.random.randint(0,Nb)
+        rand_a = self.atoms_indx[symb_a][selected_a]
+        rand_b = self.atoms_indx[symb_b][selected_b]
 
         # TODO: The MC calculator should be able to have constraints on which
         # moves are allowed. CE requires this some elements are only allowed to
@@ -88,7 +121,7 @@ class Montecarlo:
         self.atoms[rand_a].symbol = symb_b
         self.atoms[rand_b].symbol = symb_a
         system_changes = [(rand_a,symb_a,symb_b),(rand_b,symb_b,symb_a)]
-        new_energy = self.atoms.calculate( self.atoms, ["energy"], system_changes )
+        new_energy = self.atoms._calc.calculate( self.atoms, ["energy"], system_changes )
         if ( verbose ):
             print(new_energy,self.current_energy)
 
@@ -106,6 +139,7 @@ class Montecarlo:
             else:
                 # Reset the sytem back to original
                 self.atoms[rand_a].symbol,self.atoms[rand_b].symbol = self.atoms[rand_b].symbol,self.atoms[rand_a].symbol
+                accept = False
 
         for entry in self.observers:
             interval = entry[0]
@@ -116,7 +150,14 @@ class Montecarlo:
                 else:
                     obs(rand_a,rand_a)
 
-        if ( isinstance(self.atoms._calc,ce_calculator.CE) ):
+        if ( accept ):
+            # Update the atom_indices
+            self.atoms_indx[symb_a][selected_a] = rand_b
+            self.atoms_indx[symb_b][selected_b] = rand_a
+
+        # TODO: Wrap this functionality into a cleaning object
+        if ( not getattr(self.atoms._calc,"clear_history",None) is None and not getattr(self.atoms._calc,"undo_changes",None) is None ):
+            # The calculator is a CE calculator which support clear_history and undo_changes
             if ( accept ):
                 self.atoms._calc.clear_history()
             else:
