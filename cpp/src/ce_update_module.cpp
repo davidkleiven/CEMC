@@ -17,7 +17,7 @@ static PyObject *get_updater( PyObject *self, PyObject *args )
     PyErr_SetString( PyExc_TypeError, "Could not parse the supplied arguments!" );
     return NULL;
   }
-  return NULL;
+  PyObject *corr_func_tracker = CEUpdater
 }
 
 static PyMethodDef ce_update_module_methods[] = {
