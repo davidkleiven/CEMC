@@ -28,7 +28,7 @@ public:
   double get_energy() const;
 
   /** Updates the CF */
-  void update_cf( PyObject *system_chagnes );
+  void update_cf( unsigned int indx, const std::string& old_symb, const std::string& new_symb );
 
   /** Computes the spin product for one element */
   double spin_product_one_atom( unsigned int ref_indx, const std::vector< std::vector<int> > &indx_list, const std::vector<int> &dec );

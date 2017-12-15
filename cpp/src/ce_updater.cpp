@@ -167,3 +167,8 @@ double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const vector< ve
   }
   return sp;
 }
+
+void CEUpdater::update_cf( unsigned int indx, const string& old_symb, const string& new_symb )
+{
+  
+}
