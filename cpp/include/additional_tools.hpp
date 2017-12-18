@@ -1,5 +1,6 @@
 #ifndef ADDITIONAL_TOOLS_H
 #define ADDITIONAL_TOOLS_H
+#include <vector>
 
 namespace additional_tools
 {

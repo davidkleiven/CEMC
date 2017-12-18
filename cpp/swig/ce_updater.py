@@ -105,16 +105,22 @@ Status_t_READY = _ce_updater.Status_t_READY
 
 _ce_updater.Status_t_INIT_FAILED_swigconstant(_ce_updater)
 Status_t_INIT_FAILED = _ce_updater.Status_t_INIT_FAILED
+
+_ce_updater.Status_t_NOT_INITIALIZED_swigconstant(_ce_updater)
+Status_t_NOT_INITIALIZED = _ce_updater.Status_t_NOT_INITIALIZED
 class CEUpdater(object):
     thisown = _swig_property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc='The membership flag')
     __repr__ = _swig_repr
 
-    def __init__(self, BC, corrFunc, ecis):
-        this = _ce_updater.new_CEUpdater(BC, corrFunc, ecis)
+    def __init__(self):
+        this = _ce_updater.new_CEUpdater()
         try:
             self.this.append(this)
         except Exception:
             self.this = this
+
+    def init(self, BC, corrFunc, ecis):
+        return _ce_updater.CEUpdater_init(self, BC, corrFunc, ecis)
 
     def ok(self):
         return _ce_updater.CEUpdater_ok(self)
@@ -122,11 +128,20 @@ class CEUpdater(object):
     def get_energy(self):
         return _ce_updater.CEUpdater_get_energy(self)
 
-    def update_cf(self, system_chagnes):
-        return _ce_updater.CEUpdater_update_cf(self, system_chagnes)
+    def update_cf(self, single_change):
+        return _ce_updater.CEUpdater_update_cf(self, single_change)
 
     def spin_product_one_atom(self, ref_indx, indx_list, dec):
         return _ce_updater.CEUpdater_spin_product_one_atom(self, ref_indx, indx_list, dec)
+
+    def calculate(self, system_changes):
+        return _ce_updater.CEUpdater_calculate(self, system_changes)
+
+    def undo_changes(self):
+        return _ce_updater.CEUpdater_undo_changes(self)
+
+    def clear_history(self):
+        return _ce_updater.CEUpdater_clear_history(self)
     __swig_destroy__ = _ce_updater.delete_CEUpdater
     __del__ = lambda self: None
 CEUpdater_swigregister = _ce_updater.CEUpdater_swigregister

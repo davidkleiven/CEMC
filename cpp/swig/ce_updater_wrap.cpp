@@ -3013,7 +3013,7 @@ SWIG_Python_NonDynamicSetAttr(PyObject *obj, PyObject *name, PyObject *value) {
 #define SWIGTYPE_p_std__vectorT_std__mapT_std__string_double_t_t swig_types[4]
 #define SWIGTYPE_p_std__vectorT_std__vectorT_int_t_t swig_types[5]
 #define SWIGTYPE_p_std__vectorT_std__vectorT_std__string_t_t swig_types[6]
-#define SWIGTYPE_p_std__vectorT_std__vectorT_std__vectorT_int_t_t_t swig_types[7]
+#define SWIGTYPE_p_std__vectorT_std__vectorT_std__vectorT_std__vectorT_int_t_t_t_t swig_types[7]
 static swig_type_info *swig_types[9];
 static swig_module_info swig_module = {swig_types, 8, 0, 0, 0, 0};
 #define SWIG_TypeQuery(name) SWIG_TypeQueryModule(&swig_module, &swig_module, name)
@@ -3326,22 +3326,54 @@ SWIGINTERN PyObject *Status_t_INIT_FAILED_swigconstant(PyObject *SWIGUNUSEDPARM(
 }
 
 
+SWIGINTERN PyObject *Status_t_NOT_INITIALIZED_swigconstant(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *module;
+  PyObject *d;
+  if (!PyArg_UnpackTuple(args,(char*)"swigconstant", 1, 1,&module)) return NULL;
+  d = PyModule_GetDict(module);
+  if (!d) return NULL;
+  SWIG_Python_SetConstant(d, "Status_t_NOT_INITIALIZED",SWIG_From_int(static_cast< int >(Status_t::NOT_INITIALIZED)));
+  return SWIG_Py_Void();
+}
+
+
 SWIGINTERN PyObject *_wrap_new_CEUpdater(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
-  PyObject *arg1 = (PyObject *) 0 ;
+  CEUpdater *result = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"new_CEUpdater",0,0)) SWIG_fail;
+  result = (CEUpdater *)new CEUpdater();
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_CEUpdater, SWIG_POINTER_NEW |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CEUpdater_init(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CEUpdater *arg1 = (CEUpdater *) 0 ;
   PyObject *arg2 = (PyObject *) 0 ;
   PyObject *arg3 = (PyObject *) 0 ;
+  PyObject *arg4 = (PyObject *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
   PyObject * obj0 = 0 ;
   PyObject * obj1 = 0 ;
   PyObject * obj2 = 0 ;
-  CEUpdater *result = 0 ;
+  PyObject * obj3 = 0 ;
   
-  if(!PyArg_UnpackTuple(args,(char *)"new_CEUpdater",3,3,&obj0,&obj1,&obj2)) SWIG_fail;
-  arg1 = obj0;
+  if(!PyArg_UnpackTuple(args,(char *)"CEUpdater_init",4,4,&obj0,&obj1,&obj2,&obj3)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CEUpdater, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CEUpdater_init" "', argument " "1"" of type '" "CEUpdater *""'"); 
+  }
+  arg1 = reinterpret_cast< CEUpdater * >(argp1);
   arg2 = obj1;
   arg3 = obj2;
-  result = (CEUpdater *)new CEUpdater(arg1,arg2,arg3);
-  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_CEUpdater, SWIG_POINTER_NEW |  0 );
+  arg4 = obj3;
+  (arg1)->init(arg2,arg3,arg4);
+  resultobj = SWIG_Py_Void();
   return resultobj;
 fail:
   return NULL;
@@ -3381,10 +3413,10 @@ SWIGINTERN PyObject *_wrap_CEUpdater_get_energy(PyObject *SWIGUNUSEDPARM(self), 
   if(!PyArg_UnpackTuple(args,(char *)"CEUpdater_get_energy",1,1,&obj0)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CEUpdater, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CEUpdater_get_energy" "', argument " "1"" of type '" "CEUpdater const *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CEUpdater_get_energy" "', argument " "1"" of type '" "CEUpdater *""'"); 
   }
   arg1 = reinterpret_cast< CEUpdater * >(argp1);
-  result = (double)((CEUpdater const *)arg1)->get_energy();
+  result = (double)(arg1)->get_energy();
   resultobj = SWIG_From_double(static_cast< double >(result));
   return resultobj;
 fail:
@@ -3471,6 +3503,73 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_CEUpdater_calculate(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CEUpdater *arg1 = (CEUpdater *) 0 ;
+  PyObject *arg2 = (PyObject *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  double result;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"CEUpdater_calculate",2,2,&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CEUpdater, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CEUpdater_calculate" "', argument " "1"" of type '" "CEUpdater *""'"); 
+  }
+  arg1 = reinterpret_cast< CEUpdater * >(argp1);
+  arg2 = obj1;
+  result = (double)(arg1)->calculate(arg2);
+  resultobj = SWIG_From_double(static_cast< double >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CEUpdater_undo_changes(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CEUpdater *arg1 = (CEUpdater *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"CEUpdater_undo_changes",1,1,&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CEUpdater, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CEUpdater_undo_changes" "', argument " "1"" of type '" "CEUpdater *""'"); 
+  }
+  arg1 = reinterpret_cast< CEUpdater * >(argp1);
+  (arg1)->undo_changes();
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CEUpdater_clear_history(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CEUpdater *arg1 = (CEUpdater *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"CEUpdater_clear_history",1,1,&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CEUpdater, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CEUpdater_clear_history" "', argument " "1"" of type '" "CEUpdater *""'"); 
+  }
+  arg1 = reinterpret_cast< CEUpdater * >(argp1);
+  (arg1)->clear_history();
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_delete_CEUpdater(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   CEUpdater *arg1 = (CEUpdater *) 0 ;
@@ -3503,11 +3602,16 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"SWIG_PyInstanceMethod_New", (PyCFunction)SWIG_PyInstanceMethod_New, METH_O, NULL},
 	 { (char *)"Status_t_READY_swigconstant", Status_t_READY_swigconstant, METH_VARARGS, NULL},
 	 { (char *)"Status_t_INIT_FAILED_swigconstant", Status_t_INIT_FAILED_swigconstant, METH_VARARGS, NULL},
+	 { (char *)"Status_t_NOT_INITIALIZED_swigconstant", Status_t_NOT_INITIALIZED_swigconstant, METH_VARARGS, NULL},
 	 { (char *)"new_CEUpdater", _wrap_new_CEUpdater, METH_VARARGS, NULL},
+	 { (char *)"CEUpdater_init", _wrap_CEUpdater_init, METH_VARARGS, NULL},
 	 { (char *)"CEUpdater_ok", _wrap_CEUpdater_ok, METH_VARARGS, NULL},
 	 { (char *)"CEUpdater_get_energy", _wrap_CEUpdater_get_energy, METH_VARARGS, NULL},
 	 { (char *)"CEUpdater_update_cf", _wrap_CEUpdater_update_cf, METH_VARARGS, NULL},
 	 { (char *)"CEUpdater_spin_product_one_atom", _wrap_CEUpdater_spin_product_one_atom, METH_VARARGS, NULL},
+	 { (char *)"CEUpdater_calculate", _wrap_CEUpdater_calculate, METH_VARARGS, NULL},
+	 { (char *)"CEUpdater_undo_changes", _wrap_CEUpdater_undo_changes, METH_VARARGS, NULL},
+	 { (char *)"CEUpdater_clear_history", _wrap_CEUpdater_clear_history, METH_VARARGS, NULL},
 	 { (char *)"delete_CEUpdater", _wrap_delete_CEUpdater, METH_VARARGS, NULL},
 	 { (char *)"CEUpdater_swigregister", CEUpdater_swigregister, METH_VARARGS, NULL},
 	 { NULL, NULL, 0, NULL }
@@ -3523,7 +3627,7 @@ static swig_type_info _swigt__p_std__vectorT_int_t = {"_p_std__vectorT_int_t", "
 static swig_type_info _swigt__p_std__vectorT_std__mapT_std__string_double_t_t = {"_p_std__vectorT_std__mapT_std__string_double_t_t", "std::vector< std::map< std::string,double > > *|bf_list *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__vectorT_std__vectorT_int_t_t = {"_p_std__vectorT_std__vectorT_int_t_t", "std::vector< std::vector< int > > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__vectorT_std__vectorT_std__string_t_t = {"_p_std__vectorT_std__vectorT_std__string_t_t", "std::vector< std::vector< std::string > > *|name_list *", 0, 0, (void*)0, 0};
-static swig_type_info _swigt__p_std__vectorT_std__vectorT_std__vectorT_int_t_t_t = {"_p_std__vectorT_std__vectorT_std__vectorT_int_t_t_t", "std::vector< std::vector< std::vector< int > > > *|cluster_list *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_std__vectorT_std__vectorT_std__vectorT_std__vectorT_int_t_t_t_t = {"_p_std__vectorT_std__vectorT_std__vectorT_std__vectorT_int_t_t_t_t", "std::vector< std::vector< std::vector< std::vector< int > > > > *|cluster_list *", 0, 0, (void*)0, 0};
 
 static swig_type_info *swig_type_initial[] = {
   &_swigt__p_CEUpdater,
@@ -3533,7 +3637,7 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_std__vectorT_std__mapT_std__string_double_t_t,
   &_swigt__p_std__vectorT_std__vectorT_int_t_t,
   &_swigt__p_std__vectorT_std__vectorT_std__string_t_t,
-  &_swigt__p_std__vectorT_std__vectorT_std__vectorT_int_t_t_t,
+  &_swigt__p_std__vectorT_std__vectorT_std__vectorT_std__vectorT_int_t_t_t_t,
 };
 
 static swig_cast_info _swigc__p_CEUpdater[] = {  {&_swigt__p_CEUpdater, 0, 0, 0},{0, 0, 0, 0}};
@@ -3543,7 +3647,7 @@ static swig_cast_info _swigc__p_std__vectorT_int_t[] = {  {&_swigt__p_std__vecto
 static swig_cast_info _swigc__p_std__vectorT_std__mapT_std__string_double_t_t[] = {  {&_swigt__p_std__vectorT_std__mapT_std__string_double_t_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__vectorT_std__vectorT_int_t_t[] = {  {&_swigt__p_std__vectorT_std__vectorT_int_t_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__vectorT_std__vectorT_std__string_t_t[] = {  {&_swigt__p_std__vectorT_std__vectorT_std__string_t_t, 0, 0, 0},{0, 0, 0, 0}};
-static swig_cast_info _swigc__p_std__vectorT_std__vectorT_std__vectorT_int_t_t_t[] = {  {&_swigt__p_std__vectorT_std__vectorT_std__vectorT_int_t_t_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_std__vectorT_std__vectorT_std__vectorT_std__vectorT_int_t_t_t_t[] = {  {&_swigt__p_std__vectorT_std__vectorT_std__vectorT_std__vectorT_int_t_t_t_t, 0, 0, 0},{0, 0, 0, 0}};
 
 static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_CEUpdater,
@@ -3553,7 +3657,7 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_std__vectorT_std__mapT_std__string_double_t_t,
   _swigc__p_std__vectorT_std__vectorT_int_t_t,
   _swigc__p_std__vectorT_std__vectorT_std__string_t_t,
-  _swigc__p_std__vectorT_std__vectorT_std__vectorT_int_t_t_t,
+  _swigc__p_std__vectorT_std__vectorT_std__vectorT_std__vectorT_int_t_t_t_t,
 };
 
 
