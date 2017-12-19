@@ -20,9 +20,10 @@ class CEUpdater
 {
 public:
   CEUpdater();
+  ~CEUpdater();
 
   /** Initialize the object */
-  void init( PyObject *BC, PyObject *corrFunc, PyObject *ecis );
+  void init( PyObject *BC, PyObject *corrFunc, PyObject *ecis, PyObject *permutations );
 
   /** Returns True if the initialization process was successfull */
   bool ok() const { return status == Status_t::READY; };
@@ -47,9 +48,15 @@ public:
 
   /** Clears the history */
   void clear_history();
+
+  /** Populates the given vector with all the cluster names */
+  void flattened_cluster_names( std::vector<std::string> &flattened );
+
+  /** Returns the correlaation functions as a dictionary */
+  PyObject* get_cf();
 private:
   void create_ctype_lookup();
-  void create_permutations();
+  void create_permutations( PyObject *pypermutations );
 
   std::vector<std::string> symbols;
   name_list cluster_names;
@@ -59,7 +66,8 @@ private:
   Matrix<int> trans_matrix;
   std::map<std::string,int> ctype_lookup;
   std::map<std::string,double> ecis;
-  CFHistoryTracker history;
+  CFHistoryTracker *history{nullptr};
   std::map< int, std::vector< std::vector<int> > > permutations;
+  PyObject *atoms{nullptr};
 };
 #endif

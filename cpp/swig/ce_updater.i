@@ -4,3 +4,4 @@
 %}
 %include "ce_updater.hpp"
 %include "matrix.hpp"
+%include "cf_history_tracker.hpp"

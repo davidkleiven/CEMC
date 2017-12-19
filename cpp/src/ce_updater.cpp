@@ -8,15 +8,19 @@
 using namespace std;
 
 CEUpdater::CEUpdater(){};
+CEUpdater::~CEUpdater()
+{
+  delete history;
+}
 
-void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci )
+void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObject *perms )
 {
   import_array();
   #ifdef CE_DEBUG
     cerr << "Getting symbols from BC object\n";
   #endif
   // Initialize the symbols
-  PyObject *atoms = PyObject_GetAttrString( BC, "atoms" );
+  atoms = PyObject_GetAttrString( BC, "atoms" );
   if ( atoms == NULL )
   {
     status = Status_t::INIT_FAILED;
@@ -26,7 +30,9 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci )
   unsigned int n_atoms = PyObject_Length( atoms );
   for ( unsigned int i=0;i<n_atoms;i++ )
   {
-    PyObject *atom = PyObject_GetItem(atoms,PyInt_FromLong(i));
+    PyObject *pyindx = PyInt_FromLong(i);
+    PyObject *atom = PyObject_GetItem(atoms,pyindx);
+    Py_DECREF(pyindx);
     symbols.push_back( PyString_AsString( PyObject_GetAttrString(atom,"symbol")) );
   }
 
@@ -147,7 +153,7 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci )
   }
 
   #ifdef CE_DEBUG
-    cerr << "Reading translation matrix from BC";
+    cerr << "Reading translation matrix from BC\n";
   #endif
   PyObject* trans_mat_orig = PyObject_GetAttrString(BC,"trans_matrix");
   if ( trans_mat_orig == NULL )
@@ -177,11 +183,19 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci )
   #ifdef CE_DEBUG
     cerr << "Parsing correlation function\n";
   #endif
-  history.insert( corrFunc, nullptr );
+
+  vector<string> flattened_cnames;
+  flattened_cluster_names(flattened_cnames);
+  history = new CFHistoryTracker(flattened_cnames);
+  history->insert( corrFunc, nullptr );
   create_ctype_lookup();
-  create_permutations();
+  create_permutations( perms );
 
   status = Status_t::READY;
+  clear_history();
+  #ifdef CE_DEBUG
+    cout << "CEUpdater initialized sucessfully!\n";
+  #endif
 }
 
 void CEUpdater::create_ctype_lookup()
@@ -195,72 +209,45 @@ void CEUpdater::create_ctype_lookup()
   }
 }
 
-void CEUpdater::create_permutations()
+void CEUpdater::create_permutations( PyObject *perms)
 {
-  #ifdef CE_DEBUG
-    cerr << "Creating lookup for basis function permutations\n";
-  #endif
-  PyObject* module_name = PyString_FromString("itertools");
-  PyObject* itertools = PyImport_Import(module_name);
-  PyObject* product = PyObject_GetAttrString(itertools,"product");
-
-  PyObject* bf_indx = PyList_New(basis_functions.size());
-  for ( unsigned int i=0;i<basis_functions.size();i++ )
+  Py_ssize_t pos = 0;
+  PyObject *key;
+  PyObject *value;
+  while ( PyDict_Next(perms, &pos, &key, &value) )
   {
-    PyList_SetItem( bf_indx, i, PyInt_FromLong(i) );
-  }
-
-  PyObject *keywords = PyDict_New();
-  PyObject* args = PyTuple_New(1);
-  PyTuple_SetItem( args, 0, bf_indx );
-  PyObject* prms;
-  for ( unsigned int i=2;i<4;i++ )
-  {
-    PyDict_SetItemString( keywords, "repeat", PyInt_FromLong(i) );
-    PyObject* result = PyObject_Call( product, args, keywords );
-    PyArg_ParseTuple(result,"O",&prms);
-    cerr << "here\n";
-    int size = PyList_Size(prms);
-    cerr << size << endl;
     vector< vector<int> > new_vec;
-    for ( int j=0;j<size;j++ )
+    int size = PyList_Size(value);
+    for ( int i=0;i<size;i++ )
     {
-      vector<int> subvec;
-      PyObject* current_perm = PyList_GetItem(prms,j);
-      int sub_size = PyList_Size(current_perm);
-      for ( int k=0;k<sub_size;k++ )
+      vector<int> one_perm;
+      PyObject *cur = PyList_GetItem(value,i);
+      int n_entries = PyTuple_Size(cur);
+      for ( int j=0;j<n_entries;j++ )
       {
-        subvec.push_back( PyInt_AsLong(PyList_GetItem(current_perm,k)) );
+        one_perm.push_back( PyInt_AsLong(PyTuple_GetItem(cur,j) ) );
       }
-      new_vec.push_back(subvec);
+      new_vec.push_back(one_perm);
     }
-    permutations[i] = new_vec;
-    Py_DECREF(args);
-    Py_DECREF(keywords);
+    permutations[PyInt_AsLong(key)] = new_vec;
   }
-
-  #ifdef CE_DEBUG
-    cerr << "Basis function permutations finished\n";
-  #endif
 }
 
 double CEUpdater::get_energy()
 {
   double energy = 0.0;
-  cf& next_cf = history.get_current();
+  cf& corr_func = history->get_current();
   for ( auto iter=ecis.begin(); iter != ecis.end(); ++iter )
   {
-    energy += next_cf[iter->first]*iter->second;
+    energy += corr_func[iter->first]*iter->second;
   }
-  return energy;
+  return energy*symbols.size();
 }
 
 double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const vector< vector<int> > &indx_list, const vector<int> &dec )
 {
-  cerr << "spin_prod\n";
   unsigned int num_indx = indx_list.size();
   double sp = 0.0;
-  cerr << "Cluster index list size: " << indx_list.size() << endl;
   for ( unsigned int i=0;i<num_indx;i++ )
   {
     double sp_temp = 1.0;
@@ -268,7 +255,6 @@ double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const vector< ve
     for ( unsigned int j=0;j<n_memb;j++ )
     {
       unsigned int trans_indx = trans_matrix( ref_indx,indx_list[i][j] );
-      cerr << trans_indx << endl;
       sp_temp *= basis_functions[dec[j+1]][symbols[trans_indx]];
     }
     sp += sp_temp;
@@ -278,24 +264,24 @@ double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const vector< ve
 
 void CEUpdater::update_cf( PyObject *single_change )
 {
+  cf &current_cf = history->get_current();
   cf *next_cf_ptr=nullptr;
-  PyObject *next_change=nullptr;
-  history.get_next( next_cf_ptr, next_change );
+  SymbolChange *symb_change;
+  history->get_next( &next_cf_ptr, &symb_change );
   cf &next_cf = *next_cf_ptr;
-  next_change = single_change;
-  int indx;
-  string new_symb;
-  indx = PyInt_AsLong( PyTuple_GetItem(single_change,0) );
-  new_symb = PyString_AsString( PyTuple_GetItem(single_change,2) );
-  string old_symb = symbols[indx];
-  cerr << indx << " " << old_symb << " " << new_symb << endl;
 
-  if ( old_symb == new_symb )
+  symb_change->indx = PyInt_AsLong( PyTuple_GetItem(single_change,0) );
+  symb_change->old_symb = PyString_AsString( PyTuple_GetItem(single_change,1) );
+  symb_change->new_symb = PyString_AsString( PyTuple_GetItem(single_change,2) );
+  if ( symb_change->old_symb == symb_change->new_symb )
   {
     return;
   }
 
-  symbols[indx] = new_symb;
+  symbols[symb_change->indx] = symb_change->new_symb;
+  PyObject *symb_str = PyString_FromString(symb_change->new_symb.c_str());
+  PyObject_SetAttrString( PyObject_GetItem(atoms,PyInt_FromLong(symb_change->indx) ), "symbol", symb_str );
+  Py_DECREF(symb_str);
   for ( auto iter=ecis.begin(); iter != ecis.end(); ++iter )
   {
     const string &name = iter->first;
@@ -303,10 +289,11 @@ void CEUpdater::update_cf( PyObject *single_change )
     {
       continue;
     }
-    int dec = static_cast<int>( name.back() )-1;
+    string dec_str = name.substr(name.size()-1,1);
+    int dec = atoi(dec_str.c_str())-1;
     if ( name.find("c1") == 0 )
     {
-      next_cf[name] += (basis_functions[dec][new_symb] - basis_functions[dec][old_symb]);
+      next_cf[name] = current_cf[name] + (basis_functions[dec][symb_change->new_symb] - basis_functions[dec][symb_change->old_symb]);
       continue;
     }
 
@@ -316,27 +303,37 @@ void CEUpdater::update_cf( PyObject *single_change )
     int size = atoi(size_str.c_str());
     int ctype = ctype_lookup[prefix];
     double normalization = cluster_indx[size][ctype].size()*symbols.size();
-    cerr << prefix << " " << prefix[1] << " " << size << " " << ctype << " " << cluster_indx[size].size() << endl;
-    double sp = spin_product_one_atom( indx, cluster_indx[size][ctype], permutations[size][dec] );
+    double sp = spin_product_one_atom( symb_change->indx, cluster_indx[size][ctype], permutations[size][dec] );
     int bf_ref = permutations[size][dec][0];
-    sp *= size*( basis_functions[bf_ref][new_symb] - basis_functions[bf_ref][old_symb] );
-    cerr << "New spin: " << sp << endl;
+    sp *= size*( basis_functions[bf_ref][symb_change->new_symb] - basis_functions[bf_ref][symb_change->old_symb] );
     sp /= normalization;
-    next_cf[name] += sp;
+    next_cf[name] = current_cf[name] + sp;
   }
 }
 
 void CEUpdater::undo_changes()
 {
-  unsigned int buf_size = history.history_size();
-  PyObject *last_changes;
-  for ( unsigned int i=0;i<buf_size;i++ )
+  unsigned int buf_size = history->history_size();
+  SymbolChange *last_changes;
+  //cout << "======================\n";
+  //cout << get_energy() << " " << history->get_current_active_positions() << endl;
+  for ( unsigned int i=0;i<buf_size-1;i++ )
   {
-    history.pop( last_changes );
-    int indx = PyInt_AsLong( PyList_GetItem(last_changes,0) );
-    string old_symb = PyString_AsString( PyList_GetItem(last_changes,1) );
-    symbols[indx] = old_symb;
+    history->pop( &last_changes );
+    //cout <<"Undo changing " << last_changes->indx << " from " << symbols[last_changes->indx] << " to " << last_changes->old_symb << endl;
+    symbols[last_changes->indx] = last_changes->old_symb;
+
+    PyObject *old_symb_str = PyString_FromString(last_changes->old_symb.c_str());
+    PyObject *pyindx = PyInt_FromLong(last_changes->indx);
+    PyObject_SetAttrString( PyObject_GetItem(atoms, pyindx), "symbol", old_symb_str );
+
+    // Remove temporary objects
+    Py_DECREF(old_symb_str);
+    Py_DECREF(pyindx);
   }
+  //cout << history->get_current() << endl;
+  //cout << get_energy() << " " << history->get_current_active_positions() << endl;
+  //cout << "========================\n";
 }
 
 double CEUpdater::calculate( PyObject *system_changes )
@@ -351,5 +348,27 @@ double CEUpdater::calculate( PyObject *system_changes )
 
 void CEUpdater::clear_history()
 {
-  history.clear();
+  history->clear();
+}
+
+void CEUpdater::flattened_cluster_names( vector<string> &flattened )
+{
+  for ( auto iter=ecis.begin(); iter != ecis.end(); ++iter )
+  {
+    flattened.push_back( iter->first );
+  }
+}
+
+PyObject* CEUpdater::get_cf()
+{
+  PyObject* cf_dict = PyDict_New();
+  cf& corrfunc = history->get_current();
+
+  for ( auto iter=corrfunc.begin(); iter != corrfunc.end(); ++iter )
+  {
+    PyObject *pyvalue =  PyFloat_FromDouble(iter->second);
+    PyDict_SetItemString( cf_dict, iter->first.c_str(), pyvalue );
+    Py_DECREF(pyvalue);
+  }
+  return cf_dict;
 }

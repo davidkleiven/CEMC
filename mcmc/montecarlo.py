@@ -118,9 +118,8 @@ class Montecarlo:
         # occupy some sites
         symb_a = self.atoms[rand_a].symbol
         symb_b = self.atoms[rand_b].symbol
-        #self.atoms[rand_a].symbol = symb_b
-        #self.atoms[rand_b].symbol = symb_a
         system_changes = [(rand_a,symb_a,symb_b),(rand_b,symb_b,symb_a)]
+        #print (system_changes)
         new_energy = self.atoms._calc.calculate( self.atoms, ["energy"], system_changes )
 
         if ( verbose ):
@@ -143,13 +142,6 @@ class Montecarlo:
                 self.atoms[rand_b].symbol = symb_b
                 accept = False
 
-        if ( accept ):
-            # Update the atom_indices
-            self.atoms_indx[symb_a][selected_a] = rand_b
-            self.atoms_indx[symb_b][selected_b] = rand_a
-        else:
-            system_changes = [(rand_a,symb_a,symb_a),(rand_b,symb_b,symb_b)] # No changes to the system
-
         # TODO: Wrap this functionality into a cleaning object
         if ( hasattr(self.atoms._calc,"clear_history") and hasattr(self.atoms._calc,"undo_changes") ):
             # The calculator is a CE calculator which support clear_history and undo_changes
@@ -157,6 +149,13 @@ class Montecarlo:
                 self.atoms._calc.clear_history()
             else:
                 self.atoms._calc.undo_changes()
+                
+        if ( accept ):
+            # Update the atom_indices
+            self.atoms_indx[symb_a][selected_a] = rand_b
+            self.atoms_indx[symb_b][selected_b] = rand_a
+        else:
+            system_changes = [(rand_a,symb_a,symb_a),(rand_b,symb_b,symb_b)] # No changes to the system
 
         # Execute all observers
         for entry in self.observers:

@@ -45,7 +45,7 @@ def mcmc( ceBulk, c_mg ):
 
     n_mg = int( c_mg*len(ceBulk.atoms) )
     for i in range(n_mg):
-        ceBulk.atoms._calc.update_cf(i,"Al","Mg")
+        ceBulk.atoms._calc.update_cf( (i,"Al","Mg") )
     ceBulk.atoms._calc.clear_history()
     mc_obj = mc.Montecarlo( ceBulk.atoms, 2000.0 )
 
@@ -59,8 +59,9 @@ def mcmc( ceBulk, c_mg ):
 
     observer = mc_obs.CorrelationFunctionTracker( ceBulk.atoms._calc )
     mc_obj = mc.Montecarlo( ceBulk.atoms, 10.0 )
+    #mc_obj.T = 10.0
     mc_obj.attach( observer, interval=1 )
-    tot_en = mc_obj.runMC( steps=10000 )
+    tot_en = mc_obj.runMC( steps=100000 )
     view( ceBulk.atoms )
     observer.plot_history(max_size=3)
 
