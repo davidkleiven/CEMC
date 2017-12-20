@@ -315,8 +315,6 @@ void CEUpdater::undo_changes()
 {
   unsigned int buf_size = history->history_size();
   SymbolChange *last_changes;
-  //cout << "======================\n";
-  //cout << get_energy() << " " << history->get_current_active_positions() << endl;
   for ( unsigned int i=0;i<buf_size-1;i++ )
   {
     history->pop( &last_changes );
@@ -331,9 +329,6 @@ void CEUpdater::undo_changes()
     Py_DECREF(old_symb_str);
     Py_DECREF(pyindx);
   }
-  //cout << history->get_current() << endl;
-  //cout << get_energy() << " " << history->get_current_active_positions() << endl;
-  //cout << "========================\n";
 }
 
 double CEUpdater::calculate( PyObject *system_changes )
