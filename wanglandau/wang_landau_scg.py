@@ -597,7 +597,7 @@ class WangLandauSGC( object ):
         self.update_range()
         self.f = old_f
 
-        print ("Selected range: Emin: {}, Emax: {}".format(self.Emin,self.Emax))
+        self.logger.info("Selected range: Emin: {}, Emax: {}".format(self.Emin,self.Emax))
         # Clear the information
         self.histogram[:] = 0.0
         self.cummulated_variance[:] = 0.0
@@ -655,5 +655,3 @@ class WangLandauSGC( object ):
         ax.set_xlabel( "SGC energy (eV)" )
         ax.set_ylabel( "Growth fluctuation")
         return fig
-
-# Helper functions for numpy arrays to SQL database
