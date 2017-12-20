@@ -49,6 +49,7 @@ private:
   unsigned int current{0};
   unsigned int buffer_size{0};
 
+  /** Initialize all the keys */
   void init_all_keys( cf &entry, const std::vector<std::string> &cluster_names );
 };
 #endif

@@ -13,9 +13,11 @@ import copy
 import matplotlib as mpl
 mpl.rcParams["svg.fonttype"] = "none"
 from matplotlib import pyplot as plt
-import ce_updater as ce_updater
-
-use_cpp = True
+try:
+    import ce_updater as ce_updater
+    use_cpp = True
+except:
+    use_cpp = False
 class CE( Calculator ):
     """
     Class for updating the CE when symbols change
@@ -41,8 +43,10 @@ class CE( Calculator ):
         self.permutations = {}
         self.create_permutations()
         self.BC.trans_matrix = np.array(self.BC.trans_matrix).astype(np.int32)
-        self.updater = ce_updater.CEUpdater()
-        self.updater.init( self.BC, self.cf, self.eci, self.permutations )
+        self.updater = None
+        if ( use_cpp ):
+            self.updater = ce_updater.CEUpdater()
+            self.updater.init( self.BC, self.cf, self.eci, self.permutations )
 
         if ( not self.updater.ok() ):
             raise RuntimeError( "Could not initialize C++ CE updater" )

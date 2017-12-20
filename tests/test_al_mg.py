@@ -77,12 +77,12 @@ def main( run ):
     atoms = atoms*(4,4,4)
     atoms[0].symbol = "Mg"
 
-    db_name = "/home/davidkl/Documents/WangLandau/data/ce_hydrostatic.db"
+    db_name = "/home/davidkl/Documents/WangLandau/data/ce_hydrostatic_20x20.db"
     conc_args = {
         "conc_ratio_min_1":[[60,4]],
         "conc_ratio_max_1":[[64,0]],
     }
-    ceBulk = BulkCrystal( "fcc", 4.05, [7,7,7], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, reconf_db=False )
+    ceBulk = BulkCrystal( "fcc", 4.05, [4,4,4], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, reconf_db=False )
     init_cf = {key:1.0 for key in ecis.keys()}
 
     calc = CE( ceBulk, ecis, initial_cf=init_cf )
@@ -95,7 +95,7 @@ def main( run ):
         "Al":0.0,
         "Mg":0.0
         }
-        ecis["c1_1"] = 0.025# Change the single particle interaction term to mimic a chemical potential
+        ecis["c1_1"] = 0.025 # Change the single particle interaction term to mimic a chemical potential
         gs_finder = SimmualtedAnnealingSGC( ceBulk.atoms, chem_pot, "test_db.db" )
         gs_finder.run( n_steps=1000, Tmin=400, ntemps=10 )
         gs_finder.show_visit_stat()

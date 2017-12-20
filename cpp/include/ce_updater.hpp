@@ -37,7 +37,8 @@ public:
   /** Computes the spin product for one element */
   double spin_product_one_atom( unsigned int ref_indx, const std::vector< std::vector<int> > &indx_list, const std::vector<int> &dec );
 
-  /** Calculates the new energy given a set of system changes
+  /**
+  Calculates the new energy given a set of system changes
   the system changes is assumed to be a python-list of tuples of the form
   [(indx1,old_symb1,new_symb1),(indx2,old_symb2,new_symb2)...]
   */
@@ -52,7 +53,7 @@ public:
   /** Populates the given vector with all the cluster names */
   void flattened_cluster_names( std::vector<std::string> &flattened );
 
-  /** Returns the correlaation functions as a dictionary */
+  /** Returns the correlaation functions as a dictionary. Only the ones that corresponds to one of the ECIs */
   PyObject* get_cf();
 private:
   void create_ctype_lookup();
