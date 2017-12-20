@@ -1,6 +1,5 @@
 import sys
 sys.path.insert( 1, "/home/davidkl/Documents/aseJin")
-sys.path.append("/home/davidkl/Documents/WangLandau/cpp/swig")
 from ase.calculators.calculator import Calculator
 from ase.ce.corrFunc import CorrFunction
 from ase.ce.settings import BulkCrystal
@@ -14,7 +13,7 @@ import matplotlib as mpl
 mpl.rcParams["svg.fonttype"] = "none"
 from matplotlib import pyplot as plt
 try:
-    import ce_updater as ce_updater
+    from ce_updater import ce_updater as ce_updater
     use_cpp = True
 except:
     use_cpp = False
@@ -95,7 +94,6 @@ class CE( Calculator ):
         for num in range(2,len(self.BC.cluster_names)):
             perm = list(product(bf_list, repeat=num))
             self.permutations[num] = perm
-        print (self.permutations)
 
 
     def get_energy( self ):

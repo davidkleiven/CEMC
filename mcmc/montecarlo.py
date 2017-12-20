@@ -83,13 +83,12 @@ class Montecarlo:
         prev = 0
         for step in range(steps):
             en, accept = self._mc_step( verbose=verbose )
-            totalenergies.append(en)
+            #totalenergies.append(en)
 
             if ( time.time()-start > self.status_every_sec ):
                 print ("%d of %d steps. %.2f ms per step"%(step,steps,1000.0*self.status_every_sec/float(step-prev)))
                 prev = step
                 start = time.time()
-
         return totalenergies
 
 
@@ -149,7 +148,7 @@ class Montecarlo:
                 self.atoms._calc.clear_history()
             else:
                 self.atoms._calc.undo_changes()
-                
+
         if ( accept ):
             # Update the atom_indices
             self.atoms_indx[symb_a][selected_a] = rand_b

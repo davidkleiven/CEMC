@@ -1,10 +1,8 @@
 import sys
-sys.path.append( "/home/davidkl/Documents/WangLandau/wanglandau" )
-from simple_ce_calc import CEcalc
-from ce_calculator import CE
+from wanglandau.ce_calculator import CE
 from ase.build import bulk
 from ase.ce.settings import BulkCrystal
-from sa_sgc import SimmualtedAnnealingSGC
+from wanglandau.sa_sgc import SimmualtedAnnealingSGC
 from ase.visualize import view
 from matplotlib import pyplot as plt
 from mcmc import montecarlo as mc
@@ -51,17 +49,17 @@ def mcmc( ceBulk, c_mg ):
 
     # Run Monte Carlo
     obs_pre = mc_obs.CorrelationFunctionTracker( ceBulk.atoms._calc )
-    mc_obj.attach( obs_pre )
-    tot_en_1 = mc_obj.runMC( steps=1000 )
+    mc_obj.attach( obs_pre, interval=100 )
+    tot_en_1 = mc_obj.runMC( steps=1000000 )
     obs_pre.plot_history( max_size=3 )
     plt.show()
     view( ceBulk.atoms )
 
     observer = mc_obs.CorrelationFunctionTracker( ceBulk.atoms._calc )
-    mc_obj = mc.Montecarlo( ceBulk.atoms, 10.0 )
+    mc_obj = mc.Montecarlo( ceBulk.atoms, 250.0 )
     #mc_obj.T = 10.0
-    mc_obj.attach( observer, interval=1 )
-    tot_en = mc_obj.runMC( steps=100000 )
+    mc_obj.attach( observer, interval=1000 )
+    tot_en = mc_obj.runMC( steps=1000000 )
     view( ceBulk.atoms )
     observer.plot_history(max_size=3)
 
@@ -82,7 +80,7 @@ def main( run ):
         "conc_ratio_min_1":[[60,4]],
         "conc_ratio_max_1":[[64,0]],
     }
-    ceBulk = BulkCrystal( "fcc", 4.05, [4,4,4], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, reconf_db=False )
+    ceBulk = BulkCrystal( "fcc", 4.05, [20,20,20], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, max_cluster_dia=1.414*4.05,reconf_db=False )
     init_cf = {key:1.0 for key in ecis.keys()}
 
     calc = CE( ceBulk, ecis, initial_cf=init_cf )

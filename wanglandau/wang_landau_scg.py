@@ -20,7 +20,7 @@ import time
 class WangLandauSGC( object ):
     def __init__( self, db_name, db_id, site_types=None, site_elements=None, Nbins=100, initial_f=2.71,
     flatness_criteria=0.8, fmin=1E-6, Emin=0.0, Emax=1.0, conv_check="flathist", scheme="fixed_f", nsteps_per_update=10,
-    logfile="default.log" ):
+    logfile="default.log", ensemble="canonical" ):
         """
         Class for running Wang Landau Simulations in the Semi Grand Cannonical Ensemble
 
@@ -103,6 +103,10 @@ class WangLandauSGC( object ):
         self.rejected_below = 0
         self.rejected_above = 0
         self.is_first_step = True
+        all_ensambles = ["canonical","semi-grand-canonical"]
+        if ( not ensemble in all_ensambles ):
+            raise ValueError( "Ensemble has to one of {}".format(all_ensambles) )
+        self.ensemble = ensemble
 
         # Some variables used to monitor the progress
         self.prev_number_of_converged = 0
@@ -118,13 +122,14 @@ class WangLandauSGC( object ):
             raise ValueError( "A site type for each site has to be specified!" )
 
         if ( not len(self.site_elements) == np.max(self.site_types)+1 ):
-            raise ValueError( "Elements for each site type has to be specified!")
+            raise ValueError( "Elements for each site type has to be specified!" )
 
         # Check that a chemical potential have been given to all elements
-        for site_elem in self.site_elements:
-            for elem in site_elem:
-                if ( not elem in self.chem_pot.keys() ):
-                    raise ValueError("A chemical potential for {} was not specified".format(elem) )
+        if ( self.ensemble == "semi-grand-canonical" ):
+            for site_elem in self.site_elements:
+                for elem in site_elem:
+                    if ( not elem in self.chem_pot.keys() ):
+                        raise ValueError("A chemical potential for {} was not specified".format(elem) )
 
         self.logger.info( "Wang Landau class initialized" )
         current_time = time.localtime()
@@ -249,9 +254,9 @@ class WangLandauSGC( object ):
         """
         return self.Emin + (self.Emax-self.Emin )*indx/self.Nbins
 
-    def _step( self, ignore_out_of_range=True ):
+    def get_trial_move_sgc():
         """
-        Perform one MC step
+        Returns a trial move consitent with the Semi Grand Canonical ensemble
         """
         indx = np.random.randint(low=0,high=len(self.atoms))
         symb = self.atoms[indx].symbol
@@ -261,16 +266,47 @@ class WangLandauSGC( object ):
 
         # This is slow and should be optimized
         new_symbol = possible_elements[np.random.randint(low=0,high=len(possible_elements))]
-        system_changes = [(indx,new_symbol)]
-        self.atoms[indx].symbol = new_symbol
-        energy = self.atoms.get_potential_energy()
-        #self.calc.calculate( self.atoms, properties=["energy"], system_changes=system_changes )
-        chem_pot_change = self.chem_pot[symb]*(self.atoms_count[symb]-1) + self.chem_pot[new_symbol]*(self.atoms_count[new_symbol]+1)
-        #energy = self.calc.results["energy"]-chem_pot_change
-        #energy -= (self.chem_pot[new_symbol] - self.chem_pot[symb])
-        energy -= chem_pot_change
-        #selected_bin = self.get_bin(energy)
+        system_changes = [(indx,symb,new_symbol)]
+        return system_changes
 
+    def get_trial_move_canonical():
+        """
+        Returns a trial move consistent with the canonical ensemble
+        """
+        indx = np.random.randint(low=0,high=len(self.atoms))
+        symb = self.atoms[indx].symbol
+        site_type = self.site_types[indx]
+
+        trial_symb = symb
+        trial_site_type = -1
+        indx2 = -1
+        while ( trial_symb == symb or trial_site_type != site_type ):
+            indx2 = np.random.randint(low=0,high=len(self.atoms))
+            trial_symb = self.atoms[indx].symbol
+            trial_site_type = self.site_type[indx2]
+
+        system_changes = [(indx,symb,trial_symb),(indx2,trial_symb,symb)]
+        return system_changes
+
+    def _step( self, ignore_out_of_range=True ):
+        """
+        Perform one MC step
+        """
+        if ( ensemble == "semi-grand-canonical" ):
+            system_changes = self.get_trial_move_sgc()
+        elif ( ensemble == "canonical" ):
+            system_changes = self.get_trial_move_canonical()
+
+        self.atoms._calc.calculate( self.atoms, ["energy"], system_changes )
+        energy = self.atoms._calc.results["energy"]
+
+        if ( self.ensemble == "semi-grand-canonical" ):
+            symb = system_changes[0][1]
+            new_symbol = system_changes[0][2]
+            chem_pot_change = self.chem_pot[symb]*(self.atoms_count[symb]-1) + self.chem_pot[new_symbol]*(self.atoms_count[new_symbol]+1)
+            energy -= chem_pot_change
+
+        #selected_bin = self.get_bin(energy)
         # Important to Track these because when the histogram is redistributed
         # The rounding to integer values may result in an energy that has
         # been visited is set to zero.
@@ -284,19 +320,19 @@ class WangLandauSGC( object ):
         if ( energy < self.Emin ):
             if ( ignore_out_of_range ):
                 self.rejected_below += 1
-                self.atoms[indx].symbol = symb
+                self.atoms._calc.undo_changes()
                 return
             self.redistribute_hist(energy,self.Emax)
         elif ( energy >= self.Emax ):
             if ( ignore_out_of_range ):
                 self.rejected_above += 1
-                self.atoms[indx].symbol = symb
+                self.atoms._calc.undo_changes()
                 return
             self.redistribute_hist(self.Emin,energy)
 
         # Update the modification factor
         self.mod_factor_updater.update()
-        
+
         selected_bin = self.get_bin(energy)
         rand_num = np.random.rand()
         diff = self.entropy[self.current_bin]-self.entropy[selected_bin]
@@ -305,13 +341,14 @@ class WangLandauSGC( object ):
             self.has_found_at_least_one_structure_within_range = True
         else:
             accept_ratio = np.exp( self.entropy[self.current_bin]-self.entropy[selected_bin] )
+
         if ( rand_num < accept_ratio  ):
             self.current_bin = selected_bin
             self.atoms_count[symb] -= 1
             self.atoms_count[new_symbol] += 1
-            self.atoms[indx].symbol = new_symbol
+            self.atoms._calc.clear_history()
         else:
-            self.atoms[indx].symbol = symb
+            self.atoms._calc.undo_changes()
 
         if ( self.structures[self.current_bin] is None ):
             # Store the atoms if it has no structure in this bin from before
@@ -322,11 +359,6 @@ class WangLandauSGC( object ):
         self.cummulated_variance += (1.0/self.Nbins)**2
         self.cummulated_variance[self.current_bin] += (1.0 - 2.0/self.Nbins)
         self.iter += 1
-
-    def wl_update( self, selected_bin ):
-        """
-        Perform update for the Wang-Landau algorithm
-        """
 
     def is_flat( self ):
         """
@@ -583,8 +615,6 @@ class WangLandauSGC( object ):
             self._step( ignore_out_of_range=True )
             if ( i%low_struct == 0 and i > 0 ):
                 pass
-                #print ("Resetting to a low entropy structure")
-                #self.goto_lowest_entropy_structure()
 
             if ( i%self.check_convergence_every == 0 ):
                 if ( self.has_converged() ):

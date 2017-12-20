@@ -8,7 +8,7 @@ mpl.rcParams["svg.fonttype"] = "none"
 from matplotlib import pyplot as plt
 
 class SimmualtedAnnealingSGC( object ):
-    def __init__( self, atoms, chem_pot, db_name ):
+    def __init__( self, atoms, db_name, chem_pot=None ):
         """
         Class for finding the ground state in the SGC ensemble
         """
