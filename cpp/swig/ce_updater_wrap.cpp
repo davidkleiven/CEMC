@@ -3007,15 +3007,21 @@ SWIG_Python_NonDynamicSetAttr(PyObject *obj, PyObject *name, PyObject *value) {
 /* -------- TYPES TABLE (BEGIN) -------- */
 
 #define SWIGTYPE_p_CEUpdater swig_types[0]
-#define SWIGTYPE_p_char swig_types[1]
-#define SWIGTYPE_p_std__mapT_std__string_double_t swig_types[2]
-#define SWIGTYPE_p_std__vectorT_int_t swig_types[3]
-#define SWIGTYPE_p_std__vectorT_std__mapT_std__string_double_t_t swig_types[4]
-#define SWIGTYPE_p_std__vectorT_std__vectorT_int_t_t swig_types[5]
-#define SWIGTYPE_p_std__vectorT_std__vectorT_std__string_t_t swig_types[6]
-#define SWIGTYPE_p_std__vectorT_std__vectorT_std__vectorT_int_t_t_t swig_types[7]
-static swig_type_info *swig_types[9];
-static swig_module_info swig_module = {swig_types, 8, 0, 0, 0, 0};
+#define SWIGTYPE_p_CFHistoryTracker swig_types[1]
+#define SWIGTYPE_p_SymbolChange swig_types[2]
+#define SWIGTYPE_p_char swig_types[3]
+#define SWIGTYPE_p_p_SymbolChange swig_types[4]
+#define SWIGTYPE_p_p_std__mapT_std__string_double_t swig_types[5]
+#define SWIGTYPE_p_std__mapT_std__string_double_t swig_types[6]
+#define SWIGTYPE_p_std__string swig_types[7]
+#define SWIGTYPE_p_std__vectorT_int_t swig_types[8]
+#define SWIGTYPE_p_std__vectorT_std__mapT_std__string_double_t_t swig_types[9]
+#define SWIGTYPE_p_std__vectorT_std__string_t swig_types[10]
+#define SWIGTYPE_p_std__vectorT_std__vectorT_int_t_t swig_types[11]
+#define SWIGTYPE_p_std__vectorT_std__vectorT_std__string_t_t swig_types[12]
+#define SWIGTYPE_p_std__vectorT_std__vectorT_std__vectorT_std__vectorT_int_t_t_t_t swig_types[13]
+static swig_type_info *swig_types[15];
+static swig_module_info swig_module = {swig_types, 14, 0, 0, 0, 0};
 #define SWIG_TypeQuery(name) SWIG_TypeQueryModule(&swig_module, &swig_module, name)
 #define SWIG_MangledTypeQuery(name) SWIG_MangledTypeQueryModule(&swig_module, &swig_module, name)
 
@@ -3301,6 +3307,72 @@ SWIG_AsVal_unsigned_SS_int (PyObject * obj, unsigned int *val)
   return res;
 }
 
+
+SWIGINTERN int
+SWIG_AsVal_long (PyObject *obj, long* val)
+{
+#if PY_VERSION_HEX < 0x03000000
+  if (PyInt_Check(obj)) {
+    if (val) *val = PyInt_AsLong(obj);
+    return SWIG_OK;
+  } else
+#endif
+  if (PyLong_Check(obj)) {
+    long v = PyLong_AsLong(obj);
+    if (!PyErr_Occurred()) {
+      if (val) *val = v;
+      return SWIG_OK;
+    } else {
+      PyErr_Clear();
+      return SWIG_OverflowError;
+    }
+  }
+#ifdef SWIG_PYTHON_CAST_MODE
+  {
+    int dispatch = 0;
+    long v = PyInt_AsLong(obj);
+    if (!PyErr_Occurred()) {
+      if (val) *val = v;
+      return SWIG_AddCast(SWIG_OK);
+    } else {
+      PyErr_Clear();
+    }
+    if (!dispatch) {
+      double d;
+      int res = SWIG_AddCast(SWIG_AsVal_double (obj,&d));
+      if (SWIG_IsOK(res) && SWIG_CanCastAsInteger(&d, LONG_MIN, LONG_MAX)) {
+	if (val) *val = (long)(d);
+	return res;
+      }
+    }
+  }
+#endif
+  return SWIG_TypeError;
+}
+
+
+SWIGINTERN int
+SWIG_AsVal_int (PyObject * obj, int *val)
+{
+  long v;
+  int res = SWIG_AsVal_long (obj, &v);
+  if (SWIG_IsOK(res)) {
+    if ((v < INT_MIN || v > INT_MAX)) {
+      return SWIG_OverflowError;
+    } else {
+      if (val) *val = static_cast< int >(v);
+    }
+  }  
+  return res;
+}
+
+
+SWIGINTERNINLINE PyObject*
+  SWIG_From_unsigned_SS_int  (unsigned int value)
+{
+  return PyInt_FromSize_t((size_t) value);
+}
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -3326,22 +3398,78 @@ SWIGINTERN PyObject *Status_t_INIT_FAILED_swigconstant(PyObject *SWIGUNUSEDPARM(
 }
 
 
+SWIGINTERN PyObject *Status_t_NOT_INITIALIZED_swigconstant(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *module;
+  PyObject *d;
+  if (!PyArg_UnpackTuple(args,(char*)"swigconstant", 1, 1,&module)) return NULL;
+  d = PyModule_GetDict(module);
+  if (!d) return NULL;
+  SWIG_Python_SetConstant(d, "Status_t_NOT_INITIALIZED",SWIG_From_int(static_cast< int >(Status_t::NOT_INITIALIZED)));
+  return SWIG_Py_Void();
+}
+
+
 SWIGINTERN PyObject *_wrap_new_CEUpdater(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
-  PyObject *arg1 = (PyObject *) 0 ;
+  CEUpdater *result = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"new_CEUpdater",0,0)) SWIG_fail;
+  result = (CEUpdater *)new CEUpdater();
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_CEUpdater, SWIG_POINTER_NEW |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_delete_CEUpdater(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CEUpdater *arg1 = (CEUpdater *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"delete_CEUpdater",1,1,&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CEUpdater, SWIG_POINTER_DISOWN |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "delete_CEUpdater" "', argument " "1"" of type '" "CEUpdater *""'"); 
+  }
+  arg1 = reinterpret_cast< CEUpdater * >(argp1);
+  delete arg1;
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CEUpdater_init(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CEUpdater *arg1 = (CEUpdater *) 0 ;
   PyObject *arg2 = (PyObject *) 0 ;
   PyObject *arg3 = (PyObject *) 0 ;
+  PyObject *arg4 = (PyObject *) 0 ;
+  PyObject *arg5 = (PyObject *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
   PyObject * obj0 = 0 ;
   PyObject * obj1 = 0 ;
   PyObject * obj2 = 0 ;
-  CEUpdater *result = 0 ;
+  PyObject * obj3 = 0 ;
+  PyObject * obj4 = 0 ;
   
-  if(!PyArg_UnpackTuple(args,(char *)"new_CEUpdater",3,3,&obj0,&obj1,&obj2)) SWIG_fail;
-  arg1 = obj0;
+  if(!PyArg_UnpackTuple(args,(char *)"CEUpdater_init",5,5,&obj0,&obj1,&obj2,&obj3,&obj4)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CEUpdater, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CEUpdater_init" "', argument " "1"" of type '" "CEUpdater *""'"); 
+  }
+  arg1 = reinterpret_cast< CEUpdater * >(argp1);
   arg2 = obj1;
   arg3 = obj2;
-  result = (CEUpdater *)new CEUpdater(arg1,arg2,arg3);
-  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_CEUpdater, SWIG_POINTER_NEW |  0 );
+  arg4 = obj3;
+  arg5 = obj4;
+  (arg1)->init(arg2,arg3,arg4,arg5);
+  resultobj = SWIG_Py_Void();
   return resultobj;
 fail:
   return NULL;
@@ -3381,10 +3509,10 @@ SWIGINTERN PyObject *_wrap_CEUpdater_get_energy(PyObject *SWIGUNUSEDPARM(self), 
   if(!PyArg_UnpackTuple(args,(char *)"CEUpdater_get_energy",1,1,&obj0)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CEUpdater, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CEUpdater_get_energy" "', argument " "1"" of type '" "CEUpdater const *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CEUpdater_get_energy" "', argument " "1"" of type '" "CEUpdater *""'"); 
   }
   arg1 = reinterpret_cast< CEUpdater * >(argp1);
-  result = (double)((CEUpdater const *)arg1)->get_energy();
+  result = (double)(arg1)->get_energy();
   resultobj = SWIG_From_double(static_cast< double >(result));
   return resultobj;
 fail:
@@ -3471,21 +3599,122 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_delete_CEUpdater(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_CEUpdater_calculate(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CEUpdater *arg1 = (CEUpdater *) 0 ;
+  PyObject *arg2 = (PyObject *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  double result;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"CEUpdater_calculate",2,2,&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CEUpdater, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CEUpdater_calculate" "', argument " "1"" of type '" "CEUpdater *""'"); 
+  }
+  arg1 = reinterpret_cast< CEUpdater * >(argp1);
+  arg2 = obj1;
+  result = (double)(arg1)->calculate(arg2);
+  resultobj = SWIG_From_double(static_cast< double >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CEUpdater_undo_changes(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   CEUpdater *arg1 = (CEUpdater *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   PyObject * obj0 = 0 ;
   
-  if(!PyArg_UnpackTuple(args,(char *)"delete_CEUpdater",1,1,&obj0)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CEUpdater, SWIG_POINTER_DISOWN |  0 );
+  if(!PyArg_UnpackTuple(args,(char *)"CEUpdater_undo_changes",1,1,&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CEUpdater, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "delete_CEUpdater" "', argument " "1"" of type '" "CEUpdater *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CEUpdater_undo_changes" "', argument " "1"" of type '" "CEUpdater *""'"); 
   }
   arg1 = reinterpret_cast< CEUpdater * >(argp1);
-  delete arg1;
+  (arg1)->undo_changes();
   resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CEUpdater_clear_history(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CEUpdater *arg1 = (CEUpdater *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"CEUpdater_clear_history",1,1,&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CEUpdater, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CEUpdater_clear_history" "', argument " "1"" of type '" "CEUpdater *""'"); 
+  }
+  arg1 = reinterpret_cast< CEUpdater * >(argp1);
+  (arg1)->clear_history();
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CEUpdater_flattened_cluster_names(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CEUpdater *arg1 = (CEUpdater *) 0 ;
+  std::vector< std::string > *arg2 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"CEUpdater_flattened_cluster_names",2,2,&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CEUpdater, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CEUpdater_flattened_cluster_names" "', argument " "1"" of type '" "CEUpdater *""'"); 
+  }
+  arg1 = reinterpret_cast< CEUpdater * >(argp1);
+  res2 = SWIG_ConvertPtr(obj1, &argp2, SWIGTYPE_p_std__vectorT_std__string_t,  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "CEUpdater_flattened_cluster_names" "', argument " "2"" of type '" "std::vector< std::string > &""'"); 
+  }
+  if (!argp2) {
+    SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "CEUpdater_flattened_cluster_names" "', argument " "2"" of type '" "std::vector< std::string > &""'"); 
+  }
+  arg2 = reinterpret_cast< std::vector< std::string > * >(argp2);
+  (arg1)->flattened_cluster_names(*arg2);
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CEUpdater_get_cf(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CEUpdater *arg1 = (CEUpdater *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject *result = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"CEUpdater_get_cf",1,1,&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CEUpdater, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CEUpdater_get_cf" "', argument " "1"" of type '" "CEUpdater *""'"); 
+  }
+  arg1 = reinterpret_cast< CEUpdater * >(argp1);
+  result = (PyObject *)(arg1)->get_cf();
+  resultobj = result;
   return resultobj;
 fail:
   return NULL;
@@ -3499,17 +3728,598 @@ SWIGINTERN PyObject *CEUpdater_swigregister(PyObject *SWIGUNUSEDPARM(self), PyOb
   return SWIG_Py_Void();
 }
 
+SWIGINTERN PyObject *_wrap_SymbolChange_indx_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  SymbolChange *arg1 = (SymbolChange *) 0 ;
+  int arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"SymbolChange_indx_set",2,2,&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_SymbolChange, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SymbolChange_indx_set" "', argument " "1"" of type '" "SymbolChange *""'"); 
+  }
+  arg1 = reinterpret_cast< SymbolChange * >(argp1);
+  ecode2 = SWIG_AsVal_int(obj1, &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "SymbolChange_indx_set" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = static_cast< int >(val2);
+  if (arg1) (arg1)->indx = arg2;
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_SymbolChange_indx_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  SymbolChange *arg1 = (SymbolChange *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  int result;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"SymbolChange_indx_get",1,1,&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_SymbolChange, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SymbolChange_indx_get" "', argument " "1"" of type '" "SymbolChange *""'"); 
+  }
+  arg1 = reinterpret_cast< SymbolChange * >(argp1);
+  result = (int) ((arg1)->indx);
+  resultobj = SWIG_From_int(static_cast< int >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_SymbolChange_old_symb_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  SymbolChange *arg1 = (SymbolChange *) 0 ;
+  std::string arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 ;
+  int res2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"SymbolChange_old_symb_set",2,2,&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_SymbolChange, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SymbolChange_old_symb_set" "', argument " "1"" of type '" "SymbolChange *""'"); 
+  }
+  arg1 = reinterpret_cast< SymbolChange * >(argp1);
+  {
+    res2 = SWIG_ConvertPtr(obj1, &argp2, SWIGTYPE_p_std__string,  0  | 0);
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "SymbolChange_old_symb_set" "', argument " "2"" of type '" "std::string""'"); 
+    }  
+    if (!argp2) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "SymbolChange_old_symb_set" "', argument " "2"" of type '" "std::string""'");
+    } else {
+      std::string * temp = reinterpret_cast< std::string * >(argp2);
+      arg2 = *temp;
+      if (SWIG_IsNewObj(res2)) delete temp;
+    }
+  }
+  if (arg1) (arg1)->old_symb = arg2;
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_SymbolChange_old_symb_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  SymbolChange *arg1 = (SymbolChange *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  std::string result;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"SymbolChange_old_symb_get",1,1,&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_SymbolChange, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SymbolChange_old_symb_get" "', argument " "1"" of type '" "SymbolChange *""'"); 
+  }
+  arg1 = reinterpret_cast< SymbolChange * >(argp1);
+  result =  ((arg1)->old_symb);
+  resultobj = SWIG_NewPointerObj((new std::string(static_cast< const std::string& >(result))), SWIGTYPE_p_std__string, SWIG_POINTER_OWN |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_SymbolChange_new_symb_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  SymbolChange *arg1 = (SymbolChange *) 0 ;
+  std::string arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 ;
+  int res2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"SymbolChange_new_symb_set",2,2,&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_SymbolChange, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SymbolChange_new_symb_set" "', argument " "1"" of type '" "SymbolChange *""'"); 
+  }
+  arg1 = reinterpret_cast< SymbolChange * >(argp1);
+  {
+    res2 = SWIG_ConvertPtr(obj1, &argp2, SWIGTYPE_p_std__string,  0  | 0);
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "SymbolChange_new_symb_set" "', argument " "2"" of type '" "std::string""'"); 
+    }  
+    if (!argp2) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "SymbolChange_new_symb_set" "', argument " "2"" of type '" "std::string""'");
+    } else {
+      std::string * temp = reinterpret_cast< std::string * >(argp2);
+      arg2 = *temp;
+      if (SWIG_IsNewObj(res2)) delete temp;
+    }
+  }
+  if (arg1) (arg1)->new_symb = arg2;
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_SymbolChange_new_symb_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  SymbolChange *arg1 = (SymbolChange *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  std::string result;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"SymbolChange_new_symb_get",1,1,&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_SymbolChange, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SymbolChange_new_symb_get" "', argument " "1"" of type '" "SymbolChange *""'"); 
+  }
+  arg1 = reinterpret_cast< SymbolChange * >(argp1);
+  result =  ((arg1)->new_symb);
+  resultobj = SWIG_NewPointerObj((new std::string(static_cast< const std::string& >(result))), SWIGTYPE_p_std__string, SWIG_POINTER_OWN |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_new_SymbolChange(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  SymbolChange *result = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"new_SymbolChange",0,0)) SWIG_fail;
+  result = (SymbolChange *)new SymbolChange();
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_SymbolChange, SWIG_POINTER_NEW |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_delete_SymbolChange(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  SymbolChange *arg1 = (SymbolChange *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"delete_SymbolChange",1,1,&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_SymbolChange, SWIG_POINTER_DISOWN |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "delete_SymbolChange" "', argument " "1"" of type '" "SymbolChange *""'"); 
+  }
+  arg1 = reinterpret_cast< SymbolChange * >(argp1);
+  delete arg1;
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *SymbolChange_swigregister(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *obj;
+  if (!PyArg_UnpackTuple(args,(char*)"swigregister", 1, 1,&obj)) return NULL;
+  SWIG_TypeNewClientData(SWIGTYPE_p_SymbolChange, SWIG_NewClientData(obj));
+  return SWIG_Py_Void();
+}
+
+SWIGINTERN PyObject *_wrap_new_CFHistoryTracker(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< std::string > *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  CFHistoryTracker *result = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"new_CFHistoryTracker",1,1,&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1, SWIGTYPE_p_std__vectorT_std__string_t,  0  | 0);
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "new_CFHistoryTracker" "', argument " "1"" of type '" "std::vector< std::string > const &""'"); 
+  }
+  if (!argp1) {
+    SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "new_CFHistoryTracker" "', argument " "1"" of type '" "std::vector< std::string > const &""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< std::string > * >(argp1);
+  result = (CFHistoryTracker *)new CFHistoryTracker((std::vector< std::string > const &)*arg1);
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_CFHistoryTracker, SWIG_POINTER_NEW |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_delete_CFHistoryTracker(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CFHistoryTracker *arg1 = (CFHistoryTracker *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"delete_CFHistoryTracker",1,1,&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CFHistoryTracker, SWIG_POINTER_DISOWN |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "delete_CFHistoryTracker" "', argument " "1"" of type '" "CFHistoryTracker *""'"); 
+  }
+  arg1 = reinterpret_cast< CFHistoryTracker * >(argp1);
+  delete arg1;
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CFHistoryTracker_get_next(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CFHistoryTracker *arg1 = (CFHistoryTracker *) 0 ;
+  cf **arg2 = (cf **) 0 ;
+  SymbolChange **arg3 = (SymbolChange **) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  PyObject * obj2 = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"CFHistoryTracker_get_next",3,3,&obj0,&obj1,&obj2)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CFHistoryTracker, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CFHistoryTracker_get_next" "', argument " "1"" of type '" "CFHistoryTracker *""'"); 
+  }
+  arg1 = reinterpret_cast< CFHistoryTracker * >(argp1);
+  res2 = SWIG_ConvertPtr(obj1, &argp2,SWIGTYPE_p_p_std__mapT_std__string_double_t, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "CFHistoryTracker_get_next" "', argument " "2"" of type '" "cf **""'"); 
+  }
+  arg2 = reinterpret_cast< cf ** >(argp2);
+  res3 = SWIG_ConvertPtr(obj2, &argp3,SWIGTYPE_p_p_SymbolChange, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "CFHistoryTracker_get_next" "', argument " "3"" of type '" "SymbolChange **""'"); 
+  }
+  arg3 = reinterpret_cast< SymbolChange ** >(argp3);
+  (arg1)->get_next(arg2,arg3);
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CFHistoryTracker_get_current(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CFHistoryTracker *arg1 = (CFHistoryTracker *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  cf *result = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"CFHistoryTracker_get_current",1,1,&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CFHistoryTracker, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CFHistoryTracker_get_current" "', argument " "1"" of type '" "CFHistoryTracker *""'"); 
+  }
+  arg1 = reinterpret_cast< CFHistoryTracker * >(argp1);
+  result = (cf *) &(arg1)->get_current();
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_std__mapT_std__string_double_t, 0 |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CFHistoryTracker_pop(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CFHistoryTracker *arg1 = (CFHistoryTracker *) 0 ;
+  SymbolChange **arg2 = (SymbolChange **) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"CFHistoryTracker_pop",2,2,&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CFHistoryTracker, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CFHistoryTracker_pop" "', argument " "1"" of type '" "CFHistoryTracker *""'"); 
+  }
+  arg1 = reinterpret_cast< CFHistoryTracker * >(argp1);
+  res2 = SWIG_ConvertPtr(obj1, &argp2,SWIGTYPE_p_p_SymbolChange, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "CFHistoryTracker_pop" "', argument " "2"" of type '" "SymbolChange **""'"); 
+  }
+  arg2 = reinterpret_cast< SymbolChange ** >(argp2);
+  (arg1)->pop(arg2);
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CFHistoryTracker_insert__SWIG_0(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CFHistoryTracker *arg1 = (CFHistoryTracker *) 0 ;
+  PyObject *arg2 = (PyObject *) 0 ;
+  SymbolChange *arg3 = (SymbolChange *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  PyObject * obj2 = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"CFHistoryTracker_insert",3,3,&obj0,&obj1,&obj2)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CFHistoryTracker, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CFHistoryTracker_insert" "', argument " "1"" of type '" "CFHistoryTracker *""'"); 
+  }
+  arg1 = reinterpret_cast< CFHistoryTracker * >(argp1);
+  arg2 = obj1;
+  res3 = SWIG_ConvertPtr(obj2, &argp3,SWIGTYPE_p_SymbolChange, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "CFHistoryTracker_insert" "', argument " "3"" of type '" "SymbolChange *""'"); 
+  }
+  arg3 = reinterpret_cast< SymbolChange * >(argp3);
+  (arg1)->insert(arg2,arg3);
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CFHistoryTracker_insert__SWIG_1(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CFHistoryTracker *arg1 = (CFHistoryTracker *) 0 ;
+  cf *arg2 = 0 ;
+  SymbolChange *arg3 = (SymbolChange *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  PyObject * obj2 = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"CFHistoryTracker_insert",3,3,&obj0,&obj1,&obj2)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CFHistoryTracker, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CFHistoryTracker_insert" "', argument " "1"" of type '" "CFHistoryTracker *""'"); 
+  }
+  arg1 = reinterpret_cast< CFHistoryTracker * >(argp1);
+  res2 = SWIG_ConvertPtr(obj1, &argp2, SWIGTYPE_p_std__mapT_std__string_double_t,  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "CFHistoryTracker_insert" "', argument " "2"" of type '" "cf &""'"); 
+  }
+  if (!argp2) {
+    SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "CFHistoryTracker_insert" "', argument " "2"" of type '" "cf &""'"); 
+  }
+  arg2 = reinterpret_cast< cf * >(argp2);
+  res3 = SWIG_ConvertPtr(obj2, &argp3,SWIGTYPE_p_SymbolChange, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "CFHistoryTracker_insert" "', argument " "3"" of type '" "SymbolChange *""'"); 
+  }
+  arg3 = reinterpret_cast< SymbolChange * >(argp3);
+  (arg1)->insert(*arg2,arg3);
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CFHistoryTracker_insert(PyObject *self, PyObject *args) {
+  Py_ssize_t argc;
+  PyObject *argv[4] = {
+    0
+  };
+  Py_ssize_t ii;
+  
+  if (!PyTuple_Check(args)) SWIG_fail;
+  argc = args ? PyObject_Length(args) : 0;
+  for (ii = 0; (ii < 3) && (ii < argc); ii++) {
+    argv[ii] = PyTuple_GET_ITEM(args,ii);
+  }
+  if (argc == 3) {
+    int _v;
+    void *vptr = 0;
+    int res = SWIG_ConvertPtr(argv[0], &vptr, SWIGTYPE_p_CFHistoryTracker, 0);
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      void *vptr = 0;
+      int res = SWIG_ConvertPtr(argv[1], &vptr, SWIGTYPE_p_std__mapT_std__string_double_t, 0);
+      _v = SWIG_CheckState(res);
+      if (_v) {
+        void *vptr = 0;
+        int res = SWIG_ConvertPtr(argv[2], &vptr, SWIGTYPE_p_SymbolChange, 0);
+        _v = SWIG_CheckState(res);
+        if (_v) {
+          return _wrap_CFHistoryTracker_insert__SWIG_1(self, args);
+        }
+      }
+    }
+  }
+  if (argc == 3) {
+    int _v;
+    void *vptr = 0;
+    int res = SWIG_ConvertPtr(argv[0], &vptr, SWIGTYPE_p_CFHistoryTracker, 0);
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      _v = (argv[1] != 0);
+      if (_v) {
+        void *vptr = 0;
+        int res = SWIG_ConvertPtr(argv[2], &vptr, SWIGTYPE_p_SymbolChange, 0);
+        _v = SWIG_CheckState(res);
+        if (_v) {
+          return _wrap_CFHistoryTracker_insert__SWIG_0(self, args);
+        }
+      }
+    }
+  }
+  
+fail:
+  SWIG_SetErrorMsg(PyExc_NotImplementedError,"Wrong number or type of arguments for overloaded function 'CFHistoryTracker_insert'.\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    CFHistoryTracker::insert(PyObject *,SymbolChange *)\n"
+    "    CFHistoryTracker::insert(cf &,SymbolChange *)\n");
+  return 0;
+}
+
+
+SWIGINTERN PyObject *_wrap_CFHistoryTracker_clear(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CFHistoryTracker *arg1 = (CFHistoryTracker *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"CFHistoryTracker_clear",1,1,&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CFHistoryTracker, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CFHistoryTracker_clear" "', argument " "1"" of type '" "CFHistoryTracker *""'"); 
+  }
+  arg1 = reinterpret_cast< CFHistoryTracker * >(argp1);
+  (arg1)->clear();
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CFHistoryTracker_history_size(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CFHistoryTracker *arg1 = (CFHistoryTracker *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  unsigned int result;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"CFHistoryTracker_history_size",1,1,&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CFHistoryTracker, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CFHistoryTracker_history_size" "', argument " "1"" of type '" "CFHistoryTracker *""'"); 
+  }
+  arg1 = reinterpret_cast< CFHistoryTracker * >(argp1);
+  result = (unsigned int)(arg1)->history_size();
+  resultobj = SWIG_From_unsigned_SS_int(static_cast< unsigned int >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CFHistoryTracker_get_current_active_positions(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CFHistoryTracker *arg1 = (CFHistoryTracker *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  unsigned int result;
+  
+  if(!PyArg_UnpackTuple(args,(char *)"CFHistoryTracker_get_current_active_positions",1,1,&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CFHistoryTracker, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CFHistoryTracker_get_current_active_positions" "', argument " "1"" of type '" "CFHistoryTracker *""'"); 
+  }
+  arg1 = reinterpret_cast< CFHistoryTracker * >(argp1);
+  result = (unsigned int)(arg1)->get_current_active_positions();
+  resultobj = SWIG_From_unsigned_SS_int(static_cast< unsigned int >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *CFHistoryTracker_swigregister(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *obj;
+  if (!PyArg_UnpackTuple(args,(char*)"swigregister", 1, 1,&obj)) return NULL;
+  SWIG_TypeNewClientData(SWIGTYPE_p_CFHistoryTracker, SWIG_NewClientData(obj));
+  return SWIG_Py_Void();
+}
+
 static PyMethodDef SwigMethods[] = {
 	 { (char *)"SWIG_PyInstanceMethod_New", (PyCFunction)SWIG_PyInstanceMethod_New, METH_O, NULL},
 	 { (char *)"Status_t_READY_swigconstant", Status_t_READY_swigconstant, METH_VARARGS, NULL},
 	 { (char *)"Status_t_INIT_FAILED_swigconstant", Status_t_INIT_FAILED_swigconstant, METH_VARARGS, NULL},
+	 { (char *)"Status_t_NOT_INITIALIZED_swigconstant", Status_t_NOT_INITIALIZED_swigconstant, METH_VARARGS, NULL},
 	 { (char *)"new_CEUpdater", _wrap_new_CEUpdater, METH_VARARGS, NULL},
+	 { (char *)"delete_CEUpdater", _wrap_delete_CEUpdater, METH_VARARGS, NULL},
+	 { (char *)"CEUpdater_init", _wrap_CEUpdater_init, METH_VARARGS, NULL},
 	 { (char *)"CEUpdater_ok", _wrap_CEUpdater_ok, METH_VARARGS, NULL},
 	 { (char *)"CEUpdater_get_energy", _wrap_CEUpdater_get_energy, METH_VARARGS, NULL},
 	 { (char *)"CEUpdater_update_cf", _wrap_CEUpdater_update_cf, METH_VARARGS, NULL},
 	 { (char *)"CEUpdater_spin_product_one_atom", _wrap_CEUpdater_spin_product_one_atom, METH_VARARGS, NULL},
-	 { (char *)"delete_CEUpdater", _wrap_delete_CEUpdater, METH_VARARGS, NULL},
+	 { (char *)"CEUpdater_calculate", _wrap_CEUpdater_calculate, METH_VARARGS, NULL},
+	 { (char *)"CEUpdater_undo_changes", _wrap_CEUpdater_undo_changes, METH_VARARGS, NULL},
+	 { (char *)"CEUpdater_clear_history", _wrap_CEUpdater_clear_history, METH_VARARGS, NULL},
+	 { (char *)"CEUpdater_flattened_cluster_names", _wrap_CEUpdater_flattened_cluster_names, METH_VARARGS, NULL},
+	 { (char *)"CEUpdater_get_cf", _wrap_CEUpdater_get_cf, METH_VARARGS, NULL},
 	 { (char *)"CEUpdater_swigregister", CEUpdater_swigregister, METH_VARARGS, NULL},
+	 { (char *)"SymbolChange_indx_set", _wrap_SymbolChange_indx_set, METH_VARARGS, NULL},
+	 { (char *)"SymbolChange_indx_get", _wrap_SymbolChange_indx_get, METH_VARARGS, NULL},
+	 { (char *)"SymbolChange_old_symb_set", _wrap_SymbolChange_old_symb_set, METH_VARARGS, NULL},
+	 { (char *)"SymbolChange_old_symb_get", _wrap_SymbolChange_old_symb_get, METH_VARARGS, NULL},
+	 { (char *)"SymbolChange_new_symb_set", _wrap_SymbolChange_new_symb_set, METH_VARARGS, NULL},
+	 { (char *)"SymbolChange_new_symb_get", _wrap_SymbolChange_new_symb_get, METH_VARARGS, NULL},
+	 { (char *)"new_SymbolChange", _wrap_new_SymbolChange, METH_VARARGS, NULL},
+	 { (char *)"delete_SymbolChange", _wrap_delete_SymbolChange, METH_VARARGS, NULL},
+	 { (char *)"SymbolChange_swigregister", SymbolChange_swigregister, METH_VARARGS, NULL},
+	 { (char *)"new_CFHistoryTracker", _wrap_new_CFHistoryTracker, METH_VARARGS, NULL},
+	 { (char *)"delete_CFHistoryTracker", _wrap_delete_CFHistoryTracker, METH_VARARGS, NULL},
+	 { (char *)"CFHistoryTracker_get_next", _wrap_CFHistoryTracker_get_next, METH_VARARGS, NULL},
+	 { (char *)"CFHistoryTracker_get_current", _wrap_CFHistoryTracker_get_current, METH_VARARGS, NULL},
+	 { (char *)"CFHistoryTracker_pop", _wrap_CFHistoryTracker_pop, METH_VARARGS, NULL},
+	 { (char *)"CFHistoryTracker_insert", _wrap_CFHistoryTracker_insert, METH_VARARGS, NULL},
+	 { (char *)"CFHistoryTracker_clear", _wrap_CFHistoryTracker_clear, METH_VARARGS, NULL},
+	 { (char *)"CFHistoryTracker_history_size", _wrap_CFHistoryTracker_history_size, METH_VARARGS, NULL},
+	 { (char *)"CFHistoryTracker_get_current_active_positions", _wrap_CFHistoryTracker_get_current_active_positions, METH_VARARGS, NULL},
+	 { (char *)"CFHistoryTracker_swigregister", CFHistoryTracker_swigregister, METH_VARARGS, NULL},
 	 { NULL, NULL, 0, NULL }
 };
 
@@ -3517,43 +4327,67 @@ static PyMethodDef SwigMethods[] = {
 /* -------- TYPE CONVERSION AND EQUIVALENCE RULES (BEGIN) -------- */
 
 static swig_type_info _swigt__p_CEUpdater = {"_p_CEUpdater", "CEUpdater *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_CFHistoryTracker = {"_p_CFHistoryTracker", "CFHistoryTracker *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_SymbolChange = {"_p_SymbolChange", "SymbolChange *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_char = {"_p_char", "char *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_p_SymbolChange = {"_p_p_SymbolChange", "SymbolChange **", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_p_std__mapT_std__string_double_t = {"_p_p_std__mapT_std__string_double_t", "cf **|std::map< std::string,double > **", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__mapT_std__string_double_t = {"_p_std__mapT_std__string_double_t", "cf *|std::map< std::string,double > *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_std__string = {"_p_std__string", "std::string *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__vectorT_int_t = {"_p_std__vectorT_int_t", "std::vector< int > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__vectorT_std__mapT_std__string_double_t_t = {"_p_std__vectorT_std__mapT_std__string_double_t_t", "std::vector< std::map< std::string,double > > *|bf_list *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_std__vectorT_std__string_t = {"_p_std__vectorT_std__string_t", "std::vector< std::string > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__vectorT_std__vectorT_int_t_t = {"_p_std__vectorT_std__vectorT_int_t_t", "std::vector< std::vector< int > > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__vectorT_std__vectorT_std__string_t_t = {"_p_std__vectorT_std__vectorT_std__string_t_t", "std::vector< std::vector< std::string > > *|name_list *", 0, 0, (void*)0, 0};
-static swig_type_info _swigt__p_std__vectorT_std__vectorT_std__vectorT_int_t_t_t = {"_p_std__vectorT_std__vectorT_std__vectorT_int_t_t_t", "std::vector< std::vector< std::vector< int > > > *|cluster_list *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_std__vectorT_std__vectorT_std__vectorT_std__vectorT_int_t_t_t_t = {"_p_std__vectorT_std__vectorT_std__vectorT_std__vectorT_int_t_t_t_t", "std::vector< std::vector< std::vector< std::vector< int > > > > *|cluster_list *", 0, 0, (void*)0, 0};
 
 static swig_type_info *swig_type_initial[] = {
   &_swigt__p_CEUpdater,
+  &_swigt__p_CFHistoryTracker,
+  &_swigt__p_SymbolChange,
   &_swigt__p_char,
+  &_swigt__p_p_SymbolChange,
+  &_swigt__p_p_std__mapT_std__string_double_t,
   &_swigt__p_std__mapT_std__string_double_t,
+  &_swigt__p_std__string,
   &_swigt__p_std__vectorT_int_t,
   &_swigt__p_std__vectorT_std__mapT_std__string_double_t_t,
+  &_swigt__p_std__vectorT_std__string_t,
   &_swigt__p_std__vectorT_std__vectorT_int_t_t,
   &_swigt__p_std__vectorT_std__vectorT_std__string_t_t,
-  &_swigt__p_std__vectorT_std__vectorT_std__vectorT_int_t_t_t,
+  &_swigt__p_std__vectorT_std__vectorT_std__vectorT_std__vectorT_int_t_t_t_t,
 };
 
 static swig_cast_info _swigc__p_CEUpdater[] = {  {&_swigt__p_CEUpdater, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_CFHistoryTracker[] = {  {&_swigt__p_CFHistoryTracker, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_SymbolChange[] = {  {&_swigt__p_SymbolChange, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_char[] = {  {&_swigt__p_char, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_p_SymbolChange[] = {  {&_swigt__p_p_SymbolChange, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_p_std__mapT_std__string_double_t[] = {  {&_swigt__p_p_std__mapT_std__string_double_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__mapT_std__string_double_t[] = {  {&_swigt__p_std__mapT_std__string_double_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_std__string[] = {  {&_swigt__p_std__string, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__vectorT_int_t[] = {  {&_swigt__p_std__vectorT_int_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__vectorT_std__mapT_std__string_double_t_t[] = {  {&_swigt__p_std__vectorT_std__mapT_std__string_double_t_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_std__vectorT_std__string_t[] = {  {&_swigt__p_std__vectorT_std__string_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__vectorT_std__vectorT_int_t_t[] = {  {&_swigt__p_std__vectorT_std__vectorT_int_t_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__vectorT_std__vectorT_std__string_t_t[] = {  {&_swigt__p_std__vectorT_std__vectorT_std__string_t_t, 0, 0, 0},{0, 0, 0, 0}};
-static swig_cast_info _swigc__p_std__vectorT_std__vectorT_std__vectorT_int_t_t_t[] = {  {&_swigt__p_std__vectorT_std__vectorT_std__vectorT_int_t_t_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_std__vectorT_std__vectorT_std__vectorT_std__vectorT_int_t_t_t_t[] = {  {&_swigt__p_std__vectorT_std__vectorT_std__vectorT_std__vectorT_int_t_t_t_t, 0, 0, 0},{0, 0, 0, 0}};
 
 static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_CEUpdater,
+  _swigc__p_CFHistoryTracker,
+  _swigc__p_SymbolChange,
   _swigc__p_char,
+  _swigc__p_p_SymbolChange,
+  _swigc__p_p_std__mapT_std__string_double_t,
   _swigc__p_std__mapT_std__string_double_t,
+  _swigc__p_std__string,
   _swigc__p_std__vectorT_int_t,
   _swigc__p_std__vectorT_std__mapT_std__string_double_t_t,
+  _swigc__p_std__vectorT_std__string_t,
   _swigc__p_std__vectorT_std__vectorT_int_t_t,
   _swigc__p_std__vectorT_std__vectorT_std__string_t_t,
-  _swigc__p_std__vectorT_std__vectorT_std__vectorT_int_t_t_t,
+  _swigc__p_std__vectorT_std__vectorT_std__vectorT_std__vectorT_int_t_t_t_t,
 };
 
 

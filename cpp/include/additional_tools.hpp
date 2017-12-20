@@ -1,11 +1,15 @@
 #ifndef ADDITIONAL_TOOLS_H
 #define ADDITIONAL_TOOLS_H
+#include <vector>
+#include <iostream>
+#include <map>
 
-namespace additional_tools
-{
-  template<class T>
-  void product( std::vector<T> &in, std::vector< std::vector<T> > &out, unsigned int repeat );
-}
+class SymbolChange;
+
+template<class key,class value>
+std::ostream& operator <<(std::ostream &out, const std::map<key,value> &map );
+
+std::ostream& operator << (std::ostream &out, const SymbolChange &symb );
 
 #include "additional_tools.tpp"
 #endif

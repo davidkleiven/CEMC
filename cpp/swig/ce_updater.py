@@ -105,16 +105,24 @@ Status_t_READY = _ce_updater.Status_t_READY
 
 _ce_updater.Status_t_INIT_FAILED_swigconstant(_ce_updater)
 Status_t_INIT_FAILED = _ce_updater.Status_t_INIT_FAILED
+
+_ce_updater.Status_t_NOT_INITIALIZED_swigconstant(_ce_updater)
+Status_t_NOT_INITIALIZED = _ce_updater.Status_t_NOT_INITIALIZED
 class CEUpdater(object):
     thisown = _swig_property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc='The membership flag')
     __repr__ = _swig_repr
 
-    def __init__(self, BC, corrFunc, ecis):
-        this = _ce_updater.new_CEUpdater(BC, corrFunc, ecis)
+    def __init__(self):
+        this = _ce_updater.new_CEUpdater()
         try:
             self.this.append(this)
         except Exception:
             self.this = this
+    __swig_destroy__ = _ce_updater.delete_CEUpdater
+    __del__ = lambda self: None
+
+    def init(self, BC, corrFunc, ecis, permutations):
+        return _ce_updater.CEUpdater_init(self, BC, corrFunc, ecis, permutations)
 
     def ok(self):
         return _ce_updater.CEUpdater_ok(self)
@@ -122,15 +130,82 @@ class CEUpdater(object):
     def get_energy(self):
         return _ce_updater.CEUpdater_get_energy(self)
 
-    def update_cf(self, system_chagnes):
-        return _ce_updater.CEUpdater_update_cf(self, system_chagnes)
+    def update_cf(self, single_change):
+        return _ce_updater.CEUpdater_update_cf(self, single_change)
 
     def spin_product_one_atom(self, ref_indx, indx_list, dec):
         return _ce_updater.CEUpdater_spin_product_one_atom(self, ref_indx, indx_list, dec)
-    __swig_destroy__ = _ce_updater.delete_CEUpdater
-    __del__ = lambda self: None
+
+    def calculate(self, system_changes):
+        return _ce_updater.CEUpdater_calculate(self, system_changes)
+
+    def undo_changes(self):
+        return _ce_updater.CEUpdater_undo_changes(self)
+
+    def clear_history(self):
+        return _ce_updater.CEUpdater_clear_history(self)
+
+    def flattened_cluster_names(self, flattened):
+        return _ce_updater.CEUpdater_flattened_cluster_names(self, flattened)
+
+    def get_cf(self):
+        return _ce_updater.CEUpdater_get_cf(self)
 CEUpdater_swigregister = _ce_updater.CEUpdater_swigregister
 CEUpdater_swigregister(CEUpdater)
+
+class SymbolChange(object):
+    thisown = _swig_property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc='The membership flag')
+    __repr__ = _swig_repr
+    indx = _swig_property(_ce_updater.SymbolChange_indx_get, _ce_updater.SymbolChange_indx_set)
+    old_symb = _swig_property(_ce_updater.SymbolChange_old_symb_get, _ce_updater.SymbolChange_old_symb_set)
+    new_symb = _swig_property(_ce_updater.SymbolChange_new_symb_get, _ce_updater.SymbolChange_new_symb_set)
+
+    def __init__(self):
+        this = _ce_updater.new_SymbolChange()
+        try:
+            self.this.append(this)
+        except Exception:
+            self.this = this
+    __swig_destroy__ = _ce_updater.delete_SymbolChange
+    __del__ = lambda self: None
+SymbolChange_swigregister = _ce_updater.SymbolChange_swigregister
+SymbolChange_swigregister(SymbolChange)
+
+class CFHistoryTracker(object):
+    thisown = _swig_property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc='The membership flag')
+    __repr__ = _swig_repr
+
+    def __init__(self, cluster_names):
+        this = _ce_updater.new_CFHistoryTracker(cluster_names)
+        try:
+            self.this.append(this)
+        except Exception:
+            self.this = this
+    __swig_destroy__ = _ce_updater.delete_CFHistoryTracker
+    __del__ = lambda self: None
+
+    def get_next(self, next_cf, symb_change):
+        return _ce_updater.CFHistoryTracker_get_next(self, next_cf, symb_change)
+
+    def get_current(self):
+        return _ce_updater.CFHistoryTracker_get_current(self)
+
+    def pop(self, change):
+        return _ce_updater.CFHistoryTracker_pop(self, change)
+
+    def insert(self, *args):
+        return _ce_updater.CFHistoryTracker_insert(self, *args)
+
+    def clear(self):
+        return _ce_updater.CFHistoryTracker_clear(self)
+
+    def history_size(self):
+        return _ce_updater.CFHistoryTracker_history_size(self)
+
+    def get_current_active_positions(self):
+        return _ce_updater.CFHistoryTracker_get_current_active_positions(self)
+CFHistoryTracker_swigregister = _ce_updater.CFHistoryTracker_swigregister
+CFHistoryTracker_swigregister(CFHistoryTracker)
 
 
 

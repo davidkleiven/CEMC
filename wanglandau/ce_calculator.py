@@ -1,5 +1,6 @@
 import sys
 sys.path.insert( 1, "/home/davidkl/Documents/aseJin")
+sys.path.append("/home/davidkl/Documents/WangLandau/cpp/swig")
 from ase.calculators.calculator import Calculator
 from ase.ce.corrFunc import CorrFunction
 from ase.ce.settings import BulkCrystal
@@ -12,7 +13,11 @@ import copy
 import matplotlib as mpl
 mpl.rcParams["svg.fonttype"] = "none"
 from matplotlib import pyplot as plt
-
+try:
+    import ce_updater as ce_updater
+    use_cpp = True
+except:
+    use_cpp = False
 class CE( Calculator ):
     """
     Class for updating the CE when symbols change
@@ -34,6 +39,64 @@ class CE( Calculator ):
         self.changes = []
         self.ctype = {}
         self.create_ctype_lookup()
+        self.convert_cluster_indx_to_list()
+        self.permutations = {}
+        self.create_permutations()
+        self.BC.trans_matrix = np.array(self.BC.trans_matrix).astype(np.int32)
+        self.updater = None
+        if ( use_cpp ):
+            self.updater = ce_updater.CEUpdater()
+            self.updater.init( self.BC, self.cf, self.eci, self.permutations )
+
+        if ( not self.updater.ok() ):
+            raise RuntimeError( "Could not initialize C++ CE updater" )
+
+        if ( use_cpp ):
+            self.clear_history = self.updater.clear_history
+            self.undo_changes = self.updater.undo_changes
+            self.update_cf = self.updater.update_cf
+        else:
+            self.clear_history = self.clear_history_pure_python
+            self.undo_changes = self.undo_changes_pure_python
+            self.update_cf = self.update_cf_pure_python
+
+    def convert_cluster_indx_to_list( self ):
+        """
+        Converts potentials arrays to lists
+        """
+        for i in range(len(self.BC.cluster_indx)):
+            if ( self.BC.cluster_indx[i] is None ):
+                continue
+            for j in range(len(self.BC.cluster_indx[i])):
+                if ( self.BC.cluster_indx[i][j] is None ):
+                    continue
+                for k in range(len(self.BC.cluster_indx[i][j])):
+                    if ( isinstance(self.BC.cluster_indx[i][j][k],np.ndarray) ):
+                        self.BC.cluster_indx[i][j][k] = self.BC.cluster_indx[i][j][k].tolist()
+                    else:
+                        self.BC.cluster_indx[i][j][k] = list(self.BC.cluster_indx[i][j][k])
+
+                if ( isinstance(self.BC.cluster_indx[i][j],np.ndarray) ):
+                    self.BC.cluster_indx[i][j] = self.BC.cluster_indx[i][j].tolist()
+                else:
+                    self.BC.cluster_indx[i][j] = list(self.BC.cluster_indx[i][j])
+
+            if ( isinstance(self.BC.cluster_indx[i],np.ndarray) ):
+                self.BC.cluster_indx[i] = self.BC.cluster_indx[i].tolist()
+            else:
+                self.BC.cluster_indx[i] = list(self.BC.cluster_indx[i])
+
+    def create_permutations( self ):
+        """
+        Creates a list of permutations of basis functions that should be passed
+        to the C++ module
+        """
+        bf_list = list(range(len(self.BC.basis_functions)))
+        for num in range(2,len(self.BC.cluster_names)):
+            perm = list(product(bf_list, repeat=num))
+            self.permutations[num] = perm
+        print (self.permutations)
+
 
     def get_energy( self ):
         """
@@ -54,10 +117,13 @@ class CE( Calculator ):
                 prefix = name#name.rpartition('_')[0]
                 self.ctype[prefix] = (n,ctype)
 
-    def update_cf( self, indx, old_symb, new_symb ):
+    def update_cf_pure_python( self, single_change ):
         """
         Changing one element and update the correlation functions
         """
+        indx = single_change[0]
+        old_symb = single_change[1]
+        new_symb = single_change[2]
         self.old_cfs.append( copy.deepcopy(self.cf) )
         if ( old_symb == new_symb ):
             return self.cf
@@ -110,7 +176,7 @@ class CE( Calculator ):
             sp += sp_temp
         return sp
 
-    def undo_changes( self ):
+    def undo_changes_pure_python( self ):
         """
         This function undo all changes stored in all symbols starting from the
         last one
@@ -121,7 +187,7 @@ class CE( Calculator ):
             self.cf = self.old_cfs[i-1]
         self.clear_history()
 
-    def clear_history( self ):
+    def clear_history_pure_python( self ):
         """
         Clears the history of the calculator
         """
@@ -133,10 +199,15 @@ class CE( Calculator ):
         Calculates the energy. The system_changes is assumed to be a list
         of tuples of the form (indx,old_symb,new_symb)
         """
-        self.changes += system_changes
-        for entry in system_changes:
-            self.update_cf( entry[0], entry[1], entry[2] )
-        self.results["energy"] = self.get_energy()
+        if ( use_cpp ):
+            energy = self.updater.calculate(system_changes)
+            self.cf = self.updater.get_cf()
+        else:
+            self.changes += system_changes
+            for entry in system_changes:
+                self.update_cf( entry )
+            energy = self.get_energy()
+        self.results["energy"] = energy
         return self.results["energy"]
 
 ################################################################################
