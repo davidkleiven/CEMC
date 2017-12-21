@@ -17,9 +17,11 @@ from settings import SimulationState
 import logging
 import time
 from histogram import Histogram
+from matplotlib import pyplot as plt
+from ase import units
 
 class WangLandauSGC( object ):
-    def __init__( self, db_name, db_id, site_types=None, site_elements=None, Nbins=100, initial_f=2.71,
+    def __init__( self, atoms, db_name, db_id, site_types=None, site_elements=None, Nbins=100, initial_f=2.71,
     flatness_criteria=0.8, fmin=1E-6, Emin=0.0, Emax=1.0, conv_check="flathist", scheme="fixed_f",
     logfile="default.log", ensemble="canonical" ):
         """
@@ -55,7 +57,7 @@ class WangLandauSGC( object ):
         ch.setLevel( logging.INFO )
         self.logger.addHandler(ch)
 
-        self.atoms = None
+        self.atoms = atoms
         self.initialized = False
         self.site_types = site_types
         self.site_elements = site_elements
@@ -78,10 +80,11 @@ class WangLandauSGC( object ):
         self.db_name = db_name
         self.db_id = db_id
         self.chem_pot_db_uid = {}
+        self.histogram = Histogram(  self.Nbins, self.Emin, self.Emax, self.logger )
         self.read_params()
         self.initialize()
         self.has_found_at_least_one_structure_within_range = False
-        all_schemes = ["fixed_f","inverse_time"]
+        all_schemes = ["fixed_f","inverse_time","square_root_reduction"]
         all_conv_checks = ["flathist", "histstd"]
         if ( not conv_check in all_conv_checks ):
             raise ValueError( "conv_check has to be one of {}".format(all_conv_checks) )
@@ -99,6 +102,8 @@ class WangLandauSGC( object ):
         if ( not ensemble in all_ensambles ):
             raise ValueError( "Ensemble has to one of {}".format(all_ensambles) )
         self.ensemble = ensemble
+        self.atom_positions_track = {} # Only used in the canonical ensemble
+        self.symbols = []
 
         # Some variables used to monitor the progress
         self.prev_number_of_converged = 0
@@ -106,17 +111,21 @@ class WangLandauSGC( object ):
         self.n_steps_without_progress = 0
         self.mod_factor_updater = mfu.ModificationFactorUpdater(self)
         self.on_converged_hist = chp.ConvergedHistogramPolicy(self)
-        self.histogram = Histogram( self.Emin, self.Emax, self.Nbins )
 
         if ( scheme == "inverse_time" ):
             self.mod_factor_updater = mfu.InverseTimeScheme(self,fmin=fmin)
             self.on_converged_hist = chp.LowerModificationFactor(self,fmin=fmin)
+        elif ( scheme == "square_root_reduction" ):
+            self.on_converged_hist = chp.LowerModificationFactor(self,fmin=fmin,m=2)
 
         if (len(self.atoms) != len(self.site_types )):
             raise ValueError( "A site type for each site has to be specified!" )
 
         if ( not len(self.site_elements) == np.max(self.site_types)+1 ):
             raise ValueError( "Elements for each site type has to be specified!" )
+
+        if ( self.ensemble == "canonical" ):
+            self.init_atom_position_tracker()
 
         # Check that a chemical potential have been given to all elements
         if ( self.ensemble == "semi-grand-canonical" ):
@@ -168,29 +177,45 @@ class WangLandauSGC( object ):
                             continue
                         self.possible_swaps[-1][element].append(e)
 
+    def init_atom_position_tracker( self ):
+        """
+        Initialize the atom position tracker
+        """
+        for atom in self.atoms:
+            if ( atom.symbol in self.atom_positions_track.keys() ):
+                self.atom_positions_track[atom.symbol].append( atom.index )
+            else:
+                self.atom_positions_track[atom.symbol] = [atom.index]
+        self.symbols = self.atom_positions_track.keys()
+
     def read_params( self ):
         """
         Reads the entries from a database
         """
         conn = sq.connect( self.db_name )
         cur = conn.cursor()
-        cur.execute( "SELECT fmin,current_f,initial_f,queued,flatness,initialized,atomID,n_iter from simulations where uid=?", (self.db_id,) )
+        cur.execute( "SELECT fmin,current_f,initial_f,queued,initialized,atomID,n_iter from simulations where uid=?", (self.db_id,) )
         entries = cur.fetchone()
         conn.close()
 
-        self.fmin = float( entries[0] )
+        #self.fmin = float( entries[0] )
         self.f = float( entries[1] )
         self.f0 = float( entries[2] )
 
         queued = entries[3]
-        self.flatness_criteria = entries[4]
-        self.initialized = entries[5]
-        atomID = int(entries[6])
-        self.iter = int(entries[7])
+        self.initialized = entries[4]
+        atomID = int(entries[5])
+        self.iter = int(entries[6])
 
         db = connect( self.db_name )
-        self.atoms = db.get_atoms( id=atomID, attach_calculator=True )
+        row = db.get( id=atomID )
+        formula = row.formula
+        if ( formula != self.atoms.get_chemical_formula() ):
+            msg = "The chemical formula of the structure provided does not match the one in the database. "
+            msg += "Provided: {}. In database: {}".format(formula,self.atoms.get_chemical_formula())
+            raise ValueError( msg )
 
+        self.histogram.load( self.db_name, self.db_id )
         try:
             row = db.get( id=atomID )
             elms = row.data.elements
@@ -199,19 +224,7 @@ class WangLandauSGC( object ):
         except Exception as exc:
             self.logger.warning( str(exc) )
 
-    def get_bin( self, energy ):
-        """
-        Returns the binning corresponding to the energy
-        """
-        return int( (energy-self.Emin)*self.Nbins/(self.Emax-self.Emin) )
-
-    def get_energy( self, indx ):
-        """
-        Returns the energy corresponding to a given bin
-        """
-        return self.Emin + (self.Emax-self.Emin )*indx/self.Nbins
-
-    def get_trial_move_sgc():
+    def get_trial_move_sgc( self ):
         """
         Returns a trial move consitent with the Semi Grand Canonical ensemble
         """
@@ -226,33 +239,36 @@ class WangLandauSGC( object ):
         system_changes = [(indx,symb,new_symbol)]
         return system_changes
 
-    def get_trial_move_canonical():
+    def get_trial_move_canonical( self ):
         """
         Returns a trial move consistent with the canonical ensemble
         """
-        indx = np.random.randint(low=0,high=len(self.atoms))
+        n_symb = len(self.symbols)
+        symb = self.symbols[np.random.randint(low=0,high=n_symb)]
+        N = len(self.atom_positions_track[symb])
+        sel_indx1 = np.random.randint(low=0,high=N)
+        indx = self.atom_positions_track[symb][sel_indx1]
         symb = self.atoms[indx].symbol
         site_type = self.site_types[indx]
 
         trial_symb = symb
-        trial_site_type = -1
-        indx2 = -1
-        while ( trial_symb == symb or trial_site_type != site_type ):
-            indx2 = np.random.randint(low=0,high=len(self.atoms))
-            trial_symb = self.atoms[indx].symbol
-            trial_site_type = self.site_type[indx2]
+        while (trial_symb == symb or trial_site_type != site_type ):
+            trial_symb = self.symbols[np.random.randint(low=0,high=len(self.symbols))]
+            sel_indx2 = np.random.randint( low=0,high=len(self.atom_positions_track[trial_symb]) )
+            indx2 = self.atom_positions_track[trial_symb][sel_indx2]
+            trial_site_type = self.site_types[indx2]
 
         system_changes = [(indx,symb,trial_symb),(indx2,trial_symb,symb)]
-        return system_changes
+        return system_changes, sel_indx1, sel_indx2
 
     def _step( self, ignore_out_of_range=True ):
         """
         Perform one MC step
         """
-        if ( ensemble == "semi-grand-canonical" ):
+        if ( self.ensemble == "semi-grand-canonical" ):
             system_changes = self.get_trial_move_sgc()
-        elif ( ensemble == "canonical" ):
-            system_changes = self.get_trial_move_canonical()
+        elif ( self.ensemble == "canonical" ):
+            system_changes, sel_indx1, sel_indx2 = self.get_trial_move_canonical()
 
         self.atoms._calc.calculate( self.atoms, ["energy"], system_changes )
         energy = self.atoms._calc.results["energy"]
@@ -269,28 +285,29 @@ class WangLandauSGC( object ):
         # been visited is set to zero.
         # So when the range is reduced it is important to not reduce it
         # below the max and min energies that have been visited
-        if ( energy < self.smallest_energy_ever or self.smallest_energy_ever==np.inf ):
-            self.smallest_energy_ever = energy
-        if ( energy > self.largest_energy_ever or self.largest_energy_ever==-np.inf ):
-            self.largest_energy_ever = energy
+        if ( energy < self.histogram.smallest_energy_ever ):
+            self.histogram.smallest_energy_ever = energy
+        if ( energy > self.histogram.largest_energy_ever ):
+            self.histogram.largest_energy_ever = energy
 
-        if ( energy < self.Emin ):
+
+        if ( energy < self.histogram.Emin ):
             if ( ignore_out_of_range ):
                 self.rejected_below += 1
                 self.atoms._calc.undo_changes()
                 return
-            self.redistribute_hist(energy,self.Emax)
-        elif ( energy >= self.Emax ):
+            self.redistribute_hist(energy,self.histogram.Emax)
+        elif ( energy >= self.histogram.Emax ):
             if ( ignore_out_of_range ):
                 self.rejected_above += 1
                 self.atoms._calc.undo_changes()
                 return
-            self.redistribute_hist(self.Emin,energy)
+            self.redistribute_hist(self.histogram.Emin,energy)
+
 
         # Update the modification factor
         self.mod_factor_updater.update()
-
-        selected_bin = self.get_bin(energy)
+        selected_bin = self.histogram.get_bin(energy)
         rand_num = np.random.rand()
         diff = self.histogram.logdos[self.current_bin]-self.histogram.logdos[selected_bin]
         if ( diff > 0.0 or not self.has_found_at_least_one_structure_within_range ):
@@ -301,14 +318,28 @@ class WangLandauSGC( object ):
 
         if ( rand_num < accept_ratio  ):
             self.current_bin = selected_bin
-            self.atoms_count[symb] -= 1
-            self.atoms_count[new_symbol] += 1
+            if ( self.ensemble == "semi-grand-canonical" ):
+                symb = system_changes[0][1]
+                new_symbol = system_changes[0][2]
+                self.atoms_count[symb] -= 1
+                self.atoms_count[new_symbol] += 1
+            else:
+                new_symb1 = system_changes[0][2]
+                old_symb1 = system_changes[0][1]
+                indx1 = system_changes[0][0]
+                new_symb2 = system_changes[1][2]
+                old_symb2 = system_changes[1][1]
+                indx2 = system_changes[1][0]
+                self.atom_positions_track[old_symb1][sel_indx1] = indx2
+                self.atom_positions_track[old_symb2][sel_indx2] = indx1
             self.atoms._calc.clear_history()
         else:
             self.atoms._calc.undo_changes()
 
         self.histogram.update( self.current_bin, self.f )
         self.iter += 1
+        if ( energy > 0.0 ):
+            print (energy)
 
     def save( self, fname ):
         """
@@ -350,7 +381,7 @@ class WangLandauSGC( object ):
         cur = conn.cursor()
 
         cur.execute( "update simulations set fmin=?, current_f=?, initial_f=?, converged=? where uid=?", (self.fmin,self.f,self.f0,self.converged,self.db_id) )
-        cur.execute( "update simulations set initialized=?, struct_file=? where uid=?", (1,self.struct_file,self.db_id) )
+        cur.execute( "update simulations set initialized=? where uid=?", (1,self.db_id) )
         cur.execute( "update simulations set gs_energy=? where uid=?", (self.smallest_energy_ever,self.db_id))
         cur.execute( "update simulations set n_iter=? where uid=?", (self.iter,self.db_id) )
         cur.execute( "update simulations set ensemble=? where uid=?", (self.ensemble,self.db_id))
@@ -390,7 +421,7 @@ class WangLandauSGC( object ):
         Check if the simulation has converged
         """
         if ( self.conv_check == "flathist" ):
-            return self.histogram.is_flat()
+            return self.histogram.is_flat( self.flatness_criteria )
         elif ( self.conv_check == "histstd" ):
             return self.histogram.std_check()
         else:
@@ -409,7 +440,8 @@ class WangLandauSGC( object ):
                 self.update_range()
         self.update_range()
         self.f = old_f
-        self.logger.info("Selected range: Emin: {}, Emax: {}".format(self.Emin,self.Emax))
+        self.logger.info("Selected range: Emin: {}, Emax: {}".format(self.histogram.Emin,self.histogram.Emax))
+        self.histogram.clear()
 
 
     def run( self, maxsteps=10000000 ):
@@ -417,8 +449,15 @@ class WangLandauSGC( object ):
             raise ValueError( "The current DB entry has not been initialized!" )
         f_small_enough = False
         self.set_queued_flag_db()
+        start = time.time()
 
-        for i in range(1,maxsteps):
+        i = 0
+        while ( i < maxsteps ):
+            i += 1
+            if ( time.time()-start > 60 ):
+                self.histogram.log_progress()
+                start = time.time()
+                self.logger.info( "Current f: {}".format(self.f))
             self._step( ignore_out_of_range=True )
 
             if ( i%self.check_convergence_every == 0 ):

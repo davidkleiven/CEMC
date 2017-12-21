@@ -45,7 +45,7 @@ class WangLandauDBManager( object ):
             "gs_energy":"float",
             "atomID":"integer",
             "n_iter":"integer",
-            "ensemble","text"
+            "ensemble":"text"
         }
 
         conn = sq.connect( self.db_name )
@@ -194,51 +194,46 @@ class WangLandauDBManager( object ):
         """
         conn = sq.connect( self.db_name )
         cur = conn.cursor()
-        cur.execute( "SELECT energy,dos,uid,gs_energy FROM simulations WHERE converged=1 AND atomID=?", (atomID,) )
-        entries = cur.fetchall()
+        cur.execute( "SELECT energy,logdos,uid,ensemble FROM simulations WHERE converged=1 AND atomID=?", (atomID,) )
+        entries = cur.fetchone()
         conn.close()
-        if ( len(entries) < min_number_of_converged ):
+
+        try:
+            uid = int( entries[2] )
+            energy = wltools.convert_array( entries[0] )
+            logdos = wltools.convert_array( entries[1] )
+            ensemble = entries[3]
+        except:
             return None
-        uid = int( entries[0][2] )
-        energy = wltools.convert_array( entries[0][0] )
-        logdos = wltools.convert_array( entries[0][1] )
         logdos -= np.mean(logdos) # Avoid overflow
         ref_e0 = logdos[0]
         dos = np.exp(logdos)
 
-        gs_energy = np.min( [entries[i][3] for i in range(0,len(entries))] )
-        for i in range(1,len(entries)):
-            newdos = wltools.convert_array( entries[i][1] )
-            newdos -= np.mean(newdos)
-            #diff = newdos[0]-ref_e0
-            #newdos -= diff
-            dos += np.exp(newdos)
-            logdos += newdos
+        if ( ensemble == "canonical" ):
+            chem_pot = None
+        elif ( ensemble == "semi-grand-canonical" ):
+            db = connect( self.db_name )
+            row = db.get( id=atomID )
+            elms = row.data.elements
+            pots = row.data.chemical_potentials
+            chem_pot = wltools.key_value_lists_to_dict( elms, pots )
+            gs_atoms = db.get_atoms( id=atomID )
+            count = wltools.element_count(gs_atoms)
+        else:
+            raise ValueError( "Unknown statistical ensemble. Got {}".format(ensemble) )
 
-        logdos /= len(entries)
-        dos /= len(entries)
-
-        # TODO: Need to find the normalization factor to get absolute DOS
-        #dos = np.exp(logdos)
-
-        # Extract chemical potentials
         db = connect( self.db_name )
-        row = db.get( id=atomID )
-        elms = row.data.elements
-        pots = row.data.chemical_potentials
-        chem_pot = wltools.key_value_lists_to_dict( elms, pots )
-        gs_atoms = db.get_atoms( id=atomID )
-        count = wltools.element_count(gs_atoms)
-        return WangLandauSGCAnalyzer( energy, dos, chem_pot, gs_energy )
+        row = db.get(id=atomID)
+        return WangLandauSGCAnalyzer( energy, dos, row.numbers, chem_pot=chem_pot )
 
-    def get_analyzer_all_groups( self, min_number_of_converged=1 ):
+    def get_analyzer_all_groups( self  ):
         """
         Returns a list of analyzer objects
         """
         analyzers = []
         db = connect( self.db_name )
         for row in db.select():
-            new_analyzer = self.get_analyzer( row.id, min_number_of_converged=min_number_of_converged )
+            new_analyzer = self.get_analyzer( row.id )
             analyzers.append( new_analyzer )
         filtered = [entry for entry in analyzers if not entry is None] # Remove non-converged entries
         return filtered

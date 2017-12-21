@@ -32,6 +32,19 @@ class LowerModificationFactor( ConvergedHistogramPolicy ):
             return SimulationState.CONVERGED
         self.wl_sim.f /= self.m
         self.wl_sim.logger.info( "Resetting histogram" )
-        self.wl_sim.histogram[:] = 0.0
+        self.wl_sim.histogram.histogram[:] = 0.0
         self.wl_sim.logger.info( "Lowering the modification factor. New f: {}".format(self.wl_sim.f))
         return SimulationState.CONTINUE
+
+class DoNothingContinueUntilModFactorIsConverged( ConvergedHistogramPolicy ):
+    def __init_( self, wl_sim, fmin=1E-8 ):
+        ConvergedHistogramPolicy.__init__( self, wl_sim )
+        self.fmin = fmin
+
+    def __call__( self ):
+        """
+        Continue if f is to large
+        """
+        if ( self.wl_sim.f > self.fmin ):
+            return SimulationState.CONTINUE
+        return SimulationState.CONVERGED

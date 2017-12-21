@@ -2,19 +2,41 @@ from ase import units
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.stats import linregress
+import wltools
 
 class WangLandauSGCAnalyzer( object ):
-    def __init__( self, energy, dos, chem_pot, gs_energy ):
+    def __init__( self, energy, dos, atomic_numbers, chem_pot=None ):
         """
         Object for analyzing thermodynamics from the Density of States in the
         Semi Grand Cannonical Ensemble
         """
         self.E = energy
         self.dos = dos
-        self.E0 = gs_energy
         self.E0 = np.min(self.E)
         self.chem_pot = chem_pot
+        self.n_atoms = len(atomic_numbers)
+        self.atomic_numbers = atomic_numbers
         #self.extend_dos_by_extraploation()
+
+    def normalize_dos_by_infinite_temp_limit( self ):
+        """
+        Normalize the DOS by using analytical expressions from infinite temperature
+        """
+        elm_count = {}
+        for at_num in self.atomic_numbers:
+            if ( at_num in elm_count.keys() ):
+                elm_count[at_num] += 1
+            else:
+                elm_count[at_num] = 1
+        sumDos = np.sum(self.dos)
+
+        N = len(self.atomic_numbers)
+        log_configs = N*np.log(N)-N
+        for key,value in elm_count.iteritems():
+            log_configs -= (value*np.log(value)-value)
+        factor = np.exp( log_configs - np.log(sumDos) )
+        self.dos *= factor
+
 
     def extend_dos_by_extraploation( self ):
         """
@@ -34,7 +56,6 @@ class WangLandauSGCAnalyzer( object ):
         """
         Computes the partition function in the SGC ensemble
         """
-        weight = np.abs(self.E0-np.min(self.E))/(self.E[1]-self.E[0])
         return np.sum( self.dos*self._boltzmann_factor(T) )
 
     def _boltzmann_factor( self, T ):
@@ -47,21 +68,21 @@ class WangLandauSGCAnalyzer( object ):
         """
         Computes the average energy in the SGC ensemble
         """
-        return np.sum( self.E*self.dos*self._boltzmann_factor(T) )/self.partition_function(T)
+        return np.sum( self.E*self.dos*self._boltzmann_factor(T) )/(self.partition_function(T)*self.n_atoms)
 
     def heat_capacity( self, T ):
         """
         Computes the heat capacity in the SGC ensemble
         """
-        e_mean = self.internal_energy(T)
-        esq = np.sum(self.E**2 *self.dos*self._boltzmann_factor(T) )/self.partition_function(T)
-        return (esq-e_mean**2)/(units.kB*T**2)
+        e_mean = np.sum(self.E *self.dos*self._boltzmann_factor(T) )/(self.partition_function(T))
+        esq = np.sum(self.E**2 *self.dos*self._boltzmann_factor(T) )/(self.partition_function(T))
+        return (esq-e_mean**2)/(self.n_atoms*units.kB*T**2)
 
     def free_energy( self, T ):
         """
         The thermodynamic potential in the SGC ensemble
         """
-        return -units.kB*T*np.log(self.partition_function(T)) + self.E0
+        return (-units.kB*T*np.log(self.partition_function(T)) + self.E0)/self.n_atoms
 
     def plot_dos( self ):
         """
@@ -69,8 +90,8 @@ class WangLandauSGCAnalyzer( object ):
         """
         fig = plt.figure()
         ax = fig.add_subplot(1,1,1)
-        ax.plot( self.E, np.log(self.dos), ls="steps" )
-        ax.set_xlabel( "Energy (eV/atom)" )
+        ax.plot( 1000.0*self.E/self.n_atoms, np.log(self.dos), ls="steps" )
+        ax.set_xlabel( "Energy (meV/atom)" )
         ax.set_ylabel( "Density of states" )
         return fig
 

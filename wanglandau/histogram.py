@@ -2,6 +2,8 @@ import numpy as np
 from scipy import interpolate
 import wltools
 import sqlite3 as sq
+import time
+from matplotlib import pyplot as plt
 
 class Histogram( object ):
     """
@@ -15,8 +17,13 @@ class Histogram( object ):
         self.logdos = np.zeros( self.Nbins )
         self.growth_variance = np.zeros( self.Nbins )
         self.logger = logger
+        self.largest_energy_ever = -np.inf
+        self.smallest_energy_ever = np.inf
+        self.tot_number = 0
+        self.number_of_converged = 0
+        self.known_state = np.zeros(self.Nbins,dtype=np.uint8)
 
-    def get_energy( self, bin ):
+    def get_energy( self, indx ):
         """
         Returns the energy corresponding to one bin
         """
@@ -32,6 +39,7 @@ class Histogram( object ):
         """
         Updates all quantities
         """
+        self.known_state[selected_bin] = 1
         self.histogram[selected_bin] += 1
         self.logdos[selected_bin] += mod_factor
         self.growth_variance += self.Nbins**(-2)
@@ -51,13 +59,15 @@ class Histogram( object ):
             if ( self.histogram[i] > 0 ):
                 lower = i
                 break
-
         Emin = self.get_energy(lower)
         Emax = self.get_energy(upper)
-        if ( Emax < self.largest_energy_ever ):
+        if ( Emax != self.largest_energy_ever and  self.largest_energy_ever!=-np.inf):
             Emax = self.largest_energy_ever
-        if ( Emin > self.smallest_energy_ever ):
+        if ( Emin != self.smallest_energy_ever and self.smallest_energy_ever!=np.inf):
             Emin = self.smallest_energy_ever
+
+        if ( Emin >= Emax ):
+            Emax = Emin+10.0
         if ( Emin != self.Emin or Emax != self.Emax ):
             self.redistribute_hist(Emin,Emax)
 
@@ -75,8 +85,8 @@ class Histogram( object ):
         new_hist = interp_hist(new_E)
         interp_logdos = interpolate.interp1d( old_E, self.logdos, bounds_error=False, fill_value=0 )
         new_logdos = interp_logdos(new_E)
-        interp_var = interpolate.interp1d( old_E, self.cummulated_variance, bounds_error=False, fill_value="extrapolate" )
-        self.cummulated_variance = interp_var( new_E )
+        interp_var = interpolate.interp1d( old_E, self.growth_variance, bounds_error=False, fill_value="extrapolate" )
+        self.growth_variance = interp_var( new_E )
 
         # Scale
         if ( np.sum(new_hist) > 0 ):
@@ -109,7 +119,7 @@ class Histogram( object ):
         Check that all bins (with a known structure is larger than 1000 times the standard deviation)
         """
         factor = 1000.0
-        if ( np.sum(self.histogram) < 20 ):
+        if ( np.sum(self.histogram) < 10*self.Nbins ):
             return False
 
         growth_fluct = self.get_growth_fluctuation()
@@ -117,7 +127,7 @@ class Histogram( object ):
         self.tot_number = 0
         self.number_of_converged = 0
         for i in range(len(self.histogram)):
-            if ( self.histogram[i] == 0 ):
+            if ( self.known_state[i] == 0 ):
                 continue
             if ( self.histogram[i] <= factor*growth_fluct[i] ):
                 converged = False
@@ -130,18 +140,13 @@ class Histogram( object ):
         """
         Checks whether the histogram satisfies the flatness criteria
         """
-        if ( np.sum(self.histogram) < 100 ):
+        if ( np.sum(self.histogram) < 10*self.Nbins ):
             return False
 
-        mask = np.zeros(len(self.histogram),dtype=np.int8)
-        mask[:] = True
-        for i in range(len(self.histogram)):
-            if ( self.histogram[i] == 0 and self.structures[i] is None ):
-                mask[i] = False
-        mean = np.mean( self.histogram[mask] )
-        self.tot_number = np.sum(mask)
-        self.number_of_converged = np.sum(self.histogram[mask]>self.flatness_criteria*mean)
-        return np.min(self.histogram[mask]) > self.flatness_criteria*mean
+        mean = np.mean( self.histogram[self.known_state] )
+        self.tot_number = np.count_nonzero(self.known_state)
+        self.number_of_converged = np.count_nonzero(self.histogram>criteria*mean)
+        return np.min(self.histogram[self.known_state==1]) > criteria*mean
 
     def log_progress( self ):
         """
@@ -149,7 +154,7 @@ class Histogram( object ):
         """
         current_time = time.localtime()
         timestr = time.strftime( "%H:%M:%S", current_time)
-        self.logger.info( "%s %d of %d bins (with known structures) has converged"%(timestr,number_of_converged,tot_number))
+        self.logger.info( "%s %d of %d bins (with known structures) has converged"%(timestr,self.number_of_converged,self.tot_number))
 
     def clear( self ):
         """
@@ -158,6 +163,7 @@ class Histogram( object ):
         self.histogram[:] = 0
         self.logdos[:] = 0.0
         self.growth_variance[:] = 0.0
+        self.known_state[:] = 0
 
     def load( self, db_name, uid ):
         """
@@ -196,3 +202,27 @@ class Histogram( object ):
         cur.execute( "update simulations set Emin=?, Emax=? where uid=?", (self.Emin,self.Emax,uid) )
         conn.commit()
         conn.close()
+
+    def plot( self ):
+        """
+        Plots the histogram, DOS and growth variance
+        """
+        E = np.linspace( self.Emin, self.Emax, self.Nbins )
+        fig_hist = plt.figure()
+        ax_hist = fig_hist.add_subplot(1,1,1)
+        ax_hist.plot( E, self.histogram, ls="steps" )
+        ax_hist.set_xlabel( "Energy (eV)" )
+        ax_hist.set_ylabel( "Number of times visited" )
+
+        fig_dos = plt.figure()
+        ax_dos = fig_dos.add_subplot(1,1,1)
+        ax_dos.plot( E, self.logdos, ls="steps" )
+        ax_dos.set_xlabel( "Energy (eV)" )
+        ax_dos.set_ylabel( "ln g(E)" )
+
+        fig_growth = plt.figure()
+        ax_growth = fig_growth.add_subplot(1,1,1)
+        ax_growth.plot( E, self.get_growth_fluctuation(), ls="steps" )
+        ax_growth.set_xlabel( "Energy (eV)" )
+        ax_growth.set_ylabel ( "Growth fluctuaion" )
+        return fig_hist,fig_dos,ax_growth

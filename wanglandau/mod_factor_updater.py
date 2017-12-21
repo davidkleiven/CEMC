@@ -1,5 +1,6 @@
 import wang_landau_scg as wlsgc
 from settings import SimulationState
+import converged_histogram_policy as chp
 
 class ModificationFactorUpdater( object ):
     def __init__( self, wl_sim ):
@@ -44,7 +45,9 @@ class InverseTimeScheme( ModificationFactorUpdater ):
             return SimulationState.CONTINUE
 
         if ( self.wl_sim.f < 1.0/time and not self.inverse_time_scheme_active ):
-            self.wl_sim.logger.info( "Changing to inverse time scheme" )
+            self.wl_sim.logger.info( "Changing to inverse time scheme." )
+            self.wl_sim.logger.info( "Changing converged histogram policy to \"Do Nothing\"")
+            self.wl_sim.on_converged_hist = chp.DoNothingContinueUntilModFactorIsConverged( self.wl_sim, fmin=self.wl_sim.fmin )
             self.wl_sim.logger.info( "Number of MC steps until converged: {}".format(self.estimate_number_of_MC_steps_left()) )
             self.inverse_time_scheme_active = True
 
