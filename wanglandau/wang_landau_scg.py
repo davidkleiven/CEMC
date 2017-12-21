@@ -16,18 +16,17 @@ import converged_histogram_policy as chp
 from settings import SimulationState
 import logging
 import time
+from histogram import Histogram
 
 class WangLandauSGC( object ):
     def __init__( self, db_name, db_id, site_types=None, site_elements=None, Nbins=100, initial_f=2.71,
-    flatness_criteria=0.8, fmin=1E-6, Emin=0.0, Emax=1.0, conv_check="flathist", scheme="fixed_f", nsteps_per_update=10,
+    flatness_criteria=0.8, fmin=1E-6, Emin=0.0, Emax=1.0, conv_check="flathist", scheme="fixed_f",
     logfile="default.log", ensemble="canonical" ):
         """
-        Class for running Wang Landau Simulations in the Semi Grand Cannonical Ensemble
+        Class for running Wang Landau Simulations in the Semi Grand Cannonical Ensemble or Canonical
 
         Parameters
         -----------
-        atoms   - Atoms object
-        calc    - Calculator that returns the energy of the atoms
         db_name - Name of database to store records
         db_id   - ID of the run to perform
         site_types - 1D array describing which site type each atom position belongs to. If None all atoms positions are assumed
@@ -46,7 +45,7 @@ class WangLandauSGC( object ):
                      histstd  - the simulation is considered to be converged if the vlaue in each bin is
                                 much larger than the standard deviation of the growth rate of the value in that bin
         scheme - Which WL scheme to run
-                 lower_f - When a histogram is converged divide the modification factor by 2 and then rerun the calculation
+                 inverse_time - When a histogram is converged divide the modification factor by 2 and then rerun the calculation
                  fixed_f - Stop when the convergence criteria is met. This scheme typically have to be run multiple times
                            and then the results should be averaged
         """
@@ -62,25 +61,20 @@ class WangLandauSGC( object ):
         self.site_elements = site_elements
         self.possible_swaps = []
         self.chem_pot = {}
-        self.histogram = np.zeros(Nbins, dtype=np.int32)
-        self.dos = np.zeros(Nbins)
-        self.entropy = np.zeros(Nbins)
-        self.cummulated_variance = np.zeros( len(self.histogram) )
+
+
         self.Nbins = Nbins
         self.Emin = 500.0
         self.Emax = 510.0
         # Track the max energy ever and smallest. Important for the update range function
         self.largest_energy_ever = -np.inf
         self.smallest_energy_ever = np.inf
-        self.update_bounds_every = 20
-        self.E = np.linspace(self.Emin, self.Emax, self.Nbins )
         self.f = initial_f
         self.f0 = initial_f
         self.flatness_criteria = flatness_criteria
         self.atoms_count = {}
         self.current_bin = 0
         self.fmin = 1E-6
-        self.structures = [None for _ in range(self.Nbins)]
         self.db_name = db_name
         self.db_id = db_id
         self.chem_pot_db_uid = {}
@@ -95,11 +89,9 @@ class WangLandauSGC( object ):
             raise ValueError( "scheme hsa to be one of {}".format(all_schemes) )
         self.conv_check = conv_check
         self.scheme = scheme
-        self.nsteps_per_update = nsteps_per_update
         self.converged = False
         self.iter = 1
         self.check_convergence_every = 1000
-        self.struct_file = "structures%d.pkl"%(np.random.randint(low=0,high=10000000000))
         self.rejected_below = 0
         self.rejected_above = 0
         self.is_first_step = True
@@ -114,6 +106,8 @@ class WangLandauSGC( object ):
         self.n_steps_without_progress = 0
         self.mod_factor_updater = mfu.ModificationFactorUpdater(self)
         self.on_converged_hist = chp.ConvergedHistogramPolicy(self)
+        self.histogram = Histogram( self.Emin, self.Emax, self.Nbins )
+
         if ( scheme == "inverse_time" ):
             self.mod_factor_updater = mfu.InverseTimeScheme(self,fmin=fmin)
             self.on_converged_hist = chp.LowerModificationFactor(self,fmin=fmin)
@@ -180,67 +174,30 @@ class WangLandauSGC( object ):
         """
         conn = sq.connect( self.db_name )
         cur = conn.cursor()
-        cur.execute( "SELECT energy,dos,histogram,fmin,current_f,initial_f,queued,flatness,growth_variance,initialized,struct_file,gs_energy,atomID,n_iter from simulations where uid=?", (self.db_id,) )
+        cur.execute( "SELECT fmin,current_f,initial_f,queued,flatness,initialized,atomID,n_iter from simulations where uid=?", (self.db_id,) )
         entries = cur.fetchone()
         conn.close()
 
-        queued = entries[6]
-        self.initialized = entries[9]
-        self.struct_file = entries[10]
-        atomID = int(entries[12])
-        self.iter = int(entries[13])
+        self.fmin = float( entries[0] )
+        self.f = float( entries[1] )
+        self.f0 = float( entries[2] )
 
-        if ( self.initialized != 0 ):
-            self.E = wltools.convert_array(entries[0])
-            eps = 1E-8
-            self.Emin = np.min(self.E)
-            self.Emax = np.max(self.E)+eps
-            #self.smallest_energy_ever = entries[11]
-        if ( queued != 0 ):
-            #self.dos = wltools.convert_array(entries[1])
-            self.entropy = wltools.convert_array(entries[1])
-            self.histogram = wltools.convert_array(entries[2])
-            self.cummulated_variance = wltools.convert_array(entries[8])
-        else:
-            self.histogram = np.zeros(len(self.E), dtype=int)
-            self.dos = np.ones(len(self.E))
-            self.entropy = np.zeros(len(self.E))
-            self.cummulated_variance = np.zeros(len(self.E))
-
-
-        self.structures = [None for _ in range(len(self.E))]
-        self.histogram[0] += 1 # The ground state is read from file
-        self.entropy[0] += self.f
-        self.structures[0] = self.atoms
-        self.cummulated_variance[0] += (1.0-1.0/self.Nbins)**2
-
-        self.fmin = float( entries[3] )
-        self.f = float( entries[4] )
-        self.f0 = float( entries[5] )
-        self.Nbins = len(self.E)
-        self.flatness_criteria = float(entries[7])
-
-        if (( len(self.E) != self.Nbins ) ):
-            raise IOError("Something went wrong when reading from the database.")
+        queued = entries[3]
+        self.flatness_criteria = entries[4]
+        self.initialized = entries[5]
+        atomID = int(entries[6])
+        self.iter = int(entries[7])
 
         db = connect( self.db_name )
         self.atoms = db.get_atoms( id=atomID, attach_calculator=True )
-        row = db.get( id=atomID )
-        elms = row.data.elements
-        chem_pot = row.data.chemical_potentials
-        self.chem_pot = wltools.key_value_lists_to_dict(elms,chem_pot)
 
-    def reset( self ):
-        """
-        If something goes wrong, reset to default
-        """
-        self.logger.error("Something went wrong when reading arrays")
-        self.E = np.linspace( 0.0, 1.0, self.Nbins )
-        self.histogram = np.zeros(self.Nbins, dtype=int )
-        self.entropy = np.zeros( self.Nbins )
-        self.dos = np.zeros( self.Nbins )
-        self.cummulated_variance = np.zeros( self.Nbins )
-        self.f = self.f0
+        try:
+            row = db.get( id=atomID )
+            elms = row.data.elements
+            chem_pot = row.data.chemical_potentials
+            self.chem_pot = wltools.key_value_lists_to_dict(elms,chem_pot)
+        except Exception as exc:
+            self.logger.warning( str(exc) )
 
     def get_bin( self, energy ):
         """
@@ -335,12 +292,12 @@ class WangLandauSGC( object ):
 
         selected_bin = self.get_bin(energy)
         rand_num = np.random.rand()
-        diff = self.entropy[self.current_bin]-self.entropy[selected_bin]
+        diff = self.histogram.logdos[self.current_bin]-self.histogram.logdos[selected_bin]
         if ( diff > 0.0 or not self.has_found_at_least_one_structure_within_range ):
             accept_ratio = 1.0
             self.has_found_at_least_one_structure_within_range = True
         else:
-            accept_ratio = np.exp( self.entropy[self.current_bin]-self.entropy[selected_bin] )
+            accept_ratio = np.exp( self.histogram.logdos[self.current_bin]-self.histogram.logdos[selected_bin] )
 
         if ( rand_num < accept_ratio  ):
             self.current_bin = selected_bin
@@ -350,33 +307,8 @@ class WangLandauSGC( object ):
         else:
             self.atoms._calc.undo_changes()
 
-        if ( self.structures[self.current_bin] is None ):
-            # Store the atoms if it has no structure in this bin from before
-            self.structures[self.current_bin] = self.atoms.copy()
-
-        self.histogram[self.current_bin] += 1
-        self.entropy[self.current_bin] += self.f
-        self.cummulated_variance += (1.0/self.Nbins)**2
-        self.cummulated_variance[self.current_bin] += (1.0 - 2.0/self.Nbins)
+        self.histogram.update( self.current_bin, self.f )
         self.iter += 1
-
-    def is_flat( self ):
-        """
-        Checks if the histogram is flat.
-        Note that if the histogram contains less than 100 entries,
-        it will return False
-        """
-        if ( np.sum(self.histogram) < 100 ):
-            return False
-
-        mask = np.zeros(len(self.histogram),dtype=np.int8)
-        mask[:] = True
-        for i in range(len(self.histogram)):
-            if ( self.histogram[i] == 0 and self.structures[i] is None ):
-                mask[i] = False
-        mean = np.mean( self.histogram[mask] )
-        #return np.percentile(self.histogram, 10 ) > self.flatness_criteria*mean
-        return np.min(self.histogram[mask]) > self.flatness_criteria*mean
 
     def save( self, fname ):
         """
@@ -413,113 +345,35 @@ class WangLandauSGC( object ):
         """
         Updates the database with the entries
         """
+        self.histogram.save( self.db_name, self.db_id )
         conn = sq.connect( self.db_name )
         cur = conn.cursor()
-        cur.execute( "update simulations set energy=? WHERE uid=?", (wltools.adapt_array(self.E),self.db_id)  )
-        cur.execute( "update simulations set dos=? WHERE uid=?", (wltools.adapt_array(self.entropy),self.db_id)  )
-        cur.execute( "update simulations set histogram=? WHERE uid=?", (wltools.adapt_array(self.histogram),self.db_id) )
-        cur.execute( "update simulations set growth_variance=? WHERE uid=?", (wltools.adapt_array(self.cummulated_variance),self.db_id))
+
         cur.execute( "update simulations set fmin=?, current_f=?, initial_f=?, converged=? where uid=?", (self.fmin,self.f,self.f0,self.converged,self.db_id) )
-        cur.execute( "update simulations set Emin=?, Emax=? where uid=?", (self.Emin,self.Emax,self.db_id) )
         cur.execute( "update simulations set initialized=?, struct_file=? where uid=?", (1,self.struct_file,self.db_id) )
         cur.execute( "update simulations set gs_energy=? where uid=?", (self.smallest_energy_ever,self.db_id))
         cur.execute( "update simulations set n_iter=? where uid=?", (self.iter,self.db_id) )
+        cur.execute( "update simulations set ensemble=? where uid=?", (self.ensemble,self.db_id))
         conn.commit()
         conn.close()
         self.logger.info( "Results saved to database {} with ID {}".format(self.db_name,self.db_id) )
 
-    def set_number_of_bins( self, N ):
-        """
-        Changes the number of bins
-        TODO: Does not work yet...
-        """
-        self.Nbins = N
-        self.redistribute_hist(self.Emin,self.Emax)
-
-    def goto_lowest_entropy_structure( self ):
-        """
-        Change to system to one of the structures that are known to be in the
-        low density region
-        """
-        args = np.argsort(self.histogram)
-        for i in range(len(args) ):
-            if ( self.structures[args[i]] is None ):
-                continue
-            self.atoms = self.structures[args[i]]
-            self.atoms.set_calculator( self.calc )
-            self.current_bin = args[i]
-            for key in self.atoms_count.keys():
-                self.atoms_count[key]=0
-            self.initialize() # Update the atoms count
-            return
-
-    def update_range( self ):
-        """
-        Updates the range
-        """
-        upper = self.Nbins
-        for i in range(len(self.histogram)-1,0,-1):
-            if ( self.histogram[i] > 0 ):
-                upper = i
-                break
-        lower = 0
-        for i in range(len(self.histogram)):
-            if ( self.histogram[i] > 0 ):
-                lower = i
-                break
-
-        Emin = self.get_energy(lower)
-        Emax = self.get_energy(upper)
-        if ( Emax < self.largest_energy_ever ):
-            Emax = self.largest_energy_ever
-        if ( Emin > self.smallest_energy_ever ):
-            Emin = self.smallest_energy_ever
-        if ( Emin != self.Emin or Emax != self.Emax ):
-            self.redistribute_hist(Emin,Emax)
 
     def redistribute_hist( self, Emin, Emax ):
         """
         Redistributes the histograms
         """
-        if ( Emin > Emax ):
-            Emin = Emax-10.0
-        eps = 1E-8
-        Emax += eps
-        old_energy = self.get_energy(self.current_bin)
-        new_E = np.linspace( Emin, Emax, self.Nbins )
-        interp_hist = interpolate.interp1d( self.E, self.histogram, bounds_error=False, fill_value=0 )
-        new_hist = interp_hist(new_E)
-        interp_logdos = interpolate.interp1d( self.E, self.entropy, bounds_error=False, fill_value=0 )
-        new_logdos = interp_logdos(new_E)
-        interp_var = interpolate.interp1d( self.E, self.cummulated_variance, bounds_error=False, fill_value="extrapolate" )
-        self.cummulated_variance = interp_var( new_E )
+        old_energy = self.histogram.get_energy( self.current_bin )
+        self.histogram.redistribute_hist( Emin, Emax )
+        self.current_bin = self.histogram.get_bin(old_energy)
 
-        # Scale
-        if ( np.sum(new_hist) > 0 ):
-            new_hist *= np.sum(self.histogram)/np.sum(new_hist)
-        if ( np.sum(new_logdos) > 0 ):
-            new_logdos *= np.sum(self.entropy)/np.sum(new_logdos)
-        old_energies = copy.deepcopy(self.E)
-        self.E = new_E
-        self.histogram = np.floor(new_hist).astype(np.int32)
-        self.entropy = new_logdos
-        for i in range(len(self.histogram)):
-            if ( self.histogram[i] == 0 ):
-                # Set the DOS to 1 if the histogram indicates that it has never been visited
-                # This just an artifact of the interpolation and setting it low will make
-                # sure that these parts of the space gets explored
-                self.entropy[i] = 0.0
-
-        self.Emin = Emin
-        self.Emax = Emax
-        new_structs = [None for _ in range(self.Nbins)]
-        for i in range(len(old_energies)):
-            new_indx = self.get_bin(old_energies[i])
-            if ( new_indx < 0 or new_indx >= self.Nbins ):
-                continue
-            new_structs[new_indx] = self.structures[i]
-        self.structures = new_structs
-        self.current_bin = self.get_bin(old_energy)
+    def update_range( self ):
+        """
+        Updates the range
+        """
+        old_energy = self.histogram.get_energy( self.current_bin )
+        self.histogram.update_range()
+        self.current_bin = self.histogram.get_bin(old_energy)
 
     def set_queued_flag_db( self ):
         """
@@ -536,52 +390,11 @@ class WangLandauSGC( object ):
         Check if the simulation has converged
         """
         if ( self.conv_check == "flathist" ):
-            return self.is_flat()
+            return self.histogram.is_flat()
         elif ( self.conv_check == "histstd" ):
-            return self.std_check()
+            return self.histogram.std_check()
         else:
             raise ValueError("Unknown convergence check!")
-
-    def get_growth_fluctuation( self ):
-        """
-        Returns the fluctuation of the growth term
-        """
-        N = np.sum(self.histogram)
-        if ( N <= 1 ):
-            return None
-        std = np.sqrt( self.cummulated_variance/N )
-        return std
-
-    def std_check( self ):
-        """
-        Check that all bins (with a known structure is larger than 1000 times the standard deviation)
-        """
-        factor = 1000.0
-        if ( np.sum(self.histogram) < 20 ):
-            return False
-
-        growth_fluct = self.get_growth_fluctuation()
-        converged = True
-        tot_number = 0
-        number_of_converged = 0
-        for i in range(len(self.histogram)):
-            if ( self.histogram[i] == 0 ):
-                continue
-            if ( self.histogram[i] <= factor*growth_fluct[i] ):
-                converged = False
-            else:
-                number_of_converged += 1
-            tot_number += 1
-        current_time = time.localtime()
-        timestr = time.strftime( "%H:%M:%S", current_time)
-        self.logger.info( "%s %d of %d bins (with known structures) has converged"%(timestr,number_of_converged,tot_number))
-        if ( number_of_converged != 0 and number_of_converged == self.prev_number_of_converged and tot_number == self.prev_number_of_known_bins ):
-            self.n_steps_without_progress += 1
-        else:
-            self.n_steps_without_progress = 0
-            self.prev_number_of_converged = number_of_converged
-            self.prev_number_of_known_bins
-        return converged
 
     def explore_energy_space( self, nsteps=200 ):
         """
@@ -596,25 +409,17 @@ class WangLandauSGC( object ):
                 self.update_range()
         self.update_range()
         self.f = old_f
-
         self.logger.info("Selected range: Emin: {}, Emax: {}".format(self.Emin,self.Emax))
-        # Clear the information
-        self.histogram[:] = 0.0
-        self.cummulated_variance[:] = 0.0
-        self.entropy[:] = 0.0
-        self.dos[:] = 1.0
+
 
     def run( self, maxsteps=10000000 ):
         if ( self.initialized == 0 ):
             raise ValueError( "The current DB entry has not been initialized!" )
         f_small_enough = False
-        low_struct = 500
         self.set_queued_flag_db()
 
         for i in range(1,maxsteps):
             self._step( ignore_out_of_range=True )
-            if ( i%low_struct == 0 and i > 0 ):
-                pass
 
             if ( i%self.check_convergence_every == 0 ):
                 if ( self.has_converged() ):
@@ -623,9 +428,6 @@ class WangLandauSGC( object ):
                         self.converged = True
                         self.logger.info( "DOS has converged" )
                         break
-        self.dos = np.exp(self.entropy - np.mean(self.entropy))
-        with open(self.struct_file, "wb" ) as outfile:
-            pkl.dump( self.structures, outfile )
         self.logger.info( "Simulation ended with a modification factor of {}".format(self.f) )
 
     def plot_dos( self ):

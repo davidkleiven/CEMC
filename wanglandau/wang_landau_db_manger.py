@@ -7,7 +7,7 @@ from ase.db import connect
 import ase.units
 from scipy import special
 
-class WangLandauDBManger( object ):
+class WangLandauDBManager( object ):
     def __init__( self, db_name ):
         self.db_name = db_name
         self.check_db()
@@ -17,15 +17,15 @@ class WangLandauDBManger( object ):
         Checks if the database has the correct format and updates it if not
         """
         required_fields = {
-        "simulations":["uid","dos","energy","histogram","fmin","current_f","initial_f","converged",
+        "simulations":["uid","logdos","energy","histogram","fmin","current_f","initial_f","converged",
         "queued","Nbins","flatness","growth_variance","Emin","Emax","initialized","struct_file",
-        "gs_energy","atomID","n_iter"],
+        "gs_energy","atomID","n_iter","ensemble"],
         "chemical_potentials":["uid","element","id","potential"]
         }
         required_tables = ["simulations"]
         types = {
             "id":"interger",
-            "dos":"blob",
+            "logdos":"blob",
             "energy":"blob",
             "histogram":"blob",
             "fmin":"float",
@@ -44,7 +44,8 @@ class WangLandauDBManger( object ):
             "struct_file":"text",
             "gs_energy":"float",
             "atomID":"integer",
-            "n_iter":"integer"
+            "n_iter":"integer",
+            "ensemble","text"
         }
 
         conn = sq.connect( self.db_name )
@@ -80,7 +81,7 @@ class WangLandauDBManger( object ):
             return 0
         return np.max(ids)+1
 
-    def prepare_from_ground_states( self, Tmax, initial_f=2.71, fmin=1E-8, flatness=0.8, Nbins=50, n_kbT=20 ):
+    def prepare_from_ground_states( self, Tmax=300.0, initial_f=2.71, fmin=1E-8, flatness=0.8, Nbins=50, n_kbT=20 ):
         """
         Create one Wang-Landau simulation from all ground state structures
         """
@@ -98,7 +99,7 @@ class WangLandauDBManger( object ):
                 continue
             self.insert( row.id, Tmax, initial_f=initial_f, fmin=fmin, flatness=flatness,Nbins=Nbins,n_kbT=n_kbT )
 
-    def insert( self, atomID, Tmax, initial_f=2.71, fmin=1E-8, flatness=0.8, Nbins=50, n_kbT=20 ):
+    def insert( self, atomID, Tmax=300.0, initial_f=2.71, fmin=1E-8, flatness=0.8, Nbins=50, n_kbT=20 ):
         """
         Insert a new entry into the database
         """
@@ -125,19 +126,24 @@ class WangLandauDBManger( object ):
         Computes the energy range based on the ground state of the atom
         """
         db = connect( self.db_name )
-        row = db.get( id=atomID )
-        elms = row.data.elements
-        chem_pot = row.data.chemical_potentials
-        Emin = row.energy
-        chem_pot = wltools.key_value_lists_to_dict( elms, chem_pot )
-        at_count = wltools.element_count( db.get_atoms(id=atomID) )
+        try:
+            row = db.get( id=atomID )
+            elms = row.data.elements
+            chem_pot = row.data.chemical_potentials
+            Emin = row.energy
+            chem_pot = wltools.key_value_lists_to_dict( elms, chem_pot )
+            at_count = wltools.element_count( db.get_atoms(id=atomID) )
 
-        for key,value in chem_pot.iteritems():
-            if ( not key in at_count.keys() ):
-                continue
-            Emin -= value*at_count[key]
 
-        Emax = Emin + n_kbT*ase.units.kB*Tmax
+            for key,value in chem_pot.iteritems():
+                if ( not key in at_count.keys() ):
+                    continue
+                Emin -= value*at_count[key]
+
+            Emax = Emin + n_kbT*ase.units.kB*Tmax
+        except:
+            Emin = 0.0
+            Emax = 100.0
         return Emin,Emax
 
     def add_run_to_group( self, atomID, n_entries=1 ):
