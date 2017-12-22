@@ -339,15 +339,18 @@ void CEUpdater::undo_changes()
     //cout <<"Undo changing " << last_changes->indx << " from " << symbols[last_changes->indx] << " to " << last_changes->old_symb << endl;
     symbols[last_changes->indx] = last_changes->old_symb;
 
-    PyObject *old_symb_str = PyString_FromString(last_changes->old_symb.c_str());
-    PyObject *pyindx = PyInt_FromLong(last_changes->indx);
-    PyObject *pysymb = PyObject_GetItem(atoms, pyindx);
-    PyObject_SetAttrString( pysymb, "symbol", old_symb_str );
+    if ( atoms != nullptr )
+    {
+      PyObject *old_symb_str = PyString_FromString(last_changes->old_symb.c_str());
+      PyObject *pyindx = PyInt_FromLong(last_changes->indx);
+      PyObject *pysymb = PyObject_GetItem(atoms, pyindx);
+      PyObject_SetAttrString( pysymb, "symbol", old_symb_str );
 
-    // Remove temporary objects
-    Py_DECREF(old_symb_str);
-    Py_DECREF(pyindx);
-    Py_DECREF(pysymb);
+      // Remove temporary objects
+      Py_DECREF(old_symb_str);
+      Py_DECREF(pyindx);
+      Py_DECREF(pysymb);
+    }
   }
 }
 
