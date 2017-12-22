@@ -11,6 +11,7 @@ CEUpdater::CEUpdater(){};
 CEUpdater::~CEUpdater()
 {
   delete history;
+  Py_DECREF(atoms);
 }
 
 void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObject *perms )
@@ -32,8 +33,9 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   {
     PyObject *pyindx = PyInt_FromLong(i);
     PyObject *atom = PyObject_GetItem(atoms,pyindx);
-    Py_DECREF(pyindx);
     symbols.push_back( PyString_AsString( PyObject_GetAttrString(atom,"symbol")) );
+    Py_DECREF(pyindx);
+    Py_DECREF(atom);
   }
 
   #ifdef CE_DEBUG
@@ -54,7 +56,6 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
     vector<string> new_list;
     PyObject* current_list = PyList_GetItem(clist,i);
     unsigned int n_clusters = PyList_Size( current_list );
-    cerr << n_clusters << endl;
     for ( unsigned int j=0;j<n_clusters;j++ )
     {
       new_list.push_back( PyString_AsString( PyList_GetItem(current_list,j)) );
@@ -280,8 +281,12 @@ void CEUpdater::update_cf( PyObject *single_change )
 
   symbols[symb_change->indx] = symb_change->new_symb;
   PyObject *symb_str = PyString_FromString(symb_change->new_symb.c_str());
-  PyObject_SetAttrString( PyObject_GetItem(atoms,PyInt_FromLong(symb_change->indx) ), "symbol", symb_str );
+  PyObject *pyindx = PyInt_FromLong(symb_change->indx);
+  PyObject* atom = PyObject_GetItem(atoms, pyindx);
+  PyObject_SetAttrString( atom, "symbol", symb_str );
   Py_DECREF(symb_str);
+  Py_DECREF(pyindx);
+  Py_DECREF(atom);
   for ( auto iter=ecis.begin(); iter != ecis.end(); ++iter )
   {
     const string &name = iter->first;
@@ -323,11 +328,13 @@ void CEUpdater::undo_changes()
 
     PyObject *old_symb_str = PyString_FromString(last_changes->old_symb.c_str());
     PyObject *pyindx = PyInt_FromLong(last_changes->indx);
-    PyObject_SetAttrString( PyObject_GetItem(atoms, pyindx), "symbol", old_symb_str );
+    PyObject *pysymb = PyObject_GetItem(atoms, pyindx);
+    PyObject_SetAttrString( pysymb, "symbol", old_symb_str );
 
     // Remove temporary objects
     Py_DECREF(old_symb_str);
     Py_DECREF(pyindx);
+    Py_DECREF(pysymb);
   }
 }
 

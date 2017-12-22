@@ -73,7 +73,12 @@ void CFHistoryTracker::insert( PyObject *pycf, SymbolChange *symb_changes )
   PyObject *value;
   while(  PyDict_Next(pycf, &pos, &key,&value) )
   {
-    (*cf_history[current])[PyString_AsString(key)] = PyFloat_AS_DOUBLE(value);
+    string new_key = PyString_AsString(key);
+    if ( cf_history[current]->count(new_key) == 0 )
+    {
+      continue;
+    }
+    (*cf_history[current])[new_key] = PyFloat_AS_DOUBLE(value);
   }
 
   if ( symb_changes != nullptr )

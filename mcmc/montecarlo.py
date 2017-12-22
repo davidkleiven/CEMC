@@ -40,9 +40,6 @@ class Montecarlo:
         self.atoms_indx = {}
         self.symbols = []
         self.build_atoms_list()
-        print (self.symbols)
-        print (self.atoms_indx)
-
 
     def build_atoms_list( self ):
         """
@@ -81,7 +78,9 @@ class Montecarlo:
         totalenergies.append(self.current_energy)
         start = time.time()
         prev = 0
-        for step in range(steps):
+        step = 0
+        while( step < steps ):
+            step += 1
             en, accept = self._mc_step( verbose=verbose )
             #totalenergies.append(en)
 

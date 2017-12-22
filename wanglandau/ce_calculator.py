@@ -17,6 +17,7 @@ try:
     use_cpp = True
 except:
     use_cpp = False
+
 class CE( Calculator ):
     """
     Class for updating the CE when symbols change
@@ -47,8 +48,8 @@ class CE( Calculator ):
             self.updater = ce_updater.CEUpdater()
             self.updater.init( self.BC, self.cf, self.eci, self.permutations )
 
-        if ( not self.updater.ok() ):
-            raise RuntimeError( "Could not initialize C++ CE updater" )
+            if ( not self.updater.ok() ):
+                raise RuntimeError( "Could not initialize C++ CE updater" )
 
         if ( use_cpp ):
             self.clear_history = self.updater.clear_history
