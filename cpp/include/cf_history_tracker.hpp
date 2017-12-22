@@ -19,6 +19,9 @@ class CFHistoryTracker
 {
 public:
   CFHistoryTracker( const std::vector< std::string> &cluster_names );
+  CFHistoryTracker( const CFHistoryTracker &other );
+  CFHistoryTracker& operator=( const CFHistoryTracker& other );
+
   ~CFHistoryTracker();
 
   /** Return a pointer to the next pointer to be written to */
@@ -42,6 +45,9 @@ public:
 
   /** Returns the index of which the next element will be placed */
   unsigned int get_current_active_positions(){ return current; };
+
+  /** Swaps the two object */
+  friend void swap( CFHistoryTracker &first, const CFHistoryTracker &second );
 private:
   static const unsigned int max_history = 10;
   std::array<cf*,max_history> cf_history;

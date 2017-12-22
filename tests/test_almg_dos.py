@@ -59,6 +59,14 @@ def run( runID, explore=False ):
 
     if ( explore ):
         wl.explore_energy_space( nsteps=20000 )
+        Emin = wl.histogram.Emin
+        Emax = wl.histogram.Emax
+        delta = Emax-Emin
+        center = 0.5*(Emax+Emin)
+        Emin = center - 0.75*delta
+        Emax = center + 0.75*delta
+        wl.histogram.Emin = Emin
+        wl.histogram.Emax = Emax
 
     wl.run( maxsteps=int(1E8) )
     wl.save_db()
@@ -76,7 +84,7 @@ def analyze():
 
     T = np.linspace(10.0,900.0,300)
     num = 1
-    for num in range(0,2):
+    for num in range(0,3):
         analyzers[num].normalize_dos_by_infinite_temp_limit()
         internal_energy = np.array( [analyzers[num].internal_energy(temp) for temp in T] )
         heat_capacity = np.array( [analyzers[num].heat_capacity(temp) for temp in T] )
@@ -105,9 +113,9 @@ def main( mode ):
     if ( mode == "add" ):
         add_new(0.1)
     elif ( mode == "initWL" ):
-        init_WL_run(4)
+        init_WL_run(5)
     elif ( mode == "run" ):
-        run(3,explore=True)
+        run(4,explore=True)
     elif ( mode == "analyze" ):
         analyze()
 

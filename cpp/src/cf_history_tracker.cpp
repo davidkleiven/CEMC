@@ -13,6 +13,17 @@ CFHistoryTracker::CFHistoryTracker( const vector<string> &cluster_names )
   }
 }
 
+CFHistoryTracker::CFHistoryTracker( const CFHistoryTracker &other )
+{
+  swap(*this,other);
+}
+
+CFHistoryTracker& CFHistoryTracker::operator=( const CFHistoryTracker &other )
+{
+  swap(*this,other);
+  return *this;
+}
+
 CFHistoryTracker::~CFHistoryTracker()
 {
   for ( unsigned int i=0;i<max_history;i++ )
@@ -132,4 +143,15 @@ cf& CFHistoryTracker::get_current()
 void CFHistoryTracker::clear()
 {
   buffer_size = 1;
+}
+
+void swap( CFHistoryTracker &first, const CFHistoryTracker &second )
+{
+  for ( unsigned int i=0;i<second.max_history;i++ )
+  {
+    *first.changes[i] = *second.changes[i];
+    *first.cf_history[i] = *second.cf_history[i];
+  }
+  first.current = second.current;
+  first.buffer_size = second.buffer_size;
 }

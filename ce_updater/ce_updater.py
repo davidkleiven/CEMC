@@ -121,6 +121,9 @@ class CEUpdater(object):
     __swig_destroy__ = _ce_updater.delete_CEUpdater
     __del__ = lambda self: None
 
+    def copy(self):
+        return _ce_updater.CEUpdater_copy(self)
+
     def init(self, BC, corrFunc, ecis, permutations):
         return _ce_updater.CEUpdater_init(self, BC, corrFunc, ecis, permutations)
 
@@ -175,8 +178,8 @@ class CFHistoryTracker(object):
     thisown = _swig_property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc='The membership flag')
     __repr__ = _swig_repr
 
-    def __init__(self, cluster_names):
-        this = _ce_updater.new_CFHistoryTracker(cluster_names)
+    def __init__(self, *args):
+        this = _ce_updater.new_CFHistoryTracker(*args)
         try:
             self.this.append(this)
         except Exception:
@@ -206,6 +209,10 @@ class CFHistoryTracker(object):
         return _ce_updater.CFHistoryTracker_get_current_active_positions(self)
 CFHistoryTracker_swigregister = _ce_updater.CFHistoryTracker_swigregister
 CFHistoryTracker_swigregister(CFHistoryTracker)
+
+def swap(first, second):
+    return _ce_updater.swap(first, second)
+swap = _ce_updater.swap
 
 
 

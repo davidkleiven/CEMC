@@ -1,6 +1,7 @@
 import io
 import numpy as np
 import sqlite3 as sq
+from ase.data import chemical_symbols
 
 def adapt_array(arr):
     out = io.BytesIO()
@@ -30,3 +31,16 @@ def element_count( atoms ):
         else:
             res[atom.symbol] += 1
     return res
+
+def get_formula( atomic_numbers ):
+    elm_count = {}
+    for num in atomic_numbers:
+        if ( num in elm_count.keys() ):
+            elm_count[num] += 1
+        else:
+            elm_count[num] = 1
+
+    formula = ""
+    for key,value in elm_count:
+        formula += "{}{}".format(chemical_symbols[key],value)
+    return formula

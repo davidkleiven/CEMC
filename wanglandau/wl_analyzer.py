@@ -37,6 +37,12 @@ class WangLandauSGCAnalyzer( object ):
         factor = np.exp( log_configs - np.log(sumDos) )
         self.dos *= factor
 
+    def get_chemical_formula( self ):
+        """
+        Returns the chemical formula of the object (only relevant if in cannonical ensemble)
+        """
+        return wltools.get_formula( self.atomic_numbers )
+
 
     def extend_dos_by_extraploation( self ):
         """

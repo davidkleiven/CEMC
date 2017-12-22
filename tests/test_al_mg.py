@@ -35,8 +35,9 @@ def mcmc( ceBulk, c_mg ):
 
     # Run Monte Carlo
     obs_pre = mc_obs.CorrelationFunctionTracker( ceBulk.atoms._calc )
-    mc_obj.attach( obs_pre, interval=100 )
+    #mc_obj.attach( obs_pre, interval=100 )
     tot_en_1 = mc_obj.runMC( steps=1000000 )
+    return
     obs_pre.plot_history( max_size=3 )
     plt.show()
     view( ceBulk.atoms )
@@ -44,8 +45,8 @@ def mcmc( ceBulk, c_mg ):
     observer = mc_obs.CorrelationFunctionTracker( ceBulk.atoms._calc )
     mc_obj = mc.Montecarlo( ceBulk.atoms, 250.0 )
     #mc_obj.T = 10.0
-    mc_obj.attach( observer, interval=1000 )
-    tot_en = mc_obj.runMC( steps=1000000 )
+    #mc_obj.attach( observer, interval=1000 )
+    tot_en = mc_obj.runMC( steps=int(1E8) )
     view( ceBulk.atoms )
     observer.plot_history(max_size=3)
 
@@ -61,12 +62,12 @@ def main( run ):
     atoms = atoms*(4,4,4)
     atoms[0].symbol = "Mg"
 
-    db_name = "/home/davidkl/Documents/WangLandau/data/ce_hydrostatic_20x20.db"
+    db_name = "/home/davidkl/Documents/WangLandau/data/ce_hydrostatic_7x7.db"
     conc_args = {
         "conc_ratio_min_1":[[60,4]],
         "conc_ratio_max_1":[[64,0]],
     }
-    ceBulk = BulkCrystal( "fcc", 4.05, [20,20,20], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, max_cluster_dia=1.414*4.05,reconf_db=False )
+    ceBulk = BulkCrystal( "fcc", 4.05, [7,7,7], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, max_cluster_dia=1.414*4.05,reconf_db=True )
     init_cf = {key:1.0 for key in ecis.keys()}
 
     calc = CE( ceBulk, ecis, initial_cf=init_cf )
@@ -87,5 +88,6 @@ def main( run ):
     #plt.show()
 
 if __name__ == "__main__":
-    run = sys.argv[1] # Run is WL or MC
+    #run = sys.argv[1] # Run is WL or MC
+    run = "MC"
     main( run )

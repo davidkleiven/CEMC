@@ -374,3 +374,19 @@ PyObject* CEUpdater::get_cf()
   }
   return cf_dict;
 }
+
+CEUpdater* CEUpdater::copy() const
+{
+  CEUpdater* obj = new CEUpdater();
+  obj->symbols = symbols;
+  obj->cluster_names = cluster_names;
+  obj->cluster_indx = cluster_indx;
+  obj->basis_functions = basis_functions;
+  obj->status = status;
+  obj->ctype_lookup = ctype_lookup;
+  obj->ecis = ecis;
+  obj->permutations = permutations;
+  obj->atoms = nullptr; // Left as nullptr by intension
+  obj->history = new CFHistoryTracker(*history);
+  return obj;
+}

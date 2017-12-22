@@ -22,6 +22,9 @@ public:
   CEUpdater();
   ~CEUpdater();
 
+  /** New copy. NOTE: the pointer has to be deleted */
+  CEUpdater* copy() const;
+
   /** Initialize the object */
   void init( PyObject *BC, PyObject *corrFunc, PyObject *ecis, PyObject *permutations );
 
