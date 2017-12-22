@@ -15,8 +15,10 @@ from matplotlib import pyplot as plt
 try:
     from ce_updater import ce_updater as ce_updater
     use_cpp = True
-except:
+except Exception as exc:
     use_cpp = False
+    print (str(exc))
+    print ("Could not find C++ version, falling back to Python version")
 
 class CE( Calculator ):
     """

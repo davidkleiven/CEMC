@@ -5,6 +5,7 @@
 #include <map>
 #include "matrix.hpp"
 #include "cf_history_tracker.hpp"
+#include <array>
 #include <Python.h>
 
 typedef std::vector< std::vector<std::string> > name_list;
@@ -36,6 +37,7 @@ public:
 
   /** Updates the CF */
   void update_cf( PyObject *single_change );
+  void update_cf( SymbolChange &single_change );
 
   /** Computes the spin product for one element */
   double spin_product_one_atom( unsigned int ref_indx, const std::vector< std::vector<int> > &indx_list, const std::vector<int> &dec );
@@ -46,6 +48,7 @@ public:
   [(indx1,old_symb1,new_symb1),(indx2,old_symb2,new_symb2)...]
   */
   double calculate( PyObject *system_changes );
+  double calculate( std::array<SymbolChange,2> &system_changes );
 
   /** Resets all changes */
   void undo_changes();

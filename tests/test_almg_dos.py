@@ -58,7 +58,7 @@ def run( runID, explore=False ):
     wl = wang_landau_scg.WangLandauSGC( atoms, wl_db_name, runID, conv_check="flathist", scheme="square_root_reduction", ensemble="canonical", fmin=1E-6, Nbins=1000 )
 
     if ( explore ):
-        wl.explore_energy_space( nsteps=20000 )
+        wl.explore_energy_space( nsteps=200 )
         Emin = wl.histogram.Emin
         Emax = wl.histogram.Emax
         delta = Emax-Emin
@@ -67,9 +67,11 @@ def run( runID, explore=False ):
         Emax = center + 0.75*delta
         wl.histogram.Emin = Emin
         wl.histogram.Emax = Emax
+        print ("Exploration finished!")
 
-    wl.run( maxsteps=int(1E8) )
-    wl.save_db()
+    wl.run_fast_sampler( maxsteps=int(1E8) )
+    #wl.run( maxsteps=int(1E8) )
+    #wl.save_db()
 
 def analyze():
     manager =  wldbm.WangLandauDBManager(wl_db_name)
@@ -113,9 +115,9 @@ def main( mode ):
     if ( mode == "add" ):
         add_new(0.1)
     elif ( mode == "initWL" ):
-        init_WL_run(5)
+        init_WL_run(6)
     elif ( mode == "run" ):
-        run(4,explore=True)
+        run(5,explore=True)
     elif ( mode == "analyze" ):
         analyze()
 

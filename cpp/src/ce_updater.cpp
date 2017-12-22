@@ -265,28 +265,41 @@ double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const vector< ve
 
 void CEUpdater::update_cf( PyObject *single_change )
 {
+  SymbolChange symb_change;
+  symb_change.indx = PyInt_AsLong( PyTuple_GetItem(single_change,0) );
+  symb_change.old_symb = PyString_AsString( PyTuple_GetItem(single_change,1) );
+  symb_change.new_symb = PyString_AsString( PyTuple_GetItem(single_change,2) );
+  update_cf( symb_change );
+}
+
+void CEUpdater::update_cf( SymbolChange &symb_change )
+{
+  SymbolChange *symb_change_track;
   cf &current_cf = history->get_current();
   cf *next_cf_ptr=nullptr;
-  SymbolChange *symb_change;
-  history->get_next( &next_cf_ptr, &symb_change );
+  history->get_next( &next_cf_ptr, &symb_change_track );
   cf &next_cf = *next_cf_ptr;
+  symb_change_track->indx = symb_change.indx;
+  symb_change_track->old_symb = symb_change.old_symb;
+  symb_change_track->new_symb = symb_change.new_symb;
 
-  symb_change->indx = PyInt_AsLong( PyTuple_GetItem(single_change,0) );
-  symb_change->old_symb = PyString_AsString( PyTuple_GetItem(single_change,1) );
-  symb_change->new_symb = PyString_AsString( PyTuple_GetItem(single_change,2) );
-  if ( symb_change->old_symb == symb_change->new_symb )
+  if ( symb_change.old_symb == symb_change.new_symb )
   {
     return;
   }
 
-  symbols[symb_change->indx] = symb_change->new_symb;
-  PyObject *symb_str = PyString_FromString(symb_change->new_symb.c_str());
-  PyObject *pyindx = PyInt_FromLong(symb_change->indx);
-  PyObject* atom = PyObject_GetItem(atoms, pyindx);
-  PyObject_SetAttrString( atom, "symbol", symb_str );
-  Py_DECREF(symb_str);
-  Py_DECREF(pyindx);
-  Py_DECREF(atom);
+  symbols[symb_change.indx] = symb_change.new_symb;
+  if ( atoms != nullptr )
+  {
+    PyObject *symb_str = PyString_FromString(symb_change.new_symb.c_str());
+    PyObject *pyindx = PyInt_FromLong(symb_change.indx);
+    PyObject* atom = PyObject_GetItem(atoms, pyindx);
+    PyObject_SetAttrString( atom, "symbol", symb_str );
+    Py_DECREF(symb_str);
+    Py_DECREF(pyindx);
+    Py_DECREF(atom);
+  }
+
   for ( auto iter=ecis.begin(); iter != ecis.end(); ++iter )
   {
     const string &name = iter->first;
@@ -298,7 +311,7 @@ void CEUpdater::update_cf( PyObject *single_change )
     int dec = atoi(dec_str.c_str())-1;
     if ( name.find("c1") == 0 )
     {
-      next_cf[name] = current_cf[name] + (basis_functions[dec][symb_change->new_symb] - basis_functions[dec][symb_change->old_symb]);
+      next_cf[name] = current_cf[name] + (basis_functions[dec][symb_change.new_symb] - basis_functions[dec][symb_change.old_symb]);
       continue;
     }
 
@@ -308,9 +321,9 @@ void CEUpdater::update_cf( PyObject *single_change )
     int size = atoi(size_str.c_str());
     int ctype = ctype_lookup[prefix];
     double normalization = cluster_indx[size][ctype].size()*symbols.size();
-    double sp = spin_product_one_atom( symb_change->indx, cluster_indx[size][ctype], permutations[size][dec] );
+    double sp = spin_product_one_atom( symb_change.indx, cluster_indx[size][ctype], permutations[size][dec] );
     int bf_ref = permutations[size][dec][0];
-    sp *= size*( basis_functions[bf_ref][symb_change->new_symb] - basis_functions[bf_ref][symb_change->old_symb] );
+    sp *= size*( basis_functions[bf_ref][symb_change.new_symb] - basis_functions[bf_ref][symb_change.old_symb] );
     sp /= normalization;
     next_cf[name] = current_cf[name] + sp;
   }
@@ -345,6 +358,13 @@ double CEUpdater::calculate( PyObject *system_changes )
   {
     update_cf( PyList_GetItem(system_changes,i) );
   }
+  return get_energy();
+}
+
+double CEUpdater::calculate( array<SymbolChange,2> &system_changes )
+{
+  update_cf( system_changes[0] );
+  update_cf( system_changes[1] );
   return get_energy();
 }
 
@@ -383,10 +403,11 @@ CEUpdater* CEUpdater::copy() const
   obj->cluster_indx = cluster_indx;
   obj->basis_functions = basis_functions;
   obj->status = status;
+  obj->trans_matrix = trans_matrix;
   obj->ctype_lookup = ctype_lookup;
   obj->ecis = ecis;
-  obj->permutations = permutations;
-  obj->atoms = nullptr; // Left as nullptr by intension
   obj->history = new CFHistoryTracker(*history);
+  obj->permutations = permutations;
+  obj->atoms = nullptr; // Left as nullptr by intention
   return obj;
 }

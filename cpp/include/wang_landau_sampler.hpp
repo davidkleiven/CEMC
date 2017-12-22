@@ -2,18 +2,35 @@
 #define WAND_LANDAU_SAMPLER_H
 #include <vector>
 #include "ce_updater.hpp"
+#include "cf_history_tracker.hpp"
+#include "histogram.hpp"
 #include <Python.h>
 #include <map>
 #include <string>
+#include <array>
+#define WANG_LANDAU_DEBUG
 
 class WangLandauSampler
 {
 public:
-  WangLandauSampler( const CEUpdater &updater, PyObject *py_wl );
+  WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject *ecis, PyObject *permutations, PyObject *py_wl );
   ~WangLandauSampler();
+
+  /** Returns a trial move that preserves the composition */
+  void get_canonical_trial_move( std::array<SymbolChange,2> &changes, unsigned int &select1, unsigned int &select2 );
+  void get_canonical_trial_move( unsigned int thread_num, std::array<SymbolChange,2> &changes, unsigned int &select1, unsigned int &select2 );
+
+  /** Running one MC step */
+  void step();
+
+  /** Run the WL sampler */
+  void run( unsigned int nsteps );
+
+  /** Sends all results back to the Python object */
+  void send_results_to_python();
 private:
   std::vector<CEUpdater*> updaters; // Keep one updater for each thread
-  std::map< std::string,std::vector<int> > atom_positions_track;
+  std::vector< std::map< std::string,std::vector<int> > > atom_positions_track;
   bool ready{true};
   double f{2.71};
   double min_f{1E-6};
@@ -21,5 +38,10 @@ private:
   unsigned int check_convergence_every{1000};
   std::vector<int> site_types;
   std::vector<std::string> symbols;
+  Histogram *histogram{nullptr};
+  double current_energy{0.0};
+  unsigned int current_bin;
+  PyObject *py_wl{nullptr};
+  bool converged{false};
 };
 #endif

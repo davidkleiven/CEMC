@@ -1,4 +1,5 @@
 #include "cf_history_tracker.hpp"
+#include "additional_tools.hpp"
 #include <iostream>
 
 using namespace std;
@@ -149,6 +150,8 @@ void swap( CFHistoryTracker &first, const CFHistoryTracker &second )
 {
   for ( unsigned int i=0;i<second.max_history;i++ )
   {
+    first.changes[i] = new SymbolChange;
+    first.cf_history[i] = new cf;
     *first.changes[i] = *second.changes[i];
     *first.cf_history[i] = *second.cf_history[i];
   }

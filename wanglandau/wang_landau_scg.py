@@ -19,6 +19,12 @@ import time
 from histogram import Histogram
 from matplotlib import pyplot as plt
 from ase import units
+from wanglandau import ce_calculator
+try:
+    from ce_updater.ce_updater import WangLandauSampler
+    has_fast_wl_sampler = True
+except:
+    has_fast_wl_sampler = False
 
 class WangLandauSGC( object ):
     def __init__( self, atoms, db_name, db_id, site_types=None, site_elements=None, Nbins=100, initial_f=2.71,
@@ -443,6 +449,20 @@ class WangLandauSGC( object ):
         self.logger.info("Selected range: Emin: {}, Emax: {}".format(self.histogram.Emin,self.histogram.Emax))
         self.histogram.clear()
 
+    def run_fast_sampler( self, maxsteps=10000000 ):
+        if ( not has_fast_wl_sampler ):
+            raise ImportError( "The fast WL sampler was not imported!" )
+
+        if ( not ce_calculator.use_cpp ):
+            raise ImportError( "There is no C++ version of the CE-calculator available!" )
+        BC = self.atoms._calc.BC
+        corrFunc = self.atoms._calc.updater.get_cf()
+        ecis = self.atoms._calc.eci
+        perms = self.atoms._calc.permutations
+        fast_wl_sampler = WangLandauSampler( BC,corrFunc,ecis,perms, self )
+        fast_wl_sampler.run( maxsteps )
+        fast_wl_sampler.send_results_to_python()
+        fast_wl_sampler.save_db()
 
     def run( self, maxsteps=10000000 ):
         if ( self.initialized == 0 ):
