@@ -2,13 +2,21 @@
 #include "additional_tools.hpp"
 #include <omp.h>
 #include <cstdlib>
+#include <ctime>
 #include <iostream>
 using namespace std;
 
-const static unsigned int num_threads = omp_get_num_threads();
+const static unsigned int num_threads = omp_get_max_threads(); // Use the maximum number of threads
 
 WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject *ecis, PyObject *permutations, PyObject *py_wl_in )
 {
+  // Initialize the seeds for the different threads
+  srand(time(NULL));
+  for ( unsigned int i=0;i<num_threads;i++ )
+  {
+    seeds.push_back( rand() );
+  }
+
   CEUpdater updater;
   updater.init( BC,corrFunc,ecis,permutations);
 
@@ -134,10 +142,10 @@ void WangLandauSampler::get_canonical_trial_move( array<SymbolChange,2> &changes
 
 void WangLandauSampler::get_canonical_trial_move( unsigned int thread_num, array<SymbolChange,2> &changes, unsigned int &select1, unsigned int &select2 )
 {
-  unsigned int first_indx = rand()%symbols.size();
+  unsigned int first_indx = rand_r(&seeds[thread_num])%symbols.size();
   const string& symb1 = symbols[first_indx];
   unsigned int N = atom_positions_track[thread_num][symb1].size();
-  select1 = rand()%N;
+  select1 = rand_r(&seeds[thread_num])%N;
   unsigned int indx1 = atom_positions_track[thread_num][symb1][select1];
   unsigned int site_type1 = site_types[indx1];
 
@@ -146,9 +154,9 @@ void WangLandauSampler::get_canonical_trial_move( unsigned int thread_num, array
   unsigned int indx2 = indx1;
   while ( (symb2 == symb1) || (site_type2 != site_type1) )
   {
-    symb2 = symbols[rand()%symbols.size()];
+    symb2 = symbols[rand_r( &seeds[thread_num] )%symbols.size()];
     N = atom_positions_track[thread_num][symb2].size();
-    select2 = rand()%N;
+    select2 = rand_r( &seeds[thread_num] )%N;
     indx2 = atom_positions_track[thread_num][symb2][select2];
     site_type2 = site_types[indx2];
   }
@@ -159,8 +167,6 @@ void WangLandauSampler::get_canonical_trial_move( unsigned int thread_num, array
   changes[1].indx = indx2;
   changes[1].old_symb = symb2;
   changes[1].new_symb = symb1;
-  cout << changes[0] << endl;
-  cout << changes[1] << endl;
 }
 
 void WangLandauSampler::step()
@@ -171,21 +177,18 @@ void WangLandauSampler::step()
   unsigned int select1, select2;
   get_canonical_trial_move( change, select1, select2 );
 
-  cout << "Num threads: " << num_threads << " uid: " << uid << endl;
   double energy = updaters[uid]->calculate( change );
 
   int bin = histogram->get_bin( energy );
 
   if ( !histogram->bin_in_range(bin) )
   {
-    cout << "here outside\n";
     updaters[uid]->undo_changes();
     return;
   }
 
   double dosratio = histogram->get_dos_ratio_old_divided_by_new( current_bin, bin );
-  double uniform_random = static_cast<double>(rand())/RAND_MAX;
-  cout << select1 << " " << select2 << endl;
+  double uniform_random = static_cast<double>(rand_r( &seeds[uid] ))/RAND_MAX;
   if ( uniform_random < dosratio )
   {
     // Accept
@@ -199,7 +202,6 @@ void WangLandauSampler::step()
   }
   else
   {
-    cout << "here undo\n";
     updaters[uid]->undo_changes();
   }
   updaters[uid]->clear_history();
@@ -216,7 +218,7 @@ void WangLandauSampler::run( unsigned int nsteps )
   unsigned int n_outer = nsteps/check_convergence_every;
   for ( unsigned int i=0;i<n_outer;i++ )
   {
-    //#pragma omp parallel for
+    #pragma omp parallel for
     for ( unsigned int j=0;j<check_convergence_every;j++ )
     {
       cout << j << endl;

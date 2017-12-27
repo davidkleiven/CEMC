@@ -43,5 +43,6 @@ private:
   unsigned int current_bin;
   PyObject *py_wl{nullptr};
   bool converged{false};
+  std::vector<unsigned int> seeds;
 };
 #endif
