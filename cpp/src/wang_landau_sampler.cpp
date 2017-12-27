@@ -26,7 +26,6 @@ WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject
   py_wl = py_wl_in;
   for ( unsigned int i=0;i<num_threads;i++ )
   {
-    cerr << i << endl;
     updaters.push_back( updater.copy() );
   }
 
@@ -118,11 +117,24 @@ WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject
   PyObject *py_emax = PyObject_GetAttrString( py_hist, "Emax" );
   double Emax = PyFloat_AS_DOUBLE( py_emax );
   Py_DECREF(py_emax);
-  Py_DECREF( py_hist );
 
   histogram = new Histogram( Nbins, Emin, Emax );
+  histogram->init_from_pyhist( py_hist );
+  Py_DECREF( py_hist );
+
+  PyObject *py_cur_bin = PyObject_GetAttrString( py_wl, "current_bin" );
+  unsigned int curbin = PyInt_AsLong(py_cur_bin);
+  Py_DECREF(py_cur_bin);
+  for ( unsigned int i=0;i<num_threads;i++ )
+  {
+    current_bin.push_back(curbin);
+  }
+
+  PyObject *py_iter = PyObject_GetAttrString( py_wl, "iter" );
+  iter = PyInt_AsLong(py_iter);
+  Py_DECREF(py_iter);
   #ifdef WANG_LANDAU_DEBUG
-    cout << "Wang Landau object initialized seccessfully!\n";
+    cout << "Wang Landau object initialized successfully!\n";
   #endif
 }
 
@@ -171,11 +183,11 @@ void WangLandauSampler::get_canonical_trial_move( unsigned int thread_num, array
 
 void WangLandauSampler::step()
 {
-
+  iter++;
   int uid = omp_get_thread_num();
   array<SymbolChange,2> change;
   unsigned int select1, select2;
-  get_canonical_trial_move( change, select1, select2 );
+  get_canonical_trial_move( uid, change, select1, select2 );
 
   double energy = updaters[uid]->calculate( change );
 
@@ -187,8 +199,9 @@ void WangLandauSampler::step()
     return;
   }
 
-  double dosratio = histogram->get_dos_ratio_old_divided_by_new( current_bin, bin );
+  double dosratio = histogram->get_dos_ratio_old_divided_by_new( current_bin[uid], bin );
   double uniform_random = static_cast<double>(rand_r( &seeds[uid] ))/RAND_MAX;
+
   if ( uniform_random < dosratio )
   {
     // Accept
@@ -198,14 +211,14 @@ void WangLandauSampler::step()
     unsigned int indx2 = change[1].indx;
     atom_positions_track[uid][symb1_old][select1] = indx2;
     atom_positions_track[uid][symb2_old][select2] = indx1;
-    current_bin = bin;
+    current_bin[uid] = bin;
   }
   else
   {
     updaters[uid]->undo_changes();
   }
   updaters[uid]->clear_history();
-  histogram->update( current_bin, f );
+  histogram->update( current_bin[uid], f );
 }
 
 void WangLandauSampler::run( unsigned int nsteps )
@@ -221,13 +234,13 @@ void WangLandauSampler::run( unsigned int nsteps )
     #pragma omp parallel for
     for ( unsigned int j=0;j<check_convergence_every;j++ )
     {
-      cout << j << endl;
       step();
     }
 
     if ( histogram->is_flat( flatness_criteria) )
     {
       f /= 2.0;
+      histogram->reset();
       cout << "Converged! New f: " << f << endl;
     }
 
@@ -245,6 +258,7 @@ void WangLandauSampler::send_results_to_python()
 {
   PyObject *py_hist = PyObject_GetAttrString( py_wl, "histogram" );
   histogram->send_to_python_hist( py_hist );
+  cout << "here_sending\n";
   Py_DECREF(py_hist);
 
   PyObject *cur_f = PyFloat_FromDouble(f);
@@ -259,4 +273,8 @@ void WangLandauSampler::send_results_to_python()
   {
     PyObject_SetAttrString( py_wl, "converged", Py_False );
   }
+
+  PyObject *py_iter = PyInt_FromLong(iter);
+  PyObject_SetAttrString( py_wl, "iter", py_iter );
+  Py_DECREF( py_iter );
 }

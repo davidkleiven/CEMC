@@ -82,7 +82,7 @@ class WangLandauSGC( object ):
         self.flatness_criteria = flatness_criteria
         self.atoms_count = {}
         self.current_bin = 0
-        self.fmin = 1E-6
+        self.fmin = fmin
         self.db_name = db_name
         self.db_id = db_id
         self.chem_pot_db_uid = {}
@@ -461,8 +461,7 @@ class WangLandauSGC( object ):
         perms = self.atoms._calc.permutations
         fast_wl_sampler = WangLandauSampler( BC,corrFunc,ecis,perms, self )
         fast_wl_sampler.run( maxsteps )
-        fast_wl_sampler.send_results_to_python()
-        fast_wl_sampler.save_db()
+        self.logger.info( "Fast WL sampler finished" )
 
     def run( self, maxsteps=10000000 ):
         if ( self.initialized == 0 ):

@@ -11,7 +11,7 @@ CEUpdater::CEUpdater(){};
 CEUpdater::~CEUpdater()
 {
   delete history;
-  Py_DECREF(atoms);
+  if ( atoms != nullptr ) Py_DECREF(atoms);
 }
 
 void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObject *perms )

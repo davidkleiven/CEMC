@@ -28,6 +28,12 @@ public:
 
   /** Sends the result to the Python histograms */
   void send_to_python_hist( PyObject *py_hist );
+
+  /** Resets the histogram */
+  void reset();
+
+  /** Read histogram data from Python histogram */
+  void init_from_pyhist( PyObject *pyhist );
 private:
   unsigned int Nbins{1};
   double Emin{0.0};

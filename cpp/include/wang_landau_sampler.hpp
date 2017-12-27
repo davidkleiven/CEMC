@@ -40,9 +40,11 @@ private:
   std::vector<std::string> symbols;
   Histogram *histogram{nullptr};
   double current_energy{0.0};
-  unsigned int current_bin;
+  //unsigned int current_bin;
+  std::vector<unsigned int> current_bin;
   PyObject *py_wl{nullptr};
   bool converged{false};
   std::vector<unsigned int> seeds;
+  unsigned int iter{0};
 };
 #endif

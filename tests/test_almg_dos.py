@@ -26,6 +26,7 @@ ecis = {'c3_1225_4_1': -0.00028826723864655595,
         'c3_1225_3_1': -0.011318935831421125
         }
 
+mg_concentation = 0.4
 def get_atoms( mg_conc ):
     db_name = "/home/davidkl/Documents/WangLandau/data/ce_hydrostatic_7x7.db"
     conc_args = {
@@ -53,12 +54,12 @@ def init_WL_run( atomID ):
     manager.insert( atomID, Nbins=1000 )
 
 def run( runID, explore=False ):
-    atoms = get_atoms(0.1)
+    atoms = get_atoms( mg_concentation )
     view(atoms)
-    wl = wang_landau_scg.WangLandauSGC( atoms, wl_db_name, runID, conv_check="flathist", scheme="square_root_reduction", ensemble="canonical", fmin=1E-6, Nbins=1000 )
+    wl = wang_landau_scg.WangLandauSGC( atoms, wl_db_name, runID, conv_check="flathist", scheme="square_root_reduction", ensemble="canonical", fmin=1E-8, Nbins=1000 )
 
     if ( explore ):
-        wl.explore_energy_space( nsteps=200 )
+        wl.explore_energy_space( nsteps=20000 )
         Emin = wl.histogram.Emin
         Emax = wl.histogram.Emax
         delta = Emax-Emin
@@ -69,9 +70,9 @@ def run( runID, explore=False ):
         wl.histogram.Emax = Emax
         print ("Exploration finished!")
 
-    wl.run_fast_sampler( maxsteps=int(1E8) )
+    wl.run_fast_sampler( maxsteps=int(1E9) )
     #wl.run( maxsteps=int(1E8) )
-    #wl.save_db()
+    wl.save_db()
 
 def analyze():
     manager =  wldbm.WangLandauDBManager(wl_db_name)
@@ -83,28 +84,37 @@ def analyze():
     ax2 = fig2.add_subplot(1,1,1)
     fig3 = plt.figure()
     ax3 = fig3.add_subplot(1,1,1)
+    fig4 = plt.figure()
+    ax4 = fig4.add_subplot(1,1,1)
 
     T = np.linspace(10.0,900.0,300)
-    num = 1
-    for num in range(0,3):
+    num = -1
+    print (len(analyzers))
+    for num in range(0,len(analyzers)):
         analyzers[num].normalize_dos_by_infinite_temp_limit()
         internal_energy = np.array( [analyzers[num].internal_energy(temp) for temp in T] )
         heat_capacity = np.array( [analyzers[num].heat_capacity(temp) for temp in T] )
         free_energy = np.array( [analyzers[num].free_energy(temp) for temp in T] )
-        free_energy *= units.kJ/units.mol
-        internal_energy *= units.kJ/units.mol
-        heat_capacity *= units.kJ/units.mol
+        free_energy *= units.kJ*1000.0/units.mol
+        internal_energy *= units.kJ*1000.0/units.mol
+        heat_capacity *= units.kJ*1E6/units.mol
+        entrop = np.array( [analyzers[num].entropy(temp) for temp in T] )
+        entrop *= units.kJ*1E6/units.mol
         ax1.plot( T, internal_energy )
         ax2.plot( T, heat_capacity )
         ax3.plot( T, free_energy )
+        ax4.plot( T, entrop )
+        #analyzers[num].update_dos_with_polynomial_tails( -18.0, -12.0 )
         analyzers[num].plot_dos()
 
     ax1.set_xlabel( "Temperature (K)" )
-    ax1.set_ylabel( "Internal energy (kJ/mol)" )
+    ax1.set_ylabel( "Internal energy (J/mol)" )
     ax2.set_xlabel( "Temperature (K)" )
-    ax2.set_ylabel( "Heat capacity (kJ/K mol)")
+    ax2.set_ylabel( "Heat capacity (mJ/K mol)")
     ax3.set_xlabel( "Temperature (K)" )
-    ax3.set_ylabel( "Helmholtz Free Energy (kJ/mol)")
+    ax3.set_ylabel( "Helmholtz Free Energy (J/mol)")
+    ax4.set_xlabel( "Temperature (K)" )
+    ax4.set_ylabel( "Entropy per atom (mJ/K)")
 
     new_temps = [100,300,500,800]
     analyzers[num].plot_degree_of_contribution(new_temps)
@@ -113,11 +123,11 @@ def analyze():
 
 def main( mode ):
     if ( mode == "add" ):
-        add_new(0.1)
+        add_new( mg_concentation )
     elif ( mode == "initWL" ):
-        init_WL_run(6)
+        init_WL_run(15)
     elif ( mode == "run" ):
-        run(5,explore=True)
+        run(14,explore=True)
     elif ( mode == "analyze" ):
         analyze()
 
