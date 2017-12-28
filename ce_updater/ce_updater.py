@@ -133,14 +133,14 @@ class CEUpdater(object):
     def get_energy(self):
         return _ce_updater.CEUpdater_get_energy(self)
 
-    def update_cf(self, single_change):
-        return _ce_updater.CEUpdater_update_cf(self, single_change)
+    def update_cf(self, *args):
+        return _ce_updater.CEUpdater_update_cf(self, *args)
 
     def spin_product_one_atom(self, ref_indx, indx_list, dec):
         return _ce_updater.CEUpdater_spin_product_one_atom(self, ref_indx, indx_list, dec)
 
-    def calculate(self, system_changes):
-        return _ce_updater.CEUpdater_calculate(self, system_changes)
+    def calculate(self, *args):
+        return _ce_updater.CEUpdater_calculate(self, *args)
 
     def undo_changes(self):
         return _ce_updater.CEUpdater_undo_changes(self)
@@ -153,6 +153,9 @@ class CEUpdater(object):
 
     def get_cf(self):
         return _ce_updater.CEUpdater_get_cf(self)
+
+    def get_history(self):
+        return _ce_updater.CEUpdater_get_history(self)
 CEUpdater_swigregister = _ce_updater.CEUpdater_swigregister
 CEUpdater_swigregister(CEUpdater)
 
@@ -213,6 +216,75 @@ CFHistoryTracker_swigregister(CFHistoryTracker)
 def swap(first, second):
     return _ce_updater.swap(first, second)
 swap = _ce_updater.swap
+
+class WangLandauSampler(object):
+    thisown = _swig_property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc='The membership flag')
+    __repr__ = _swig_repr
+
+    def __init__(self, BC, corrFunc, ecis, permutations, py_wl):
+        this = _ce_updater.new_WangLandauSampler(BC, corrFunc, ecis, permutations, py_wl)
+        try:
+            self.this.append(this)
+        except Exception:
+            self.this = this
+    __swig_destroy__ = _ce_updater.delete_WangLandauSampler
+    __del__ = lambda self: None
+
+    def get_canonical_trial_move(self, *args):
+        return _ce_updater.WangLandauSampler_get_canonical_trial_move(self, *args)
+
+    def step(self):
+        return _ce_updater.WangLandauSampler_step(self)
+
+    def run(self, nsteps):
+        return _ce_updater.WangLandauSampler_run(self, nsteps)
+
+    def send_results_to_python(self):
+        return _ce_updater.WangLandauSampler_send_results_to_python(self)
+WangLandauSampler_swigregister = _ce_updater.WangLandauSampler_swigregister
+WangLandauSampler_swigregister(WangLandauSampler)
+
+class Histogram(object):
+    thisown = _swig_property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc='The membership flag')
+    __repr__ = _swig_repr
+
+    def __init__(self, Nbins, Emin, Emax):
+        this = _ce_updater.new_Histogram(Nbins, Emin, Emax)
+        try:
+            self.this.append(this)
+        except Exception:
+            self.this = this
+
+    def get_bin(self, energy):
+        return _ce_updater.Histogram_get_bin(self, energy)
+
+    def get_energy(self, bin):
+        return _ce_updater.Histogram_get_energy(self, bin)
+
+    def update(self, bin, mod_factor):
+        return _ce_updater.Histogram_update(self, bin, mod_factor)
+
+    def is_flat(self, criteria):
+        return _ce_updater.Histogram_is_flat(self, criteria)
+
+    def get_dos_ratio_old_divided_by_new(self, old_bin, new_bin):
+        return _ce_updater.Histogram_get_dos_ratio_old_divided_by_new(self, old_bin, new_bin)
+
+    def bin_in_range(self, bin):
+        return _ce_updater.Histogram_bin_in_range(self, bin)
+
+    def send_to_python_hist(self, py_hist):
+        return _ce_updater.Histogram_send_to_python_hist(self, py_hist)
+
+    def reset(self):
+        return _ce_updater.Histogram_reset(self)
+
+    def init_from_pyhist(self, pyhist):
+        return _ce_updater.Histogram_init_from_pyhist(self, pyhist)
+    __swig_destroy__ = _ce_updater.delete_Histogram
+    __del__ = lambda self: None
+Histogram_swigregister = _ce_updater.Histogram_swigregister
+Histogram_swigregister(Histogram)
 
 
 

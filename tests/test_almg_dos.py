@@ -10,7 +10,7 @@ from ase.visualize import view
 import numpy as np
 from matplotlib import pyplot as plt
 from ase import units
-wl_db_name = "data/almg_canonical_dos.db"
+wl_db_name = "data/almg_canonical_dos_larger.db"
 
 ecis = {'c3_1225_4_1': -0.00028826723864655595,
         'c2_1000_1_1': -0.012304759727020153,
@@ -26,14 +26,14 @@ ecis = {'c3_1225_4_1': -0.00028826723864655595,
         'c3_1225_3_1': -0.011318935831421125
         }
 
-mg_concentation = 0.4
+mg_concentation = 0.1
 def get_atoms( mg_conc ):
     db_name = "/home/davidkl/Documents/WangLandau/data/ce_hydrostatic_7x7.db"
     conc_args = {
         "conc_ratio_min_1":[[60,4]],
         "conc_ratio_max_1":[[64,0]],
     }
-    ceBulk = BulkCrystal( "fcc", 4.05, [10,10,10], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, max_cluster_dia=1.414*4.05,reconf_db=True )
+    ceBulk = BulkCrystal( "fcc", 4.05, [4,4,4], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, max_cluster_dia=1.414*4.05,reconf_db=True )
     init_cf = {key:1.0 for key in ecis.keys()}
     calc = CE( ceBulk, ecis, initial_cf=init_cf )
     ceBulk.atoms.set_calculator( calc )
@@ -54,6 +54,9 @@ def init_WL_run( atomID ):
     manager.insert( atomID, Nbins=1000 )
 
 def run( runID, explore=False ):
+    sum_eci = 0.0
+    for key,value in ecis.iteritems():
+        sum_eci += np.abs(value)
     atoms = get_atoms( mg_concentation )
     view(atoms)
     wl = wang_landau_scg.WangLandauSGC( atoms, wl_db_name, runID, conv_check="flathist", scheme="square_root_reduction", ensemble="canonical", fmin=1E-8, Nbins=1000 )
@@ -64,10 +67,11 @@ def run( runID, explore=False ):
         Emax = wl.histogram.Emax
         delta = Emax-Emin
         center = 0.5*(Emax+Emin)
-        Emin = center - 0.75*delta
-        Emax = center + 0.75*delta
+        Emin = center - 0.5*delta
+        Emax = center + 0.5*delta
         wl.histogram.Emin = Emin
         wl.histogram.Emax = Emax
+        print ("Emin %.2f, Emax %.2f"%(Emin,Emax))
         print ("Exploration finished!")
 
     wl.run_fast_sampler( maxsteps=int(1E9) )
@@ -88,9 +92,9 @@ def analyze():
     ax4 = fig4.add_subplot(1,1,1)
 
     T = np.linspace(10.0,900.0,300)
-    num = -1
     print (len(analyzers))
     for num in range(0,len(analyzers)):
+        analyzers[num].update_dos_with_polynomial_tails( factor_low=1.5, order=2, fraction=0.2 )
         analyzers[num].normalize_dos_by_infinite_temp_limit()
         internal_energy = np.array( [analyzers[num].internal_energy(temp) for temp in T] )
         heat_capacity = np.array( [analyzers[num].heat_capacity(temp) for temp in T] )
@@ -100,11 +104,10 @@ def analyze():
         heat_capacity *= units.kJ*1E6/units.mol
         entrop = np.array( [analyzers[num].entropy(temp) for temp in T] )
         entrop *= units.kJ*1E6/units.mol
-        ax1.plot( T, internal_energy )
-        ax2.plot( T, heat_capacity )
-        ax3.plot( T, free_energy )
-        ax4.plot( T, entrop )
-        #analyzers[num].update_dos_with_polynomial_tails( -18.0, -12.0 )
+        ax1.plot( T, internal_energy, label="{}".format(analyzers[num].get_chemical_formula() ))
+        ax2.plot( T, heat_capacity, label="{}".format(analyzers[num].get_chemical_formula() ))
+        ax3.plot( T, free_energy, label="{}".format(analyzers[num].get_chemical_formula() ))
+        ax4.plot( T, entrop, label="{}".format(analyzers[num].get_chemical_formula() ))
         analyzers[num].plot_dos()
 
     ax1.set_xlabel( "Temperature (K)" )
@@ -115,7 +118,11 @@ def analyze():
     ax3.set_ylabel( "Helmholtz Free Energy (J/mol)")
     ax4.set_xlabel( "Temperature (K)" )
     ax4.set_ylabel( "Entropy per atom (mJ/K)")
-
+    ax1.legend( loc="best", frameon=False )
+    ax2.legend( loc="best", frameon=False )
+    ax3.legend( loc="best", frameon=False )
+    ax4.legend( loc="best", frameon=False )
+    num = 0
     new_temps = [100,300,500,800]
     analyzers[num].plot_degree_of_contribution(new_temps)
     plt.show()
@@ -125,9 +132,9 @@ def main( mode ):
     if ( mode == "add" ):
         add_new( mg_concentation )
     elif ( mode == "initWL" ):
-        init_WL_run(15)
+        init_WL_run(1)
     elif ( mode == "run" ):
-        run(14,explore=True)
+        run(0,explore=True)
     elif ( mode == "analyze" ):
         analyze()
 

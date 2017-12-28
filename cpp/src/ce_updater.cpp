@@ -12,6 +12,11 @@ CEUpdater::~CEUpdater()
 {
   delete history;
   if ( atoms != nullptr ) Py_DECREF(atoms);
+
+  for ( unsigned int i=0;i<observers.size();i++ )
+  {
+    delete observers[i];
+  }
 }
 
 void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObject *perms )

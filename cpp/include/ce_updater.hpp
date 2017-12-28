@@ -5,6 +5,7 @@
 #include <map>
 #include "matrix.hpp"
 #include "cf_history_tracker.hpp"
+#include "mc_observers.hpp"
 #include <array>
 #include <Python.h>
 
@@ -61,6 +62,9 @@ public:
 
   /** Returns the correlaation functions as a dictionary. Only the ones that corresponds to one of the ECIs */
   PyObject* get_cf();
+
+  /** Returns the CF history tracker */
+  const CFHistoryTracker& get_history() const{ return *history; };
 private:
   void create_ctype_lookup();
   void create_permutations( PyObject *pypermutations );
@@ -76,5 +80,6 @@ private:
   CFHistoryTracker *history{nullptr};
   std::map< int, std::vector< std::vector<int> > > permutations;
   PyObject *atoms{nullptr};
+  std::vector<MCObserver*> observers; // TODO: Not used at the moment. The accept/rejection is done in the Python code
 };
 #endif

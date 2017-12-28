@@ -159,14 +159,16 @@ class WangLandauSGCAnalyzer( object ):
         x_right, residual, rank, s = np.linalg.lstsq( M, logdos[-N:] )
         return x_left, x_right
 
-    def update_dos_with_polynomial_tails( self, Emin, Emax, order=3, fraction=0.1 ):
+    def update_dos_with_polynomial_tails( self, factor_low=1.05,factor_high=1.05, order=3, fraction=0.1 ):
         """
         Updates the DOS by using polynomial tails
         """
         x_left, x_right = self.polynomial_tails( order=order, fraction=fraction )
         dE = self.E[1]-self.E[0]
-        Emin *= (self.n_atoms/1000.0)
-        Emax *= (self.n_atoms/1000.0)
+        center = 0.5*(self.E[-1]+self.E[0])
+        width = self.E[-1] - self.E[0]
+        Emin = center-0.5*factor_low*width
+        Emax = center+0.5*factor_high*width
         N = int( (Emax-Emin)/dE )
         E = np.linspace( Emin,Emax,N )
         old_Emin = self.E[0]
@@ -214,7 +216,7 @@ class WangLandauSGCAnalyzer( object ):
         low = None
         high = None
         for T in temps:
-            dist = self.dos*self._boltzmann_factor(T)
+            dist = np.log( self.dos*self._boltzmann_factor(T) )
             ax.plot(self.E, dist, label="T={}K".format(T), ls="steps" )
             new_low = min([dist[0],dist[-1]])
             if ( low is None or new_low < low ):
@@ -222,6 +224,5 @@ class WangLandauSGCAnalyzer( object ):
         ax.set_ylim(ymin=low)
         ax.legend( loc="best", frameon=False )
         ax.set_xlabel( "Energy (eV)" )
-        ax.set_ylabel( "Distribution" )
-        ax.set_yscale("log")
+        ax.set_ylabel( "log Occupational prob." )
         return fig

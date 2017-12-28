@@ -72,7 +72,9 @@ class Montecarlo:
 
         # Atoms object should have attached calculator
         # Add check that this is show
-        self.current_energy = self.atoms.get_potential_energy() # Get starting energy
+        self.current_energy = 1E8
+        self._mc_step()
+        #self.current_energy = self.atoms.get_potential_energy() # Get starting energy
 
         totalenergies = []
         totalenergies.append(self.current_energy)
