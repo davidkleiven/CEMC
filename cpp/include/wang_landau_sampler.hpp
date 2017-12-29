@@ -20,6 +20,9 @@ public:
   void get_canonical_trial_move( std::array<SymbolChange,2> &changes, unsigned int &select1, unsigned int &select2 );
   void get_canonical_trial_move( unsigned int thread_num, std::array<SymbolChange,2> &changes, unsigned int &select1, unsigned int &select2 );
 
+  /** Perform random steps until the position is inside the energy range */
+  void run_until_valid_energy();
+
   /** Running one MC step */
   void step();
 
@@ -41,7 +44,7 @@ private:
   Histogram *histogram{nullptr};
   double current_energy{0.0};
   //unsigned int current_bin;
-  std::vector<unsigned int> current_bin;
+  std::vector<int> current_bin;
   PyObject *py_wl{nullptr};
   bool converged{false};
   std::vector<unsigned int> seeds;

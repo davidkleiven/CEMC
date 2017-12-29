@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <iostream>
+#include <stdexcept>
 using namespace std;
 
 const static unsigned int num_threads = omp_get_max_threads(); // Use the maximum number of threads
@@ -277,4 +278,101 @@ void WangLandauSampler::send_results_to_python()
   PyObject *py_iter = PyInt_FromLong(iter);
   PyObject_SetAttrString( py_wl, "iter", py_iter );
   Py_DECREF( py_iter );
+}
+
+void WangLandauSampler::run_until_valid_energy()
+{
+  bool all_ok = true;
+  // Check if all processors are in a valid energy state
+  for ( unsigned int i=0;i<current_bin.size();i++ )
+  {
+    if ( !histogram->bin_in_range(current_bin[i]) )
+    {
+      all_ok = false;
+      break;
+    }
+  }
+
+  if ( all_ok )
+  {
+    return;
+  }
+  else
+  {
+    // Check if one of the processors is inside the energy range
+    int proc_in_valid_state = -1;
+    for ( unsigned int i=0;i<current_bin.size();i++ )
+    {
+      if ( histogram->bin_in_range(current_bin[i]) )
+      {
+        proc_in_valid_state = i;
+        break;
+      }
+    }
+    if ( proc_in_valid_state != -1 )
+    {
+      // Update the updaters
+      for ( int i=0;i<current_bin.size();i++ )
+      {
+        if ( i == proc_in_valid_state ) continue;
+
+        delete updaters[i];
+        updaters[i] = updaters[proc_in_valid_state]->copy();
+      }
+      return;
+    }
+  }
+
+  // All processors are outside of the valid range
+  unsigned int max_steps = 1000000;
+  bool found_state_in_range = false;
+  for ( unsigned int i=0;i<max_steps;i++ )
+  {
+    array<SymbolChange,2> change;
+    unsigned int select1, select2;
+    get_canonical_trial_move( 0, change, select1, select2 );
+
+    double energy = updaters[0]->calculate( change );
+    int bin = histogram->get_bin( energy );
+
+    if ( histogram->bin_in_range(bin) )
+    {
+      found_state_in_range = true;
+      break;
+    }
+
+    double current_energy = histogram->get_energy( current_bin[0] );
+    if ( current_energy > histogram->get_emax() )
+    {
+      if ( energy < current_energy )
+      {
+        updaters[0]->clear_history();
+        current_bin[0] = bin;
+      }
+      else
+      {
+        updaters[0]->undo_changes();
+      }
+    }
+    else
+    {
+      if ( current_energy < histogram->get_emin() )
+      {
+        if ( energy > current_energy )
+        {
+          updaters[0]->clear_history();
+          current_bin[0] = bin;
+        }
+        else
+        {
+          updaters[0]->undo_changes();
+        }
+      }
+    }
+  }
+
+  if ( !found_state_in_range )
+  {
+    throw runtime_error( "Could not find any energy state inside the histogram range!" );
+  }
 }

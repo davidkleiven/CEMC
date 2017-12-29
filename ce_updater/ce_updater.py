@@ -233,6 +233,9 @@ class WangLandauSampler(object):
     def get_canonical_trial_move(self, *args):
         return _ce_updater.WangLandauSampler_get_canonical_trial_move(self, *args)
 
+    def run_until_valid_energy(self):
+        return _ce_updater.WangLandauSampler_run_until_valid_energy(self)
+
     def step(self):
         return _ce_updater.WangLandauSampler_step(self)
 
@@ -262,6 +265,12 @@ class Histogram(object):
 
     def get_energy(self, bin):
         return _ce_updater.Histogram_get_energy(self, bin)
+
+    def get_emin(self):
+        return _ce_updater.Histogram_get_emin(self)
+
+    def get_emax(self):
+        return _ce_updater.Histogram_get_emax(self)
 
     def update(self, bin, mod_factor):
         return _ce_updater.Histogram_update(self, bin, mod_factor)

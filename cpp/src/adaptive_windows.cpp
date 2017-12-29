@@ -1,9 +1,10 @@
 #include "adaptive_windows.hpp"
+#include "wang_landau_sampler.hpp"
 
 AdaptiveWindowHistogram::AdaptiveWindowHistogram( unsigned int Nbins, double Emin, double Emax, unsigned int minimum_width, \
-  unsigned int n_overlap_bins ):
+  unsigned int n_overlap_bins, WangLandauSampler &sampler ): \
 Histogram(Nbins,Emin,Emax), overall_Emin(Emin),overall_Emax(Emax),minimum_width(minimum_width),n_overlap_bins(n_overlap_bins), \
-current_uppder_bin(Nbins){};
+current_uppder_bin(Nbins),sampler(&sampler){};
 
 bool AdaptiveWindowHistogram::is_flat( double criteria )
 {
@@ -23,24 +24,29 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
     double mean_dbl = static_cast<double>(mean)/count;
     if ( count > minimum_width )
     {
-      if ( minimum > criteria*mean ) part_of_histogram_has_converged=true;
+      if ( minimum > criteria*mean_dbl ) part_of_histogram_has_converged=true;
     }
 
-    if ( part_of_histogram_has_converged && minimum < criteria*mean )
+    if ( part_of_histogram_has_converged && minimum < criteria*mean_dbl )
     {
       first_non_converged_bin = i-1;
       break;
     }
   }
 
+  bool converged = (first_non_converged_bin == 0) && part_of_histogram_has_converged;
+  if ( converged ) return true;
+
   // Update the histogram limits
   if ( part_of_histogram_has_converged )
   {
+    window_edges.push_back( first_non_converged_bin );
     current_uppder_bin = first_non_converged_bin+n_overlap_bins;
     Emax = get_energy( current_uppder_bin );
+    sampler->run_until_valid_energy();
   }
-  bool converged = (first_non_converged_bin == 0) && part_of_histogram_has_converged;
-  return converged;
+
+  return false;
 }
 
 void AdaptiveWindowHistogram::reset()
@@ -48,4 +54,21 @@ void AdaptiveWindowHistogram::reset()
   Histogram::reset();
   current_uppder_bin = Nbins;
   Emax = overall_Emax;
+  make_dos_continous();
+}
+
+void AdaptiveWindowHistogram::make_dos_continous()
+{
+  for ( unsigned int i=0;i<window_edges.size();i++ )
+  {
+    double diff = logdos[window_edges[i]] - logdos[window_edges[i]+n_overlap_bins];
+    unsigned int start = 0;
+    if ( i == 0 ) start = 0;
+    else start = window_edges[i-1];
+
+    for ( unsigned int j=start;j<window_edges[i];i++ )
+    {
+      logdos[j] -= diff;
+    }
+  }
 }

@@ -1,4 +1,4 @@
-#ifndef HISTROGRAM_H
+#ifndef HISTOGRAM_H
 #define HISTOGRAM_H
 #include <vector>
 #include <Python.h>
@@ -14,6 +14,12 @@ public:
 
   /** Returns the energy corresponding to one bin */
   double get_energy( int bin ) const;
+
+  /** Return the minimum energy of the histogram */
+  double get_emin() const { return Emin; }
+
+  /** Returns the maximum energy of the histogram */
+  double get_emax() const { return Emax; };
 
   /** Updates the histogram and the logdos */
   void update( unsigned int bin, double mod_factor );
