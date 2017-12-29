@@ -23,7 +23,7 @@ private:
   double overall_Emax;
   unsigned int minimum_width;
   unsigned int n_overlap_bins;
-  unsigned int current_uppder_bin;
+  unsigned int current_upper_bin;
   WangLandauSampler *sampler{nullptr};
   std::vector<unsigned int> window_edges;
 };

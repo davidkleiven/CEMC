@@ -7,7 +7,7 @@ using namespace std;
 AdaptiveWindowHistogram::AdaptiveWindowHistogram( unsigned int Nbins, double Emin, double Emax, unsigned int minimum_width, \
   unsigned int n_overlap_bins, WangLandauSampler &sampler ): \
 Histogram(Nbins,Emin,Emax), overall_Emin(Emin),overall_Emax(Emax),minimum_width(minimum_width),n_overlap_bins(n_overlap_bins), \
-current_uppder_bin(Nbins),sampler(&sampler)
+current_upper_bin(Nbins),sampler(&sampler)
 {
   n_overlap_bins = 1; // Has to be one when no overlap is considered
 };
@@ -19,7 +19,7 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
   unsigned int count = 0;
   bool part_of_histogram_has_converged = false;
   unsigned int first_non_converged_bin = 0;
-  for ( unsigned int i=current_uppder_bin;i>0;i-- )
+  for ( unsigned int i=current_upper_bin;i>0;i-- )
   {
     if ( !known_structures[i-1] ) continue;
 
@@ -47,8 +47,8 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
   if ( part_of_histogram_has_converged )
   {
     window_edges.push_back( first_non_converged_bin );
-    current_uppder_bin = first_non_converged_bin;//+n_overlap_bins; // TODO: Has to include this when continous dos is better handles
-    Emax = get_energy( current_uppder_bin );
+    current_upper_bin = first_non_converged_bin;//+n_overlap_bins; // TODO: Has to include this when continous dos is better handles
+    Emax = get_energy( current_upper_bin );
     sampler->run_until_valid_energy();
     cout << "Current Emax: " << Emax << endl;
   }
@@ -59,7 +59,7 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
 void AdaptiveWindowHistogram::reset()
 {
   Histogram::reset();
-  current_uppder_bin = Nbins;
+  current_upper_bin = Nbins;
   Emax = overall_Emax;
   make_dos_continous();
 }
