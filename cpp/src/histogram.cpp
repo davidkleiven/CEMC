@@ -37,7 +37,7 @@ void Histogram::update( unsigned int bin, double mod_factor )
   logdos[bin] += mod_factor;
 }
 
-bool Histogram::is_flat( double criteria ) const
+bool Histogram::is_flat( double criteria )
 {
   unsigned int mean = 0;
   unsigned int minimum = 100000000;

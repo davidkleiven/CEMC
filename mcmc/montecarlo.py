@@ -40,6 +40,7 @@ class Montecarlo:
         self.atoms_indx = {}
         self.symbols = []
         self.build_atoms_list()
+        self.current_energy = 1E100
 
     def build_atoms_list( self ):
         """

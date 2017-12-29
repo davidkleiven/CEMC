@@ -10,6 +10,8 @@ from ase.visualize import view
 import numpy as np
 from matplotlib import pyplot as plt
 from ase import units
+from mcmc import sa_canonical
+
 wl_db_name = "data/almg_canonical_dos_larger.db"
 
 ecis = {'c3_1225_4_1': -0.00028826723864655595,
@@ -53,6 +55,17 @@ def init_WL_run( atomID ):
     manager = wldbm.WangLandauDBManager( wl_db_name )
     manager.insert( atomID, Nbins=1000 )
 
+def find_max_min_energy():
+    atoms = get_atoms( mg_concentation )
+    temperatures = np.linspace(5.0,1000.0,20)[::-1]
+    sa = sa_canonical.SimmulatedAnnealingCanonical( atoms, temperatures, mode="minimize" )
+    sa.run( steps_per_temp=50000 )
+    Emin = sa.extremal_energy
+    sa = sa_canonical.SimmulatedAnnealingCanonical( atoms, temperatures, mode="maximize" )
+    sa.run( steps_per_temp=50000 )
+    Emax = sa.extremal_energy
+    print ( "Maximal energies {},{}".format(Emin,Emax) )
+
 def run( runID, explore=False ):
     sum_eci = 0.0
     for key,value in ecis.iteritems():
@@ -73,7 +86,8 @@ def run( runID, explore=False ):
         wl.histogram.Emax = Emax
         print ("Emin %.2f, Emax %.2f"%(Emin,Emax))
         print ("Exploration finished!")
-
+    wl.histogram.Emin = -1.12907672419
+    wl.histogram.Emax = -0.845126849602
     wl.run_fast_sampler( maxsteps=int(1E9) )
     #wl.run( maxsteps=int(1E8) )
     wl.save_db()
@@ -134,9 +148,11 @@ def main( mode ):
     elif ( mode == "initWL" ):
         init_WL_run(1)
     elif ( mode == "run" ):
-        run(0,explore=True)
+        run(0,explore=False)
     elif ( mode == "analyze" ):
         analyze()
+    elif( mode == "limits" ):
+        find_max_min_energy()
 
 if __name__ == "__main__":
     mode = sys.argv[1]

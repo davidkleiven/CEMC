@@ -254,6 +254,8 @@ class Histogram(object):
             self.this.append(this)
         except Exception:
             self.this = this
+    __swig_destroy__ = _ce_updater.delete_Histogram
+    __del__ = lambda self: None
 
     def get_bin(self, energy):
         return _ce_updater.Histogram_get_bin(self, energy)
@@ -281,8 +283,6 @@ class Histogram(object):
 
     def init_from_pyhist(self, pyhist):
         return _ce_updater.Histogram_init_from_pyhist(self, pyhist)
-    __swig_destroy__ = _ce_updater.delete_Histogram
-    __del__ = lambda self: None
 Histogram_swigregister = _ce_updater.Histogram_swigregister
 Histogram_swigregister(Histogram)
 

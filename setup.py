@@ -2,7 +2,7 @@ from setuptools import setup, Extension
 
 src_folder = "cpp/src"
 inc_folder = "cpp/include"
-ce_updater_sources = ["ce_updater.cpp","cf_history_tracker.cpp","additional_tools.cpp","histogram.cpp","wang_landau_sampler.cpp"]
+ce_updater_sources = ["ce_updater.cpp","cf_history_tracker.cpp","additional_tools.cpp","histogram.cpp","wang_landau_sampler.cpp","adaptive_windows.cpp"]
 ce_updater_sources = [src_folder+"/"+srcfile for srcfile in ce_updater_sources]
 ce_updater_sources.append( "ce_updater/ce_updater.i" )
 ce_updater = Extension( "_ce_updater", sources=ce_updater_sources,include_dirs=[inc_folder],
