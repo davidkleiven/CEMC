@@ -1,5 +1,8 @@
 #include "adaptive_windows.hpp"
 #include "wang_landau_sampler.hpp"
+#include <iostream>
+
+using namespace std;
 
 AdaptiveWindowHistogram::AdaptiveWindowHistogram( unsigned int Nbins, double Emin, double Emax, unsigned int minimum_width, \
   unsigned int n_overlap_bins, WangLandauSampler &sampler ): \
@@ -47,6 +50,7 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
     current_uppder_bin = first_non_converged_bin;//+n_overlap_bins; // TODO: Has to include this when continous dos is better handles
     Emax = get_energy( current_uppder_bin );
     sampler->run_until_valid_energy();
+    cout << "Current Emax: " << Emax << endl;
   }
 
   return false;
