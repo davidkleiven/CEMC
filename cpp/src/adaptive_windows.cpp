@@ -5,12 +5,9 @@
 using namespace std;
 
 AdaptiveWindowHistogram::AdaptiveWindowHistogram( unsigned int Nbins, double Emin, double Emax, unsigned int minimum_width, \
-  unsigned int n_overlap_bins, WangLandauSampler &sampler ): \
-Histogram(Nbins,Emin,Emax), overall_Emin(Emin),overall_Emax(Emax),minimum_width(minimum_width),n_overlap_bins(n_overlap_bins), \
-current_upper_bin(Nbins),sampler(&sampler)
-{
-  n_overlap_bins = 1; // Has to be one when no overlap is considered
-};
+ WangLandauSampler &sampler ): \
+Histogram(Nbins,Emin,Emax), overall_Emin(Emin),overall_Emax(Emax),minimum_width(minimum_width), \
+current_upper_bin(Nbins),sampler(&sampler){};
 
 bool AdaptiveWindowHistogram::is_flat( double criteria )
 {
@@ -47,7 +44,7 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
   if ( part_of_histogram_has_converged )
   {
     window_edges.push_back( first_non_converged_bin );
-    current_upper_bin = first_non_converged_bin;//+n_overlap_bins; // TODO: Has to include this when continous dos is better handles
+    current_upper_bin = first_non_converged_bin+1;
     Emax = get_energy( current_upper_bin );
     sampler->run_until_valid_energy();
     cout << "Current Emax: " << Emax << endl;
@@ -62,13 +59,15 @@ void AdaptiveWindowHistogram::reset()
   current_upper_bin = Nbins;
   Emax = overall_Emax;
   make_dos_continous();
+  window_edges.clear();
+  logdos_on_edges.clear();
 }
 
 void AdaptiveWindowHistogram::make_dos_continous()
 {
   for ( unsigned int i=0;i<window_edges.size();i++ )
   {
-    double diff = logdos[window_edges[i]] - logdos[window_edges[i]+n_overlap_bins];
+    double diff = logdos[window_edges[i]] - logdos_on_edges[i];
     unsigned int start = 0;
     if ( i == 0 ) start = 0;
     else start = window_edges[i-1];
