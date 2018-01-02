@@ -7,7 +7,7 @@ class Histogram
 {
 public:
   Histogram( unsigned int Nbins, double Emin, double Emax );
-  virtual ~Histogram();
+  virtual ~Histogram(){};
 
   /** Returns the bin corresponding to the given energy */
   int get_bin( double energy ) const;
