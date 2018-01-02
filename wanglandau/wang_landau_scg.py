@@ -23,7 +23,8 @@ from wanglandau import ce_calculator
 try:
     from ce_updater.ce_updater import WangLandauSampler
     has_fast_wl_sampler = True
-except:
+except Exception as exc:
+    print (str(exc))
     has_fast_wl_sampler = False
 
 class WangLandauSGC( object ):
