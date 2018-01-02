@@ -99,12 +99,30 @@ class WangLandauDBManager( object ):
                 continue
             self.insert( row.id, Tmax, initial_f=initial_f, fmin=fmin, flatness=flatness,Nbins=Nbins,n_kbT=n_kbT )
 
-    def insert( self, atomID, Tmax=300.0, initial_f=2.71, fmin=1E-8, flatness=0.8, Nbins=50, n_kbT=20 ):
+    def exists_in_db( self, atomID ):
+        """
+        Check if the object is already present in the database
+        """
+        conn = sq.connect( self.db_name )
+        cur = conn.cursor()
+        cur.execute( "SELECT atomID FROM simulations" )
+        entries = cur.fetchall()
+        conn.close()
+        exists = False
+        for atID in entries:
+            if ( atomID == atID ):
+                return True
+        return False
+
+
+    def insert( self, atomID, initial_f=2.71, fmin=1E-8, flatness=0.8, Nbins=50, Emin=0.0, Emax=1.0 ):
         """
         Insert a new entry into the database
         """
         newID = self.get_new_id()
-
+        if ( self.exists_in_db(atomID) ):
+            print ("A WL simulation of the atomID already exists in the database" )
+            return
         conn = sq.connect( self.db_name )
         cur = conn.cursor()
         cur.execute( "insert into simulations (uid,initial_f,current_f,flatness,fmin,queued,Nbins,atomID) values (?,?,?,?,?,?,?,?)",
@@ -113,7 +131,6 @@ class WangLandauDBManager( object ):
         cur.execute( "update simulations set n_iter=? where uid=?", (1,newID) )
         conn.commit()
 
-        Emin,Emax = self.get_energy_range( atomID, Tmax, n_kbT )
         cur.execute( "update simulations set Emin=?, Emax=? where uid=?",(Emin,Emax,newID))
         E = np.linspace( Emin,Emax+1E-8,Nbins )
         cur.execute( "update simulations set energy=? where uid=?", (wltools.adapt_array(E),newID) )

@@ -450,17 +450,24 @@ class WangLandauSGC( object ):
         self.logger.info("Selected range: Emin: {}, Emax: {}".format(self.histogram.Emin,self.histogram.Emax))
         self.histogram.clear()
 
-    def run_fast_sampler( self, maxsteps=10000000 ):
+    def run_fast_sampler( self, maxsteps=10000000, mode="regular", minimum_window_width=10 ):
         if ( not has_fast_wl_sampler ):
             raise ImportError( "The fast WL sampler was not imported!" )
 
         if ( not ce_calculator.use_cpp ):
             raise ImportError( "There is no C++ version of the CE-calculator available!" )
+
+        allowed_modes = ["regular","adaptive_windows"]
+        if ( not mode in allowed_modes ):
+            raise ValueError( "Unknown mode. Has to one of {}".format(allowed_modes) )
         BC = self.atoms._calc.BC
         corrFunc = self.atoms._calc.updater.get_cf()
         ecis = self.atoms._calc.eci
         perms = self.atoms._calc.permutations
         fast_wl_sampler = WangLandauSampler( BC,corrFunc,ecis,perms, self )
+
+        if ( mode == "adaptive_windows" ):
+            fast_wl_sampler.use_adaptive_windows( minimum_window_width )
         fast_wl_sampler.run( maxsteps )
         self.logger.info( "Fast WL sampler finished" )
 

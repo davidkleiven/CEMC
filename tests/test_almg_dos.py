@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt
 from ase import units
 from mcmc import sa_canonical
 
-wl_db_name = "data/almg_canonical_dos_larger.db"
+wl_db_name = "data/almg_canonical_dos_10x10x10.db"
 
 ecis = {'c3_1225_4_1': -0.00028826723864655595,
         'c2_1000_1_1': -0.012304759727020153,
@@ -35,7 +35,7 @@ def get_atoms( mg_conc ):
         "conc_ratio_min_1":[[60,4]],
         "conc_ratio_max_1":[[64,0]],
     }
-    ceBulk = BulkCrystal( "fcc", 4.05, [4,4,4], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, max_cluster_dia=1.414*4.05,reconf_db=True )
+    ceBulk = BulkCrystal( "fcc", 4.05, [10,10,10], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, max_cluster_dia=1.414*4.05,reconf_db=True )
     init_cf = {key:1.0 for key in ecis.keys()}
     calc = CE( ceBulk, ecis, initial_cf=init_cf )
     ceBulk.atoms.set_calculator( calc )
@@ -48,15 +48,23 @@ def get_atoms( mg_conc ):
 
 def add_new( mg_conc ):
     atoms = get_atoms(mg_conc)
+    Emin,Emax = find_max_min_energy(atoms)
     db = connect( wl_db_name )
-    db.write( atoms )
+    uid = db.write( atoms )
+    db.update( uid, Emin=Emin, Emax=Emax, mg_conc=mg_conc )
 
-def init_WL_run( atomID ):
+def init_WL_run():
     manager = wldbm.WangLandauDBManager( wl_db_name )
-    manager.insert( atomID, Nbins=100 )
+    db = connect( wl_db_name )
+    for row in db.select():
+        Emin = row.get("Emin")
+        Emax = row.get("Emax")
+        if ( Emin is None or Emax is None ):
+            print( "Energy range for atoms object is not known!" )
+            continue
+        manager.insert( row.id, Emin=Emin, Emax=Emax )
 
-def find_max_min_energy():
-    atoms = get_atoms( mg_concentation )
+def find_max_min_energy( atoms ):
     temperatures = np.linspace(5.0,1000.0,20)[::-1]
     sa = sa_canonical.SimmulatedAnnealingCanonical( atoms, temperatures, mode="minimize" )
     sa.run( steps_per_temp=50000 )
@@ -65,14 +73,16 @@ def find_max_min_energy():
     sa.run( steps_per_temp=50000 )
     Emax = sa.extremal_energy
     print ( "Maximal energies {},{}".format(Emin,Emax) )
+    return Emin,Emax
 
 def run( runID, explore=False ):
     sum_eci = 0.0
     for key,value in ecis.iteritems():
         sum_eci += np.abs(value)
+
     atoms = get_atoms( mg_concentation )
     view(atoms)
-    wl = wang_landau_scg.WangLandauSGC( atoms, wl_db_name, runID, conv_check="flathist", scheme="square_root_reduction", ensemble="canonical", fmin=1E-5, Nbins=100 )
+    wl = wang_landau_scg.WangLandauSGC( atoms, wl_db_name, runID, conv_check="flathist", scheme="square_root_reduction", ensemble="canonical", fmin=1E-8, Nbins=1000 )
 
     if ( explore ):
         wl.explore_energy_space( nsteps=20000 )
@@ -86,9 +96,9 @@ def run( runID, explore=False ):
         wl.histogram.Emax = Emax
         print ("Emin %.2f, Emax %.2f"%(Emin,Emax))
         print ("Exploration finished!")
-    wl.histogram.Emin = -1.12907672419
-    wl.histogram.Emax = -0.845126849602
-    wl.run_fast_sampler( maxsteps=int(1E9) )
+    #wl.histogram.Emin = -1.12907672419
+    #wl.histogram.Emax = -0.845126849602
+    wl.run_fast_sampler( maxsteps=int(1E9), mode="adaptive_windows", minimum_window_width=100 )
     #wl.run( maxsteps=int(1E8) )
     wl.save_db()
 
@@ -146,9 +156,9 @@ def main( mode ):
     if ( mode == "add" ):
         add_new( mg_concentation )
     elif ( mode == "initWL" ):
-        init_WL_run(2)
+        init_WL_run()
     elif ( mode == "run" ):
-        run(1,explore=False)
+        run(0,explore=False)
     elif ( mode == "analyze" ):
         analyze()
     elif( mode == "limits" ):

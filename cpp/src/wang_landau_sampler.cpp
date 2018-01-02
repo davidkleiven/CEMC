@@ -352,7 +352,7 @@ void WangLandauSampler::run_until_valid_energy( double emin, double emax )
 
     double energy = updaters[0]->calculate( change );
     int bin = histogram->get_bin( energy );
-    cout << energy << " " << bin << " " << current_bin[0] << endl;
+    //cout << energy << " " << bin << " " << current_bin[0] << endl;
 
     double current_energy = histogram->get_energy( current_bin[0] );
     if ( current_energy >= emax )
