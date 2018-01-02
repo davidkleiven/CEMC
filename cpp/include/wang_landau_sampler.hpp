@@ -10,6 +10,8 @@
 #include <array>
 #define WANG_LANDAU_DEBUG
 
+typedef std::vector< std::map< std::string,std::vector<int> > > listdict;
+
 class WangLandauSampler
 {
 public:
@@ -21,7 +23,7 @@ public:
   void get_canonical_trial_move( unsigned int thread_num, std::array<SymbolChange,2> &changes, unsigned int &select1, unsigned int &select2 );
 
   /** Perform random steps until the position is inside the energy range */
-  void run_until_valid_energy();
+  void run_until_valid_energy( double emin, double emax );
 
   /** Running one MC step */
   void step();
@@ -34,9 +36,30 @@ public:
 
   /** Use a histogram with adaptive windows */
   void use_adaptive_windows( unsigned int minimum_window_width );
+
+  /** Return the number of CE updaters */
+  unsigned int get_n_updaters() const { return updaters.size(); };
+
+  /** Get a pointer to a CE updater */
+  CEUpdater* get_updater( unsigned int indx ){ return updaters[indx]; };
+
+  /** Deletes all the CE updaters */
+  void delete_updaters();
+
+  /** Replaces the CE updaters with the onesin new_uptaders */
+  void set_updaters( const std::vector<CEUpdater*> &new_updaters, listdict &new_pos_track, std::vector<int> &curr_bin );
+
+  /** Returns a copy of the atom position trackers */
+  listdict get_atom_pos_trackers() const { return atom_positions_track; };
+
+  /** Returns a copy of current bins */
+  std::vector<int> get_current_bins() const { return current_bin; };
 private:
+  /** Updates the atom position trackers */
+  void update_atom_position_track( unsigned int uid, std::array<SymbolChange,2> &changes, unsigned int select1, unsigned int select2 );
+
   std::vector<CEUpdater*> updaters; // Keep one updater for each thread
-  std::vector< std::map< std::string,std::vector<int> > > atom_positions_track;
+  listdict atom_positions_track;
   bool ready{true};
   double f{2.71};
   double min_f{1E-6};
@@ -45,8 +68,7 @@ private:
   std::vector<int> site_types;
   std::vector<std::string> symbols;
   Histogram *histogram{nullptr};
-  double current_energy{0.0};
-  //unsigned int current_bin;
+  //double current_energy{0.0};
   std::vector<int> current_bin;
   PyObject *py_wl{nullptr};
   bool converged{false};

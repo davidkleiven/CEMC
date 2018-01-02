@@ -34,7 +34,7 @@ public:
   double get_dos_ratio_old_divided_by_new( unsigned int old_bin, unsigned int new_bin ) const;
 
   /** Returns true if the bin is in the histogram range */
-  bool bin_in_range( int bin ) const;
+  virtual bool bin_in_range( int bin ) const;
 
   /** Sends the result to the Python histograms */
   void send_to_python_hist( PyObject *py_hist );

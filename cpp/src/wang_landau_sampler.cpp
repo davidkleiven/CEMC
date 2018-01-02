@@ -192,7 +192,6 @@ void WangLandauSampler::step()
   get_canonical_trial_move( uid, change, select1, select2 );
 
   double energy = updaters[uid]->calculate( change );
-
   int bin = histogram->get_bin( energy );
 
   if ( !histogram->bin_in_range(bin) )
@@ -281,8 +280,11 @@ void WangLandauSampler::send_results_to_python()
   Py_DECREF( py_iter );
 }
 
-void WangLandauSampler::run_until_valid_energy()
+void WangLandauSampler::run_until_valid_energy( double emin, double emax )
 {
+  #ifdef WANG_LANDAU_DEBUG
+    cout << current_bin << endl;
+  #endif
   bool all_ok = true;
   // Check if all processors are in a valid energy state
   for ( unsigned int i=0;i<current_bin.size();i++ )
@@ -316,17 +318,21 @@ void WangLandauSampler::run_until_valid_energy()
     if ( proc_in_valid_state != -1 )
     {
       #ifdef WANG_LANDAU_DEBUG
-        cout << "At least one processor in valid energy range. Set all other samples equal to this one\n";
+        cout << "At least one processor in valid energy range. Set the ones outside the range equal to this one\n";
       #endif
       // Update the updaters
       for ( int i=0;i<current_bin.size();i++ )
       {
-        if ( i == proc_in_valid_state ) continue;
+        if ( histogram->bin_in_range(current_bin[i]) ) continue;
 
         delete updaters[i];
         updaters[i] = updaters[proc_in_valid_state]->copy();
         current_bin[i] = current_bin[proc_in_valid_state];
+        atom_positions_track[i] = atom_positions_track[proc_in_valid_state];
       }
+      #ifdef WANG_LANDAU_DEBUG
+        cout << current_bin << endl;
+      #endif
       return;
     }
   }
@@ -346,23 +352,17 @@ void WangLandauSampler::run_until_valid_energy()
 
     double energy = updaters[0]->calculate( change );
     int bin = histogram->get_bin( energy );
-
-    if ( histogram->bin_in_range(bin) )
-    {
-      found_state_in_range = true;
-      #ifdef WANG_LANDAU_DEBUG
-        cout << "Found a valid state in " << i << " trial moves\n";
-      #endif
-      break;
-    }
+    cout << energy << " " << bin << " " << current_bin[0] << endl;
 
     double current_energy = histogram->get_energy( current_bin[0] );
-    if ( current_energy > histogram->get_emax() )
+    if ( current_energy >= emax )
     {
-      if ( energy < current_energy )
+      // The current state has an energy higher than the upper limit
+      if ( (energy < current_energy) && energy > emin )
       {
         updaters[0]->clear_history();
         current_bin[0] = bin;
+        update_atom_position_track(0,change,select1,select2);
       }
       else
       {
@@ -371,18 +371,26 @@ void WangLandauSampler::run_until_valid_energy()
     }
     else
     {
-      if ( current_energy < histogram->get_emin() )
+      // The current state has an energy lower than the upper limit
+      if ( (energy > current_energy) && (energy < emax) )
       {
-        if ( energy > current_energy )
-        {
-          updaters[0]->clear_history();
-          current_bin[0] = bin;
-        }
-        else
-        {
-          updaters[0]->undo_changes();
-        }
+        updaters[0]->clear_history();
+        current_bin[0] = bin;
+        update_atom_position_track(0,change,select1,select2);
       }
+      else
+      {
+        updaters[0]->undo_changes();
+      }
+    }
+    updaters[0]->clear_history();
+    if ( histogram->bin_in_range(bin) )
+    {
+      found_state_in_range = true;
+      #ifdef WANG_LANDAU_DEBUG
+        cout << "Found a valid state in " << i << " trial moves\n";
+      #endif
+      break;
     }
   }
 
@@ -392,8 +400,12 @@ void WangLandauSampler::run_until_valid_energy()
     delete updaters[i];
     updaters[i] = updaters[0]->copy();
     current_bin[i] = current_bin[0];
+    atom_positions_track[i] = atom_positions_track[0];
   }
 
+  #ifdef WANG_LANDAU_DEBUG
+    cout << current_bin << endl;
+  #endif
   if ( !found_state_in_range )
   {
     throw runtime_error( "Could not find any energy state inside the histogram range!" );
@@ -407,4 +419,34 @@ void WangLandauSampler::use_adaptive_windows( unsigned int minimum_window_width 
   double Emax = histogram->get_emax();
   delete histogram;
   histogram = new AdaptiveWindowHistogram( Nbins, Emin, Emax, minimum_window_width, *this );
+}
+
+void WangLandauSampler::delete_updaters()
+{
+  for ( unsigned int i=0;i<updaters.size();i++ )
+  {
+    delete updaters[i];
+  }
+  updaters.clear();
+}
+
+void WangLandauSampler::set_updaters( const vector<CEUpdater*> &new_updaters, listdict &new_pos_track, vector<int> &new_current_bin )
+{
+  delete_updaters();
+  for ( unsigned int i=0;i<new_updaters.size();i++ )
+  {
+    updaters.push_back( new_updaters[i]->copy() );
+  }
+  atom_positions_track = new_pos_track;
+  current_bin = new_current_bin;
+}
+
+void WangLandauSampler::update_atom_position_track( unsigned int uid, array<SymbolChange,2> &change, unsigned int select1, unsigned int select2 )
+{
+  const string& symb1_old = change[0].old_symb;
+  const string& symb2_old = change[1].old_symb;
+  unsigned int indx1 = change[0].indx;
+  unsigned int indx2 = change[1].indx;
+  atom_positions_track[uid][symb1_old][select1] = indx2;
+  atom_positions_track[uid][symb2_old][select2] = indx1;
 }
