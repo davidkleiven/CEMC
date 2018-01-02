@@ -2,6 +2,7 @@
 #define ADAPTIVE_WINDOW_HISTOGRAM_H
 #include "histogram.hpp"
 #include <vector>
+#define DEBUG_ADAPTIVE_WINDOWS
 
 class WangLandauSampler;
 

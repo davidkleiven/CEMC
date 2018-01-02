@@ -31,6 +31,9 @@ public:
 
   /** Sends all results back to the Python object */
   void send_results_to_python();
+
+  /** Use a histogram with adaptive windows */
+  void use_adaptive_windows( unsigned int minimum_window_width );
 private:
   std::vector<CEUpdater*> updaters; // Keep one updater for each thread
   std::vector< std::map< std::string,std::vector<int> > > atom_positions_track;

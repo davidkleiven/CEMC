@@ -1,5 +1,6 @@
 #include "wang_landau_sampler.hpp"
 #include "additional_tools.hpp"
+#include "adaptive_windows.hpp"
 #include <omp.h>
 #include <cstdlib>
 #include <ctime>
@@ -295,6 +296,9 @@ void WangLandauSampler::run_until_valid_energy()
 
   if ( all_ok )
   {
+    #ifdef WANG_LANDAU_DEBUG
+      cout << "All processors in valid energy range\n";
+    #endif
     return;
   }
   else
@@ -311,6 +315,9 @@ void WangLandauSampler::run_until_valid_energy()
     }
     if ( proc_in_valid_state != -1 )
     {
+      #ifdef WANG_LANDAU_DEBUG
+        cout << "At least one processor in valid energy range. Set all other samples equal to this one\n";
+      #endif
       // Update the updaters
       for ( int i=0;i<current_bin.size();i++ )
       {
@@ -318,10 +325,15 @@ void WangLandauSampler::run_until_valid_energy()
 
         delete updaters[i];
         updaters[i] = updaters[proc_in_valid_state]->copy();
+        current_bin[i] = current_bin[proc_in_valid_state];
       }
       return;
     }
   }
+
+  #ifdef WANG_LANDAU_DEBUG
+    cout << "All processors out of energy range. Generate random states to get them inside the energy range\n";
+  #endif
 
   // All processors are outside of the valid range
   unsigned int max_steps = 1000000;
@@ -338,6 +350,9 @@ void WangLandauSampler::run_until_valid_energy()
     if ( histogram->bin_in_range(bin) )
     {
       found_state_in_range = true;
+      #ifdef WANG_LANDAU_DEBUG
+        cout << "Found a valid state in " << i << " trial moves\n";
+      #endif
       break;
     }
 
@@ -371,8 +386,25 @@ void WangLandauSampler::run_until_valid_energy()
     }
   }
 
+  // Copy all states
+  for ( unsigned int i=1;i<updaters.size();i++ )
+  {
+    delete updaters[i];
+    updaters[i] = updaters[0]->copy();
+    current_bin[i] = current_bin[0];
+  }
+
   if ( !found_state_in_range )
   {
     throw runtime_error( "Could not find any energy state inside the histogram range!" );
   }
+}
+
+void WangLandauSampler::use_adaptive_windows( unsigned int minimum_window_width )
+{
+  unsigned int Nbins = histogram->get_nbins();
+  double Emin = histogram->get_emin();
+  double Emax = histogram->get_emax();
+  delete histogram;
+  histogram = new AdaptiveWindowHistogram( Nbins, Emin, Emax, minimum_window_width, *this );
 }

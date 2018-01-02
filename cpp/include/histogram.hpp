@@ -21,6 +21,9 @@ public:
   /** Returns the maximum energy of the histogram */
   double get_emax() const { return Emax; };
 
+  /** Returns the number of bins */
+  unsigned int get_nbins() const { return Nbins; };
+
   /** Updates the histogram and the logdos */
   void update( unsigned int bin, double mod_factor );
 

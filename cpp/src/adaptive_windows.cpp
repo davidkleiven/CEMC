@@ -44,11 +44,16 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
   if ( part_of_histogram_has_converged )
   {
     window_edges.push_back( first_non_converged_bin );
+    logdos_on_edges.push_back( logdos[first_non_converged_bin] );
     current_upper_bin = first_non_converged_bin+1;
     Emax = get_energy( current_upper_bin );
     sampler->run_until_valid_energy();
     cout << "Current Emax: " << Emax << endl;
   }
+
+  #ifdef DEBUG_ADAPTIVE_WINDOWS
+    cout << "No part of adaptive windows has converged\n";
+  #endif
 
   return false;
 }
