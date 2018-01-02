@@ -53,7 +53,7 @@ def add_new( mg_conc ):
 
 def init_WL_run( atomID ):
     manager = wldbm.WangLandauDBManager( wl_db_name )
-    manager.insert( atomID, Nbins=1000 )
+    manager.insert( atomID, Nbins=100 )
 
 def find_max_min_energy():
     atoms = get_atoms( mg_concentation )
@@ -72,7 +72,7 @@ def run( runID, explore=False ):
         sum_eci += np.abs(value)
     atoms = get_atoms( mg_concentation )
     view(atoms)
-    wl = wang_landau_scg.WangLandauSGC( atoms, wl_db_name, runID, conv_check="flathist", scheme="square_root_reduction", ensemble="canonical", fmin=1E-8, Nbins=1000 )
+    wl = wang_landau_scg.WangLandauSGC( atoms, wl_db_name, runID, conv_check="flathist", scheme="square_root_reduction", ensemble="canonical", fmin=1E-5, Nbins=100 )
 
     if ( explore ):
         wl.explore_energy_space( nsteps=20000 )
@@ -108,7 +108,7 @@ def analyze():
     T = np.linspace(10.0,900.0,300)
     print (len(analyzers))
     for num in range(0,len(analyzers)):
-        analyzers[num].update_dos_with_polynomial_tails( factor_low=1.5, order=2, fraction=0.2 )
+        #analyzers[num].update_dos_with_polynomial_tails( factor_low=1.5, order=2, fraction=0.2 )
         analyzers[num].normalize_dos_by_infinite_temp_limit()
         internal_energy = np.array( [analyzers[num].internal_energy(temp) for temp in T] )
         heat_capacity = np.array( [analyzers[num].heat_capacity(temp) for temp in T] )
@@ -146,9 +146,9 @@ def main( mode ):
     if ( mode == "add" ):
         add_new( mg_concentation )
     elif ( mode == "initWL" ):
-        init_WL_run(1)
+        init_WL_run(2)
     elif ( mode == "run" ):
-        run(0,explore=False)
+        run(1,explore=False)
     elif ( mode == "analyze" ):
         analyze()
     elif( mode == "limits" ):
