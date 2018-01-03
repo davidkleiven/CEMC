@@ -1,3 +1,4 @@
+import sys
 import sqlite3 as sq
 import numpy as np
 from wang_landau_scg import WangLandauSGC
@@ -6,6 +7,7 @@ import wltools
 from ase.db import connect
 import ase.units
 from scipy import special
+from matplotlib import pyplot as plt
 
 class WangLandauDBManager( object ):
     def __init__( self, db_name ):
@@ -19,7 +21,7 @@ class WangLandauDBManager( object ):
         required_fields = {
         "simulations":["uid","logdos","energy","histogram","fmin","current_f","initial_f","converged",
         "queued","Nbins","flatness","growth_variance","Emin","Emax","initialized","struct_file",
-        "gs_energy","atomID","n_iter","ensemble"],
+        "gs_energy","atomID","n_iter","ensemble","known_structures"],
         "chemical_potentials":["uid","element","id","potential"]
         }
         required_tables = ["simulations"]
@@ -45,7 +47,8 @@ class WangLandauDBManager( object ):
             "gs_energy":"float",
             "atomID":"integer",
             "n_iter":"integer",
-            "ensemble":"text"
+            "ensemble":"text",
+            "known_structures":"blob"
         }
 
         conn = sq.connect( self.db_name )
@@ -95,7 +98,7 @@ class WangLandauDBManager( object ):
 
         db = connect( self.db_name )
         for row in db.select():
-            if ( row.id in atIds ):
+            if ( row.id in atIds[0] ):
                 continue
             self.insert( row.id, Tmax, initial_f=initial_f, fmin=fmin, flatness=flatness,Nbins=Nbins,n_kbT=n_kbT )
 
@@ -110,7 +113,7 @@ class WangLandauDBManager( object ):
         conn.close()
         exists = False
         for atID in entries:
-            if ( atomID == atID ):
+            if ( atomID == atID[0] ):
                 return True
         return False
 
@@ -222,7 +225,11 @@ class WangLandauDBManager( object ):
             ensemble = entries[3]
         except:
             return None
-        logdos -= np.mean(logdos) # Avoid overflow
+        plt.plot(logdos,ls="steps")
+        plt.show()
+        logdos -= np.max(logdos) # Avoid overflow
+        logdos += 10.0
+        #logdos[0] = logdos[1] # NOTE: Just for debug
         ref_e0 = logdos[0]
         dos = np.exp(logdos)
 

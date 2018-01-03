@@ -25,7 +25,7 @@ public:
   unsigned int get_nbins() const { return Nbins; };
 
   /** Updates the histogram and the logdos */
-  void update( unsigned int bin, double mod_factor );
+  virtual void update( unsigned int bin, double mod_factor );
 
   /** Checks if the histogram is flat */
   virtual bool is_flat( double criteria );
@@ -48,6 +48,7 @@ protected:
   unsigned int Nbins{1};
   double Emin{0.0};
   double Emax{1.0};
+  bool track_states{false};
 
   std::vector<unsigned int> hist;
   std::vector<double> logdos;

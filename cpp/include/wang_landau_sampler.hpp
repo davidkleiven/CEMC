@@ -8,7 +8,7 @@
 #include <map>
 #include <string>
 #include <array>
-#define WANG_LANDAU_DEBUG
+//#define WANG_LANDAU_DEBUG
 
 typedef std::vector< std::map< std::string,std::vector<int> > > listdict;
 
@@ -54,6 +54,11 @@ public:
 
   /** Returns a copy of current bins */
   std::vector<int> get_current_bins() const { return current_bin; };
+
+  /** Get Monte Carlo time (n_iter/n_bins) */
+  double get_mc_time() const;
+
+  bool use_inverse_time_algorithm{false};
 private:
   /** Updates the atom position trackers */
   void update_atom_position_track( unsigned int uid, std::array<SymbolChange,2> &changes, unsigned int select1, unsigned int select2 );
@@ -73,6 +78,7 @@ private:
   PyObject *py_wl{nullptr};
   bool converged{false};
   std::vector<unsigned int> seeds;
-  unsigned int iter{0};
+  double iter{0}; // Store as double to avoid overflow
+  bool inverse_time_activated{false};
 };
 #endif

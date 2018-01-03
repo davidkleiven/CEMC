@@ -4,7 +4,7 @@
 #include <vector>
 #include <map>
 #include <string>
-#define DEBUG_ADAPTIVE_WINDOWS
+//#define DEBUG_ADAPTIVE_WINDOWS
 
 typedef std::vector< std::map< std::string,std::vector<int> > > listdict;
 class WangLandauSampler;
@@ -14,16 +14,20 @@ class AdaptiveWindowHistogram: public Histogram
 {
 public:
   AdaptiveWindowHistogram( unsigned int Nbins, double Emin, double Emax, unsigned int minimum_bins, WangLandauSampler &sampler );
+  AdaptiveWindowHistogram( const Histogram &other, unsigned int minimum_bins, WangLandauSampler &sampler );
   virtual ~AdaptiveWindowHistogram();
 
   /** Returns true if the histogram is flat */
-  virtual bool is_flat( double criteria );
+  virtual bool is_flat( double criteria ) override;
 
   /** Reset the histogram */
-  virtual void reset();
+  virtual void reset() override;
 
   /** Return True if the bin is in range */
-  virtual bool bin_in_range( int bin ) const;
+  virtual bool bin_in_range( int bin ) const override;
+
+  /** Updates the historam */
+  virtual void update( unsigned int bin, double modfactor ) override;
 
   /** Shifts the DOS to be continous at the window edges. TODO: Is not completely correct implemented */
   void make_dos_continous();

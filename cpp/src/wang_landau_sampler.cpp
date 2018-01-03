@@ -133,7 +133,7 @@ WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject
   }
 
   PyObject *py_iter = PyObject_GetAttrString( py_wl, "iter" );
-  iter = PyInt_AsLong(py_iter);
+  iter = PyFloat_AsDouble(py_iter);
   Py_DECREF(py_iter);
   #ifdef WANG_LANDAU_DEBUG
     cout << "Wang Landau object initialized successfully!\n";
@@ -156,16 +156,23 @@ void WangLandauSampler::get_canonical_trial_move( array<SymbolChange,2> &changes
 
 void WangLandauSampler::get_canonical_trial_move( unsigned int thread_num, array<SymbolChange,2> &changes, unsigned int &select1, unsigned int &select2 )
 {
+  // Select a random symbol
   unsigned int first_indx = rand_r(&seeds[thread_num])%symbols.size();
   const string& symb1 = symbols[first_indx];
+
+  // Select a random atom among the ones having the selected symbol
   unsigned int N = atom_positions_track[thread_num][symb1].size();
   select1 = rand_r(&seeds[thread_num])%N;
+
+  // Extract the atom index and the site type
   unsigned int indx1 = atom_positions_track[thread_num][symb1][select1];
   unsigned int site_type1 = site_types[indx1];
 
   string symb2 = symb1;
   unsigned int site_type2 = site_type1+1;
   unsigned int indx2 = indx1;
+
+  // In a similar manner select a random atom with the same site type, but different symbol
   while ( (symb2 == symb1) || (site_type2 != site_type1) )
   {
     symb2 = symbols[rand_r( &seeds[thread_num] )%symbols.size()];
@@ -185,7 +192,7 @@ void WangLandauSampler::get_canonical_trial_move( unsigned int thread_num, array
 
 void WangLandauSampler::step()
 {
-  iter++;
+  iter+=1;
   int uid = omp_get_thread_num();
   array<SymbolChange,2> change;
   unsigned int select1, select2;
@@ -194,6 +201,7 @@ void WangLandauSampler::step()
   double energy = updaters[uid]->calculate( change );
   int bin = histogram->get_bin( energy );
 
+  // Check if the proposed bin is in the sampling range. If not undo changes and return.
   if ( !histogram->bin_in_range(bin) )
   {
     updaters[uid]->undo_changes();
@@ -240,7 +248,18 @@ void WangLandauSampler::run( unsigned int nsteps )
 
     if ( histogram->is_flat( flatness_criteria) )
     {
+      send_results_to_python(); // Send converged results to Python
       f /= 2.0;
+      if ( use_inverse_time_algorithm && (f<1.0/get_mc_time()) )
+      {
+        cout << "Activating inverse time scheme\n";
+        inverse_time_activated = true;
+      }
+
+      if ( inverse_time_activated )
+      {
+        f = 1.0/get_mc_time();
+      }
       histogram->reset();
       cout << "Converged! New f: " << f << endl;
     }
@@ -249,17 +268,16 @@ void WangLandauSampler::run( unsigned int nsteps )
     {
       cout << "Simulation converged!\n";
       converged = true;
+      send_results_to_python();
       break;
     }
   }
-  send_results_to_python();
 }
 
 void WangLandauSampler::send_results_to_python()
 {
   PyObject *py_hist = PyObject_GetAttrString( py_wl, "histogram" );
   histogram->send_to_python_hist( py_hist );
-  cout << "here_sending\n";
   Py_DECREF(py_hist);
 
   PyObject *cur_f = PyFloat_FromDouble(f);
@@ -275,13 +293,16 @@ void WangLandauSampler::send_results_to_python()
     PyObject_SetAttrString( py_wl, "converged", Py_False );
   }
 
-  PyObject *py_iter = PyInt_FromLong(iter);
+  PyObject *py_iter = PyFloat_FromDouble(iter);
   PyObject_SetAttrString( py_wl, "iter", py_iter );
   Py_DECREF( py_iter );
 }
 
 void WangLandauSampler::run_until_valid_energy( double emin, double emax )
 {
+  // If all processors is outside the valid energy range,
+  // find a state inside the energy range
+  // This typically happens when using AdaptiveWindowHistogram
   #ifdef WANG_LANDAU_DEBUG
     cout << current_bin << endl;
   #endif
@@ -320,7 +341,9 @@ void WangLandauSampler::run_until_valid_energy( double emin, double emax )
       #ifdef WANG_LANDAU_DEBUG
         cout << "At least one processor in valid energy range. Set the ones outside the range equal to this one\n";
       #endif
-      // Update the updaters
+
+      // Update the updaters. Set all processors outside the energy range equal
+      // to the proc_in_valid_state
       for ( int i=0;i<current_bin.size();i++ )
       {
         if ( histogram->bin_in_range(current_bin[i]) ) continue;
@@ -342,7 +365,7 @@ void WangLandauSampler::run_until_valid_energy( double emin, double emax )
   #endif
 
   // All processors are outside of the valid range
-  unsigned int max_steps = 1000000;
+  unsigned int max_steps = 10000000;
   bool found_state_in_range = false;
   for ( unsigned int i=0;i<max_steps;i++ )
   {
@@ -355,9 +378,11 @@ void WangLandauSampler::run_until_valid_energy( double emin, double emax )
     //cout << energy << " " << bin << " " << current_bin[0] << endl;
 
     double current_energy = histogram->get_energy( current_bin[0] );
+
+    // Check if current energy is larger than the maximum energy of interest
     if ( current_energy >= emax )
     {
-      // The current state has an energy higher than the upper limit
+      // If the proposed energy is lower than current_energy, accept the new state
       if ( (energy < current_energy) && energy > emin )
       {
         updaters[0]->clear_history();
@@ -372,6 +397,7 @@ void WangLandauSampler::run_until_valid_energy( double emin, double emax )
     else
     {
       // The current state has an energy lower than the upper limit
+      // If the propsed energy is higher than current_energy accept the new energy
       if ( (energy > current_energy) && (energy < emax) )
       {
         updaters[0]->clear_history();
@@ -394,7 +420,7 @@ void WangLandauSampler::run_until_valid_energy( double emin, double emax )
     }
   }
 
-  // Copy all states
+  // Set all processors equal to the one inside the energy range
   for ( unsigned int i=1;i<updaters.size();i++ )
   {
     delete updaters[i];
@@ -417,8 +443,9 @@ void WangLandauSampler::use_adaptive_windows( unsigned int minimum_window_width 
   unsigned int Nbins = histogram->get_nbins();
   double Emin = histogram->get_emin();
   double Emax = histogram->get_emax();
+  Histogram *new_histogram = new AdaptiveWindowHistogram( *histogram, minimum_window_width, *this );
   delete histogram;
-  histogram = new AdaptiveWindowHistogram( Nbins, Emin, Emax, minimum_window_width, *this );
+  histogram = new_histogram;
 }
 
 void WangLandauSampler::delete_updaters()
@@ -449,4 +476,9 @@ void WangLandauSampler::update_atom_position_track( unsigned int uid, array<Symb
   unsigned int indx2 = change[1].indx;
   atom_positions_track[uid][symb1_old][select1] = indx2;
   atom_positions_track[uid][symb2_old][select2] = indx1;
+}
+
+double WangLandauSampler::get_mc_time() const
+{
+  return iter/histogram->get_nbins();
 }

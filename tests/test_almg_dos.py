@@ -28,7 +28,7 @@ ecis = {'c3_1225_4_1': -0.00028826723864655595,
         'c3_1225_3_1': -0.011318935831421125
         }
 
-mg_concentation = 0.1
+mg_concentation = 0.05
 def get_atoms( mg_conc ):
     db_name = "/home/davidkl/Documents/WangLandau/data/ce_hydrostatic_7x7.db"
     conc_args = {
@@ -96,9 +96,12 @@ def run( runID, explore=False ):
         wl.histogram.Emax = Emax
         print ("Emin %.2f, Emax %.2f"%(Emin,Emax))
         print ("Exploration finished!")
-    #wl.histogram.Emin = -1.12907672419
-    #wl.histogram.Emax = -0.845126849602
-    wl.run_fast_sampler( maxsteps=int(1E9), mode="adaptive_windows", minimum_window_width=100 )
+
+    try:
+        wl.run_fast_sampler( maxsteps=int(1E9), mode="adaptive_windows", minimum_window_width=100 )
+    except Exception as exc:
+        print ("An exception occured")
+        print (str(exc))
     #wl.run( maxsteps=int(1E8) )
     wl.save_db()
 
@@ -118,7 +121,6 @@ def analyze():
     T = np.linspace(10.0,900.0,300)
     print (len(analyzers))
     for num in range(0,len(analyzers)):
-        #analyzers[num].update_dos_with_polynomial_tails( factor_low=1.5, order=2, fraction=0.2 )
         analyzers[num].normalize_dos_by_infinite_temp_limit()
         internal_energy = np.array( [analyzers[num].internal_energy(temp) for temp in T] )
         heat_capacity = np.array( [analyzers[num].heat_capacity(temp) for temp in T] )
@@ -158,7 +160,7 @@ def main( mode ):
     elif ( mode == "initWL" ):
         init_WL_run()
     elif ( mode == "run" ):
-        run(0,explore=False)
+        run(1,explore=False)
     elif ( mode == "analyze" ):
         analyze()
     elif( mode == "limits" ):

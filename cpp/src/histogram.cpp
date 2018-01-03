@@ -58,6 +58,7 @@ bool Histogram::is_flat( double criteria )
 double Histogram::get_dos_ratio_old_divided_by_new( unsigned int old_bin, unsigned int new_bin ) const
 {
   double diff = logdos[old_bin] - logdos[new_bin];
+  if ( diff > 0.0 ) return 1.0;
   return exp(diff);
 }
 
@@ -104,12 +105,18 @@ void Histogram::init_from_pyhist( PyObject *py_hist )
   import_array();
   PyObject *py_logdos = PyObject_GetAttrString( py_hist, "logdos" );
   PyObject *py_logdos_npy = PyArray_FROM_OTF( py_logdos, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY );
+  PyObject *py_known_struct = PyObject_GetAttrString( py_hist, "known_state" );
+  PyObject *py_known_struct_npy = PyArray_FROM_OTF( py_known_struct, NPY_UINT8, NPY_ARRAY_IN_ARRAY );
   npy_intp *dims = PyArray_DIMS( py_logdos_npy );
   logdos.resize( dims[0] );
+  known_structures.resize( dims[0] );
   for ( unsigned int i=0;i<dims[0];i++ )
   {
     double* ptr = static_cast<double*>( PyArray_GETPTR1( py_logdos_npy, i ) );
     logdos[i] = *ptr;
+    unsigned char* known_state = static_cast<unsigned char*>( PyArray_GETPTR1( py_known_struct,i) );
+    known_structures[i] = *known_state;
   }
   Py_DECREF( py_logdos );
+  Py_DECREF( py_known_struct );
 }
