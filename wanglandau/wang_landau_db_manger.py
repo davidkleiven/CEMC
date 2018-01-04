@@ -214,7 +214,7 @@ class WangLandauDBManager( object ):
         """
         conn = sq.connect( self.db_name )
         cur = conn.cursor()
-        cur.execute( "SELECT energy,logdos,uid,ensemble FROM simulations WHERE converged=1 AND atomID=?", (atomID,) )
+        cur.execute( "SELECT energy,logdos,uid,ensemble,known_structures FROM simulations WHERE converged=1 AND atomID=?", (atomID,) )
         entries = cur.fetchone()
         conn.close()
 
@@ -222,14 +222,16 @@ class WangLandauDBManager( object ):
             uid = int( entries[2] )
             energy = wltools.convert_array( entries[0] )
             logdos = wltools.convert_array( entries[1] )
+            known_states = wltools.convert_array( entries[4] ).astype(np.uint8)
             ensemble = entries[3]
         except:
             return None
         plt.plot(logdos,ls="steps")
         plt.show()
+        logdos = logdos[known_states==1]
+        energy = energy[known_states==1]
         logdos -= np.max(logdos) # Avoid overflow
         logdos += 10.0
-        #logdos[0] = logdos[1] # NOTE: Just for debug
         ref_e0 = logdos[0]
         dos = np.exp(logdos)
 

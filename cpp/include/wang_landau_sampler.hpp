@@ -52,13 +52,19 @@ public:
   /** Returns a copy of the atom position trackers */
   listdict get_atom_pos_trackers() const { return atom_positions_track; };
 
+  std::map<std::string, std::vector<int> > get_atom_pos_tracker( unsigned int uid ) const { return atom_positions_track[uid]; };
+
   /** Returns a copy of current bins */
   std::vector<int> get_current_bins() const { return current_bin; };
+
+  int get_current_bin( unsigned int uid ) const { return current_bin[uid]; };
 
   /** Get Monte Carlo time (n_iter/n_bins) */
   double get_mc_time() const;
 
   bool use_inverse_time_algorithm{false};
+
+  static const unsigned int num_threads;
 private:
   /** Updates the atom position trackers */
   void update_atom_position_track( unsigned int uid, std::array<SymbolChange,2> &changes, unsigned int select1, unsigned int select2 );
@@ -80,5 +86,9 @@ private:
   std::vector<unsigned int> seeds;
   double iter{0}; // Store as double to avoid overflow
   bool inverse_time_activated{false};
+  double iter_since_last{0};
+  double n_outside_range{0};
+  std::vector<double> time_to_converge;
+  double inv_time_factor{1.0};
 };
 #endif

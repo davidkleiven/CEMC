@@ -2,13 +2,18 @@
 #include "wang_landau_sampler.hpp"
 #include "additional_tools.hpp"
 #include <iostream>
+#include <cassert>
+#include <omp.h>
 
 using namespace std;
 
 AdaptiveWindowHistogram::AdaptiveWindowHistogram( unsigned int Nbins, double Emin, double Emax, unsigned int minimum_width, \
  WangLandauSampler &sampler ): \
 Histogram(Nbins,Emin,Emax), overall_Emin(Emin),overall_Emax(Emax),minimum_width(minimum_width), \
-current_upper_bin(Nbins),sampler(&sampler){};
+current_upper_bin(Nbins),sampler(&sampler)
+{
+  states.resize(Nbins);
+};
 
 AdaptiveWindowHistogram::AdaptiveWindowHistogram( const Histogram &other, unsigned int minimum_width, WangLandauSampler &sampler ): Histogram(other),\
 minimum_width(minimum_width), sampler(&sampler)
@@ -16,11 +21,17 @@ minimum_width(minimum_width), sampler(&sampler)
   overall_Emin = Emin;
   overall_Emax = Emax;
   current_upper_bin = Nbins;
+  states.resize(Nbins);
 }
 
 AdaptiveWindowHistogram::~AdaptiveWindowHistogram()
 {
   clear_updater_states();
+
+  for ( unsigned int i=0;i<states.size();i++ )
+  {
+    delete states[i].updater;
+  }
 }
 
 bool AdaptiveWindowHistogram::is_flat( double criteria )
@@ -111,9 +122,11 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
     current_upper_bin = first_non_converged_bin+2;
     double emin = Emin;
     double emax = get_energy( current_upper_bin );
+    distribute_random_walkers_evenly();
     sampler->run_until_valid_energy( emin, emax );
     cout << "Current upper bin " << current_upper_bin << endl;
   }
+  //cout << hist[0] << " " << hist[1] << " " << logdos[0] << " " << logdos[1] << " " << minimum << " " << current_upper_bin << endl;
   return false;
 }
 
@@ -190,5 +203,81 @@ bool AdaptiveWindowHistogram::is_valid_window( unsigned int upper_bin ) const
 
 void AdaptiveWindowHistogram::update( unsigned int bin, double modfactor )
 {
+  if ( states[bin].updater == nullptr )
+  {
+    unsigned int uid = omp_get_thread_num();
+    #pragma omp critical
+    {
+      // Check this one more time inside a critical section, to be absolutely sure
+      // that two processors don't allocate the same memory
+      if ( states[bin].updater == nullptr )
+      {
+        states[bin].updater = sampler->get_updater(uid)->copy();
+        states[bin].bin = bin;
+        states[bin].atom_pos_track = sampler->get_atom_pos_tracker(uid);
+      }
+    }
+  }
+
   Histogram::update(bin,modfactor);
+}
+
+void AdaptiveWindowHistogram::distribute_random_walkers_evenly()
+{
+  // Make sure that there are known states in the window
+  unsigned int n_known = 0;
+  for ( unsigned int i=0;i<current_upper_bin;i++ )
+  {
+    if ( states[i].updater != nullptr ) n_known += 1;
+  }
+
+  if ( n_known <= 1 )
+  {
+    return;
+  }
+
+  unsigned int n_threads = sampler->num_threads;
+  double delta = current_upper_bin/static_cast<double>(n_threads);
+
+  listdict atom_track;
+  std::vector<int> current_bins;
+  std::vector<CEUpdater*> updaters;
+
+  for ( unsigned int i=0;i<n_threads;i++ )
+  {
+    unsigned int indx = i*delta;
+    unsigned int shift_pos=2*current_upper_bin;
+    for ( unsigned int j=indx;j<current_upper_bin;j++ )
+    {
+      if ( states[j].updater != nullptr )
+      {
+        shift_pos = j-indx;
+        break;
+      }
+    }
+
+    unsigned int shift_neg=2*current_upper_bin;
+    for ( int j=indx;j>=0;j-- )
+    {
+      if ( states[j].updater != nullptr )
+      {
+        shift_neg = indx-j;
+        break;
+      }
+    }
+    unsigned int new_bin = 0;
+    if ( shift_pos <= shift_neg )
+    {
+      new_bin = indx+shift_pos;
+    }
+    else
+    {
+      new_bin = indx-shift_neg;
+    }
+
+    updaters.push_back( states[new_bin].updater );
+    current_bins.push_back( states[new_bin].bin );
+    atom_track.push_back( states[new_bin].atom_pos_track );
+  }
+  sampler->set_updaters( updaters, atom_track, current_bins );
 }

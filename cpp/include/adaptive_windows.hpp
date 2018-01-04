@@ -6,9 +6,15 @@
 #include <string>
 //#define DEBUG_ADAPTIVE_WINDOWS
 
-typedef std::vector< std::map< std::string,std::vector<int> > > listdict;
 class WangLandauSampler;
 class CEUpdater;
+typedef std::vector< std::map< std::string,std::vector<int> > > listdict;
+struct CEState
+{
+  CEUpdater *updater{nullptr};
+  int bin;
+  std::map< std::string,std::vector<int> > atom_pos_track;
+};
 
 class AdaptiveWindowHistogram: public Histogram
 {
@@ -34,6 +40,9 @@ public:
 
   /** Clear all the updater states */
   void clear_updater_states();
+
+  /** Distributes the random walkers evenly in the window */
+  void distribute_random_walkers_evenly();
 private:
   /** Stores a copy of the updater states of the Wang Landau Sampler */
   void get_updater_states();
@@ -51,6 +60,7 @@ private:
   std::vector<CEUpdater*> first_change_state;
   listdict atom_pos_track_first_change_state;
   std::vector<int> current_bin_first_change_state;
+  std::vector<CEState> states;
 };
 
 #endif

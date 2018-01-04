@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt
 from ase import units
 from mcmc import sa_canonical
 
-wl_db_name = "data/almg_canonical_dos_10x10x10.db"
+wl_db_name = "data/almg_canonical_dos_6x6x6.db"
 
 ecis = {'c3_1225_4_1': -0.00028826723864655595,
         'c2_1000_1_1': -0.012304759727020153,
@@ -28,14 +28,14 @@ ecis = {'c3_1225_4_1': -0.00028826723864655595,
         'c3_1225_3_1': -0.011318935831421125
         }
 
-mg_concentation = 0.05
+mg_concentation = 0.1
 def get_atoms( mg_conc ):
     db_name = "/home/davidkl/Documents/WangLandau/data/ce_hydrostatic_7x7.db"
     conc_args = {
         "conc_ratio_min_1":[[60,4]],
         "conc_ratio_max_1":[[64,0]],
     }
-    ceBulk = BulkCrystal( "fcc", 4.05, [10,10,10], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, max_cluster_dia=1.414*4.05,reconf_db=True )
+    ceBulk = BulkCrystal( "fcc", 4.05, [6,6,6], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, max_cluster_dia=1.414*4.05,reconf_db=True )
     init_cf = {key:1.0 for key in ecis.keys()}
     calc = CE( ceBulk, ecis, initial_cf=init_cf )
     ceBulk.atoms.set_calculator( calc )
@@ -82,7 +82,7 @@ def run( runID, explore=False ):
 
     atoms = get_atoms( mg_concentation )
     view(atoms)
-    wl = wang_landau_scg.WangLandauSGC( atoms, wl_db_name, runID, conv_check="flathist", scheme="square_root_reduction", ensemble="canonical", fmin=1E-8, Nbins=1000 )
+    wl = wang_landau_scg.WangLandauSGC( atoms, wl_db_name, runID, conv_check="flathist", scheme="square_root_reduction", ensemble="canonical", fmin=1E-6, Nbins=200 )
 
     if ( explore ):
         wl.explore_energy_space( nsteps=20000 )
@@ -98,7 +98,7 @@ def run( runID, explore=False ):
         print ("Exploration finished!")
 
     try:
-        wl.run_fast_sampler( maxsteps=int(1E9), mode="adaptive_windows", minimum_window_width=100 )
+        wl.run_fast_sampler( maxsteps=int(1E9), mode="adaptive_windows", minimum_window_width=40 )
     except Exception as exc:
         print ("An exception occured")
         print (str(exc))
@@ -160,7 +160,7 @@ def main( mode ):
     elif ( mode == "initWL" ):
         init_WL_run()
     elif ( mode == "run" ):
-        run(1,explore=False)
+        run(0,explore=False)
     elif ( mode == "analyze" ):
         analyze()
     elif( mode == "limits" ):

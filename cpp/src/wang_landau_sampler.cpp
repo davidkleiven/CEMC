@@ -6,9 +6,10 @@
 #include <ctime>
 #include <iostream>
 #include <stdexcept>
+#include <chrono>
 using namespace std;
 
-const static unsigned int num_threads = omp_get_max_threads(); // Use the maximum number of threads
+const unsigned int WangLandauSampler::num_threads = omp_get_max_threads(); // Use the maximum number of threads
 
 WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject *ecis, PyObject *permutations, PyObject *py_wl_in )
 {
@@ -193,6 +194,7 @@ void WangLandauSampler::get_canonical_trial_move( unsigned int thread_num, array
 void WangLandauSampler::step()
 {
   iter+=1;
+  iter_since_last+=1.0;
   int uid = omp_get_thread_num();
   array<SymbolChange,2> change;
   unsigned int select1, select2;
@@ -204,6 +206,7 @@ void WangLandauSampler::step()
   // Check if the proposed bin is in the sampling range. If not undo changes and return.
   if ( !histogram->bin_in_range(bin) )
   {
+    n_outside_range += 1.0;
     updaters[uid]->undo_changes();
     return;
   }
@@ -238,6 +241,7 @@ void WangLandauSampler::run( unsigned int nsteps )
   }
 
   unsigned int n_outer = nsteps/check_convergence_every;
+  clock_t start = clock();
   for ( unsigned int i=0;i<n_outer;i++ )
   {
     #pragma omp parallel for
@@ -248,20 +252,42 @@ void WangLandauSampler::run( unsigned int nsteps )
 
     if ( histogram->is_flat( flatness_criteria) )
     {
+      clock_t finish = clock();
+      double diff = (finish-start)/CLOCKS_PER_SEC;
+      cout << "Used " <<  diff << " to converge\n";
+      if ( (time_to_converge.size() > 0) && (diff > time_to_converge.back()) && use_inverse_time_algorithm )
+      {
+        if ( !inverse_time_activated )
+        {
+          cout << "Convergence time increased. Activating inverse time scheme\n";
+          inv_time_factor = get_mc_time()*f;
+        }
+        inverse_time_activated=true;
+      }
+      time_to_converge.push_back(diff);
       send_results_to_python(); // Send converged results to Python
-      f /= 2.0;
+
+      /*
       if ( use_inverse_time_algorithm && (f<1.0/get_mc_time()) )
       {
         cout << "Activating inverse time scheme\n";
         inverse_time_activated = true;
-      }
+      }*/
 
       if ( inverse_time_activated )
       {
-        f = 1.0/get_mc_time();
+        f = inv_time_factor/get_mc_time();
+      }
+      else
+      {
+        f /= 2.0;
       }
       histogram->reset();
       cout << "Converged! New f: " << f << endl;
+      cout << n_outside_range/iter_since_last << " of the states was outside the range\n";
+      iter_since_last=0;
+      n_outside_range=0;
+      start = clock();
     }
 
     if ( f < min_f )
@@ -272,6 +298,8 @@ void WangLandauSampler::run( unsigned int nsteps )
       break;
     }
   }
+  cout << "Time to converge:\n";
+  cout << time_to_converge << endl;
 }
 
 void WangLandauSampler::send_results_to_python()
@@ -321,6 +349,7 @@ void WangLandauSampler::run_until_valid_energy( double emin, double emax )
   {
     #ifdef WANG_LANDAU_DEBUG
       cout << "All processors in valid energy range\n";
+      cout << current_bin << endl;
     #endif
     return;
   }
