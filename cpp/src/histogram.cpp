@@ -1,6 +1,7 @@
 #include "histogram.hpp"
 #include <numpy/ndarrayobject.h>
 #include <iostream>
+#include "additional_tools.hpp"
 
 using namespace std;
 
@@ -32,6 +33,16 @@ int Histogram::get_bin( double energy ) const
 void Histogram::update( unsigned int bin, double mod_factor )
 {
   known_structures[bin] = true;
+
+  #ifdef DEBUG_LOSS_OF_PRECISION
+    double current_log_dos = logdos[bin];
+    double new_log_dos = current_log_dos+mod_factor;
+    //cout << current_log_dos << " " << new_log_dos << " " << new_log_dos-current_log_dos << " " << mod_factor << endl;
+    if ( new_log_dos <= current_log_dos )
+    {
+      cerr << "Warning! Loss of presicion. Some parts of the DOS can no longer be updated\n";
+    }
+  #endif
 
   hist[bin] += 1;
   logdos[bin] += mod_factor;
@@ -79,9 +90,9 @@ void Histogram::send_to_python_hist( PyObject *py_hist )
 
   for ( unsigned int i=0;i<hist.size();i++ )
   {
-    double *ptr = static_cast<double*>( PyArray_GETPTR1( py_visits_npy, i ) );
-    *ptr = hist[i];
-    ptr = static_cast<double*>( PyArray_GETPTR1( py_logdos_npy,i) );
+    int *ptr_hist = static_cast<int*>( PyArray_GETPTR1( py_visits_npy, i ) );
+    *ptr_hist = hist[i];
+    double* ptr = static_cast<double*>( PyArray_GETPTR1( py_logdos_npy,i) );
     *ptr = logdos[i];
     uint8_t* uptr = static_cast<uint8_t*>( PyArray_GETPTR1(py_known_struct_npy,i) );
     if ( known_structures[i] ) *uptr = 1;
@@ -119,4 +130,5 @@ void Histogram::init_from_pyhist( PyObject *py_hist )
   }
   Py_DECREF( py_logdos );
   Py_DECREF( py_known_struct );
+  //cout << logdos << endl;
 }

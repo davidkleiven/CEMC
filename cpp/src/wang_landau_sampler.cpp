@@ -63,7 +63,9 @@ WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject
   Py_DECREF(py_symbpos);
   for ( unsigned int i=0;i<num_threads;i++ )
   {
-    atom_positions_track.push_back(temp_atom_positions_track);
+    atom_positions_track.push_back( new map<string,vector<int> >(temp_atom_positions_track) );
+    updaters[i]->set_atom_position_tracker(atom_positions_track[i]); // Pass a pointer to the atom position tracker
+    is_first.push_back(true);
   }
 
   #ifdef WANG_LANDAU_DEBUG
@@ -146,6 +148,7 @@ WangLandauSampler::~WangLandauSampler()
   for ( unsigned int i=0;i<updaters.size();i++ )
   {
     delete updaters[i];
+    delete atom_positions_track[i];
   }
   delete histogram;
 }
@@ -159,14 +162,14 @@ void WangLandauSampler::get_canonical_trial_move( unsigned int thread_num, array
 {
   // Select a random symbol
   unsigned int first_indx = rand_r(&seeds[thread_num])%symbols.size();
-  const string& symb1 = symbols[first_indx];
+  string symb1 = symbols[first_indx];
 
   // Select a random atom among the ones having the selected symbol
-  unsigned int N = atom_positions_track[thread_num][symb1].size();
+  unsigned int N = (*atom_positions_track[thread_num])[symb1].size();
   select1 = rand_r(&seeds[thread_num])%N;
 
   // Extract the atom index and the site type
-  unsigned int indx1 = atom_positions_track[thread_num][symb1][select1];
+  unsigned int indx1 = (*atom_positions_track[thread_num])[symb1][select1];
   unsigned int site_type1 = site_types[indx1];
 
   string symb2 = symb1;
@@ -177,18 +180,33 @@ void WangLandauSampler::get_canonical_trial_move( unsigned int thread_num, array
   while ( (symb2 == symb1) || (site_type2 != site_type1) )
   {
     symb2 = symbols[rand_r( &seeds[thread_num] )%symbols.size()];
-    N = atom_positions_track[thread_num][symb2].size();
+    N = (*atom_positions_track[thread_num])[symb2].size();
     select2 = rand_r( &seeds[thread_num] )%N;
-    indx2 = atom_positions_track[thread_num][symb2][select2];
+    indx2 = (*atom_positions_track[thread_num])[symb2][select2];
     site_type2 = site_types[indx2];
   }
+  /*
+  // Try simpler move
+  select1 = 0;
+  select2 = 0;
+  const vector<string>& symbs = updaters[thread_num]->get_symbols();
+  indx1 = rand_r(&seeds[thread_num])%symbs.size();
+  symb1 = symbs[indx1];
+  symb2 = symb1;
+  while( symb2==symb1 )
+  {
+    indx2 =rand_r(&seeds[thread_num])%symbs.size();
+    symb2 = symbs[indx2];
+  }*/
 
   changes[0].indx = indx1;
   changes[0].old_symb = symb1;
   changes[0].new_symb = symb2;
+  changes[0].track_indx = select1;
   changes[1].indx = indx2;
   changes[1].old_symb = symb2;
   changes[1].new_symb = symb1;
+  changes[1].track_indx = select2;
 }
 
 void WangLandauSampler::step()
@@ -196,12 +214,17 @@ void WangLandauSampler::step()
   iter+=1;
   iter_since_last+=1.0;
   int uid = omp_get_thread_num();
+
   array<SymbolChange,2> change;
   unsigned int select1, select2;
   get_canonical_trial_move( uid, change, select1, select2 );
-
+  //cout << updaters.size() << endl;
   double energy = updaters[uid]->calculate( change );
+
+  //if ( static_cast<int>(iter_since_last)%update_hist_every != 0 ) return;
+
   int bin = histogram->get_bin( energy );
+  //cout << bin << " " << current_bin[uid] << endl;
 
   // Check if the proposed bin is in the sampling range. If not undo changes and return.
   if ( !histogram->bin_in_range(bin) )
@@ -210,20 +233,29 @@ void WangLandauSampler::step()
     updaters[uid]->undo_changes();
     return;
   }
+  else if ( bin == current_bin[uid] )
+  {
+    updaters[uid]->clear_history();
+    n_self_proposals += 1;
+    return;
+  }
+
+  //cout << bin << " " << current_bin[uid] << endl;
 
   double dosratio = histogram->get_dos_ratio_old_divided_by_new( current_bin[uid], bin );
   double uniform_random = static_cast<double>(rand_r( &seeds[uid] ))/RAND_MAX;
 
-  if ( uniform_random < dosratio )
+  if ( (uniform_random < dosratio) || is_first[uid] )
   {
     // Accept
-    const string& symb1_old = change[0].old_symb;
-    const string& symb2_old = change[1].old_symb;
-    unsigned int indx1 = change[0].indx;
-    unsigned int indx2 = change[1].indx;
-    atom_positions_track[uid][symb1_old][select1] = indx2;
-    atom_positions_track[uid][symb2_old][select2] = indx1;
+    //const string& symb1_old = change[0].old_symb;
+    //const string& symb2_old = change[1].old_symb;
+    //unsigned int indx1 = change[0].indx;
+    //unsigned int indx2 = change[1].indx;
+    //atom_positions_track[uid][symb1_old][select1] = indx2;
+    //atom_positions_track[uid][symb2_old][select2] = indx1;
     current_bin[uid] = bin;
+    is_first[uid] = false;
   }
   else
   {
@@ -231,6 +263,7 @@ void WangLandauSampler::step()
   }
   updaters[uid]->clear_history();
   histogram->update( current_bin[uid], f );
+  //cout << uid << " " << iter << endl;
 }
 
 void WangLandauSampler::run( unsigned int nsteps )
@@ -242,16 +275,19 @@ void WangLandauSampler::run( unsigned int nsteps )
 
   unsigned int n_outer = nsteps/check_convergence_every;
   clock_t start = clock();
+  //omp_set_dynamic(0);
+  //omp_set_num_threads(2);
   for ( unsigned int i=0;i<n_outer;i++ )
   {
     #pragma omp parallel for
     for ( unsigned int j=0;j<check_convergence_every;j++ )
     {
-      step();
+        step();
     }
 
     if ( histogram->is_flat( flatness_criteria) )
     {
+      cout << histogram->get_histogram() << endl;
       clock_t finish = clock();
       double diff = (finish-start)/CLOCKS_PER_SEC;
       cout << "Used " <<  diff << " to converge\n";
@@ -285,9 +321,12 @@ void WangLandauSampler::run( unsigned int nsteps )
       histogram->reset();
       cout << "Converged! New f: " << f << endl;
       cout << n_outside_range/iter_since_last << " of the states was outside the range\n";
+      cout << "Fraction of self-proposals: " << n_self_proposals/iter_since_last << endl;
       iter_since_last=0;
       n_outside_range=0;
+      n_self_proposals=0;
       start = clock();
+      //cout << histogram->get_logdos() << endl;
     }
 
     if ( f < min_f )
@@ -403,6 +442,7 @@ void WangLandauSampler::run_until_valid_energy( double emin, double emax )
     get_canonical_trial_move( 0, change, select1, select2 );
 
     double energy = updaters[0]->calculate( change );
+
     int bin = histogram->get_bin( energy );
     //cout << energy << " " << bin << " " << current_bin[0] << endl;
 
@@ -493,7 +533,11 @@ void WangLandauSampler::set_updaters( const vector<CEUpdater*> &new_updaters, li
   {
     updaters.push_back( new_updaters[i]->copy() );
   }
-  atom_positions_track = new_pos_track;
+  for ( unsigned int i=0;i<atom_positions_track.size();i++ )
+  {
+    *atom_positions_track[i] = new_pos_track[i];
+    updaters[i]->set_atom_position_tracker(atom_positions_track[i]); // This line should not be nessecary, just in case
+  }
   current_bin = new_current_bin;
 }
 
@@ -503,8 +547,8 @@ void WangLandauSampler::update_atom_position_track( unsigned int uid, array<Symb
   const string& symb2_old = change[1].old_symb;
   unsigned int indx1 = change[0].indx;
   unsigned int indx2 = change[1].indx;
-  atom_positions_track[uid][symb1_old][select1] = indx2;
-  atom_positions_track[uid][symb2_old][select2] = indx1;
+  //atom_positions_track[uid][symb1_old][select1] = indx2;
+  //atom_positions_track[uid][symb2_old][select2] = indx1;
 }
 
 double WangLandauSampler::get_mc_time() const

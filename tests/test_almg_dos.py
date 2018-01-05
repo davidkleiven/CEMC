@@ -82,7 +82,8 @@ def run( runID, explore=False ):
 
     atoms = get_atoms( mg_concentation )
     view(atoms)
-    wl = wang_landau_scg.WangLandauSGC( atoms, wl_db_name, runID, conv_check="flathist", scheme="square_root_reduction", ensemble="canonical", fmin=1E-6, Nbins=200 )
+    wl = wang_landau_scg.WangLandauSGC( atoms, wl_db_name, runID, conv_check="flathist", scheme="square_root_reduction",
+    ensemble="canonical", fmin=1E-5, Nbins=200, flatness_criteria=0.8 )
 
     if ( explore ):
         wl.explore_energy_space( nsteps=20000 )
@@ -98,7 +99,7 @@ def run( runID, explore=False ):
         print ("Exploration finished!")
 
     try:
-        wl.run_fast_sampler( maxsteps=int(1E9), mode="adaptive_windows", minimum_window_width=40 )
+        wl.run_fast_sampler( maxsteps=int(1E9), mode="adaptive_windows", minimum_window_width=20 )
     except Exception as exc:
         print ("An exception occured")
         print (str(exc))

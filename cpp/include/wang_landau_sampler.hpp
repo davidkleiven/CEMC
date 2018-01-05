@@ -10,6 +10,7 @@
 #include <array>
 //#define WANG_LANDAU_DEBUG
 
+typedef std::vector< std::map< std::string,std::vector<int> >* > list_dictptr;
 typedef std::vector< std::map< std::string,std::vector<int> > > listdict;
 
 class WangLandauSampler
@@ -50,9 +51,9 @@ public:
   void set_updaters( const std::vector<CEUpdater*> &new_updaters, listdict &new_pos_track, std::vector<int> &curr_bin );
 
   /** Returns a copy of the atom position trackers */
-  listdict get_atom_pos_trackers() const { return atom_positions_track; };
+  list_dictptr get_atom_pos_trackers() const { return atom_positions_track; };
 
-  std::map<std::string, std::vector<int> > get_atom_pos_tracker( unsigned int uid ) const { return atom_positions_track[uid]; };
+  std::map<std::string, std::vector<int> > get_atom_pos_tracker( unsigned int uid ) const { return *atom_positions_track[uid]; };
 
   /** Returns a copy of current bins */
   std::vector<int> get_current_bins() const { return current_bin; };
@@ -70,7 +71,7 @@ private:
   void update_atom_position_track( unsigned int uid, std::array<SymbolChange,2> &changes, unsigned int select1, unsigned int select2 );
 
   std::vector<CEUpdater*> updaters; // Keep one updater for each thread
-  listdict atom_positions_track;
+  list_dictptr atom_positions_track;
   bool ready{true};
   double f{2.71};
   double min_f{1E-6};
@@ -88,7 +89,10 @@ private:
   bool inverse_time_activated{false};
   double iter_since_last{0};
   double n_outside_range{0};
+  double n_self_proposals{0.0};
   std::vector<double> time_to_converge;
   double inv_time_factor{1.0};
+  unsigned int update_hist_every{5};
+  std::vector<bool> is_first;
 };
 #endif

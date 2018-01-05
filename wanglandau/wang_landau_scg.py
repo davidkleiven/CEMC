@@ -468,7 +468,7 @@ class WangLandauSGC( object ):
 
         if ( mode == "adaptive_windows" ):
             fast_wl_sampler.use_adaptive_windows( minimum_window_width )
-        fast_wl_sampler.use_inverse_time_algorithm = True
+        fast_wl_sampler.use_inverse_time_algorithm = False
         fast_wl_sampler.run( maxsteps )
         self.logger.info( "Fast WL sampler finished" )
 

@@ -2,6 +2,7 @@
 #define HISTOGRAM_H
 #include <vector>
 #include <Python.h>
+#define DEBUG_LOSS_OF_PRECISION
 
 class Histogram
 {
@@ -44,6 +45,9 @@ public:
 
   /** Read histogram data from Python histogram */
   void init_from_pyhist( PyObject *pyhist );
+
+  const std::vector<unsigned int>& get_histogram() const { return hist; };
+  const std::vector<double>& get_logdos() const { return logdos; };
 protected:
   unsigned int Nbins{1};
   double Emin{0.0};

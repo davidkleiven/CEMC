@@ -43,6 +43,9 @@ public:
 
   /** Distributes the random walkers evenly in the window */
   void distribute_random_walkers_evenly();
+
+  /** Print a status message */
+  void status_report( double mean, double minimum, double maximum, double criteria );
 private:
   /** Stores a copy of the updater states of the Wang Landau Sampler */
   void get_updater_states();
@@ -61,6 +64,12 @@ private:
   listdict atom_pos_track_first_change_state;
   std::vector<int> current_bin_first_change_state;
   std::vector<CEState> states;
+  bool has_ce_states{false};
+
+  bool minimum_ok( double mean, double criteria, double minimum ) const;
+  bool maximum_ok( double mean, double criteria, double maximum ) const;
+  clock_t last_stat_report{0};
+  unsigned int stat_report_every{60};
 };
 
 #endif

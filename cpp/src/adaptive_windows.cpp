@@ -4,6 +4,7 @@
 #include <iostream>
 #include <cassert>
 #include <omp.h>
+#include <ctime>
 
 using namespace std;
 
@@ -38,6 +39,7 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
 {
   unsigned int mean = 0;
   unsigned int minimum = 100000000;
+  unsigned int maximum = 0;
   unsigned int count = 0;
   bool part_of_histogram_has_converged = false;
   unsigned int first_non_converged_bin = 0;
@@ -55,7 +57,9 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
       maximum_possible_number_of_converged_bins += 1;
     }
   }
-
+  bool min_ok = false;
+  bool max_ok = false;
+  double mean_dbl = 0.0;
   // Identify the largest window from the upper energy range that is locally converged
   for ( unsigned int i=current_upper_bin;i>0;i-- )
   {
@@ -69,30 +73,44 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
       min_bin = i-1;
     }
 
-    double mean_dbl = static_cast<double>(mean)/count;
+    if ( hist[i-1] > maximum )
+    {
+      maximum = hist[i-1];
+    }
+
+    mean_dbl = static_cast<double>(mean)/count;
+    min_ok =  minimum_ok(mean_dbl,criteria,minimum);
+    max_ok =  maximum_ok(mean_dbl,criteria,maximum);
 
     // Check if the window contains the minimum number of bins to check for local convergence
     if ( (count > minimum_width) || (count >= maximum_possible_number_of_converged_bins) )
     {
-      if ( minimum > criteria*mean_dbl ) part_of_histogram_has_converged=true;
+      if ( min_ok && max_ok ) part_of_histogram_has_converged=true;
     }
 
     // Check if the next bins makes window "non-converged". If so abort and use
     // this bin as an upper limit of the energy range
-    if ( part_of_histogram_has_converged && (minimum < criteria*mean_dbl) )
+    if ( part_of_histogram_has_converged && (!min_ok || !max_ok) )
     {
       first_non_converged_bin = i-1;
       break;
     }
-    else if ( minimum < criteria*mean_dbl )
+    else if ( !min_ok || !max_ok )
     {
       break;
     }
   }
-  //cout << min_bin << " " << current_upper_bin << " " << minimum << " " << criteria*static_cast<double>(mean)/count << endl;
+
+  if ( (clock()-last_stat_report)/CLOCKS_PER_SEC > stat_report_every )
+  {
+    status_report( mean_dbl, minimum, maximum, criteria );
+    cout << hist << endl;
+  }
+  //cout << current_upper_bin << " " << minimum << " " << criteria*static_cast<double>(mean)/count;
+  //cout << " " << maximum << " " << static_cast<double>(mean)/(criteria*count) << endl;
 
   // If first_non_converged_bin is 0 then the entire DOS has converged for this value of the modification factor
-  converged = (first_non_converged_bin == 0) && part_of_histogram_has_converged;
+  converged = (first_non_converged_bin == 0) && min_ok && max_ok;
   if ( converged )
   {
     return true;
@@ -101,11 +119,11 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
   // Update the histogram limits
   if ( part_of_histogram_has_converged )
   {
-    // Check if the propsed window is valid (contains enough known stats and is large enough)
-    if ( !is_valid_window(first_non_converged_bin) )
+    // If the proposed winow is not valid, expand it until it is valid
+    // Arbitrary upper boundary of current_upper_bin-6 (could be anything smaller than current_upper_bin-1)
+    while ( !is_valid_window(first_non_converged_bin) && (first_non_converged_bin < current_upper_bin-6) )
     {
-      // If not valid window: return and continue sampling in the same window
-      return false;
+      first_non_converged_bin += 1;
     }
 
     window_edges.push_back( first_non_converged_bin+1 );
@@ -117,6 +135,7 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
     if ( current_upper_bin == Nbins )
     {
       get_updater_states(); // Store the current state. Will restart from this state later
+      has_ce_states = true;
     }
 
     current_upper_bin = first_non_converged_bin+2;
@@ -137,7 +156,11 @@ void AdaptiveWindowHistogram::reset()
   make_dos_continous();
   window_edges.clear();
   logdos_on_edges.clear();
-  sampler->set_updaters( first_change_state, atom_pos_track_first_change_state, current_bin_first_change_state ); // Distrubute the CE updaters across the energy space
+
+  if ( has_ce_states )
+  {
+    sampler->set_updaters( first_change_state, atom_pos_track_first_change_state, current_bin_first_change_state ); // Distrubute the CE updaters across the energy space
+  }
 }
 
 void AdaptiveWindowHistogram::make_dos_continous()
@@ -182,7 +205,12 @@ void AdaptiveWindowHistogram::get_updater_states()
     first_change_state.push_back( sampler->get_updater(i)->copy() );
   }
 
-  atom_pos_track_first_change_state = sampler->get_atom_pos_trackers();
+  atom_pos_track_first_change_state.clear();
+  list_dictptr cur_atom_pos = sampler->get_atom_pos_trackers();
+  for ( unsigned int i=0;i<cur_atom_pos.size();i++ )
+  {
+    atom_pos_track_first_change_state.push_back(*cur_atom_pos[i]);
+  }
   current_bin_first_change_state = sampler->get_current_bins();
 }
 
@@ -237,7 +265,7 @@ void AdaptiveWindowHistogram::distribute_random_walkers_evenly()
   }
 
   unsigned int n_threads = sampler->num_threads;
-  double delta = current_upper_bin/static_cast<double>(n_threads);
+  double delta = current_upper_bin/static_cast<double>(n_threads+1);
 
   listdict atom_track;
   std::vector<int> current_bins;
@@ -245,7 +273,7 @@ void AdaptiveWindowHistogram::distribute_random_walkers_evenly()
 
   for ( unsigned int i=0;i<n_threads;i++ )
   {
-    unsigned int indx = i*delta;
+    unsigned int indx = (i+1)*delta;
     unsigned int shift_pos=2*current_upper_bin;
     for ( unsigned int j=indx;j<current_upper_bin;j++ )
     {
@@ -273,6 +301,7 @@ void AdaptiveWindowHistogram::distribute_random_walkers_evenly()
     else
     {
       new_bin = indx-shift_neg;
+      //new_bin = indx+shift_pos;
     }
 
     updaters.push_back( states[new_bin].updater );
@@ -280,4 +309,21 @@ void AdaptiveWindowHistogram::distribute_random_walkers_evenly()
     atom_track.push_back( states[new_bin].atom_pos_track );
   }
   sampler->set_updaters( updaters, atom_track, current_bins );
+  cout << current_bins << endl;
+}
+
+bool AdaptiveWindowHistogram::minimum_ok( double mean, double criteria, double minimum ) const
+{
+  return minimum > criteria*mean;
+}
+
+bool AdaptiveWindowHistogram::maximum_ok( double mean, double criteria, double maximum ) const
+{
+  return maximum < mean/criteria;
+}
+
+void AdaptiveWindowHistogram::status_report( double mean, double minimum, double maximum, double criteria )
+{
+  cout << "Mean: " << mean << " Min: " << minimum << " Min crit. " << mean*criteria << " Max: " << maximum << " Max crit.: " << mean/criteria << endl;
+  last_stat_report = clock();
 }

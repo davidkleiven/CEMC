@@ -4,6 +4,7 @@
 #include "additional_tools.hpp"
 #include <iostream>
 #include <sstream>
+#include <omp.h>
 #define CE_DEBUG
 using namespace std;
 
@@ -287,6 +288,7 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
   symb_change_track->indx = symb_change.indx;
   symb_change_track->old_symb = symb_change.old_symb;
   symb_change_track->new_symb = symb_change.new_symb;
+  symb_change_track->track_indx = symb_change.track_indx;
 
   if ( symb_change.old_symb == symb_change.new_symb )
   {
@@ -336,6 +338,12 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
 
 void CEUpdater::undo_changes()
 {
+  if ( tracker != nullptr )
+  {
+    undo_changes_tracker();
+    return;
+  }
+
   unsigned int buf_size = history->history_size();
   SymbolChange *last_changes;
   for ( unsigned int i=0;i<buf_size-1;i++ )
@@ -359,6 +367,27 @@ void CEUpdater::undo_changes()
   }
 }
 
+void CEUpdater::undo_changes_tracker()
+{
+  //cout << "Undoing changes, keep track\n";
+  SymbolChange *last_change;
+  SymbolChange *first_change;
+  tracker_t& trk = *tracker;
+  while( history->history_size() > 1 )
+  {
+    history->pop(&last_change);
+    history->pop(&first_change);
+    symbols[last_change->indx] = last_change->old_symb;
+    symbols[first_change->indx] = first_change->old_symb;
+    trk[first_change->old_symb][first_change->track_indx] = first_change->indx;
+    trk[last_change->old_symb][last_change->track_indx] = last_change->indx;
+  }
+  symbols[first_change->indx] = first_change->old_symb;
+  symbols[last_change->indx] = last_change->old_symb;
+  //cerr << "History cleaned!\n";
+  //cerr << history->history_size() << endl;
+}
+
 double CEUpdater::calculate( PyObject *system_changes )
 {
   int size = PyList_Size(system_changes);
@@ -371,8 +400,29 @@ double CEUpdater::calculate( PyObject *system_changes )
 
 double CEUpdater::calculate( array<SymbolChange,2> &system_changes )
 {
+  if ( symbols[system_changes[0].indx] == symbols[system_changes[1].indx] )
+  {
+    cout << system_changes[0] << endl;
+    cout << system_changes[1] << endl;
+    throw runtime_error( "This version of the calculate function assumes that the provided update is swapping two atoms\n");
+  }
+
+  if ( symbols[system_changes[0].indx] != system_changes[0].old_symb )
+  {
+    throw runtime_error( "The atom position tracker does not match the current state\n" );
+  }
+  else if ( symbols[system_changes[1].indx] != system_changes[1].old_symb )
+  {
+    throw runtime_error( "The atom position tracker does not match the current state\n" );
+  }
   update_cf( system_changes[0] );
   update_cf( system_changes[1] );
+  if ( tracker != nullptr )
+  {
+    tracker_t& trk = *tracker;
+    trk[system_changes[0].old_symb][system_changes[0].track_indx] = system_changes[1].indx;
+    trk[system_changes[1].old_symb][system_changes[1].track_indx] = system_changes[0].indx;
+  }
   return get_energy();
 }
 
@@ -417,5 +467,15 @@ CEUpdater* CEUpdater::copy() const
   obj->history = new CFHistoryTracker(*history);
   obj->permutations = permutations;
   obj->atoms = nullptr; // Left as nullptr by intention
+  obj->tracker = tracker;
   return obj;
+}
+
+void CEUpdater::set_symbols( const vector<string> &new_symbs )
+{
+  if ( new_symbs.size() != symbols.size() )
+  {
+    throw runtime_error( "The number of atoms in the updater cannot be changed via the set_symbols function\n");
+  }
+  symbols = new_symbs;
 }

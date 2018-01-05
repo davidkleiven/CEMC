@@ -226,10 +226,10 @@ class WangLandauDBManager( object ):
             ensemble = entries[3]
         except:
             return None
-        plt.plot(logdos,ls="steps")
-        plt.show()
         logdos = logdos[known_states==1]
         energy = energy[known_states==1]
+        plt.plot(logdos,ls="steps")
+        plt.show()
         logdos -= np.max(logdos) # Avoid overflow
         logdos += 10.0
         ref_e0 = logdos[0]
