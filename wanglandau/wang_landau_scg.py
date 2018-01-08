@@ -450,7 +450,7 @@ class WangLandauSGC( object ):
         self.logger.info("Selected range: Emin: {}, Emax: {}".format(self.histogram.Emin,self.histogram.Emax))
         self.histogram.clear()
 
-    def run_fast_sampler( self, maxsteps=10000000, mode="regular", minimum_window_width=10 ):
+    def run_fast_sampler( self, maxsteps=10000000, mode="regular", minimum_window_width=10, sub_bin_file="subbin.csv" ):
         if ( not has_fast_wl_sampler ):
             raise ImportError( "The fast WL sampler was not imported!" )
 
@@ -464,12 +464,14 @@ class WangLandauSGC( object ):
         corrFunc = self.atoms._calc.updater.get_cf()
         ecis = self.atoms._calc.eci
         perms = self.atoms._calc.permutations
+
         fast_wl_sampler = WangLandauSampler( BC,corrFunc,ecis,perms, self )
 
         if ( mode == "adaptive_windows" ):
             fast_wl_sampler.use_adaptive_windows( minimum_window_width )
         fast_wl_sampler.use_inverse_time_algorithm = False
         fast_wl_sampler.run( maxsteps )
+        fast_wl_sampler.save_sub_bin_distribution( sub_bin_file )
         self.logger.info( "Fast WL sampler finished" )
 
     def run( self, maxsteps=10000000 ):
