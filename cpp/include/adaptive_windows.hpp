@@ -46,6 +46,12 @@ public:
 
   /** Print a status message */
   void status_report( double mean, double minimum, double maximum, double criteria );
+
+  /** Redistributes the samplers */
+  virtual void redistribute_samplers() override;
+
+  /** Returns True if the window is so small that the probability of data conflict is too large */
+  virtual bool update_synchronized( unsigned int num_threads, double conflict_prob ) const;
 private:
   /** Stores a copy of the updater states of the Wang Landau Sampler */
   void get_updater_states();

@@ -50,6 +50,7 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
   // Therefor calculate the maximum number of converged bins
   unsigned int maximum_possible_number_of_converged_bins = 0;
   unsigned int min_bin = 0;
+
   for ( unsigned int i=0;i<current_upper_bin;i++ )
   {
     if ( known_structures[i] )
@@ -60,6 +61,7 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
   bool min_ok = false;
   bool max_ok = false;
   double mean_dbl = 0.0;
+
   // Identify the largest window from the upper energy range that is locally converged
   for ( unsigned int i=current_upper_bin;i>0;i-- )
   {
@@ -121,9 +123,9 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
   {
     // If the proposed winow is not valid, expand it until it is valid
     // Arbitrary upper boundary of current_upper_bin-6 (could be anything smaller than current_upper_bin-1)
-    while ( !is_valid_window(first_non_converged_bin) && (first_non_converged_bin < current_upper_bin-6) )
+    if( !is_valid_window(first_non_converged_bin) )
     {
-      first_non_converged_bin += 1;
+      return false;
     }
 
     window_edges.push_back( first_non_converged_bin+1 );
@@ -216,7 +218,7 @@ void AdaptiveWindowHistogram::get_updater_states()
 
 bool AdaptiveWindowHistogram::is_valid_window( unsigned int upper_bin ) const
 {
-  if ( upper_bin <= minimum_width ) return false;
+  //if ( upper_bin <= minimum_width ) return false;
 
   unsigned int n_known_states = 0;
   for ( unsigned int i=0;i<upper_bin;i++ )
@@ -224,7 +226,7 @@ bool AdaptiveWindowHistogram::is_valid_window( unsigned int upper_bin ) const
     if ( known_structures[i] ) n_known_states += 1;
   }
   //cout << "Number of known states in window: " << n_known_states << endl;
-  if ( n_known_states <= 2 ) return false;
+  if ( n_known_states <= minimum_width/2 ) return false;
 
   return true;
 }
@@ -234,7 +236,7 @@ void AdaptiveWindowHistogram::update( unsigned int bin, double modfactor )
   if ( states[bin].updater == nullptr )
   {
     unsigned int uid = omp_get_thread_num();
-    #pragma omp critical
+    #pragma omp critical(track_new_state)
     {
       // Check this one more time inside a critical section, to be absolutely sure
       // that two processors don't allocate the same memory
@@ -259,7 +261,7 @@ void AdaptiveWindowHistogram::distribute_random_walkers_evenly()
     if ( states[i].updater != nullptr ) n_known += 1;
   }
 
-  if ( n_known <= 1 )
+  if ( n_known <= sampler->num_threads )
   {
     return;
   }
@@ -312,6 +314,12 @@ void AdaptiveWindowHistogram::distribute_random_walkers_evenly()
   cout << current_bins << endl;
 }
 
+void AdaptiveWindowHistogram::redistribute_samplers()
+{
+  cout << "Redistributing the samplers\n";
+  distribute_random_walkers_evenly();
+}
+
 bool AdaptiveWindowHistogram::minimum_ok( double mean, double criteria, double minimum ) const
 {
   return minimum > criteria*mean;
@@ -326,4 +334,9 @@ void AdaptiveWindowHistogram::status_report( double mean, double minimum, double
 {
   cout << "Mean: " << mean << " Min: " << minimum << " Min crit. " << mean*criteria << " Max: " << maximum << " Max crit.: " << mean/criteria << endl;
   last_stat_report = clock();
+}
+
+bool AdaptiveWindowHistogram::update_synchronized( unsigned int num_threads, double conflict_prob ) const
+{
+  return static_cast<double>(num_threads)/current_upper_bin > conflict_prob;
 }

@@ -8,7 +8,7 @@
 #include <map>
 #include <string>
 #include <array>
-//#define WANG_LANDAU_DEBUG
+#define WANG_LANDAU_DEBUG
 
 typedef std::vector< std::map< std::string,std::vector<int> >* > list_dictptr;
 typedef std::vector< std::map< std::string,std::vector<int> > > listdict;
@@ -66,6 +66,8 @@ public:
   bool use_inverse_time_algorithm{false};
 
   static const unsigned int num_threads;
+
+  void save_sub_bin_distribution( const std::string &fname ){ histogram->save_sub_bin_distribution(fname); };
 private:
   /** Updates the atom position trackers */
   void update_atom_position_track( unsigned int uid, std::array<SymbolChange,2> &changes, unsigned int select1, unsigned int select2 );
@@ -94,5 +96,7 @@ private:
   double inv_time_factor{1.0};
   unsigned int update_hist_every{5};
   std::vector<bool> is_first;
+  std::vector<double> current_energy;
+  double avg_acc_rate{0.0};
 };
 #endif

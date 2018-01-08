@@ -30,6 +30,7 @@ WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject
   for ( unsigned int i=0;i<num_threads;i++ )
   {
     updaters.push_back( updater.copy() );
+    current_energy.push_back(0.0);
   }
 
   #ifdef WANG_LANDAU_DEBUG
@@ -125,6 +126,7 @@ WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject
 
   histogram = new Histogram( Nbins, Emin, Emax );
   histogram->init_from_pyhist( py_hist );
+  histogram->init_sub_bins();
   Py_DECREF( py_hist );
 
   PyObject *py_cur_bin = PyObject_GetAttrString( py_wl, "current_bin" );
@@ -225,7 +227,7 @@ void WangLandauSampler::step()
 
   int bin = histogram->get_bin( energy );
   //cout << bin << " " << current_bin[uid] << endl;
-
+  
   // Check if the proposed bin is in the sampling range. If not undo changes and return.
   if ( !histogram->bin_in_range(bin) )
   {
@@ -237,33 +239,58 @@ void WangLandauSampler::step()
   {
     updaters[uid]->clear_history();
     n_self_proposals += 1;
-    return;
+    //return;
   }
 
   //cout << bin << " " << current_bin[uid] << endl;
 
   double dosratio = histogram->get_dos_ratio_old_divided_by_new( current_bin[uid], bin );
+  avg_acc_rate += dosratio;
   double uniform_random = static_cast<double>(rand_r( &seeds[uid] ))/RAND_MAX;
 
   if ( (uniform_random < dosratio) || is_first[uid] )
   {
     // Accept
-    //const string& symb1_old = change[0].old_symb;
-    //const string& symb2_old = change[1].old_symb;
-    //unsigned int indx1 = change[0].indx;
-    //unsigned int indx2 = change[1].indx;
-    //atom_positions_track[uid][symb1_old][select1] = indx2;
-    //atom_positions_track[uid][symb2_old][select2] = indx1;
     current_bin[uid] = bin;
     is_first[uid] = false;
+    current_energy[uid] = energy;
   }
   else
   {
     updaters[uid]->undo_changes();
   }
   updaters[uid]->clear_history();
-  histogram->update( current_bin[uid], f );
-  //cout << uid << " " << iter << endl;
+
+
+  if ( histogram->update_synchronized(num_threads,0.2) )
+  {
+    #pragma omp critical(updateHist)
+    {
+      histogram->update( current_bin[uid], f );
+      histogram->update_sub_bin(current_bin[uid],current_energy[uid]);
+    }
+  }
+  else
+  {
+    histogram->update( current_bin[uid], f );
+    histogram->update_sub_bin(current_bin[uid],current_energy[uid]);
+  }
+
+
+
+  /*
+  if ( (n_outside_range/iter_since_last > 0.1) && (iter_since_last>histogram->get_nbins()) )
+  {
+    #pragma omp barrier
+    {
+      if ( uid == 0 )
+      {
+        histogram->redistribute_samplers();
+        n_outside_range = 0;
+        iter_since_last = 1;
+      }
+    }
+  }*/
 }
 
 void WangLandauSampler::run( unsigned int nsteps )
@@ -322,6 +349,8 @@ void WangLandauSampler::run( unsigned int nsteps )
       cout << "Converged! New f: " << f << endl;
       cout << n_outside_range/iter_since_last << " of the states was outside the range\n";
       cout << "Fraction of self-proposals: " << n_self_proposals/iter_since_last << endl;
+      cout << "Average acceptance rate: " << avg_acc_rate/iter_since_last << endl;
+      avg_acc_rate = 0.0;
       iter_since_last=0;
       n_outside_range=0;
       n_self_proposals=0;
@@ -515,6 +544,7 @@ void WangLandauSampler::use_adaptive_windows( unsigned int minimum_window_width 
   Histogram *new_histogram = new AdaptiveWindowHistogram( *histogram, minimum_window_width, *this );
   delete histogram;
   histogram = new_histogram;
+  histogram->init_sub_bins();
 }
 
 void WangLandauSampler::delete_updaters()

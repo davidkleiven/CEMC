@@ -1,6 +1,7 @@
 #ifndef HISTOGRAM_H
 #define HISTOGRAM_H
 #include <vector>
+#include <string>
 #include <Python.h>
 #define DEBUG_LOSS_OF_PRECISION
 
@@ -8,7 +9,8 @@ class Histogram
 {
 public:
   Histogram( unsigned int Nbins, double Emin, double Emax );
-  virtual ~Histogram(){};
+  Histogram( const Histogram &other );
+  virtual ~Histogram();
 
   /** Returns the bin corresponding to the given energy */
   int get_bin( double energy ) const;
@@ -28,6 +30,9 @@ public:
   /** Updates the histogram and the logdos */
   virtual void update( unsigned int bin, double mod_factor );
 
+  /** Updates the sub bin histograms */
+  void update_sub_bin( unsigned int bin, double energy );
+
   /** Checks if the histogram is flat */
   virtual bool is_flat( double criteria );
 
@@ -46,8 +51,24 @@ public:
   /** Read histogram data from Python histogram */
   void init_from_pyhist( PyObject *pyhist );
 
+  /** Stores the sub-bin distribution into a text file */
+  void save_sub_bin_distribution( const std::string &fname ) const;
+
+  /** Initialize the sub bin histograms */
+  void init_sub_bins();
+
+  /** Clears the sub bin histograms */
+  void clear_sub_hist();
+
+  /** Redistributes the random walkers. See Adaptive Window Histogram */
+  virtual void redistribute_samplers(){};
+
+  /** Returns true if the probability of data conflict is too large */
+  virtual bool update_synchronized( unsigned int num_threads, double conflict_prob ) const;
+
   const std::vector<unsigned int>& get_histogram() const { return hist; };
   const std::vector<double>& get_logdos() const { return logdos; };
+  friend void swap( Histogram &first, const Histogram &other );
 protected:
   unsigned int Nbins{1};
   double Emin{0.0};
@@ -57,5 +78,7 @@ protected:
   std::vector<unsigned int> hist;
   std::vector<double> logdos;
   std::vector<bool> known_structures;
+  std::vector<Histogram*> sub_bin_distribution;
+  double avg_acc_rate{0.0};
 };
 #endif
