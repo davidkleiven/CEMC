@@ -72,6 +72,12 @@ private:
   /** Updates the atom position trackers */
   void update_atom_position_track( unsigned int uid, std::array<SymbolChange,2> &changes, unsigned int select1, unsigned int select2 );
 
+  /** Upates all bins above the current bin */
+  void update_all_above();
+
+  /** Updates the current bin */
+  void update_current();
+
   std::vector<CEUpdater*> updaters; // Keep one updater for each thread
   list_dictptr atom_positions_track;
   bool ready{true};
@@ -97,6 +103,7 @@ private:
   unsigned int update_hist_every{5};
   std::vector<bool> is_first;
   std::vector<double> current_energy;
+  double avg_bin_change{0.0};
   double avg_acc_rate{0.0};
 };
 #endif

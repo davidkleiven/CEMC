@@ -226,29 +226,34 @@ void WangLandauSampler::step()
   //if ( static_cast<int>(iter_since_last)%update_hist_every != 0 ) return;
 
   int bin = histogram->get_bin( energy );
+  avg_bin_change += abs(bin-current_bin[uid]);
   //cout << bin << " " << current_bin[uid] << endl;
-  
+
+  bool inside_range = histogram->bin_in_range(bin);
   // Check if the proposed bin is in the sampling range. If not undo changes and return.
   if ( !histogram->bin_in_range(bin) )
   {
     n_outside_range += 1.0;
     updaters[uid]->undo_changes();
+    if ( is_first[uid] ) return;
+
+    if ( bin > histogram->get_number_of_active_bins() ) update_current();
     return;
   }
   else if ( bin == current_bin[uid] )
   {
-    updaters[uid]->clear_history();
+    //updaters[uid]->clear_history();
     n_self_proposals += 1;
     //return;
   }
 
   //cout << bin << " " << current_bin[uid] << endl;
-
   double dosratio = histogram->get_dos_ratio_old_divided_by_new( current_bin[uid], bin );
   avg_acc_rate += dosratio;
   double uniform_random = static_cast<double>(rand_r( &seeds[uid] ))/RAND_MAX;
-
-  if ( (uniform_random < dosratio) || is_first[uid] )
+  bool accept = (uniform_random < dosratio) || is_first[uid];
+  int old_current_bin = current_bin[uid];
+  if ( accept )
   {
     // Accept
     current_bin[uid] = bin;
@@ -276,6 +281,7 @@ void WangLandauSampler::step()
     histogram->update_sub_bin(current_bin[uid],current_energy[uid]);
   }
 
+  histogram->update_bin_transfer(old_current_bin,bin);
 
 
   /*
@@ -350,7 +356,9 @@ void WangLandauSampler::run( unsigned int nsteps )
       cout << n_outside_range/iter_since_last << " of the states was outside the range\n";
       cout << "Fraction of self-proposals: " << n_self_proposals/iter_since_last << endl;
       cout << "Average acceptance rate: " << avg_acc_rate/iter_since_last << endl;
+      cout << "Average bin change: " << avg_bin_change/iter_since_last << endl;
       avg_acc_rate = 0.0;
+      avg_bin_change = 0.0;
       iter_since_last=0;
       n_outside_range=0;
       n_self_proposals=0;
@@ -362,6 +370,7 @@ void WangLandauSampler::run( unsigned int nsteps )
     {
       cout << "Simulation converged!\n";
       converged = true;
+      histogram->save_bin_transfer( "bin_transfer.csv" );
       send_results_to_python();
       break;
     }
@@ -584,4 +593,19 @@ void WangLandauSampler::update_atom_position_track( unsigned int uid, array<Symb
 double WangLandauSampler::get_mc_time() const
 {
   return iter/histogram->get_nbins();
+}
+
+void WangLandauSampler::update_all_above()
+{
+  int uid = omp_get_thread_num();
+  for ( unsigned int i=current_bin[uid];i<histogram->get_number_of_active_bins();i++ )
+  {
+    histogram->update(i,f);
+  }
+}
+
+void WangLandauSampler::update_current()
+{
+  int uid = omp_get_thread_num();
+  histogram->update(current_bin[uid],f);
 }

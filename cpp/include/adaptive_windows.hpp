@@ -45,13 +45,16 @@ public:
   void distribute_random_walkers_evenly();
 
   /** Print a status message */
-  void status_report( double mean, double minimum, double maximum, double criteria );
+  void status_report( double mean, double minimum, double maximum, double criteria, unsigned int converged_window );
 
   /** Redistributes the samplers */
   virtual void redistribute_samplers() override;
 
   /** Returns True if the window is so small that the probability of data conflict is too large */
   virtual bool update_synchronized( unsigned int num_threads, double conflict_prob ) const;
+
+  /** Update the number of bins that should be ignored when checking for convergence */
+  void set_buffer( unsigned int new_buffer ){ ignore_from_upper=new_buffer; };
 private:
   /** Stores a copy of the updater states of the Wang Landau Sampler */
   void get_updater_states();
@@ -71,6 +74,7 @@ private:
   std::vector<int> current_bin_first_change_state;
   std::vector<CEState> states;
   bool has_ce_states{false};
+  unsigned int ignore_from_upper{7};
 
   bool minimum_ok( double mean, double criteria, double minimum ) const;
   bool maximum_ok( double mean, double criteria, double maximum ) const;

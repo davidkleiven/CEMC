@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <Python.h>
+#include <array>
 #define DEBUG_LOSS_OF_PRECISION
 
 class Histogram
@@ -26,6 +27,15 @@ public:
 
   /** Returns the number of bins */
   unsigned int get_nbins() const { return Nbins; };
+
+  /** Returns the bin that is currently most visited */
+  int get_current_max_bin() const { return current_max_bin; };
+
+  /** Returns the bin that is currently least visited */
+  int get_current_min_bin() const { return current_min_bin; };
+
+  /** Returns the number of bins that are currently active */
+  virtual unsigned int get_number_of_active_bins() const { return get_nbins(); };
 
   /** Updates the histogram and the logdos */
   virtual void update( unsigned int bin, double mod_factor );
@@ -60,6 +70,12 @@ public:
   /** Clears the sub bin histograms */
   void clear_sub_hist();
 
+  /** Updates the from bin transfer */
+  void update_bin_transfer( int from, int to );
+
+  /** Stores bin transfer array to file */
+  void save_bin_transfer( const std::string &fname ) const;
+
   /** Redistributes the random walkers. See Adaptive Window Histogram */
   virtual void redistribute_samplers(){};
 
@@ -74,11 +90,14 @@ protected:
   double Emin{0.0};
   double Emax{1.0};
   bool track_states{false};
+  int current_max_bin{0};
+  int current_min_bin{0};
 
   std::vector<unsigned int> hist;
   std::vector<double> logdos;
   std::vector<bool> known_structures;
   std::vector<Histogram*> sub_bin_distribution;
+  std::vector< std::array<unsigned int,21> > bin_transfer;
   double avg_acc_rate{0.0};
 };
 #endif

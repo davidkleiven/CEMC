@@ -12,12 +12,17 @@ Histogram::Histogram( unsigned int Nbins, double Emin, double Emax ):Nbins(Nbins
   hist.resize(Nbins);
   logdos.resize(Nbins);
   known_structures.resize(Nbins);
+  bin_transfer.resize(Nbins);
 
   for ( unsigned int i=0;i<Nbins;i++ )
   {
     hist[i] = 0;
     logdos[i] = 0.0;
     known_structures[i] = false;
+    for ( unsigned int j=0;j<bin_transfer[i].size();j++ )
+    {
+      bin_transfer[i][j] = 0;
+    }
   }
 }
 
@@ -99,6 +104,7 @@ bool Histogram::is_flat( double criteria )
 {
   unsigned int mean = 0;
   unsigned int minimum = 100000000;
+  unsigned int maximum = 0;
   unsigned int count = 0;
   for ( unsigned int i=0;i<hist.size();i++ )
   {
@@ -106,7 +112,16 @@ bool Histogram::is_flat( double criteria )
 
     mean += hist[i];
     count += 1;
-    if ( hist[i] < minimum ) minimum = hist[i];
+    if ( hist[i] < minimum )
+    {
+      minimum = hist[i];
+      current_min_bin = i;
+    }
+    else if ( hist[i] > maximum )
+    {
+      maximum = hist[i];
+      current_max_bin = i;
+    }
   }
 
   double mean_dbl = static_cast<double>(mean)/count;
@@ -211,6 +226,7 @@ void swap( Histogram &first, const Histogram &other )
   first.hist = other.hist;
   first.logdos = other.logdos;
   first.known_structures = other.known_structures;
+  first.bin_transfer = other.bin_transfer;
   first.clear_sub_hist();
   first.init_sub_bins();
 
@@ -228,4 +244,43 @@ void Histogram::clear_sub_hist()
 bool Histogram::update_synchronized( unsigned int num_threads, double conflict_prob ) const
 {
   return static_cast<double>(num_threads)/Nbins > conflict_prob;
+}
+
+void Histogram::update_bin_transfer( int from, int to )
+{
+  int N = bin_transfer[from].size();
+  int diff = to-from;
+  //cout << from << " " << to << endl;
+  if ( diff > N-2 )
+  {
+    bin_transfer[from][N-1] += 1;
+  }
+  else if ( diff < 1 )
+  {
+    bin_transfer[from][0] += 1;
+  }
+  else
+  {
+    bin_transfer[from][N/2+diff] += 1;
+  }
+}
+
+void Histogram::save_bin_transfer( const string &fname ) const
+{
+  ofstream out;
+  out.open( fname.c_str() );
+  if ( !out.good() )
+  {
+    cout << "An error occured when opening a file to save the bin transfer\n";
+    return;
+  }
+  for ( unsigned int i=0;i<bin_transfer.size();i++ )
+  {
+    for ( unsigned int j=0;j<bin_transfer[i].size();j++ )
+    {
+      out << bin_transfer[i][j] << ",";
+    }
+    out << "\n";
+  }
+  out.close();
 }
