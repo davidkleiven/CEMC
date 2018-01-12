@@ -54,7 +54,7 @@ public:
   virtual bool update_synchronized( unsigned int num_threads, double conflict_prob ) const;
 
   /** Update the number of bins that should be ignored when checking for convergence */
-  void set_buffer( unsigned int new_buffer ){ ignore_from_upper=new_buffer; };
+  virtual void set_overlap( unsigned int new_buffer ) override { n_overlap=new_buffer; };
 private:
   /** Stores a copy of the updater states of the Wang Landau Sampler */
   void get_updater_states();
@@ -68,13 +68,13 @@ private:
   unsigned int current_upper_bin;
   WangLandauSampler *sampler{nullptr};
   std::vector<unsigned int> window_edges;
-  std::vector<double> logdos_on_edges;
+  std::vector< std::vector<double> > logdos_on_edges;
   std::vector<CEUpdater*> first_change_state;
   listdict atom_pos_track_first_change_state;
   std::vector<int> current_bin_first_change_state;
   std::vector<CEState> states;
   bool has_ce_states{false};
-  unsigned int ignore_from_upper{7};
+  unsigned int n_overlap{7};
 
   bool minimum_ok( double mean, double criteria, double minimum ) const;
   bool maximum_ok( double mean, double criteria, double maximum ) const;

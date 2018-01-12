@@ -50,7 +50,7 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
   // Therefor calculate the maximum number of converged bins
   unsigned int maximum_possible_number_of_converged_bins = 0;
 
-  for ( unsigned int i=0;i<current_upper_bin;i++ )
+  for ( unsigned int i=0;i<current_upper_bin-n_overlap;i++ )
   {
     if ( known_structures[i] )
     {
@@ -62,7 +62,7 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
   double mean_dbl = 0.0;
 
   // Identify the largest window from the upper energy range that is locally converged
-  for ( unsigned int i=current_upper_bin-7;i>0;i-- )
+  for ( unsigned int i=current_upper_bin-n_overlap;i>0;i-- )
   {
     if ( !known_structures[i-1] ) continue;
 
@@ -129,7 +129,12 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
     }
 
     window_edges.push_back( first_non_converged_bin+1 );
-    logdos_on_edges.push_back( logdos[first_non_converged_bin+1] );
+    vector<double> new_overlap;
+    for ( unsigned int n=0;n<n_overlap;n++ )
+    {
+      new_overlap.push_back(logdos[first_non_converged_bin+1+n]);
+    }
+    logdos_on_edges.push_back( new_overlap );
 
     // Check if current bin equals Nbins. If so this is the first time
     // Save the sampler state at this run.
@@ -140,7 +145,7 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
       has_ce_states = true;
     }
 
-    current_upper_bin = first_non_converged_bin+2;
+    current_upper_bin = first_non_converged_bin+n_overlap+1;
     double emin = Emin;
     double emax = get_energy( current_upper_bin );
     distribute_random_walkers_evenly();
@@ -170,7 +175,13 @@ void AdaptiveWindowHistogram::make_dos_continous()
   // Loop over all sub intervals and make the DOS continous at the connections
   for ( unsigned int i=0;i<window_edges.size();i++ )
   {
-    double diff = logdos[window_edges[i]] - logdos_on_edges[i];
+    // Reset the overlap bins except the first
+    for ( unsigned int j=1;j<logdos_on_edges[i].size();j++ )
+    {
+      logdos[window_edges[i]+j] = logdos_on_edges[i][j];
+    }
+
+    double diff = logdos[window_edges[i]] - logdos_on_edges[i][0];
 
     for ( unsigned int j=0;j<window_edges[i]+1;j++ )
     {
@@ -179,7 +190,10 @@ void AdaptiveWindowHistogram::make_dos_continous()
 
     for ( unsigned int j=i+1;j<logdos_on_edges.size();j++ )
     {
-      logdos_on_edges[j] -= diff;
+      for ( unsigned int k=0;k<logdos_on_edges[j].size();k++ )
+      {
+        logdos_on_edges[j][k] -= diff;
+      }
     }
   }
 }

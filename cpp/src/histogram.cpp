@@ -250,7 +250,6 @@ void Histogram::update_bin_transfer( int from, int to )
 {
   int N = bin_transfer[from].size();
   int diff = to-from;
-  //cout << from << " " << to << endl;
   if ( diff > N-2 )
   {
     bin_transfer[from][N-1] += 1;

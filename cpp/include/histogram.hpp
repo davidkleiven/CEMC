@@ -52,6 +52,9 @@ public:
   /** Returns true if the bin is in the histogram range */
   virtual bool bin_in_range( int bin ) const;
 
+  /** Allows histogram types supporting windowing to change the overlap */
+  virtual void set_overlap( unsigned int overlap ){};
+
   /** Sends the result to the Python histograms */
   void send_to_python_hist( PyObject *py_hist );
 

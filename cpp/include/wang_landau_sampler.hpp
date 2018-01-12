@@ -68,6 +68,9 @@ public:
   static const unsigned int num_threads;
 
   void save_sub_bin_distribution( const std::string &fname ){ histogram->save_sub_bin_distribution(fname); };
+
+  /** Save convergence time */
+  void save_convergence_time( const std::string &fname ) const;
 private:
   /** Updates the atom position trackers */
   void update_atom_position_track( unsigned int uid, std::array<SymbolChange,2> &changes, unsigned int select1, unsigned int select2 );

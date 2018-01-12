@@ -473,6 +473,7 @@ class WangLandauSGC( object ):
         fast_wl_sampler.run( maxsteps )
         fast_wl_sampler.save_sub_bin_distribution( sub_bin_file )
         self.logger.info( "Fast WL sampler finished" )
+        np.savetxt( "data/histogram%d.txt"%(int(10000*self.f)), self.histogram.histogram )
 
     def run( self, maxsteps=10000000 ):
         if ( self.initialized == 0 ):

@@ -7,6 +7,8 @@
 #include <iostream>
 #include <stdexcept>
 #include <chrono>
+#include <fstream>
+#include <sstream>
 using namespace std;
 
 const unsigned int WangLandauSampler::num_threads = omp_get_max_threads(); // Use the maximum number of threads
@@ -356,7 +358,9 @@ void WangLandauSampler::run( unsigned int nsteps )
       cout << n_outside_range/iter_since_last << " of the states was outside the range\n";
       cout << "Fraction of self-proposals: " << n_self_proposals/iter_since_last << endl;
       cout << "Average acceptance rate: " << avg_acc_rate/iter_since_last << endl;
-      cout << "Average bin change: " << avg_bin_change/iter_since_last << endl;
+      double avg_bin_change_per_step = avg_bin_change/iter_since_last;
+      cout << "Average bin change: " << avg_bin_change_per_step << endl;
+      histogram->set_overlap(2*avg_bin_change_per_step);
       avg_acc_rate = 0.0;
       avg_bin_change = 0.0;
       iter_since_last=0;
@@ -375,8 +379,13 @@ void WangLandauSampler::run( unsigned int nsteps )
       break;
     }
   }
+  send_results_to_python();
   cout << "Time to converge:\n";
   cout << time_to_converge << endl;
+
+  stringstream ss;
+  ss << "data/timeconv" << rand() << ".txt";
+  save_convergence_time(ss.str());
 }
 
 void WangLandauSampler::send_results_to_python()
@@ -608,4 +617,18 @@ void WangLandauSampler::update_current()
 {
   int uid = omp_get_thread_num();
   histogram->update(current_bin[uid],f);
+}
+
+void WangLandauSampler::save_convergence_time( const string &fname ) const
+{
+  ofstream out;
+  out.open( fname.c_str() );
+  if ( !out.good() )
+  {
+    cout << "An error occured when opening file for convergence times\n";
+    return;
+  }
+  out << time_to_converge << endl;
+  out.close();
+  cout << "Convergence time saved to " << fname << endl;
 }

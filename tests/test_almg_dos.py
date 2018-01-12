@@ -28,7 +28,7 @@ ecis = {'c3_1225_4_1': -0.00028826723864655595,
         'c3_1225_3_1': -0.011318935831421125
         }
 
-mg_concentation = 0.1
+mg_concentation = 0.2
 def get_atoms( mg_conc ):
     db_name = "/home/davidkl/Documents/WangLandau/data/ce_hydrostatic_7x7.db"
     conc_args = {
@@ -81,9 +81,11 @@ def run( runID, explore=False ):
         sum_eci += np.abs(value)
 
     atoms = get_atoms( mg_concentation )
-    view(atoms)
+    #view(atoms)
+    print ("here")
     wl = wang_landau_scg.WangLandauSGC( atoms, wl_db_name, runID, conv_check="flathist", scheme="square_root_reduction",
     ensemble="canonical", fmin=1E-5, Nbins=200, flatness_criteria=0.8 )
+    print ("here")
 
     if ( explore ):
         wl.explore_energy_space( nsteps=20000 )
@@ -99,12 +101,13 @@ def run( runID, explore=False ):
         print ("Exploration finished!")
 
     try:
-        wl.run_fast_sampler( maxsteps=int(1E9), mode="adaptive_windows", minimum_window_width=20 )
+        wl.run_fast_sampler( maxsteps=int(1E9), mode="regular", minimum_window_width=50 )
+        #wl.run_fast_sampler( maxsteps=int(100000), mode="regular" )
     except Exception as exc:
         print ("An exception occured")
         print (str(exc))
     #wl.run( maxsteps=int(1E8) )
-    wl.save_db()
+    #wl.save_db()
 
 def analyze():
     manager =  wldbm.WangLandauDBManager(wl_db_name)
@@ -161,7 +164,7 @@ def main( mode ):
     elif ( mode == "initWL" ):
         init_WL_run()
     elif ( mode == "run" ):
-        run(0,explore=False)
+        run(1,explore=False)
     elif ( mode == "analyze" ):
         analyze()
     elif( mode == "limits" ):
