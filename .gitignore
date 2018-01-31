@@ -4,3 +4,4 @@ CEMonteCarlo.egg-info/*
 build/*
 *.so
 ce_updater/ce_updater.py
+tests/*.pyc
