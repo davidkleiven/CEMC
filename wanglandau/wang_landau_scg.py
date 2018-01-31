@@ -150,8 +150,6 @@ class WangLandauSGC( object ):
         self.logger.info( "fmin: {} (only relevant if the scheme changes the modification factor f)".format(fmin))
         self.logger.info( "Checking convergence every {}".format(self.check_convergence_every))
         self.logger.info( "Number of bins: {}".format(self.Nbins) )
-        self.logger.info( "Emin: {} eV".format(self.Emin) )
-        self.logger.info( "Emax: {} eV".format(self.Emax) )
 
     def initialize( self ):
         """

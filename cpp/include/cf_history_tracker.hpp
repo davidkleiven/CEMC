@@ -13,7 +13,7 @@ struct SymbolChange
   int indx;
   std::string old_symb;
   std::string new_symb;
-  int track_indx;
+  int track_indx{0};
 };
 
 class CFHistoryTracker

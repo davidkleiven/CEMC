@@ -7,7 +7,12 @@ import wltools
 from ase.db import connect
 import ase.units
 from scipy import special
+import matplotlib as mpl
+mpl.rcParams["axes.unicode_minus"] = False
+mpl.rcParams["font.size"] = 18
+mpl.rcParams["svg.fonttype"] = "none"
 from matplotlib import pyplot as plt
+import copy
 
 class WangLandauDBManager( object ):
     def __init__( self, db_name ):
@@ -118,12 +123,12 @@ class WangLandauDBManager( object ):
         return False
 
 
-    def insert( self, atomID, initial_f=2.71, fmin=1E-8, flatness=0.8, Nbins=50, Emin=0.0, Emax=1.0 ):
+    def insert( self, atomID, initial_f=2.71, fmin=1E-8, flatness=0.8, Nbins=50, Emin=0.0, Emax=1.0, only_new=True ):
         """
         Insert a new entry into the database
         """
         newID = self.get_new_id()
-        if ( self.exists_in_db(atomID) ):
+        if ( self.exists_in_db(atomID) and only_new ):
             print ("A WL simulation of the atomID already exists in the database" )
             return
         conn = sq.connect( self.db_name )
@@ -215,41 +220,50 @@ class WangLandauDBManager( object ):
         conn = sq.connect( self.db_name )
         cur = conn.cursor()
         cur.execute( "SELECT energy,logdos,uid,ensemble,known_structures FROM simulations WHERE converged=1 AND atomID=?", (atomID,) )
-        entries = cur.fetchone()
+        entries = cur.fetchall()
         conn.close()
 
-        try:
-            uid = int( entries[2] )
-            energy = wltools.convert_array( entries[0] )
-            logdos = wltools.convert_array( entries[1] )
-            known_states = wltools.convert_array( entries[4] ).astype(np.uint8)
-            ensemble = entries[3]
-        except:
+        if ( len(entries) == 0 ):
             return None
-        logdos = logdos[known_states==1]
-        energy = energy[known_states==1]
-        plt.plot(logdos,ls="steps")
-        plt.show()
-        logdos -= np.max(logdos) # Avoid overflow
-        logdos += 10.0
-        ref_e0 = logdos[0]
-        dos = np.exp(logdos)
+        all_logdos = None
+        for entry in entries:
+            try:
+                uid = int( entry[2] )
+                energy = wltools.convert_array( entry[0] )
+                logdos = wltools.convert_array( entry[1] )
+                known_states = wltools.convert_array( entry[4] ).astype(np.uint8)
+                ensemble = entry[3]
+            except:
+                continue
 
-        if ( ensemble == "canonical" ):
-            chem_pot = None
-        elif ( ensemble == "semi-grand-canonical" ):
-            db = connect( self.db_name )
-            row = db.get( id=atomID )
-            elms = row.data.elements
-            pots = row.data.chemical_potentials
-            chem_pot = wltools.key_value_lists_to_dict( elms, pots )
-            gs_atoms = db.get_atoms( id=atomID )
-            count = wltools.element_count(gs_atoms)
-        else:
-            raise ValueError( "Unknown statistical ensemble. Got {}".format(ensemble) )
+            logdos = logdos[known_states==1]
+            energy = energy[known_states==1]
+            #plt.plot(logdos,ls="steps")
+            #plt.show()
+            logdos -= np.max(logdos) # Avoid overflow
+            logdos += 10.0
+            ref_e0 = logdos[0]
+            if ( all_logdos is None ):
+                all_logdos = copy.deepcopy( logdos )
+            else:
+                all_logdos += logdos
+
+            if ( ensemble == "canonical" ):
+                chem_pot = None
+            elif ( ensemble == "semi-grand-canonical" ):
+                db = connect( self.db_name )
+                row = db.get( id=atomID )
+                elms = row.data.elements
+                pots = row.data.chemical_potentials
+                chem_pot = wltools.key_value_lists_to_dict( elms, pots )
+                gs_atoms = db.get_atoms( id=atomID )
+                count = wltools.element_count(gs_atoms)
+            else:
+                raise ValueError( "Unknown statistical ensemble. Got {}".format(ensemble) )
 
         db = connect( self.db_name )
         row = db.get(id=atomID)
+        dos = np.exp(all_logdos/len(entries))
         return WangLandauSGCAnalyzer( energy, dos, row.numbers, chem_pot=chem_pot )
 
     def get_analyzer_all_groups( self  ):

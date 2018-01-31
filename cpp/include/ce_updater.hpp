@@ -32,6 +32,9 @@ public:
   /** Initialize the object */
   void init( PyObject *BC, PyObject *corrFunc, PyObject *ecis, PyObject *permutations );
 
+  /** Change values of ecis */
+  void set_ecis( PyObject *ecis );
+
   /** Returns True if the initialization process was successfull */
   bool ok() const { return status == Status_t::READY; };
 
@@ -43,7 +46,7 @@ public:
   void update_cf( SymbolChange &single_change );
 
   /** Computes the spin product for one element */
-  double spin_product_one_atom( unsigned int ref_indx, const std::vector< std::vector<int> > &indx_list, const std::vector<int> &dec );
+  double spin_product_one_atom( unsigned int ref_indx, const std::vector< std::vector<int> > &indx_list, const std::vector<int> &dec, const std::vector<std::string> &symbs );
 
   /**
   Calculates the new energy given a set of system changes
@@ -96,5 +99,8 @@ private:
 
   /** Undos the latest changes keeping the tracker CE tracker updated */
   void undo_changes_tracker();
+
+  /** Converts a system change encoded as a python tuple to a SymbolChange object */
+  SymbolChange& py_tuple_to_symbol_change( PyObject *single_change, SymbolChange &symb_change );
 };
 #endif

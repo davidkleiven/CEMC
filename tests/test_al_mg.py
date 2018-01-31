@@ -7,6 +7,7 @@ from ase.visualize import view
 from matplotlib import pyplot as plt
 from mcmc import montecarlo as mc
 from mcmc import mc_observers as mc_obs
+from ase.units import kB
 import numpy as np
 import json
 
@@ -45,15 +46,20 @@ def mcmc( ceBulk, c_mg ):
         ceBulk.atoms._calc.update_cf( (i,"Al","Mg") )
     ceBulk.atoms._calc.clear_history()
     formula = ceBulk.atoms.get_chemical_formula()
-    out_file = "data/pair_corrfuncs%s.json"%(formula)
-    temps = [800]
+    out_file = "data/pair_corrfuncs_tempdependent%s.json"%(formula)
+    temps = [250]
     n_burn = 40000
     n_sampling = 500000
     cfs = []
     cf_std = []
     n_samples = []
+    orig_nn = ecis["c2_707_1_1"]
+    energy = []
+    heat_cap = []
     for T in temps:
         print ("Current temperature {}K".format(T))
+        ecis["c2_707_1_1"] = orig_nn - 0.12*kB*T
+        ceBulk.atoms._calc.update_ecis(ecis)
         mc_obj = mc.Montecarlo( ceBulk.atoms, T )
         mc_obj.runMC( steps=n_burn, verbose=False )
 
@@ -64,6 +70,9 @@ def mcmc( ceBulk, c_mg ):
         cfs.append( obs.get_average() )
         cf_std.append( obs.get_std() )
         n_samples.append( obs.n_entries )
+        thermo = mc_obj.get_thermodynamic()
+        energy.append( thermo["energy"] )
+        heat_cap.append( thermo["heat_capacity"] )
 
     try:
         with open( out_file, 'r') as infile:
@@ -74,11 +83,15 @@ def mcmc( ceBulk, c_mg ):
         data["cfs"] = []
         data["cf_std"] = []
         data["n_samples"] = []
+        data["energy"] = []
+        data["heat_capacity"] = []
 
     data["temperature"] += temps
     data["cfs"] += cfs
     data["cf_std"] += cf_std
     data["n_samples"] += n_samples
+    data["energy"] += energy
+    data["heat_capacity"] += heat_cap
     with open( out_file, 'w') as outfile:
         json.dump( data, outfile )
 
@@ -92,14 +105,14 @@ def main( run ):
         "conc_ratio_min_1":[[60,4]],
         "conc_ratio_max_1":[[64,0]],
     }
-    ceBulk = BulkCrystal( "fcc", 4.05, [20,20,20], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, max_cluster_dia=1.414*4.05,reconf_db=False )
+    ceBulk = BulkCrystal( "fcc", 4.05, [20,20,20], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, max_cluster_dia=1.414*4.05,reconf_db=False)
     init_cf = {key:1.0 for key in ecis.keys()}
 
     calc = CE( ceBulk, ecis, initial_cf=init_cf )
     ceBulk.atoms.set_calculator( calc )
 
     if ( run == "MC" ):
-        mcmc( ceBulk, 0.4 )
+        mcmc( ceBulk, 0.1 )
     else:
         chem_pot = {
         "Al":0.0,

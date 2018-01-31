@@ -101,13 +101,16 @@ class WangLandauSGCAnalyzer( object ):
         S = (U-F)/T
         return S
 
-    def plot_dos( self, fit="none" ):
+    def plot_dos( self, fit="none", fig=None ):
         """
         Plots the density of states
         """
         x = 1000.0*self.E/self.n_atoms
-        fig = plt.figure()
-        ax = fig.add_subplot(1,1,1)
+        if ( fig is None ):
+            fig = plt.figure()
+            ax = fig.add_subplot(1,1,1)
+        else:
+            ax = fig.axes[0]
 
         if ( np.sum(self.poly_tail) == 0 ):
             ax.plot( x, np.log(self.dos), ls="steps" )

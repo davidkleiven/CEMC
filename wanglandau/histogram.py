@@ -185,13 +185,15 @@ class Histogram( object ):
             self.logdos = wltools.convert_array( entries[1] )
             self.growth_variance = wltools.convert_array( entries[2] )
             self.known_state = wltools.convert_array( entries[5] ).astype(np.uint8)
+            self.Nbins = len(self.histogram)
         except Exception as exc:
             self.logger.warning( "The following exception occured during load data from the database")
             self.logger.warning( str(exc) )
             self.logger.warning( "The sampling will be started from scratch" )
         self.Emin = float(entries[3])
         self.Emax = float(entries[4])
-        self.Nbins = len(self.histogram)
+        self.logger.info( "Emin: {} eV".format(self.Emin) )
+        self.logger.info( "Emax: {} eV".format(self.Emax) )
 
     def save( self, db_name, uid ):
         """

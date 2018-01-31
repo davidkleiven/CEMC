@@ -186,7 +186,6 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   {
     ecis[PyString_AsString(key)] = PyFloat_AS_DOUBLE(value);
   }
-
   #ifdef CE_DEBUG
     cerr << "Parsing correlation function\n";
   #endif
@@ -251,7 +250,7 @@ double CEUpdater::get_energy()
   return energy*symbols.size();
 }
 
-double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const vector< vector<int> > &indx_list, const vector<int> &dec )
+double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const vector< vector<int> > &indx_list, const vector<int> &dec, const vector<string> &symbs )
 {
   unsigned int num_indx = indx_list.size();
   double sp = 0.0;
@@ -262,7 +261,7 @@ double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const vector< ve
     for ( unsigned int j=0;j<n_memb;j++ )
     {
       unsigned int trans_indx = trans_matrix( ref_indx,indx_list[i][j] );
-      sp_temp *= basis_functions[dec[j+1]][symbols[trans_indx]];
+      sp_temp *= basis_functions[dec[j+1]][symbs[trans_indx]];
     }
     sp += sp_temp;
   }
@@ -272,10 +271,16 @@ double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const vector< ve
 void CEUpdater::update_cf( PyObject *single_change )
 {
   SymbolChange symb_change;
+  py_tuple_to_symbol_change( single_change, symb_change );
+  update_cf( symb_change );
+}
+
+SymbolChange& CEUpdater::py_tuple_to_symbol_change( PyObject *single_change, SymbolChange &symb_change )
+{
   symb_change.indx = PyInt_AsLong( PyTuple_GetItem(single_change,0) );
   symb_change.old_symb = PyString_AsString( PyTuple_GetItem(single_change,1) );
   symb_change.new_symb = PyString_AsString( PyTuple_GetItem(single_change,2) );
-  update_cf( symb_change );
+  return symb_change;
 }
 
 void CEUpdater::update_cf( SymbolChange &symb_change )
@@ -312,13 +317,14 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
     const string &name = iter->first;
     if ( name.find("c0") == 0 )
     {
+      next_cf[name] = current_cf[name];
       continue;
     }
     string dec_str = name.substr(name.size()-1,1);
     int dec = atoi(dec_str.c_str())-1;
     if ( name.find("c1") == 0 )
     {
-      next_cf[name] = current_cf[name] + (basis_functions[dec][symb_change.new_symb] - basis_functions[dec][symb_change.old_symb]);
+      next_cf[name] = current_cf[name] + (basis_functions[dec][symb_change.new_symb] - basis_functions[dec][symb_change.old_symb])/symbols.size();
       continue;
     }
 
@@ -328,9 +334,11 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
     int size = atoi(size_str.c_str());
     int ctype = ctype_lookup[prefix];
     double normalization = cluster_indx[size][ctype].size()*symbols.size();
-    double sp = spin_product_one_atom( symb_change.indx, cluster_indx[size][ctype], permutations[size][dec] );
+    double sp_ref = spin_product_one_atom( symb_change.indx, cluster_indx[size][ctype], permutations[size][dec], symbols );
+    double sp_new = spin_product_one_atom( symb_change.indx, cluster_indx[size][ctype], permutations[size][dec], symbols );
+    //double sp = spin_product_one_atom( symb_change.indx, cluster_indx[size][ctype], permutations[size][dec] );
     int bf_ref = permutations[size][dec][0];
-    sp *= size*( basis_functions[bf_ref][symb_change.new_symb] - basis_functions[bf_ref][symb_change.old_symb] );
+    double sp = size*( basis_functions[bf_ref][symb_change.new_symb]*sp_new - basis_functions[bf_ref][symb_change.old_symb]*sp_ref );
     sp /= normalization;
     next_cf[name] = current_cf[name] + sp;
   }
@@ -390,12 +398,27 @@ void CEUpdater::undo_changes_tracker()
 
 double CEUpdater::calculate( PyObject *system_changes )
 {
+
   int size = PyList_Size(system_changes);
-  for ( int i=0;i<size;i++ )
+  if ( size == 1 )
   {
-    update_cf( PyList_GetItem(system_changes,i) );
+    for ( int i=0;i<size;i++ )
+    {
+      update_cf( PyList_GetItem(system_changes,i) );
+    }
+    return get_energy();
   }
-  return get_energy();
+  else if ( size == 2 )
+  {
+    array<SymbolChange,2> changes;
+    py_tuple_to_symbol_change( PyList_GetItem(system_changes,0), changes[0] );
+    py_tuple_to_symbol_change( PyList_GetItem(system_changes,1), changes[1] );
+    return calculate(changes);
+  }
+  else
+  {
+    throw runtime_error( "Swaps of more than 2 atoms is not supported!" );
+  }
 }
 
 double CEUpdater::calculate( array<SymbolChange,2> &system_changes )
@@ -415,6 +438,8 @@ double CEUpdater::calculate( array<SymbolChange,2> &system_changes )
   {
     throw runtime_error( "The atom position tracker does not match the current state\n" );
   }
+
+  // Update correlation function
   update_cf( system_changes[0] );
   update_cf( system_changes[1] );
   if ( tracker != nullptr )
@@ -423,6 +448,7 @@ double CEUpdater::calculate( array<SymbolChange,2> &system_changes )
     trk[system_changes[0].old_symb][system_changes[0].track_indx] = system_changes[1].indx;
     trk[system_changes[1].old_symb][system_changes[1].track_indx] = system_changes[0].indx;
   }
+
   return get_energy();
 }
 
@@ -478,4 +504,15 @@ void CEUpdater::set_symbols( const vector<string> &new_symbs )
     throw runtime_error( "The number of atoms in the updater cannot be changed via the set_symbols function\n");
   }
   symbols = new_symbs;
+}
+
+void CEUpdater::set_ecis( PyObject *new_ecis )
+{
+  PyObject *key;
+  PyObject *value;
+  Py_ssize_t pos = 0;
+  while( PyDict_Next(new_ecis, &pos, &key,&value) )
+  {
+    ecis[PyString_AsString(key)] = PyFloat_AS_DOUBLE(value);
+  }
 }

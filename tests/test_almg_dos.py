@@ -62,7 +62,9 @@ def init_WL_run():
         if ( Emin is None or Emax is None ):
             print( "Energy range for atoms object is not known!" )
             continue
-        manager.insert( row.id, Emin=Emin, Emax=Emax )
+        if ( row.id == 2 ):
+            for i in range(9):
+                manager.insert( row.id, Emin=Emin, Emax=Emax, only_new=False )
 
 def find_max_min_energy( atoms ):
     temperatures = np.linspace(5.0,1000.0,20)[::-1]
@@ -84,7 +86,7 @@ def run( runID, explore=False ):
     #view(atoms)
     print ("here")
     wl = wang_landau_scg.WangLandauSGC( atoms, wl_db_name, runID, conv_check="flathist", scheme="square_root_reduction",
-    ensemble="canonical", fmin=1E-5, Nbins=200, flatness_criteria=0.8 )
+    ensemble="canonical", fmin=1E-4, Nbins=200, flatness_criteria=0.8 )
     print ("here")
 
     if ( explore ):
@@ -107,7 +109,7 @@ def run( runID, explore=False ):
         print ("An exception occured")
         print (str(exc))
     #wl.run( maxsteps=int(1E8) )
-    #wl.save_db()
+    wl.save_db()
 
 def analyze():
     manager =  wldbm.WangLandauDBManager(wl_db_name)
@@ -121,6 +123,8 @@ def analyze():
     ax3 = fig3.add_subplot(1,1,1)
     fig4 = plt.figure()
     ax4 = fig4.add_subplot(1,1,1)
+    fig5 = plt.figure()
+    ax5 = fig5.add_subplot(1,1,1)
 
     T = np.linspace(10.0,900.0,300)
     print (len(analyzers))
@@ -138,7 +142,7 @@ def analyze():
         ax2.plot( T, heat_capacity, label="{}".format(analyzers[num].get_chemical_formula() ))
         ax3.plot( T, free_energy, label="{}".format(analyzers[num].get_chemical_formula() ))
         ax4.plot( T, entrop, label="{}".format(analyzers[num].get_chemical_formula() ))
-        analyzers[num].plot_dos()
+        analyzers[num].plot_dos(fig=fig5)
 
     ax1.set_xlabel( "Temperature (K)" )
     ax1.set_ylabel( "Internal energy (J/mol)" )
@@ -158,18 +162,19 @@ def analyze():
     plt.show()
 
 
-def main( mode ):
+def main( args ):
+    mode = args[0]
     if ( mode == "add" ):
         add_new( mg_concentation )
     elif ( mode == "initWL" ):
         init_WL_run()
     elif ( mode == "run" ):
-        run(1,explore=False)
+        runID = args[1]
+        run(runID,explore=False)
     elif ( mode == "analyze" ):
         analyze()
     elif( mode == "limits" ):
         find_max_min_energy()
 
 if __name__ == "__main__":
-    mode = sys.argv[1]
-    main(mode)
+    main(sys.argv[1:])
