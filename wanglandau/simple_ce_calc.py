@@ -1,5 +1,3 @@
-import sys
-sys.path.insert(1,"/home/davidkl/Documents/aseJin")
 from ase.calculators.calculator import Calculator
 from ase.ce.corrFunc import CorrFunction
 from ase.ce.settings import BulkCrystal
