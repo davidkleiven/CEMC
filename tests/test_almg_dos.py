@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt
 from ase import units
 from mcmc import sa_canonical
 
-wl_db_name = "data/almg_canonical_dos_larger.db"
+wl_db_name = "data/almg_canonical_dos_6x6x6.db"
 
 ecis = {'c3_1225_4_1': -0.00028826723864655595,
         'c2_1000_1_1': -0.012304759727020153,
@@ -28,14 +28,14 @@ ecis = {'c3_1225_4_1': -0.00028826723864655595,
         'c3_1225_3_1': -0.011318935831421125
         }
 
-mg_concentation = 0.1
+mg_concentation = 0.2
 def get_atoms( mg_conc ):
     db_name = "/home/davidkl/Documents/WangLandau/data/ce_hydrostatic_7x7.db"
     conc_args = {
         "conc_ratio_min_1":[[60,4]],
         "conc_ratio_max_1":[[64,0]],
     }
-    ceBulk = BulkCrystal( "fcc", 4.05, [4,4,4], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, max_cluster_dia=1.414*4.05,reconf_db=True )
+    ceBulk = BulkCrystal( "fcc", 4.05, [6,6,6], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, max_cluster_dia=1.414*4.05,reconf_db=True )
     init_cf = {key:1.0 for key in ecis.keys()}
     calc = CE( ceBulk, ecis, initial_cf=init_cf )
     ceBulk.atoms.set_calculator( calc )
@@ -48,15 +48,25 @@ def get_atoms( mg_conc ):
 
 def add_new( mg_conc ):
     atoms = get_atoms(mg_conc)
+    Emin,Emax = find_max_min_energy(atoms)
     db = connect( wl_db_name )
-    db.write( atoms )
+    uid = db.write( atoms )
+    db.update( uid, Emin=Emin, Emax=Emax, mg_conc=mg_conc )
 
-def init_WL_run( atomID ):
+def init_WL_run():
     manager = wldbm.WangLandauDBManager( wl_db_name )
-    manager.insert( atomID, Nbins=100 )
+    db = connect( wl_db_name )
+    for row in db.select():
+        Emin = row.get("Emin")
+        Emax = row.get("Emax")
+        if ( Emin is None or Emax is None ):
+            print( "Energy range for atoms object is not known!" )
+            continue
+        if ( row.id == 2 ):
+            for i in range(9):
+                manager.insert( row.id, Emin=Emin, Emax=Emax, only_new=False )
 
-def find_max_min_energy():
-    atoms = get_atoms( mg_concentation )
+def find_max_min_energy( atoms ):
     temperatures = np.linspace(5.0,1000.0,20)[::-1]
     sa = sa_canonical.SimmulatedAnnealingCanonical( atoms, temperatures, mode="minimize" )
     sa.run( steps_per_temp=50000 )
@@ -65,14 +75,19 @@ def find_max_min_energy():
     sa.run( steps_per_temp=50000 )
     Emax = sa.extremal_energy
     print ( "Maximal energies {},{}".format(Emin,Emax) )
+    return Emin,Emax
 
 def run( runID, explore=False ):
     sum_eci = 0.0
     for key,value in ecis.iteritems():
         sum_eci += np.abs(value)
+
     atoms = get_atoms( mg_concentation )
-    view(atoms)
-    wl = wang_landau_scg.WangLandauSGC( atoms, wl_db_name, runID, conv_check="flathist", scheme="square_root_reduction", ensemble="canonical", fmin=1E-5, Nbins=100 )
+    #view(atoms)
+    print ("here")
+    wl = wang_landau_scg.WangLandauSGC( atoms, wl_db_name, runID, conv_check="flathist", scheme="square_root_reduction",
+    ensemble="canonical", fmin=1E-4, Nbins=200, flatness_criteria=0.8 )
+    print ("here")
 
     if ( explore ):
         wl.explore_energy_space( nsteps=20000 )
@@ -86,9 +101,13 @@ def run( runID, explore=False ):
         wl.histogram.Emax = Emax
         print ("Emin %.2f, Emax %.2f"%(Emin,Emax))
         print ("Exploration finished!")
-    wl.histogram.Emin = -1.12907672419
-    wl.histogram.Emax = -0.845126849602
-    wl.run_fast_sampler( maxsteps=int(1E9) )
+
+    try:
+        wl.run_fast_sampler( maxsteps=int(1E9), mode="regular", minimum_window_width=50 )
+        #wl.run_fast_sampler( maxsteps=int(100000), mode="regular" )
+    except Exception as exc:
+        print ("An exception occured")
+        print (str(exc))
     #wl.run( maxsteps=int(1E8) )
     wl.save_db()
 
@@ -104,11 +123,12 @@ def analyze():
     ax3 = fig3.add_subplot(1,1,1)
     fig4 = plt.figure()
     ax4 = fig4.add_subplot(1,1,1)
+    fig5 = plt.figure()
+    ax5 = fig5.add_subplot(1,1,1)
 
     T = np.linspace(10.0,900.0,300)
     print (len(analyzers))
     for num in range(0,len(analyzers)):
-        #analyzers[num].update_dos_with_polynomial_tails( factor_low=1.5, order=2, fraction=0.2 )
         analyzers[num].normalize_dos_by_infinite_temp_limit()
         internal_energy = np.array( [analyzers[num].internal_energy(temp) for temp in T] )
         heat_capacity = np.array( [analyzers[num].heat_capacity(temp) for temp in T] )
@@ -122,7 +142,7 @@ def analyze():
         ax2.plot( T, heat_capacity, label="{}".format(analyzers[num].get_chemical_formula() ))
         ax3.plot( T, free_energy, label="{}".format(analyzers[num].get_chemical_formula() ))
         ax4.plot( T, entrop, label="{}".format(analyzers[num].get_chemical_formula() ))
-        analyzers[num].plot_dos()
+        analyzers[num].plot_dos(fig=fig5)
 
     ax1.set_xlabel( "Temperature (K)" )
     ax1.set_ylabel( "Internal energy (J/mol)" )
@@ -142,18 +162,19 @@ def analyze():
     plt.show()
 
 
-def main( mode ):
+def main( args ):
+    mode = args[0]
     if ( mode == "add" ):
         add_new( mg_concentation )
     elif ( mode == "initWL" ):
-        init_WL_run(2)
+        init_WL_run()
     elif ( mode == "run" ):
-        run(1,explore=False)
+        runID = args[1]
+        run(runID,explore=False)
     elif ( mode == "analyze" ):
         analyze()
     elif( mode == "limits" ):
         find_max_min_energy()
 
 if __name__ == "__main__":
-    mode = sys.argv[1]
-    main(mode)
+    main(sys.argv[1:])

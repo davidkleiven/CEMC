@@ -13,6 +13,7 @@ struct SymbolChange
   int indx;
   std::string old_symb;
   std::string new_symb;
+  int track_indx{0};
 };
 
 class CFHistoryTracker
@@ -48,8 +49,9 @@ public:
 
   /** Swaps the two object */
   friend void swap( CFHistoryTracker &first, const CFHistoryTracker &second );
+
+  static const unsigned int max_history = 1000;
 private:
-  static const unsigned int max_history = 10;
   std::array<cf*,max_history> cf_history;
   std::array<SymbolChange*,max_history> changes;
   unsigned int current{0};

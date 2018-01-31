@@ -41,6 +41,8 @@ class Montecarlo:
         self.symbols = []
         self.build_atoms_list()
         self.current_energy = 1E100
+        self.mean_energy = 0.0
+        self.energy_squared = 0.0
 
     def build_atoms_list( self ):
         """
@@ -82,10 +84,14 @@ class Montecarlo:
         start = time.time()
         prev = 0
         step = 0
+        self.mean_energy = 0.0
+        self.energy_squared = 0.0
+        self.current_step = 0
         while( step < steps ):
             step += 1
             en, accept = self._mc_step( verbose=verbose )
-            #totalenergies.append(en)
+            self.mean_energy += self.current_energy
+            self.energy_squared += self.current_energy**2
 
             if ( time.time()-start > self.status_every_sec ):
                 print ("%d of %d steps. %.2f ms per step"%(step,steps,1000.0*self.status_every_sec/float(step-prev)))
@@ -93,11 +99,23 @@ class Montecarlo:
                 start = time.time()
         return totalenergies
 
+    def get_thermodynamic( self ):
+        """
+        Compute thermodynamic quantities
+        """
+        quantities = {}
+        print (self.current_step)
+        quantities["energy"] = self.mean_energy/self.current_step
+        mean_sq = self.energy_squared/self.current_step
+        quantities["heat_capacity"] = (mean_sq-quantities["energy"]**2)/(units.kB*self.T**2)
+        return quantities
+
 
     def _mc_step(self, verbose = False ):
         """
         Make one Monte Carlo step by swithing two atoms
         """
+        self.current_step += 1
         number_of_atoms = len(self.atoms)
 
         rand_a = self.indeces[np.random.randint(0,len(self.indeces))]

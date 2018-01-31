@@ -12,6 +12,7 @@ import copy
 import matplotlib as mpl
 mpl.rcParams["svg.fonttype"] = "none"
 from matplotlib import pyplot as plt
+from ase.visualize import view
 try:
     from ce_updater import ce_updater as ce_updater
     use_cpp = True
@@ -32,9 +33,13 @@ class CE( Calculator ):
         self.corrFunc = CorrFunction(self.BC)
         self.atoms = self.BC.atoms
         if ( initial_cf is None ):
-            self.cf = self.corrFunc.get_cf(self.atoms)
+            self.cf = self.corrFunc.get_cf_by_cluster_names(self.atoms,eci.keys())
         else:
             self.cf = initial_cf
+
+        # Make sure that the database information fits
+        if ( len(BC.atoms) != BC.trans_matrix.shape[0] ):
+            raise ValueError( "The number of atoms and the dimension of the translation matrix is inconsistent. Try reconf_db=True in bulk crystal" )
         self.old_cfs = []
         self.old_atoms = self.atoms.copy()
         self.eci = eci
@@ -211,6 +216,23 @@ class CE( Calculator ):
         self.results["energy"] = energy
         return self.results["energy"]
 
+    def get_cf( self ):
+        """
+        Returns the correlation functions
+        """
+        if ( self.updater is None ):
+            return self.cf
+        else:
+            return self.updater.get_cf()
+
+    def update_ecis( self, new_ecis ):
+        """
+        Updates the ecis
+        """
+        self.eci = new_ecis
+        if ( not self.updater is None ):
+            self.updater.set_ecis(self.eci)
+
 ################################################################################
 ##                           UNIT TESTS                                       ##
 ################################################################################
@@ -222,13 +244,14 @@ class TestCE( unittest.TestCase ):
             "conc_ratio_max_1":[[0,1]],
         }
         eci = {}
-        ceBulk = BulkCrystal( "fcc", 4.05, [4,4,4], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, reconf_db=False)
+        ceBulk = BulkCrystal( "fcc", 4.05, None, [4,4,4], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, reconf_db=False)
         calc = CE( ceBulk, eci )
-        calc.eci = {key:0.0 for key in calc.cf}
+        calc.eci = {key:1.0 for key in calc.cf}
         eci = calc.eci
         n_tests = 10
         for i in range(n_tests):
-            updated_cf = calc.update_cf( i+1, "Al", "Mg" )
+            calc.update_cf( (i+1, "Al", "Mg") )
+            updated_cf = calc.get_cf()
             calc = CE( ceBulk, eci ) # Now the calculator is initialized with the new atoms object
             for key,value in updated_cf.iteritems():
                 self.assertAlmostEqual( value, calc.cf[key] )
@@ -239,11 +262,11 @@ class TestCE( unittest.TestCase ):
             "conc_ratio_min_1":[[1,0]],
             "conc_ratio_max_1":[[0,1]],
         }
-        ceBulk = BulkCrystal( "fcc", 4.05, [4,4,4], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, reconf_db=False)
-        eci = {}
+        ceBulk = BulkCrystal( "fcc", 4.05, None, [4,4,4], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, reconf_db=False)
+        corr_func = CorrFunction(ceBulk)
+        cf = corr_func.get_cf( ceBulk.atoms )
+        eci = {name:1.0 for name in cf.keys()}
         calc = CE( ceBulk, eci )
-        calc.eci = {key:0.0 for key in calc.cf}
-        eci = calc.eci
         n_tests = 100
 
         for i in range(n_tests):
@@ -254,10 +277,46 @@ class TestCE( unittest.TestCase ):
                 new_symb = "Mg"
             else:
                 new_symb = "Al"
-            updated_cf = calc.update_cf( indx, old_symb, new_symb )
-            brute_force_calc = CE( ceBulk, eci )
+            calc.calculate( ceBulk.atoms, ["energy"], [(indx, old_symb, new_symb)] )
+            updated_cf = calc.get_cf()
+            brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, eci.keys() )
             for key,value in updated_cf.iteritems():
-                self.assertAlmostEqual( value, brute_force_calc.cf[key] )
+                self.assertAlmostEqual( value, brute_force[key] )
+
+
+    def test_double_swaps( self ):
+        db_name = "test_db.db"
+        conc_args = {
+            "conc_ratio_min_1":[[1,0]],
+            "conc_ratio_max_1":[[0,1]],
+        }
+        ceBulk = BulkCrystal( "fcc", 4.05, None, [4,4,4], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, reconf_db=False)
+        corr_func = CorrFunction(ceBulk)
+        cf = corr_func.get_cf(ceBulk.atoms)
+        eci = {name:1.0 for name in cf.keys()}
+        calc = CE( ceBulk, eci )
+        ceBulk.atoms.set_calculator(calc)
+        n_tests = 100
+
+        # Insert 25 Mg atoms
+        for i in range(25):
+            calc.calculate( ceBulk.atoms, ["energy"], [(i,"Al","Mg")] )
+
+        # Swap Al and Mg atoms
+        for i in range(n_tests):
+            indx1 = np.random.randint(low=0,high=len(ceBulk.atoms))
+            symb1 = ceBulk.atoms[indx1].symbol
+            indx2 = indx1
+            symb2 = symb1
+            while( symb2 == symb1 ):
+                indx2 = np.random.randint(low=0,high=len(ceBulk.atoms))
+                symb2 = ceBulk.atoms[indx2].symbol
+            print (indx1,symb1,indx2,symb2)
+            calc.calculate( ceBulk.atoms, ["energy"], [(indx1,symb1,symb2),(indx2,symb2,symb1)] )
+            updated_cf = calc.get_cf()
+            brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, eci.keys() )
+            for key,value in brute_force.iteritems():
+                self.assertAlmostEqual( value, updated_cf[key] )
 
 if __name__ == "__main__":
     unittest.main()

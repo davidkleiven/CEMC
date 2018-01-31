@@ -22,6 +22,10 @@ class Histogram( object ):
         self.tot_number = 0
         self.number_of_converged = 0
         self.known_state = np.zeros(self.Nbins,dtype=np.uint8)
+        # Assume that both the maximum state is found by some algorithm that
+        # ensures that there exists states
+        self.known_state[0] = 1
+        self.known_state[-1] = 1
 
     def get_energy( self, indx ):
         """
@@ -171,7 +175,7 @@ class Histogram( object ):
         """
         conn = sq.connect( db_name )
         cur = conn.cursor()
-        sql = "select histogram,logdos,growth_variance,Emin,Emax from simulations where uid=?"
+        sql = "select histogram,logdos,growth_variance,Emin,Emax,known_structures from simulations where uid=?"
         cur.execute( sql, (uid,) )
         entries = cur.fetchone()
         conn.close()
@@ -180,18 +184,22 @@ class Histogram( object ):
             self.histogram = wltools.convert_array( entries[0] )
             self.logdos = wltools.convert_array( entries[1] )
             self.growth_variance = wltools.convert_array( entries[2] )
+            self.known_state = wltools.convert_array( entries[5] ).astype(np.uint8)
+            self.Nbins = len(self.histogram)
         except Exception as exc:
             self.logger.warning( "The following exception occured during load data from the database")
             self.logger.warning( str(exc) )
             self.logger.warning( "The sampling will be started from scratch" )
         self.Emin = float(entries[3])
         self.Emax = float(entries[4])
-        self.Nbins = len(self.histogram)
+        self.logger.info( "Emin: {} eV".format(self.Emin) )
+        self.logger.info( "Emax: {} eV".format(self.Emax) )
 
     def save( self, db_name, uid ):
         """
         Stores all arrays to the database
         """
+        print (self.known_state)
         conn = sq.connect( db_name )
         cur = conn.cursor()
         E = np.linspace( self.Emin, self.Emax, self.Nbins )
@@ -199,6 +207,7 @@ class Histogram( object ):
         cur.execute( "update simulations set logdos=? WHERE uid=?", (wltools.adapt_array(self.logdos),uid)  )
         cur.execute( "update simulations set histogram=? WHERE uid=?", (wltools.adapt_array(self.histogram),uid) )
         cur.execute( "update simulations set growth_variance=? WHERE uid=?", (wltools.adapt_array(self.growth_variance),uid))
+        cur.execute( "update simulations set known_structures=? WHERE uid=?", (wltools.adapt_array(self.known_state),uid) )
         cur.execute( "update simulations set Emin=?, Emax=? where uid=?", (self.Emin,self.Emax,uid) )
         conn.commit()
         conn.close()

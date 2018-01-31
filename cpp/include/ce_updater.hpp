@@ -18,6 +18,8 @@ enum class Status_t {
   READY, INIT_FAILED,NOT_INITIALIZED
 };
 
+typedef std::map<std::string,std::vector<int> > tracker_t;
+
 class CEUpdater
 {
 public:
@@ -30,6 +32,9 @@ public:
   /** Initialize the object */
   void init( PyObject *BC, PyObject *corrFunc, PyObject *ecis, PyObject *permutations );
 
+  /** Change values of ecis */
+  void set_ecis( PyObject *ecis );
+
   /** Returns True if the initialization process was successfull */
   bool ok() const { return status == Status_t::READY; };
 
@@ -41,7 +46,7 @@ public:
   void update_cf( SymbolChange &single_change );
 
   /** Computes the spin product for one element */
-  double spin_product_one_atom( unsigned int ref_indx, const std::vector< std::vector<int> > &indx_list, const std::vector<int> &dec );
+  double spin_product_one_atom( unsigned int ref_indx, const std::vector< std::vector<int> > &indx_list, const std::vector<int> &dec, const std::vector<std::string> &symbs );
 
   /**
   Calculates the new energy given a set of system changes
@@ -65,6 +70,15 @@ public:
 
   /** Returns the CF history tracker */
   const CFHistoryTracker& get_history() const{ return *history; };
+
+  /** Read-only reference to the symbols */
+  const std::vector<std::string>& get_symbols() const { return symbols; };
+
+  /** Sets the symbols */
+  void set_symbols( const std::vector<std::string> &new_symbs );
+
+  /** CE updater should keep track of where the atoms are */
+  void set_atom_position_tracker( tracker_t *new_tracker ){ tracker=new_tracker; };
 private:
   void create_ctype_lookup();
   void create_permutations( PyObject *pypermutations );
@@ -81,5 +95,12 @@ private:
   std::map< int, std::vector< std::vector<int> > > permutations;
   PyObject *atoms{nullptr};
   std::vector<MCObserver*> observers; // TODO: Not used at the moment. The accept/rejection is done in the Python code
+  tracker_t *tracker{nullptr}; // Do not own this pointer
+
+  /** Undos the latest changes keeping the tracker CE tracker updated */
+  void undo_changes_tracker();
+
+  /** Converts a system change encoded as a python tuple to a SymbolChange object */
+  SymbolChange& py_tuple_to_symbol_change( PyObject *single_change, SymbolChange &symb_change );
 };
 #endif

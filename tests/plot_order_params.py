@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 import json
 
 def main():
-    fname = "data/pair_corrfuncsAl6400Mg1600.json"
+    fname = "data/pair_corrfuncs_tempdependentAl7200Mg800.json"
     with open(fname,'r') as infile:
         data = json.load(infile)
 
@@ -18,11 +18,14 @@ def main():
     cfs = data["cfs"]
     cf_dict = {key:[] for key in cfs[0].keys()}
     for i in range(len(T)):
+        if ( i==6 ):
+            continue
         for key,value in cfs[i].iteritems():
             cf_dict[key].append( value )
 
+    del T[6]
     sort_indx = np.argsort(T)
-    T = np.sort(T)
+    T = [T[indx] for indx in sort_indx]
     for key in cf_dict.keys():
         cf_dict[key] = [cf_dict[key][indx] for indx in sort_indx]
 
@@ -35,6 +38,21 @@ def main():
     ax.legend( loc="best", frameon=False )
     ax.spines["right"].set_visible(False)
     ax.spines["top"].set_visible(False)
+
+    E = data["energy"]
+    Cv = data["heat_capacity"]
+    del E[6]
+    del Cv[6]
+    E = [E[indx] for indx in sort_indx]
+    Cv = [Cv[indx] for indx in sort_indx]
+    fig2 = plt.figure()
+    ax2 = fig2.add_subplot(1,1,1)
+    ax2.plot(T,E,color="#1b9e77",marker="o")
+    ax3 = ax2.twinx()
+    ax3.plot(T,Cv,color="#d95f02",marker="o")
+    ax2.set_xlabel( "Temeprature (K)" )
+    ax2.set_ylabel( "Internal energy (eV)" )
+    ax3.set_ylabel( "Heat capacity (eV/K)")
     plt.show()
 
 if __name__ == "__main__":

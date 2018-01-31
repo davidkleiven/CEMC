@@ -1,4 +1,6 @@
 %module ce_updater
+%include "exception.i"
+%include <std_string.i>
 %{
 #include "ce_updater.hpp"
 #include "wang_landau_sampler.hpp"
