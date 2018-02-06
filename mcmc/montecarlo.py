@@ -97,6 +97,7 @@ class Montecarlo:
                 print ("%d of %d steps. %.2f ms per step"%(step,steps,1000.0*self.status_every_sec/float(step-prev)))
                 prev = step
                 start = time.time()
+        print (self.mean_energy)
         return totalenergies
 
     def get_thermodynamic( self ):
@@ -142,7 +143,7 @@ class Montecarlo:
         new_energy = self.atoms._calc.calculate( self.atoms, ["energy"], system_changes )
 
         if ( verbose ):
-            print(new_energy,self.current_energy)
+            print(new_energy,self.current_energy,new_energy-self.current_energy)
 
         accept = False
         if new_energy < self.current_energy:

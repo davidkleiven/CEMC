@@ -10,6 +10,7 @@ from mcmc import mc_observers as mc_obs
 from ase.units import kB
 import numpy as np
 import json
+import copy
 
 # Hard coded ECIs obtained from the ce_hydrostatic.db runs
 ecis = {'c3_1225_4_1': -0.00028826723864655595,
@@ -40,26 +41,46 @@ ecis = {'c3_1225_4_1': -0.00028826723864655595,
         'c4_1225_5_1': 0.00060830459771275532,
         'c3_1225_3_1': -0.011318935831421125}
 
+with open("/home/davidkl/Documents/GPAWTutorial/CE/data/almg_eci.json") as infile:
+    ecis = json.load(infile)
+
+
+print (ecis)
+def update_phonons( ecis, phonon_ecis, temp ):
+    for key,value in phonon_ecis.iteritems():
+        if ( not key in ecis.keys() ):
+            ecis[key] = 0.0
+
+        ecis[key] += kB*temp*value
+    return ecis
+
 def mcmc( ceBulk, c_mg ):
     n_mg = int( c_mg*len(ceBulk.atoms) )
     for i in range(n_mg):
         ceBulk.atoms._calc.update_cf( (i,"Al","Mg") )
     ceBulk.atoms._calc.clear_history()
     formula = ceBulk.atoms.get_chemical_formula()
-    out_file = "data/pair_corrfuncs_tempdependent%s.json"%(formula)
-    temps = [250]
+    out_file = "data/pair_corrfuncs_tempdependent_phon%s.json"%(formula)
+    temps = [800,700,600,500,400,300,200]
     n_burn = 40000
-    n_sampling = 500000
+    n_sampling = 100000
     cfs = []
     cf_std = []
     n_samples = []
-    orig_nn = ecis["c2_707_1_1"]
+    origin_ecis = copy.deepcopy(ecis)
     energy = []
     heat_cap = []
     for T in temps:
+        try:
+            with open("/home/davidkl/Documents/GPAWTutorial/CE/data/almg_eci_Fvib%d.json"%(T)) as infile:
+                phonon_ecis = json.load(infile)
+        except Exception as exc:
+            print (str(exc))
+            continue
         print ("Current temperature {}K".format(T))
-        ecis["c2_707_1_1"] = orig_nn - 0.12*kB*T
-        ceBulk.atoms._calc.update_ecis(ecis)
+        corrected_ecis = update_phonons( copy.deepcopy(origin_ecis), phonon_ecis, T )
+        print (corrected_ecis)
+        ceBulk.atoms._calc.update_ecis(corrected_ecis)
         mc_obj = mc.Montecarlo( ceBulk.atoms, T )
         mc_obj.runMC( steps=n_burn, verbose=False )
 
@@ -105,7 +126,7 @@ def main( run ):
         "conc_ratio_min_1":[[60,4]],
         "conc_ratio_max_1":[[64,0]],
     }
-    ceBulk = BulkCrystal( "fcc", 4.05, [20,20,20], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, max_cluster_dia=1.414*4.05,reconf_db=False)
+    ceBulk = BulkCrystal( "fcc", 4.05, None, [20,20,20], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, max_cluster_dia=1.414*4.05,reconf_db=False)
     init_cf = {key:1.0 for key in ecis.keys()}
 
     calc = CE( ceBulk, ecis, initial_cf=init_cf )
