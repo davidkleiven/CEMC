@@ -112,7 +112,7 @@ class TestCE( unittest.TestCase ):
             updated_cf = calc.get_cf()
             brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, eci.keys() )
             for key,value in brute_force.iteritems():
-                print (key,value)
+                print (key,value,updated_cf[key])
                 self.assertAlmostEqual( value, updated_cf[key])
 
         # Swap atoms

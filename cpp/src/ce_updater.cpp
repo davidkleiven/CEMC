@@ -320,20 +320,7 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
       next_cf[name] = current_cf[name];
       continue;
     }
-    /*
-    string dec_str = name.substr(name.size()-1,1);
 
-    // Set the decoration number
-    int dec;
-    if ( basis_functions.size() == 1 )
-    {
-      dec = 0;
-    }
-    else
-    {
-      dec = atoi(dec_str.c_str())-1;
-    }*/
-    //cerr << name << " " << dec << endl;
     int dec = get_decoration_number( name );
     if ( name.find("c1") == 0 )
     {
