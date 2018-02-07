@@ -44,7 +44,7 @@ ecis = {'c3_1225_4_1': -0.00028826723864655595,
 with open("/home/davidkl/Documents/GPAWTutorial/CE/data/almg_eci.json") as infile:
     ecis = json.load(infile)
 
-
+#ecis["c2_707_1_1"] = 0.0
 print (ecis)
 def update_phonons( ecis, phonon_ecis, temp ):
     for key,value in phonon_ecis.iteritems():
@@ -61,7 +61,7 @@ def mcmc( ceBulk, c_mg ):
     ceBulk.atoms._calc.clear_history()
     formula = ceBulk.atoms.get_chemical_formula()
     out_file = "data/pair_corrfuncs_tempdependent_phon%s.json"%(formula)
-    temps = [800,700,600,500,400,300,200]
+    temps = [800,700,600,500,400,300,200,100]
     n_burn = 40000
     n_sampling = 100000
     cfs = []
@@ -70,14 +70,22 @@ def mcmc( ceBulk, c_mg ):
     origin_ecis = copy.deepcopy(ecis)
     energy = []
     heat_cap = []
-    for T in temps:
+    not_computed_temps = []
+    for i,T in enumerate(temps):
+        print ("Current temperature {}K".format(T))
         try:
             with open("/home/davidkl/Documents/GPAWTutorial/CE/data/almg_eci_Fvib%d.json"%(T)) as infile:
                 phonon_ecis = json.load(infile)
         except Exception as exc:
             print (str(exc))
+            not_computed_temps.append(T)
             continue
-        print ("Current temperature {}K".format(T))
+        # Remove higher than two terms
+        ph = {}
+        for key,value in phonon_ecis.iteritems():
+            if ( key.startswith("c2") ):
+                ph[key] = value
+        phonon_ecis = ph
         corrected_ecis = update_phonons( copy.deepcopy(origin_ecis), phonon_ecis, T )
         print (corrected_ecis)
         ceBulk.atoms._calc.update_ecis(corrected_ecis)
@@ -106,6 +114,14 @@ def mcmc( ceBulk, c_mg ):
         data["n_samples"] = []
         data["energy"] = []
         data["heat_capacity"] = []
+
+    # Remove temperatures that ware not computed
+    new_temps = []
+    for T in temps:
+        if ( T in not_computed_temps ):
+            continue
+        new_temps.append(T)
+    temps = new_temps
 
     data["temperature"] += temps
     data["cfs"] += cfs

@@ -320,8 +320,21 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
       next_cf[name] = current_cf[name];
       continue;
     }
+    /*
     string dec_str = name.substr(name.size()-1,1);
-    int dec = atoi(dec_str.c_str())-1;
+
+    // Set the decoration number
+    int dec;
+    if ( basis_functions.size() == 1 )
+    {
+      dec = 0;
+    }
+    else
+    {
+      dec = atoi(dec_str.c_str())-1;
+    }*/
+    //cerr << name << " " << dec << endl;
+    int dec = get_decoration_number( name );
     if ( name.find("c1") == 0 )
     {
       next_cf[name] = current_cf[name] + (basis_functions[dec][symb_change.new_symb] - basis_functions[dec][symb_change.old_symb])/symbols.size();
@@ -338,7 +351,34 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
     double sp_new = spin_product_one_atom( symb_change.indx, cluster_indx[size][ctype], permutations[size][dec], symbols );
     //double sp = spin_product_one_atom( symb_change.indx, cluster_indx[size][ctype], permutations[size][dec] );
     int bf_ref = permutations[size][dec][0];
-    double sp = size*( basis_functions[bf_ref][symb_change.new_symb]*sp_new - basis_functions[bf_ref][symb_change.old_symb]*sp_ref );
+
+    double sp = basis_functions[bf_ref][symb_change.new_symb]*sp_new - basis_functions[bf_ref][symb_change.old_symb]*sp_ref;
+    //if ( basis_functions.size() == 1 )
+    if ( all_decoration_nums_equal( permutations[size][dec] ) )
+    {
+      // Account for degeneracy
+      sp *= size;
+    }
+    else
+    {
+      // When the decoration numbers are different the change is not symmetric (i.e. it contains different basis functions)
+      // One cannot take the degeneracy into account by multiplying by the number of clusters
+      vector<int> current_perm = permutations[size][dec];
+      for ( unsigned int i=0;i<current_perm.size()-1;i++ )
+      {
+        // Cyclic change the order of the permutation
+        vector<int> current_perm_copy = current_perm;
+        for ( unsigned int j=0;j<current_perm.size();j++ )
+        {
+          current_perm[(j+1)%current_perm.size()] = current_perm_copy[j];
+        }
+
+        int bf_ref = current_perm[0];
+        double sp_ref = spin_product_one_atom( symb_change.indx, cluster_indx[size][ctype], current_perm, symbols );
+        double new_sp = (basis_functions[bf_ref][symb_change.new_symb]-basis_functions[bf_ref][symb_change.old_symb])*sp_ref;
+        sp += new_sp;
+      }
+    }
     sp /= normalization;
     next_cf[name] = current_cf[name] + sp;
   }
@@ -515,4 +555,28 @@ void CEUpdater::set_ecis( PyObject *new_ecis )
   {
     ecis[PyString_AsString(key)] = PyFloat_AS_DOUBLE(value);
   }
+}
+
+int CEUpdater::get_decoration_number( const string &cname ) const
+{
+  if ( basis_functions.size() == 1 )
+  {
+    return 0;
+  }
+
+  // Find position of the last under score
+  size_t found = cname.find_last_of("_");
+  return atoi( cname.substr(found+1).c_str() )-1;
+}
+
+bool CEUpdater::all_decoration_nums_equal( const vector<int> &dec_nums ) const
+{
+  for ( unsigned int i=1;i<dec_nums.size();i++ )
+  {
+    if ( dec_nums[i] != dec_nums[0] )
+    {
+      return false;
+    }
+  }
+  return true;
 }

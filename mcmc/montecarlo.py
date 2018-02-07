@@ -97,7 +97,6 @@ class Montecarlo:
                 print ("%d of %d steps. %.2f ms per step"%(step,steps,1000.0*self.status_every_sec/float(step-prev)))
                 prev = step
                 start = time.time()
-        print (self.mean_energy)
         return totalenergies
 
     def get_thermodynamic( self ):

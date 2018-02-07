@@ -102,5 +102,11 @@ private:
 
   /** Converts a system change encoded as a python tuple to a SymbolChange object */
   SymbolChange& py_tuple_to_symbol_change( PyObject *single_change, SymbolChange &symb_change );
+
+  /** Extracts the decoration number from cluster names */
+  int get_decoration_number( const std::string &cluster_name ) const;
+
+  /** Returns true if all decoration numbers are equal */
+  bool all_decoration_nums_equal( const std::vector<int> &dec_num ) const;
 };
 #endif
