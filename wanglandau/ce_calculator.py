@@ -3,7 +3,7 @@ from ase.ce.corrFunc import CorrFunction
 from ase.ce.settings import BulkCrystal
 from ase.build import bulk
 import unittest
-from itertools import product
+from itertools import product, combinations
 import os
 import numpy as np
 import copy
@@ -99,6 +99,7 @@ class CE( Calculator ):
         bf_list = list(range(len(self.BC.basis_functions)))
         for num in range(2,len(self.BC.cluster_names)):
             perm = list(product(bf_list, repeat=num))
+            #perm = list(combinations(bf_list, repeat=num))
             self.permutations[num] = perm
 
 
@@ -230,6 +231,19 @@ class CE( Calculator ):
         self.eci = new_ecis
         if ( not self.updater is None ):
             self.updater.set_ecis(self.eci)
+
+    def get_singlets( self, array ):
+        if ( self.updater is None ):
+            indx = 0
+            for key,value in self.cf.iteritems():
+                if ( key.startswith("c1") ):
+                    singlets[indx] = value
+                    indx += 1
+            return array
+        else:
+            self.updater.get_singlets( array )
+            return array
+
 
 ################################################################################
 ##                           UNIT TESTS                                       ##

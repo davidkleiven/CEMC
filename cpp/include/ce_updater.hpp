@@ -20,6 +20,13 @@ enum class Status_t {
 
 typedef std::map<std::string,std::vector<int> > tracker_t;
 
+/** Help structure used when the correlation functions have different decoration number */
+struct ClusterMember
+{
+  int ref_indx;
+  int sub_cluster_indx;
+};
+
 class CEUpdater
 {
 public:
@@ -40,6 +47,9 @@ public:
 
   /** Computes the energy based on the ECIs and the correlations functions */
   double get_energy();
+
+  /** Returns the value of the singlets */
+  void get_singlets( double *singlets, int size ) const;
 
   /** Updates the CF */
   void update_cf( PyObject *single_change );
@@ -96,6 +106,7 @@ private:
   PyObject *atoms{nullptr};
   std::vector<MCObserver*> observers; // TODO: Not used at the moment. The accept/rejection is done in the Python code
   tracker_t *tracker{nullptr}; // Do not own this pointer
+  std::vector< std::string > singlets;
 
   /** Undos the latest changes keeping the tracker CE tracker updated */
   void undo_changes_tracker();

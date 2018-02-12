@@ -4,7 +4,9 @@
 #include "additional_tools.hpp"
 #include <iostream>
 #include <sstream>
+#include <algorithm>
 #include <omp.h>
+
 #define CE_DEBUG
 using namespace std;
 
@@ -197,6 +199,15 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   create_ctype_lookup();
   create_permutations( perms );
 
+  // Store the singlets names
+  for ( unsigned int i=0;i<flattened_cnames.size();i++ )
+  {
+    if ( flattened_cnames[i].substr(0,2) == "c1" )
+    {
+      singlets.push_back( flattened_cnames[i] );
+    }
+  }
+
   status = Status_t::READY;
   clear_history();
   #ifdef CE_DEBUG
@@ -350,6 +361,26 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
     {
       // When the decoration numbers are different the change is not symmetric (i.e. it contains different basis functions)
       // One cannot take the degeneracy into account by multiplying by the number of clusters
+
+      // Use same approach as in ASE python version
+      /*
+      double new_sp = 0.0;
+      double old_sp = 0.0;
+      cout << name << " " << permutations[size][dec] << endl;
+      for ( unsigned int i=0;i<cluster_indx[size][ctype].size();i++ )
+      {
+        for ( unsigned int j=0;j<cluster_indx[size][ctype][i].size();j++ )
+        {
+          symbols[symb_change.indx] = symb_change.old_symb;
+          int indx_in_cluster = cluster_indx[size][ctype][i][j];
+          int ref_indx = trans_matrix(symb_change.indx, indx_in_cluster );
+          old_sp += spin_product_one_atom( ref_indx, cluster_indx[size][ctype], permutations[size][dec], symbols )*basis_functions[bf_ref][symbols[ref_indx]];
+          symbols[symb_change.indx] = symb_change.new_symb;
+          new_sp += spin_product_one_atom( ref_indx, cluster_indx[size][ctype], permutations[size][dec], symbols )*basis_functions[bf_ref][symbols[ref_indx]];
+        }
+      }
+      sp += (new_sp-old_sp);*/
+      cout << name << " " << permutations[size][dec] << endl;
       vector<int> current_perm = permutations[size][dec];
       for ( unsigned int i=0;i<current_perm.size()-1;i++ )
       {
@@ -490,6 +521,9 @@ void CEUpdater::flattened_cluster_names( vector<string> &flattened )
   {
     flattened.push_back( iter->first );
   }
+
+  // Sort the cluster names for consistency
+  sort( flattened.begin(), flattened.end() );
 }
 
 PyObject* CEUpdater::get_cf()
@@ -566,4 +600,18 @@ bool CEUpdater::all_decoration_nums_equal( const vector<int> &dec_nums ) const
     }
   }
   return true;
+}
+
+void CEUpdater::get_singlets( double *values, int size ) const
+{
+  if ( size < singlets.size() )
+  {
+    throw runtime_error( "The passed size is not sufficient to store all the singlets!" );
+  }
+
+  cf& cfs = history->get_current();
+  for ( unsigned int i=0;i<singlets.size();i++ )
+  {
+    values[i] = cfs[singlets[i]];
+  }
 }

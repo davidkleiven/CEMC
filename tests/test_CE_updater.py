@@ -3,6 +3,7 @@ from ase.ce.settings import BulkCrystal
 from ase.ce.corrFunc import CorrFunction
 from wanglandau.ce_calculator import CE
 import numpy as np
+from atomtools.ce import bulk_crystal_symmetric as bcs
 
 class TestCE( unittest.TestCase ):
     def test_update( self ):
@@ -94,7 +95,7 @@ class TestCE( unittest.TestCase ):
             "conc_ratio_min_1":[[2,2,0]],
             "conc_ratio_max_2":[[1,1,2]]
         }
-        ceBulk = BulkCrystal( "fcc", 4.05, None, [4,4,4], 1, [["Al","Mg","Si"]], conc_args, db_name, max_cluster_size=4, reconf_db=False)
+        ceBulk = bcs.BulkCrystalSymmetric( "fcc", 4.05, None, [4,4,4], 1, [["Al","Mg","Si"]], conc_args, db_name, max_cluster_size=4, reconf_db=False)
         corr_func = CorrFunction( ceBulk )
         cf = corr_func.get_cf( ceBulk.atoms )
         eci = {name:ceBulk.basis_functions[0] for name in cf.keys()}
@@ -104,16 +105,19 @@ class TestCE( unittest.TestCase ):
         # Insert 25 Mg atoms and 25 Si atoms
         n = 18
         print (ceBulk.basis_functions)
-        print (ceBulk.cluster_names[2:])
+        print (ceBulk.cluster_indx[2])
+        keys = eci.keys()
+        keys.sort()
+        print ( keys )
         for i in range(n):
             print ( "Changing element {} of {}".format(i,n) )
             calc.calculate( ceBulk.atoms, ["energy"], [(i,"Al","Mg")])
             calc.calculate( ceBulk.atoms, ["energy"], [(i+n,"Al","Si")])
             updated_cf = calc.get_cf()
             brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, eci.keys() )
-            for key,value in brute_force.iteritems():
-                print (key,value,updated_cf[key])
-                self.assertAlmostEqual( value, updated_cf[key])
+            for key in keys:
+                print (key,brute_force[key],updated_cf[key])
+                self.assertAlmostEqual( brute_force[key], updated_cf[key])
 
         # Swap atoms
         for i in range(n_tests):

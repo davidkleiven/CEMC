@@ -13,9 +13,11 @@ std::ostream& operator <<( std::ostream &out, const std::map<key,value> &map )
 template<class T>
 std::ostream& operator << (std::ostream &out, const std::vector<T> &vec )
 {
+  out << "[";
   for ( unsigned int i=0;i<vec.size(); i++ )
   {
     out << vec[i] << " ";
   }
+  out << "]";
   return out;
 }

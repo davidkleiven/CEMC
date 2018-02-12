@@ -16,7 +16,7 @@ class Montecarlo:
 
     """
 
-    def __init__(self,atoms,temp,indeces = None):
+    def __init__(self, atoms, temp, indeces=None):
         """ Initiliaze Monte Carlo simulations object
 
         Arguments:
@@ -110,14 +110,7 @@ class Montecarlo:
         quantities["heat_capacity"] = (mean_sq-quantities["energy"]**2)/(units.kB*self.T**2)
         return quantities
 
-
-    def _mc_step(self, verbose = False ):
-        """
-        Make one Monte Carlo step by swithing two atoms
-        """
-        self.current_step += 1
-        number_of_atoms = len(self.atoms)
-
+    def get_trial_move( self ):
         rand_a = self.indeces[np.random.randint(0,len(self.indeces))]
         rand_b = self.indeces[np.random.randint(0,len(self.indeces))]
         symb_a = self.symbols[np.random.randint(0,len(self.symbols))]
@@ -138,7 +131,17 @@ class Montecarlo:
         symb_a = self.atoms[rand_a].symbol
         symb_b = self.atoms[rand_b].symbol
         system_changes = [(rand_a,symb_a,symb_b),(rand_b,symb_b,symb_a)]
-        #print (system_changes)
+        return system_changes
+
+    def _mc_step(self, verbose = False ):
+        """
+        Make one Monte Carlo step by swithing two atoms
+        """
+        self.current_step += 1
+        number_of_atoms = len(self.atoms)
+
+
+        system_changes= self.get_trial_move()
         new_energy = self.atoms._calc.calculate( self.atoms, ["energy"], system_changes )
 
         if ( verbose ):

@@ -91,3 +91,57 @@ class PairCorrelationObserver( MCObserver ):
         for key in self.cf.keys():
             std_cf[key] = np.sqrt( self.cf_squared[key]/self.n_entries - (self.cf[key]/self.n_entries)**2 )#/np.sqrt(self.n_entries)
         return std_cf
+
+class LowestEnergyStructure(MCObserver):
+    def __init__( self, ce_calc, mc_obj ):
+        self.ce_calc = ce_calc
+        self.mc_obj = mc_obj
+        self.lowest_energy = np.inf
+        self.lowest_energy_atoms = None
+        self.lowest_energy_cf = None
+
+    def __call__( self, system_changes ):
+        if ( self.lowest_energy_atoms is None or self.lowest_energy_cf is None ):
+            self.lowest_energy_cf = self.ce_calc.get_cf()
+            self.lowest_energy_atoms = self.ce_calc.atoms.copy()
+            self.lowest_energy = self.mc_obj.current_energy
+            return
+
+        if ( self.mc_obj.current_energy < self.lowest_energy ):
+            self.lowest_energy = self.mc_obj.current_energy
+            self.lowest_energy_atoms = self.ce_calc.atoms.copy()
+            self.lowest_energy_cf = self.ce_calc.get_cf()
+
+class SGCObserver(MCObserver):
+    def __init__( self, ce_calc, mc_obj, n_singlets ):
+        self.ce_calc = calc
+        self.mc = mc_obj
+
+        # Track average value of the singlet terms
+        self.singlets = np.zeros( n_singlets, dtype=np.float64 )
+
+        # Track average value of the energy
+        self.energy = 0.0
+
+        # Track average value of energy squared
+        self.energy_sq = 0.0
+
+        # Track average value of particle-energy correlation
+        self.singl_eng = np.zeros_like( self.singlets )
+
+    def reset(self):
+        """
+        Resets all variables to zero
+        """
+        self.singlets[:] = 0.0
+        self.energy = 0.0
+        self.energy_sq = 0.0
+        self.singl_eng[:] = 0.0
+
+    def __call__( self, system_changes ):
+        new_singlets = np.zeros_like( self.singlets )
+        self.ce_calc.get_singlets(  new_singlets )
+        self.singlets += new_singlets
+        self.energy += self.mc.current_energy
+        self.energy_sq += self.mc.current_energy**2
+        self.singl_eng += new_singlets*self.mc.current_energy
