@@ -16,7 +16,7 @@ class Montecarlo:
 
     """
 
-    def __init__(self, atoms, temp, indeces=None):
+    def __init__(self, atoms, temp, indeces=None ):
         """ Initiliaze Monte Carlo simulations object
 
         Arguments:
@@ -44,6 +44,12 @@ class Montecarlo:
         self.mean_energy = 0.0
         self.energy_squared = 0.0
 
+        # Some member variables used to update the atom tracker, only relevant for canonical MC
+        self.rand_a = 0
+        self.rand_b = 0
+        self.selected_a = 0
+        self.selected_b = 0
+
     def build_atoms_list( self ):
         """
         Creates a dictionary of the indices of each atom which is used to
@@ -55,6 +61,16 @@ class Montecarlo:
             else:
                 self.atoms_indx[atom.symbol].append(atom.index)
         self.symbols = self.atoms_indx.keys()
+
+    def update_tracker( self, system_changes ):
+        """
+        Update the atom tracker
+        """
+        symb_a = system_changes[0][0]
+        symb_b = system_changes[1][0]
+        self.atoms_indx[symb_a][self.selected_a] = self.rand_b
+        self.atoms_indx[symb_b][self.selected_b] = self.rand_a
+
 
     def attach( self, obs, interval=1 ):
         """
@@ -111,8 +127,8 @@ class Montecarlo:
         return quantities
 
     def get_trial_move( self ):
-        rand_a = self.indeces[np.random.randint(0,len(self.indeces))]
-        rand_b = self.indeces[np.random.randint(0,len(self.indeces))]
+        self.rand_a = self.indeces[np.random.randint(0,len(self.indeces))]
+        self.rand_b = self.indeces[np.random.randint(0,len(self.indeces))]
         symb_a = self.symbols[np.random.randint(0,len(self.symbols))]
         symb_b = symb_a
         while ( symb_b == symb_a ):
@@ -120,17 +136,17 @@ class Montecarlo:
 
         Na = len(self.atoms_indx[symb_a])
         Nb = len(self.atoms_indx[symb_b])
-        selected_a = np.random.randint(0,Na)
-        selected_b = np.random.randint(0,Nb)
-        rand_a = self.atoms_indx[symb_a][selected_a]
-        rand_b = self.atoms_indx[symb_b][selected_b]
+        self.selected_a = np.random.randint(0,Na)
+        self.selected_b = np.random.randint(0,Nb)
+        self.rand_a = self.atoms_indx[symb_a][self.selected_a]
+        self.rand_b = self.atoms_indx[symb_b][self.selected_b]
 
         # TODO: The MC calculator should be able to have constraints on which
         # moves are allowed. CE requires this some elements are only allowed to
         # occupy some sites
-        symb_a = self.atoms[rand_a].symbol
-        symb_b = self.atoms[rand_b].symbol
-        system_changes = [(rand_a,symb_a,symb_b),(rand_b,symb_b,symb_a)]
+        symb_a = self.atoms[self.rand_a].symbol
+        symb_b = self.atoms[self.rand_b].symbol
+        system_changes = [(self.rand_a,symb_a,symb_b),(self.rand_b,symb_b,symb_a)]
         return system_changes
 
     def _mc_step(self, verbose = False ):
@@ -160,8 +176,12 @@ class Montecarlo:
                 accept = True
             else:
                 # Reset the sytem back to original
-                self.atoms[rand_a].symbol = symb_a
-                self.atoms[rand_b].symbol = symb_b
+                for change in system_changes:
+                    indx = change[0]
+                    old_symb = change[1]
+                    self.atoms[indx].symbol = old_symb
+                #self.atoms[self.rand_a].symbol = symb_a
+                #self.atoms[self.rand_b].symbol = symb_b
                 accept = False
 
         # TODO: Wrap this functionality into a cleaning object
@@ -174,10 +194,12 @@ class Montecarlo:
 
         if ( accept ):
             # Update the atom_indices
-            self.atoms_indx[symb_a][selected_a] = rand_b
-            self.atoms_indx[symb_b][selected_b] = rand_a
+            self.update_tracker( system_changes )
         else:
-            system_changes = [(rand_a,symb_a,symb_a),(rand_b,symb_b,symb_b)] # No changes to the system
+            new_symb_changes = []
+            for change in system_changes:
+                new_symb_changes.append( (change[0],change[1],change[1]) )
+            #system_changes = [(self.rand_a,symb_a,symb_a),(self.rand_b,symb_b,symb_b)] # No changes to the system
 
         # Execute all observers
         for entry in self.observers:

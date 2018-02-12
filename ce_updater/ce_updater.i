@@ -12,8 +12,6 @@
   import_array();
 %}
 
-%apply( double* INPLACE_ARRAY1, int DIM1){(double *invec, int x)}
-
 %include "ce_updater.hpp"
 %include "matrix.hpp"
 %include "cf_history_tracker.hpp"

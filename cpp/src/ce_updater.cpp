@@ -602,16 +602,21 @@ bool CEUpdater::all_decoration_nums_equal( const vector<int> &dec_nums ) const
   return true;
 }
 
-void CEUpdater::get_singlets( double *values, int size ) const
+void CEUpdater::get_singlets( PyObject *npy_obj ) const
 {
-  if ( size < singlets.size() )
+  PyObject *npy_array = PyArray_FROM_OTF( npy_obj, NPY_DOUBLE, NPY_OUT_ARRAY );
+  if ( PyArray_SIZE(npy_array) < singlets.size() )
   {
-    throw runtime_error( "The passed size is not sufficient to store all the singlets!" );
+    string msg("The passed Numpy array is too small to hold all the singlets terms!\n");
+    stringstream ss;
+    ss << "Minimum size: " << singlets.size() << ". Given size: " << PyArray_SIZE(npy_array);
+    msg += ss.str();
+    throw runtime_error( msg );
   }
-
   cf& cfs = history->get_current();
   for ( unsigned int i=0;i<singlets.size();i++ )
   {
-    values[i] = cfs[singlets[i]];
+    double *ptr = static_cast<double*>( PyArray_GETPTR1(npy_array,i) );
+    *ptr = cfs[singlets[i]];
   }
 }

@@ -49,7 +49,7 @@ public:
   double get_energy();
 
   /** Returns the value of the singlets */
-  void get_singlets( double *singlets, int size ) const;
+  void get_singlets( PyObject *npy_array ) const;
 
   /** Updates the CF */
   void update_cf( PyObject *single_change );

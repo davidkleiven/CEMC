@@ -114,7 +114,7 @@ class LowestEnergyStructure(MCObserver):
 
 class SGCObserver(MCObserver):
     def __init__( self, ce_calc, mc_obj, n_singlets ):
-        self.ce_calc = calc
+        self.ce_calc = ce_calc
         self.mc = mc_obj
 
         # Track average value of the singlet terms
