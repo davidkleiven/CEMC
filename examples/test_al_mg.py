@@ -54,13 +54,13 @@ def update_phonons( ecis, phonon_ecis, temp ):
         ecis[key] += kB*temp*value
     return ecis
 
-def mcmc( ceBulk, c_mg ):
+def mcmc( ceBulk, c_mg, phonons=False ):
     n_mg = int( c_mg*len(ceBulk.atoms) )
     for i in range(n_mg):
         ceBulk.atoms._calc.update_cf( (i,"Al","Mg") )
     ceBulk.atoms._calc.clear_history()
     formula = ceBulk.atoms.get_chemical_formula()
-    out_file = "data/pair_corrfuncs_tempdependent_phon%s.json"%(formula)
+    out_file = "data/pair_corrfuncs_tempdependent_gs%s.json"%(formula)
     temps = [800,700,600,500,400,300,200,100]
     n_burn = 40000
     n_sampling = 100000
@@ -73,22 +73,23 @@ def mcmc( ceBulk, c_mg ):
     not_computed_temps = []
     for i,T in enumerate(temps):
         print ("Current temperature {}K".format(T))
-        try:
-            with open("/home/davidkl/Documents/GPAWTutorial/CE/data/almg_eci_Fvib%d.json"%(T)) as infile:
-                phonon_ecis = json.load(infile)
-        except Exception as exc:
-            print (str(exc))
-            not_computed_temps.append(T)
-            continue
-        # Remove higher than two terms
-        ph = {}
-        for key,value in phonon_ecis.iteritems():
-            if ( key.startswith("c2") ):
-                ph[key] = value
-        phonon_ecis = ph
-        corrected_ecis = update_phonons( copy.deepcopy(origin_ecis), phonon_ecis, T )
-        print (corrected_ecis)
-        ceBulk.atoms._calc.update_ecis(corrected_ecis)
+        if ( phonons ):
+            try:
+                with open("/home/davidkl/Documents/GPAWTutorial/CE/data/almg_eci_Fvib%d.json"%(T)) as infile:
+                    phonon_ecis = json.load(infile)
+            except Exception as exc:
+                print (str(exc))
+                not_computed_temps.append(T)
+                continue
+            # Remove higher than two terms
+            ph = {}
+            for key,value in phonon_ecis.iteritems():
+                if ( key.startswith("c2") ):
+                    ph[key] = value
+            phonon_ecis = ph
+            corrected_ecis = update_phonons( copy.deepcopy(origin_ecis), phonon_ecis, T )
+            print (corrected_ecis)
+            ceBulk.atoms._calc.update_ecis(corrected_ecis)
         mc_obj = mc.Montecarlo( ceBulk.atoms, T )
         mc_obj.runMC( steps=n_burn, verbose=False )
 
@@ -149,7 +150,7 @@ def main( run ):
     ceBulk.atoms.set_calculator( calc )
 
     if ( run == "MC" ):
-        mcmc( ceBulk, 0.1 )
+        mcmc( ceBulk, 0.1, phonons=False )
     else:
         chem_pot = {
         "Al":0.0,

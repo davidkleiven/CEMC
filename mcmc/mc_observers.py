@@ -128,6 +128,7 @@ class SGCObserver(MCObserver):
 
         # Track average value of particle-energy correlation
         self.singl_eng = np.zeros_like( self.singlets )
+        self.counter = 0
 
     def reset(self):
         """
@@ -137,8 +138,10 @@ class SGCObserver(MCObserver):
         self.energy = 0.0
         self.energy_sq = 0.0
         self.singl_eng[:] = 0.0
+        self.counter = 0
 
     def __call__( self, system_changes ):
+        self.counter += 1
         new_singlets = np.zeros_like( self.singlets )
         self.ce_calc.get_singlets(  new_singlets )
         self.singlets += new_singlets

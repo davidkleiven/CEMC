@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 import json
 
 def main():
-    fname = "data/pair_corrfuncs_tempdependent_phonAl7200Mg800.json"
+    fname = "data/pair_corrfuncs_tempdependent_gsAl7200Mg800.json"
     with open(fname,'r') as infile:
         data = json.load(infile)
 

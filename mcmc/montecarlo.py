@@ -66,8 +66,8 @@ class Montecarlo:
         """
         Update the atom tracker
         """
-        symb_a = system_changes[0][0]
-        symb_b = system_changes[1][0]
+        symb_a = system_changes[0][1]
+        symb_b = system_changes[1][1]
         self.atoms_indx[symb_a][self.selected_a] = self.rand_b
         self.atoms_indx[symb_b][self.selected_b] = self.rand_a
 
@@ -79,6 +79,8 @@ class Montecarlo:
         """
         if ( callable(obs) ):
             self.observers.append( (interval,obs) )
+        else:
+            raise ValueError( "The observer has to be a callable class!" )
 
 
     def runMC(self,steps = 10, verbose = False ):
@@ -99,19 +101,19 @@ class Montecarlo:
         totalenergies.append(self.current_energy)
         start = time.time()
         prev = 0
-        step = 0
         self.mean_energy = 0.0
         self.energy_squared = 0.0
         self.current_step = 0
-        while( step < steps ):
-            step += 1
+
+        # self.current_step gets updated in the _mc_step function
+        while( self.current_step < steps ):
             en, accept = self._mc_step( verbose=verbose )
             self.mean_energy += self.current_energy
             self.energy_squared += self.current_energy**2
 
             if ( time.time()-start > self.status_every_sec ):
-                print ("%d of %d steps. %.2f ms per step"%(step,steps,1000.0*self.status_every_sec/float(step-prev)))
-                prev = step
+                print ("%d of %d steps. %.2f ms per step"%(self.current_step,steps,1000.0*self.status_every_sec/float(self.current_step-prev)))
+                prev = self.current_step
                 start = time.time()
         return totalenergies
 
@@ -120,7 +122,6 @@ class Montecarlo:
         Compute thermodynamic quantities
         """
         quantities = {}
-        print (self.current_step)
         quantities["energy"] = self.mean_energy/self.current_step
         mean_sq = self.energy_squared/self.current_step
         quantities["heat_capacity"] = (mean_sq-quantities["energy"]**2)/(units.kB*self.T**2)
@@ -164,7 +165,7 @@ class Montecarlo:
             print(new_energy,self.current_energy,new_energy-self.current_energy)
 
         accept = False
-        if new_energy < self.current_energy:
+        if (new_energy < self.current_energy):
             self.current_energy = new_energy
             accept = True
         else:
@@ -199,6 +200,7 @@ class Montecarlo:
             new_symb_changes = []
             for change in system_changes:
                 new_symb_changes.append( (change[0],change[1],change[1]) )
+            system_changes = new_symb_changes
             #system_changes = [(self.rand_a,symb_a,symb_a),(self.rand_b,symb_b,symb_b)] # No changes to the system
 
         # Execute all observers
