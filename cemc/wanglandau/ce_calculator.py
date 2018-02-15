@@ -12,7 +12,7 @@ mpl.rcParams["svg.fonttype"] = "none"
 from matplotlib import pyplot as plt
 from ase.visualize import view
 try:
-    from ce_updater import ce_updater as ce_updater
+    from cemc.ce_updater import ce_updater as ce_updater
     use_cpp = True
 except Exception as exc:
     use_cpp = False

@@ -1,5 +1,5 @@
-from mcmc import montecarlo as mc
-from mcmc.mc_observers import SGCObserver
+import montecarlo as mc
+from cemc.mcmc.mc_observers import SGCObserver
 import numpy as np
 from ase.units import kB
 import copy

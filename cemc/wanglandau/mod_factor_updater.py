@@ -1,4 +1,4 @@
-import wang_landau_scg as wlsgc
+import cemc.wang_landau_scg as wlsgc
 from settings import SimulationState
 import converged_histogram_policy as chp
 
