@@ -248,7 +248,13 @@ class CE( Calculator ):
         """
         Change composition of an object.
         """
+        # Verify that the sum of the compositions is one
+        tot_conc = 0.0
+        for key,conc in comp.iteritems():
+            tot_conc += conc
 
+        if ( tot_conc != 1.0 ):
+            raise ValueError( "The specified concentration does not sum to 1!" )
         # Change all atoms to the first one
         init_elm = comp.keys()[0]
         for i in range( len(self.atoms) ):
