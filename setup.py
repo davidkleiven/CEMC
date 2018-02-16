@@ -1,9 +1,15 @@
 from setuptools import setup, Extension, find_packages
 import subprocess as sub
+import sys
 
 # Print the version of swig
 sub.call(["swig","-version"])
 
+swig_opts=["-modern","-Icpp/include","-c++"]
+if ( sys.version_info >= (3,0) ):
+    swig_opts.append("-py3")
+    sys.stdout.write( "Currently SWIG only works with python2" )
+    sys.exit(1)
 
 src_folder = "cpp/src"
 inc_folder = "cpp/include"
@@ -11,7 +17,7 @@ ce_updater_sources = ["ce_updater.cpp","cf_history_tracker.cpp","additional_tool
 ce_updater_sources = [src_folder+"/"+srcfile for srcfile in ce_updater_sources]
 ce_updater_sources.append( "cemc/ce_updater/ce_updater.i" )
 ce_updater = Extension( "_ce_updater", sources=ce_updater_sources,include_dirs=[inc_folder],
-extra_compile_args=["-std=c++11","-fopenmp"], language="c++", swig_opts=["-modern","-Icpp/include","-c++"],
+extra_compile_args=["-std=c++11","-fopenmp"], language="c++", swig_opts=swig_opts,
 libraries=["gomp","pthread"] )
 
 setup(
