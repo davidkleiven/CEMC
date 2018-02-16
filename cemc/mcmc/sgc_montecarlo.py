@@ -5,8 +5,8 @@ from ase.units import kB
 import copy
 
 class SGCMonteCarlo( mc.Montecarlo ):
-    def __init__( self, atoms, temp, indeces=None, symbols=None ):
-        mc.Montecarlo.__init__( self, atoms, temp, indeces=indeces )
+    def __init__( self, atoms, temp, indeces=None, symbols=None, mpicomm=None ):
+        mc.Montecarlo.__init__( self, atoms, temp, indeces=indeces, mpicomm=mpicomm )
         if ( not symbols is None ):
             # Override the symbols function in the main class
             self.symbols = symbols
@@ -72,6 +72,26 @@ class SGCMonteCarlo( mc.Montecarlo ):
 
         eci = self.reset_eci_to_original( eci )
         self.atoms._calc.update_ecis( eci )
+
+    def collect_averager_results(self):
+        """
+        If MPI is used, this function collects the results from the averager
+        """
+        if ( self.mpicomm is None ):
+            return
+
+        size = self.mpicomm.Get_size()
+        all_res = self.mpicomm.gather( self.averager.quantities, root=0 )
+        rank = self.mpicomm.Get_rank()
+        if ( rank == 0 ):
+            self.averager.quantities = all_res[0]
+            for i in range(1,len(all_res)):
+                for key,value in all_res[i].iteritems():
+                    self.averager.quantities[key] += value
+
+                # Normalize by the number of processors
+                for key in self.averager.quantities.keys():
+                    self.averager[key] /= size
 
     def get_thermodynamic( self ):
         N = self.averager.counter

@@ -117,6 +117,15 @@ class SGCObserver(MCObserver):
         self.ce_calc = ce_calc
         self.mc = mc_obj
 
+        self.quantities = {
+            "singlets":np.zeros( n_singlets, dtype=np.float64 ),
+            "energy":0.0,
+            "energy_sq":0.0,
+            "singl_eng":np.zeros( n_singlets, dtype=np.float64 ),
+            "counter":0
+        }
+
+        """
         # Track average value of the singlet terms
         self.singlets = np.zeros( n_singlets, dtype=np.float64 )
 
@@ -129,22 +138,57 @@ class SGCObserver(MCObserver):
         # Track average value of particle-energy correlation
         self.singl_eng = np.zeros_like( self.singlets )
         self.counter = 0
+        """
 
     def reset(self):
         """
         Resets all variables to zero
+        """
+        self.quantities["singlets"][:] = 0.0
+        self.quantities["energy"] = 0.0
+        self.quantities["energy_sq"] = 0.0
+        self.quantities["singl_eng"][:] = 0.0
+        self.quantities["counter"] = 0
         """
         self.singlets[:] = 0.0
         self.energy = 0.0
         self.energy_sq = 0.0
         self.singl_eng[:] = 0.0
         self.counter = 0
+        """
 
     def __call__( self, system_changes ):
-        self.counter += 1
+        self.quantities["counter"] += 1
         new_singlets = np.zeros_like( self.singlets )
         self.ce_calc.get_singlets(  new_singlets )
+
+        self.quantities["singlets"] += new_singlets
+        self.quantities["energy"] += self.mc.current_energy
+        self.quantities["energy_sq"] += self.mc.current_energy**2
+        self.quantities["singl_eng"] += new_singlets*self.mc.current_energy
+        """
         self.singlets += new_singlets
         self.energy += self.mc.current_energy
         self.energy_sq += self.mc.current_energy**2
         self.singl_eng += new_singlets*self.mc.current_energy
+        """
+
+    @property
+    def energy(self):
+        return self.quantities["energy"]
+
+    @property
+    def energy_sq(self):
+        return self.quantities["energy_sq"]
+
+    @property
+    def singlets(self):
+        return self.quantities["singlets"]
+
+    @property
+    def singl_eng(self):
+        return self.quantities["singl_eng"]
+
+    @property
+    def counter(self):
+        return self.quantities["counter"]

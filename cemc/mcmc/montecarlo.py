@@ -7,16 +7,15 @@ import ase.units as units
 from cemc.wanglandau import ce_calculator
 import time
 import logging
+from mpi4py import MPI
 #from ase.io.trajectory import Trajectory
-
-
 
 class Montecarlo:
     """ Class for performing MonteCarlo sampling for atoms
 
     """
 
-    def __init__(self, atoms, temp, indeces=None ):
+    def __init__(self, atoms, temp, indeces=None, mpicomm=None ):
         """ Initiliaze Monte Carlo simulations object
 
         Arguments:
@@ -43,6 +42,7 @@ class Montecarlo:
         self.current_energy = 1E100
         self.mean_energy = 0.0
         self.energy_squared = 0.0
+        self.mpicomm = mpicomm
 
         # Some member variables used to update the atom tracker, only relevant for canonical MC
         self.rand_a = 0
@@ -82,6 +82,31 @@ class Montecarlo:
         else:
             raise ValueError( "The observer has to be a callable class!" )
 
+    def set_seeds(self):
+        """
+        This function guaranties different seeds on different processors
+        """
+        if ( self.mpicomm is None ):
+            return
+
+        rank = self.mpicomm.Get_rank()
+        size = self.mpicomm.Get_size()
+        maxint = np.iinfo(np.int32).max
+        if ( rank == 0 ):
+            seed = []
+            for i in range(size):
+                new_seed = np.random.randint(0,high=maxint)
+                while( new_seed in seed ):
+                    new_seed = np.random.randint(0,high=maxint)
+                seed.append( new_seed )
+        else:
+            seed = None
+
+        # Scatter the seeds to the other processes
+        seed = self.mpicomm.scatter(seed, root=0)
+
+        # Update the seed
+        np.random.seed(seed)
 
     def runMC(self,steps = 10, verbose = False ):
         """ Run Monte Carlo simulation
@@ -97,6 +122,7 @@ class Montecarlo:
         self._mc_step()
         #self.current_energy = self.atoms.get_potential_energy() # Get starting energy
 
+        self.set_seeds()
         totalenergies = []
         totalenergies.append(self.current_energy)
         start = time.time()
@@ -117,10 +143,28 @@ class Montecarlo:
                 start = time.time()
         return totalenergies
 
+    def collect_energy( self ):
+        """
+        Sums the energy from each processor
+        """
+        if ( self.mpicomm is None ):
+            return
+
+        size = self.mpicomm.Get_size()
+        recv = np.zeros(1)
+        energy_arr = np.array(self.mean_energy)
+        energy_sq_arr = np.array(self.energy_squared)
+        self.mpicomm.reduce( energy_arr, recv, op=MPI.SUM, root= 0)
+        self.mean_energy = recv[0]/size
+        recv[0] = 0.0
+        self.mpicomm.reduce( energy_sq_arr, recv, op=MPI.SUM, root=0 )
+        self.energy_squared = recv[0]/size
+
     def get_thermodynamic( self ):
         """
         Compute thermodynamic quantities
         """
+        self.collect_energy()
         quantities = {}
         quantities["energy"] = self.mean_energy/self.current_step
         mean_sq = self.energy_squared/self.current_step
