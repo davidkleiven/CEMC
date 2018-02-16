@@ -1,11 +1,11 @@
 import unittest
-from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
-from cemc.wanglandau.ce_calculator import CE
 import os
 from mpi4py import MPI
 
 try:
     from ase.ce.settings import BulkCrystal
+    from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
+    from cemc.wanglandau.ce_calculator import CE
     has_ase_with_ce = True
 except:
     has_ase_with_ce = False
