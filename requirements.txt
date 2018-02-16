@@ -2,3 +2,5 @@ numpy
 scipy
 matplotlib
 mpi4py
+jupyter
+pytest-ipynb
