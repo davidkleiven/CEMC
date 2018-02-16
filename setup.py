@@ -1,9 +1,11 @@
 from setuptools import setup, Extension, find_packages
 import subprocess as sub
 import sys
+import numpy as np
 
 # Print the version of swig
 sub.call(["swig","-version"])
+print (np.get_include())
 
 swig_opts=["-modern","-Icpp/include","-c++"]
 if ( sys.version_info >= (3,0) ):

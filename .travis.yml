@@ -12,3 +12,4 @@ install:
 
 script:
   - python -m unittest discover tests/
+  - py.test examples/ -v
