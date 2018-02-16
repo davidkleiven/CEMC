@@ -5,6 +5,7 @@ import numpy as np
 
 # Print the version of swig
 sub.call(["swig","-version"])
+print ("Numpy development files:")
 print (np.get_include())
 
 swig_opts=["-modern","-Icpp/include","-c++"]
