@@ -244,6 +244,25 @@ class CE( Calculator ):
             self.updater.get_singlets( array )
             return array
 
+    def set_composition( self, comp ):
+        """
+        Change composition of an object.
+        """
+
+        # Change all atoms to the first one
+        init_elm = comp.keys()[0]
+        for i in range( len(self.atoms) ):
+            self.update_cf( (i,self.atoms[i].symbol,init_elm) ) # Set all atoms to init element
+
+        start = 0
+        for elm,conc in comp.iteritems():
+            if ( elm == init_elm ):
+                continue
+            n_at = int( conc*len(self.atoms) )
+            for i in range(start,start+n_at):
+                self.update_cf( (i,init_elm,elm) )
+            start += n_at
+        self.clear_history()
 
 ################################################################################
 ##                           UNIT TESTS                                       ##
