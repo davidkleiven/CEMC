@@ -1,4 +1,9 @@
 from setuptools import setup, Extension, find_packages
+import subprocess as sub
+
+# Print the version of swig
+sub.call(["swig","-version"])
+
 
 src_folder = "cpp/src"
 inc_folder = "cpp/include"
@@ -9,7 +14,6 @@ ce_updater = Extension( "_ce_updater", sources=ce_updater_sources,include_dirs=[
 extra_compile_args=["-std=c++11","-fopenmp"], language="c++", swig_opts=["-modern","-Icpp/include","-c++"],
 libraries=["gomp","pthread"] )
 
-print (find_packages())
 setup(
     name="cemc",
     ext_modules = [ce_updater],

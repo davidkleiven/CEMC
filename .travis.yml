@@ -6,7 +6,6 @@ install:
   - sudo apt-get install g++
   - sudo apt-get install mpich2
   - pip install -r requirements.txt
-  - swig -version
   - pip install .
 
 script:
