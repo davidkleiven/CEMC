@@ -1,6 +1,6 @@
 #include "ce_updater.hpp"
 #include <iostream>
-#include <numpy/ndarrayobject.h>
+#include "numpy/ndarrayobject.h"
 #include "additional_tools.hpp"
 #include <iostream>
 #include <sstream>
