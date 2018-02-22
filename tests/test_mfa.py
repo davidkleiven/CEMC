@@ -3,10 +3,13 @@ try:
     from ase.ce.settings import BulkCrystal
     from ase.calculators.cluster_expansion.cluster_expansion import ClusterExpansion
     from cemc.mfa.mean_field_approx import MeanFieldApprox
+    from ase.units import kB
     has_ase_with_ce = True
 except Exception as exc:
     print ( str(exc) )
     has_ase_with_ce = False
+
+import numpy as np
 
 # Some ECIs computed for the Al-Mg system
 ecis = {
@@ -25,7 +28,7 @@ ecis = {
 class TestMFA( unittest.TestCase ):
     def test_no_throw(self):
         if ( not has_ase_with_ce ):
-            self.skipTest()
+            self.skipTest( "The ASE version does not include the CE module!" )
             return
 
         no_throw = True
@@ -40,9 +43,13 @@ class TestMFA( unittest.TestCase ):
             ceBulk.atoms.set_calculator( calc )
             mf = MeanFieldApprox( ceBulk )
             chem_pot = {"c1_1":-1.05}
-            T = [200,300,400,500,600,700]
-            G = mf.free_energy( T, chem_pot=chem_pot)
-            G = mf.free_energy( T ) # Try when chem_pot is not given
+            betas = np.linspace( 1.0/(kB*100), 1.0/(kB*800), 50 )
+            G = mf.free_energy( betas, chem_pot=chem_pot)
+            G = mf.free_energy( betas ) # Try when chem_pot is not given
+            U = mf.internal_energy( betas, chem_pot=chem_pot )
+            U = mf.internal_energy( betas )
+            Cv = mf.heat_capacity( betas, chem_pot=chem_pot )
+            Cv = mf.heat_capacity( betas )
         except Exception as exc:
             no_throw = False
             print (str(exc))
