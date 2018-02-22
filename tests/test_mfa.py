@@ -2,12 +2,11 @@ import unittest
 try:
     from ase.ce.settings import BulkCrystal
     from ase.calculators.cluster_expansion.cluster_expansion import ClusterExpansion
+    from cemc.mfa.mean_field_approx import MeanFieldApprox
     has_ase_with_ce = True
 except Exception as exc:
     print ( str(exc) )
     has_ase_with_ce = False
-
-from cemc.mfa.mean_field_approx import MeanFieldApprox
 
 # Some ECIs computed for the Al-Mg system
 ecis = {
@@ -35,7 +34,7 @@ class TestMFA( unittest.TestCase ):
             conc_args = {
                 "conc_ratio_min_1":[[1,0]],
                 "conc_ratio_max_1":[[0,1]],
-            } 
+            }
             ceBulk = BulkCrystal( "fcc", 4.05, None, [4,4,4], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, reconf_db=False)
             calc = ClusterExpansion( ceBulk, cluster_name_eci=ecis )
             ceBulk.atoms.set_calculator( calc )
