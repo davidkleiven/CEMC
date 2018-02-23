@@ -51,15 +51,17 @@ class FreeEnergy(object):
         T = np.array( [T[indx] for indx in srt_indx] )
         sgc_energy = np.array( [sgc_energy[indx] for indx in srt_indx])
 
+        beta_phi_ref = -np.log(nelem) + sgc_energy[0]/(kB*T[0])
+
         integrand = sgc_energy/(kB*T**2)
         integral = [trapz(integrand[:i],x=T[:i]) for i in range(1,len(T))]
-        integral.insert(0,0)
         integral = np.array(integral)
 
-        G = high_temp_lim*T/T[0] - kB*T*integral
+        beta_phi = beta_phi_ref - integral
+        phi = beta_phi*kB*T[1:]
         res = {
-            "temperature":T,
-            "free_energy":G,
+            "temperature":T[1:],
+            "free_energy":phi,
             "temperature_integral":integral
         }
         return res
