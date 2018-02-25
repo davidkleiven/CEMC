@@ -259,7 +259,6 @@ class CE( Calculator ):
         init_elm = comp.keys()[0]
         for i in range( len(self.atoms) ):
             self.update_cf( (i,self.atoms[i].symbol,init_elm) ) # Set all atoms to init element
-
         start = 0
         for elm,conc in comp.iteritems():
             if ( elm == init_elm ):

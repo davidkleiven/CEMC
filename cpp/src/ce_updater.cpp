@@ -296,6 +296,11 @@ SymbolChange& CEUpdater::py_tuple_to_symbol_change( PyObject *single_change, Sym
 
 void CEUpdater::update_cf( SymbolChange &symb_change )
 {
+  if ( symb_change.old_symb == symb_change.new_symb )
+  {
+    return;
+  }
+  
   SymbolChange *symb_change_track;
   cf &current_cf = history->get_current();
   cf *next_cf_ptr=nullptr;
@@ -306,10 +311,7 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
   symb_change_track->new_symb = symb_change.new_symb;
   symb_change_track->track_indx = symb_change.track_indx;
 
-  if ( symb_change.old_symb == symb_change.new_symb )
-  {
-    return;
-  }
+
 
   symbols[symb_change.indx] = symb_change.new_symb;
   if ( atoms != nullptr )

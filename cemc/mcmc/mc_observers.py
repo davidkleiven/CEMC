@@ -99,12 +99,14 @@ class LowestEnergyStructure(MCObserver):
         self.lowest_energy = np.inf
         self.lowest_energy_atoms = None
         self.lowest_energy_cf = None
+        self.atoms = None
 
     def __call__( self, system_changes ):
         if ( self.lowest_energy_atoms is None or self.lowest_energy_cf is None ):
             self.lowest_energy_cf = self.ce_calc.get_cf()
             self.lowest_energy_atoms = self.ce_calc.atoms.copy()
             self.lowest_energy = self.mc_obj.current_energy
+            self.atoms = self.mc_obj.atoms.copy()
             return
 
         if ( self.mc_obj.current_energy < self.lowest_energy ):
