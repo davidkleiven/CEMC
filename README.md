@@ -31,3 +31,17 @@ Examples of application of the package are listed below
 
 * [Ground State of Al-Mg](examples/test_ground_state.ipynb)
 * [Monte Carlo in SGC Ensemble](examples/test_sgc_mc.ipynb)
+
+# Troubleshooting
+1. **Missing C++ version of CE updater** try to install with
+```bash
+pip install -e .
+```
+instead.
+
+2. **Equations does not render properly when viewing the examples**
+try to convert the jupyter notebook locally
+```bash
+jupyter nbconvert --to html test_sgc_mc.ipynb
+```
+and open the resulting html file in a browser.
