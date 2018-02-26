@@ -18,6 +18,7 @@ class TestFreeEnergy( unittest.TestCase ):
             N_atoms = 1000.0
             sgc_energy = free.get_sgc_energy( internal_energy, singlets, mu )
             G = free.free_energy_isochemical( T=T, sgc_energy=sgc_energy/N_atoms, nelem=2 )
+            H = free.helmholtz_free_energy( G["free_energy"], mu, singlets )
         except Exception as exc:
             print (str(exc))
             no_throw = False

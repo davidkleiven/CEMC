@@ -8,7 +8,7 @@ class FreeEnergy(object):
     Class that computes the Free Energy in the Semi Grand Canonical Ensemble
     """
 
-    def __init__(self):
+    def __init__(self, chemical_potential=None, singlets=None ):
         pass
 
     def get_sgc_energy( self, internal_energy, singlets, chemical_potential ):
@@ -62,6 +62,24 @@ class FreeEnergy(object):
         res = {
             "temperature":T[1:],
             "free_energy":phi,
-            "temperature_integral":integral
+            "temperature_integral":integral,
+            "order":srt_indx
         }
         return res
+
+    def helmholtz_free_energy( self, free_energy, chemical_potential, singlets ):
+        """
+        Compute the Helmholtz free energy from the Grand Potential (Free Energy in the SGC ensemble)
+
+        Parameters
+        ----------
+        free_energy - Free energy in the SGC ensemble
+        chemical_potential - chemical potential
+        singlets - Exepctation value of the singlet terms. Make sure that it is sorted correctly!
+                   The highest temperatures appear first
+        """
+        helmholtz = np.zeros_like( free_energy )
+        helmholtz[:] = free_energy
+        for key in chemical_potential.keys():
+            helmholtz += chemical_potential[key]*np.array( singlets[key][1:] )
+        return helmholtz
