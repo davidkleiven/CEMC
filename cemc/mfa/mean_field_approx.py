@@ -53,6 +53,9 @@ class MeanFieldApprox( object ):
         flip_energies = []
         for symb in self.symbols:
             self.bc.atoms[indx].symbol = symb
+            dE =  self.bc.atoms.get_potential_energy()-self.E0
+            if ( dE < -1E-6 ):
+                raise RuntimeError( "The reference structure should be a ground state! dE < 0.0 should not be possible. dE={}".format(dE) )
             flip_energies.append( self.bc.atoms.get_potential_energy()-self.E0 )
         self.bc.atoms[indx].symbol = orig_symbol
         return flip_energies
@@ -74,6 +77,8 @@ class MeanFieldApprox( object ):
                 self.bc.atoms._calc.eci[indx] -= mu
             except:
                 pass
+        self.bc.atoms._calc.atoms = None # Force a new energy calculation
+        self.E0 = self.bc.atoms.get_potential_energy()
 
     def reset_calculator_parameters( self ):
         """
@@ -102,7 +107,10 @@ class MeanFieldApprox( object ):
                 self.flip_energies = []
                 self.compute_flip_energies()
             self.last_chem_pot = chem_pot
-
+        else:
+            self.E0 = self.bc.atoms.get_potential_energy()
+            if ( len(self.flip_energies) == 0 ):
+                self.compute_flip_energies()
         part_func = []
         for beta in betas:
             Z = 1.0
@@ -136,11 +144,12 @@ class MeanFieldApprox( object ):
         --------
         Free energy in the Semi Grand Canonical Ensemble
         """
+        betas = np.array( betas )
         Z = self.partition_function( betas, chem_pot=chem_pot )
         z = np.array(self.Z)
         kT = 1.0/betas
         G = self.E0 - kT*np.log(z)
-        return np.array(G)*mol/(len(self.bc.atoms)*kJ)
+        return np.array(G)/len(self.bc.atoms)
 
     def get_cf_dict( self ):
         """
@@ -165,7 +174,7 @@ class MeanFieldApprox( object ):
         if ( chem_pot is not None ):
             for key in chem_pot.keys():
                 energy += chem_pot[key]*cf[key]
-        return np.array(energy)*mol/(len(self.bc.atoms)*kJ)
+        return np.array(energy)/(len(self.bc.atoms))
 
     def heat_capacity( self, betas, chem_pot=None ):
         """
