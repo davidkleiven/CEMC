@@ -52,7 +52,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
             eci_with_chem_pot[name] += val
         return eci_with_chem_pot
 
-    def runMC( self, steps = 10, verbose = False, chem_potential=None ):
+    def runMC( self, steps = 10, verbose = False, chem_potential=None, equil=True ):
         self.chem_pots = []
         if ( chem_potential is None ):
             ex_chem_pot = {
@@ -65,10 +65,14 @@ class SGCMonteCarlo( mc.Montecarlo ):
         self.atoms._calc.update_ecis( eci )
         self.averager.reset()
 
+        if ( equil ):
+            self.equillibriate()
+            self.averager.reset()
+
         if ( not self.has_attached_avg ):
             self.attach( self.averager )
             self.has_attached_avg = True
-        mc.Montecarlo.runMC( self, steps=steps, verbose=verbose )
+        mc.Montecarlo.runMC( self, steps=steps, verbose=verbose, equil=False )
 
         eci = self.reset_eci_to_original( eci )
         self.atoms._calc.update_ecis( eci )

@@ -8,6 +8,8 @@ from cemc.wanglandau import ce_calculator
 import time
 import logging
 from mpi4py import MPI
+from scipy import stats
+import logging
 #from ase.io.trajectory import Trajectory
 
 class Montecarlo:
@@ -43,6 +45,11 @@ class Montecarlo:
         self.mean_energy = 0.0
         self.energy_squared = 0.0
         self.mpicomm = mpicomm
+        self.logger = logging.getLogger( "MonteCarlo" )
+        self.logger.setLevel( logging.DEBUG )
+        ch = logging.StreamHandler()
+        ch.setLevel( logging.INFO )
+        self.logger.addHandler(ch)
 
         # Some member variables used to update the atom tracker, only relevant for canonical MC
         self.rand_a = 0
@@ -108,7 +115,55 @@ class Montecarlo:
         # Update the seed
         np.random.seed(seed)
 
-    def runMC(self,steps = 10, verbose = False ):
+    def equillibriate( self, window_length=1000, confidence_level=0.05, maxiter=1000 ):
+        """
+        Runs the MC until equillibrium is reached
+        """
+        E_prev = None
+        var_E_prev = None
+        min_percentile = stats.norm.ppf(confidence_level)
+        max_percentile = stats.norm.ppf(1.0-confidence_level)
+        number_of_iterations = 1
+        self.logger.info( "Equillibriating system" )
+        self.logger.info( "Confidence level: {}".format(confidence_level))
+        self.logger.info( "Percentiles: {}, {}".format(min_percentile,max_percentile) )
+        self.logger.info( "{:10} {:10} {:10} {:10}".format("Energy", "std.dev", "delta E", "quantile") )
+        for i in range(maxiter):
+            number_of_iterations += 1
+            self.mean_energy = 0.0
+            self.energy_squared = 0.0
+            for i in range(window_length):
+                self._mc_step()
+                self.mean_energy += self.current_energy
+                self.energy_squared += self.current_energy**2
+            E_new = self.mean_energy/window_length
+            var_E_new = (self.energy_squared/window_length - E_new**2)/window_length
+
+            if ( E_prev is None ):
+                E_prev = E_new
+                var_E_prev = var_E_new
+                continue
+
+            var_diff = var_E_new+var_E_prev
+            diff = E_new-E_prev
+            if ( var_diff < 1E-6 ):
+                self.logger.info ( "Zero variance. System does not move." )
+                z_diff = 0.0
+            else:
+                z_diff = diff/np.sqrt(var_diff)
+            self.logger.info( "{:10.2f} {:10.6f} {:10.6f} {:10.2f}".format(E_new,var_E_new,diff, z_diff) )
+            if( (z_diff < max_percentile) and (z_diff > min_percentile) ):
+                self.logger.info( "System reached equillibrium in {} mc steps".format(number_of_iterations*window_length))
+                self.mean_energy = 0.0
+                self.energy_squared = 0.0
+                self.current_step = 0
+                return
+            E_prev = E_new
+            var_E_prev = var_E_new
+
+        raise RuntimeError( "Did not manage to reach equillibrium!" )
+
+    def runMC(self,steps = 10, verbose = False, equil=True ):
         """ Run Monte Carlo simulation
 
         Arguments:
@@ -130,6 +185,9 @@ class Montecarlo:
         self.mean_energy = 0.0
         self.energy_squared = 0.0
         self.current_step = 0
+
+        if ( equil ):
+            self.equillibriate()
 
         # self.current_step gets updated in the _mc_step function
         while( self.current_step < steps ):
