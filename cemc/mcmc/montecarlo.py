@@ -49,7 +49,8 @@ class Montecarlo:
         self.logger.setLevel( logging.DEBUG )
         ch = logging.StreamHandler()
         ch.setLevel( logging.INFO )
-        self.logger.addHandler(ch)
+        if ( not self.logger.handlers ):
+            self.logger.addHandler(ch)
 
         # Some member variables used to update the atom tracker, only relevant for canonical MC
         self.rand_a = 0
@@ -152,12 +153,15 @@ class Montecarlo:
             else:
                 z_diff = diff/np.sqrt(var_diff)
             self.logger.info( "{:10.2f} {:10.6f} {:10.6f} {:10.2f}".format(E_new,var_E_new,diff, z_diff) )
+            self.logger.handlers[0].flush()
+            #print ("{:10.2f} {:10.6f} {:10.6f} {:10.2f}".format(E_new,var_E_new,diff, z_diff))
             if( (z_diff < max_percentile) and (z_diff > min_percentile) ):
                 self.logger.info( "System reached equillibrium in {} mc steps".format(number_of_iterations*window_length))
                 self.mean_energy = 0.0
                 self.energy_squared = 0.0
                 self.current_step = 0
                 return
+
             E_prev = E_new
             var_E_prev = var_E_new
 
