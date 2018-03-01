@@ -1,5 +1,6 @@
 from cemc.mfa.mean_field_approx import MeanFieldApprox
 from ase.calculators.cluster_expansion.cluster_expansion import ClusterExpansion
+from ase.units
 
 class PhaseBounaryTracker(object):
     def __init__( self, gs1, gs2, mu_name="c1_1" ):
@@ -25,12 +26,30 @@ class PhaseBounaryTracker(object):
         Computes the chemical potential at which the two phases coexists
         at zero kelvin
         """
+
+        # Assuming that the chemical potential at this point is not included into the ECIs
         E1 = self.gs1["bc"].atoms.get_potential_energy()
         E2 = self.gs1["bc"].atoms.get_potential_energy()
         x1 = self.gs1["cf"][self.mu_name]
         x2 = self.gs2["cf"][self.mu_name]
         mu_boundary = (E2-E1)/(x1-x2)
         return mu_boundary
+
+    def mean_field_common_tangent_construction( self, T, relative_width=0.1, n_points=100 ):
+        """
+        Construction of a common tangent point
+        """
+        mu0 = self.get_zero_temperature_mu_boundary()
+
+    def get_mean_field_phase_boundary( self, Tmin, Tmax, ntemps ):
+        """
+        Computes the phase boundary in the Mean Field Approximation
+        """
+        betas = np.linspace( 1.0/(kB*Tmin), 1.0/(kB*Tmax), ntemps )
+        mu0 = self.get_zero_temperature_mu_boundary()
+        db = betas[1]-betas[0]
+        delta_singlets = self.gs1["cf"][self.mu_name] - self.gs2["cf"][self.mu_name] # Constant in MFA
+        chem_pot = {self.mu_name:mu0}
 
     def check_gs( self ):
         """

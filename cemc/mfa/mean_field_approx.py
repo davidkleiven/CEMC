@@ -26,6 +26,12 @@ class MeanFieldApprox( object ):
         self.last_chem_pot = None
 
         self.flip_energies = []
+        self.singlets = []
+        self.singlet_indx = {}
+
+        for key in self.bc.atoms._calc.cluster_names:
+            if ( key.startswith("c1") ):
+                self.singlet_indx[key] = self.bc.atoms._calc.cluster_names.index(key)
 
 
     def get_symbols( self ):
@@ -51,20 +57,32 @@ class MeanFieldApprox( object ):
         """
         orig_symbol = self.bc.atoms[indx].symbol
         flip_energies = []
+        singlet_value = {key:[] for key in self.singlet_indx.keys()}
         for symb in self.symbols:
             self.bc.atoms[indx].symbol = symb
             dE =  self.bc.atoms.get_potential_energy()-self.E0
             if ( dE < -1E-6 ):
                 raise RuntimeError( "The reference structure should be a ground state! dE < 0.0 should not be possible. dE={}".format(dE) )
             flip_energies.append( self.bc.atoms.get_potential_energy()-self.E0 )
+            cf = self.bc.atoms._calc.cf
+            for key in singlet_value:
+                singlet_value[key].append( cf[self.singlet_indx[key]] )
+
         self.bc.atoms[indx].symbol = orig_symbol
-        return flip_energies
+        return flip_energies, singlet_value
 
     def compute_flip_energies( self ):
         """
         Computes the flip energies for all the atoms
         """
-        self.flip_energies = [self.compute_single_flip_energies(indx) for indx in range(len(self.bc.atoms))]
+        self.flip_energies = []
+        self.singlets = []
+
+        for indx in range( len(self.bc.atoms) ):
+            energy, singlet = self.compute_single_flip_energies(indx)
+            self.flip_energies.append(energy)
+            self.singlets.append( singlet )
+        #self.flip_energies = [self.compute_single_flip_energies(indx) for indx in range(len(self.bc.atoms))]
 
     def set_chemical_potentials( self, chem_pot ):
         """
@@ -94,6 +112,25 @@ class MeanFieldApprox( object ):
         for E in self.flip_energies[indx]:
             Z += np.exp( -beta*E )
         return Z
+
+    def average_singlets( self, betas, chem_pot=None ):
+        """
+        Compute the expected number of betas
+        """
+        # Just compute the full partition function to update the chemical potentials
+        # Not expensive if the chemical potential does not change
+        Z = self.partition_function( betas, chem_pot=chem_pot )
+
+        # Create dictionary with the singlet terms
+        avg_singlets = {key:np.zeros_like(betas) for key in self.singlets_indx.keys()}
+        for i in range( len(self.bc.atoms) ):
+            Z_i = self.compute_partition_function_one_atom( i, betas )
+            for key in avg_singlets.keys():
+                new_singl = np.zeros(len(betas))
+                for j in range( len(self.flip_energies) ):
+                    new_singl += self.singlets[i][key][j]*np.exp(-betas*E[i] )
+                avg_singlets[key] += new_singl/Zi
+        return avg_singlets
 
     def partition_function( self, betas, chem_pot=None ):
         """
