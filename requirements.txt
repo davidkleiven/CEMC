@@ -5,3 +5,4 @@ mpi4py
 jupyter
 pytest-ipynb
 ase
+h5py

@@ -26,6 +26,7 @@ class Montecarlo(object):
         indeves; List of atoms involved Monte Carlo swaps. default is all atoms.
 
         """
+        self.name = "MonteCarlo"
         self.atoms = atoms
         self.T = temp
         if indeces == None:
@@ -57,6 +58,17 @@ class Montecarlo(object):
         self.rand_b = 0
         self.selected_a = 0
         self.selected_b = 0
+
+    def reset(self):
+        """
+        Reset all member variables to their original values
+        """
+        for interval,obs in self.observers:
+            obs.reset()
+
+        self.current_step = 0
+        self.mean_energy = 0.0
+        self.energy_squared = 0.0
 
     def build_atoms_list( self ):
         """
@@ -131,8 +143,7 @@ class Montecarlo(object):
         self.logger.info( "{:10} {:10} {:10} {:10}".format("Energy", "std.dev", "delta E", "quantile") )
         for i in range(maxiter):
             number_of_iterations += 1
-            self.mean_energy = 0.0
-            self.energy_squared = 0.0
+            self.reset()
             for i in range(window_length):
                 self._mc_step()
                 self.mean_energy += self.current_energy
@@ -167,7 +178,7 @@ class Montecarlo(object):
 
         raise RuntimeError( "Did not manage to reach equillibrium!" )
 
-    def runMC(self,steps = 10, verbose = False, equil=True ):
+    def runMC(self,steps = 10, verbose = False, equil=True, equil_params=None ):
         """ Run Monte Carlo simulation
 
         Arguments:
@@ -191,7 +202,19 @@ class Montecarlo(object):
         self.current_step = 0
 
         if ( equil ):
-            self.equillibriate()
+            # Extract parameters
+            maxiter = 1000
+            confidence_level = 0.05
+            window_length = 1000
+            if ( equil_params is not None ):
+                for key,value in equil_params.iteritems():
+                    if ( key == "maxiter" ):
+                        maxiter = value
+                    elif ( key == "confidence_level" ):
+                        confidence_level = value
+                    elif ( key == "window_length" ):
+                        window_length = value
+            self.equillibriate( window_length=window_length, confidence_level=confidence_level, maxiter=maxiter )
 
         # self.current_step gets updated in the _mc_step function
         while( self.current_step < steps ):

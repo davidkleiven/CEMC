@@ -14,6 +14,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         self.chem_pots = []
         self.chem_pot_names = []
         self.has_attached_avg = False
+        self.name = "SGCMonteCarlo"
 
     def get_trial_move( self ):
         indx = np.random.randint( low=0, high=len(self.atoms) )
@@ -29,6 +30,13 @@ class SGCMonteCarlo( mc.Montecarlo ):
         Override the update of the atom tracker. The atom tracker is irrelevant in the semi grand canonical ensemble
         """
         pass
+
+    def reset(self):
+        """
+        Reset the simulation object
+        """
+        super(SGCMonteCarlo,self).reset()
+        self.averager.reset()
 
     @property
     def chemical_potential( self ):
@@ -65,7 +73,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         self.atoms._calc.update_ecis( eci_with_chem_pot )
         return eci_with_chem_pot
 
-    def runMC( self, steps = 10, verbose = False, chem_potential=None, equil=True ):
+    def runMC( self, steps = 10, verbose = False, chem_potential=None, equil=True, equil_params=None ):
         if ( chem_potential is None and self.chemical_potential is None ):
             ex_chem_pot = {
                 "c1_1":-0.1,
@@ -77,8 +85,19 @@ class SGCMonteCarlo( mc.Montecarlo ):
         self.averager.reset()
 
         if ( equil ):
-            self.equillibriate()
-            self.averager.reset()
+            maxiter = 1000
+            confidence_level = 0.05
+            window_length = 1000
+            if ( equil_params is not None ):
+                for key,value in equil_params.iteritems():
+                    if ( key == "maxiter" ):
+                        maxiter = value
+                    elif ( key == "confidence_level" ):
+                        confidence_level = value
+                    elif ( key == "window_length" ):
+                        window_length = value
+            self.equillibriate( window_length=window_length, confidence_level=confidence_level, maxiter=maxiter )
+            self.reset()
 
         if ( not self.has_attached_avg ):
             self.attach( self.averager )
@@ -86,8 +105,8 @@ class SGCMonteCarlo( mc.Montecarlo ):
         mc.Montecarlo.runMC( self, steps=steps, verbose=verbose, equil=False )
 
         # Reset the chemical potential to zero
-        zero_chemical_potential = {key:0.0 for key in self.chemical_potential.keys()}
-        self.chemical_potential = zero_chemical_potential
+        #zero_chemical_potential = {key:0.0 for key in self.chemical_potential.keys()}
+        #self.chemical_potential = zero_chemical_potential
         #eci = self.reset_eci_to_original( eci )
         #self.atoms._calc.update_ecis( eci )
 
@@ -114,14 +133,19 @@ class SGCMonteCarlo( mc.Montecarlo ):
     def get_thermodynamic( self ):
         N = self.averager.counter
         quantities = {}
-        quantities["singlets"] = self.averager.singlets/N
-        quantities["chem_pots"] = self.chem_pots
+        singlets = self.averager.singlets/N
+        #quantities["chem_pots"] = self.chem_pots
         quantities["energy"] = self.averager.energy/N
-        for i in range( len(quantities["chem_pots"]) ):
-            quantities["energy"] += quantities["chem_pots"][i]*quantities["singlets"][i]
+        for i in range( len(self.chem_pots) ):
+            quantities["energy"] += self.chem_pots[i]*singlets[i]
 
         quantities["heat_capacity"] = self.averager.energy_sq/N - (self.averager.energy/N)**2 + \
-                                      np.sum( self.averager.singl_eng/N - (self.averager.energy/N)*quantities["singlets"] )
+                                      np.sum( self.averager.singl_eng/N - (self.averager.energy/N)*singlets )
         quantities["heat_capacity"] /= (kB*self.T**2)
         quantities["temperature"] = self.T
+
+        # Add singlets and chemical potential to the dictionary
+        for i in range(len(singlets)):
+            quantities["singlet_{}".format(self.chem_pot_names[i])] = singlets[i]
+            quantities["mu_{}".format(self.chem_pot_names[i])] = self.chem_pots[i]
         return quantities
