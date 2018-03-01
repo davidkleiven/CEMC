@@ -112,6 +112,7 @@ class MeanFieldApprox( object ):
             if ( len(self.flip_energies) == 0 ):
                 self.compute_flip_energies()
         part_func = []
+        self.betas = betas
         for beta in betas:
             Z = 1.0
             for i in range( len(self.bc.atoms) ):

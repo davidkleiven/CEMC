@@ -7,3 +7,5 @@ ce_updater/ce_updater.py
 tests/*.pyc
 cemc/*.pyc
 cemc.egg-info/*
+*.h5
+.pytest_cache/*
