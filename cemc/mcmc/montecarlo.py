@@ -12,7 +12,7 @@ from scipy import stats
 import logging
 #from ase.io.trajectory import Trajectory
 
-class Montecarlo:
+class Montecarlo(object):
     """ Class for performing MonteCarlo sampling for atoms
 
     """

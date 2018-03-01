@@ -30,6 +30,16 @@ class SGCMonteCarlo( mc.Montecarlo ):
         """
         pass
 
+    @property
+    def chemical_potential( self ):
+        return self.__chemical_potential
+
+    @chemical_potential.setter
+    def chemical_potential( self, chem_pot ):
+        self.__chemical_potential = chem_pot
+        self.reset_eci_to_original( self.atoms._calc.eci)
+        self.include_chemcical_potential_in_ecis( chem_pot, self.atoms._calc.eci )
+
     def include_chemcical_potential_in_ecis( self, chem_potential, eci ):
         """
         Including the chemical potentials in the ecis
@@ -42,6 +52,8 @@ class SGCMonteCarlo( mc.Montecarlo ):
             self.chem_pots.append( chem_potential[key] )
             self.chem_pot_names.append(key)
             eci[key] -= chem_potential[key]
+        print (eci)
+        self.atoms._calc.update_ecis( eci )
         return eci
 
     def reset_eci_to_original( self, eci_with_chem_pot ):
@@ -50,19 +62,18 @@ class SGCMonteCarlo( mc.Montecarlo ):
         """
         for name,val in zip(self.chem_pot_names,self.chem_pots):
             eci_with_chem_pot[name] += val
+        self.atoms._calc.update_ecis( eci_with_chem_pot )
         return eci_with_chem_pot
 
     def runMC( self, steps = 10, verbose = False, chem_potential=None, equil=True ):
-        self.chem_pots = []
-        if ( chem_potential is None ):
+        if ( chem_potential is None and self.chemical_potential is None ):
             ex_chem_pot = {
                 "c1_1":-0.1,
                 "c1_2":0.05
             }
             raise ValueError( "No chemicla potentials given. Has to be dictionary of the form {}".format(ex_chem_pot) )
-
-        eci = self.include_chemcical_potential_in_ecis( chem_potential, self.atoms._calc.eci )
-        self.atoms._calc.update_ecis( eci )
+        if ( chem_potential is not None ):
+            self.chemical_potential = chem_potential
         self.averager.reset()
 
         if ( equil ):
@@ -74,8 +85,11 @@ class SGCMonteCarlo( mc.Montecarlo ):
             self.has_attached_avg = True
         mc.Montecarlo.runMC( self, steps=steps, verbose=verbose, equil=False )
 
-        eci = self.reset_eci_to_original( eci )
-        self.atoms._calc.update_ecis( eci )
+        # Reset the chemical potential to zero
+        zero_chemical_potential = {key:0.0 for key in self.chemical_potential.keys()}
+        self.chemical_potential = zero_chemical_potential
+        #eci = self.reset_eci_to_original( eci )
+        #self.atoms._calc.update_ecis( eci )
 
     def collect_averager_results(self):
         """
