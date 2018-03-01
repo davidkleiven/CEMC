@@ -112,6 +112,7 @@ class MeanFieldApprox( object ):
             if ( len(self.flip_energies) == 0 ):
                 self.compute_flip_energies()
         part_func = []
+        self.betas = betas
         for beta in betas:
             Z = 1.0
             for i in range( len(self.bc.atoms) ):
@@ -150,6 +151,19 @@ class MeanFieldApprox( object ):
         kT = 1.0/betas
         G = self.E0 - kT*np.log(z)
         return np.array(G)/len(self.bc.atoms)
+
+    def helmholtz_free_energy( self, sgc_free_energy, chem_pot=None ):
+        """
+        Computes the Helmholtz Free Energy from the SGC Free energy
+        """
+        if ( chem_pot is None ):
+            return sgc_free_energy
+
+        cf = self.get_cf_dict()
+        for key in chem_pot.keys():
+            sgc_free_energy += chem_pot[key]*cf[key]
+        return sgc_free_energy
+
 
     def get_cf_dict( self ):
         """

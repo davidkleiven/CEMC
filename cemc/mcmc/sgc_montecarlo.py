@@ -14,6 +14,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         self.chem_pots = []
         self.chem_pot_names = []
         self.has_attached_avg = False
+        self.name = "SGCMonteCarlo"
 
     def get_trial_move( self ):
         indx = np.random.randint( low=0, high=len(self.atoms) )
@@ -30,6 +31,23 @@ class SGCMonteCarlo( mc.Montecarlo ):
         """
         pass
 
+    def reset(self):
+        """
+        Reset the simulation object
+        """
+        super(SGCMonteCarlo,self).reset()
+        self.averager.reset()
+
+    @property
+    def chemical_potential( self ):
+        return self.__chemical_potential
+
+    @chemical_potential.setter
+    def chemical_potential( self, chem_pot ):
+        self.__chemical_potential = chem_pot
+        self.reset_eci_to_original( self.atoms._calc.eci)
+        self.include_chemcical_potential_in_ecis( chem_pot, self.atoms._calc.eci )
+
     def include_chemcical_potential_in_ecis( self, chem_potential, eci ):
         """
         Including the chemical potentials in the ecis
@@ -42,6 +60,8 @@ class SGCMonteCarlo( mc.Montecarlo ):
             self.chem_pots.append( chem_potential[key] )
             self.chem_pot_names.append(key)
             eci[key] -= chem_potential[key]
+        print (eci)
+        self.atoms._calc.update_ecis( eci )
         return eci
 
     def reset_eci_to_original( self, eci_with_chem_pot ):
@@ -50,28 +70,45 @@ class SGCMonteCarlo( mc.Montecarlo ):
         """
         for name,val in zip(self.chem_pot_names,self.chem_pots):
             eci_with_chem_pot[name] += val
+        self.atoms._calc.update_ecis( eci_with_chem_pot )
         return eci_with_chem_pot
 
-    def runMC( self, steps = 10, verbose = False, chem_potential=None ):
-        self.chem_pots = []
-        if ( chem_potential is None ):
+    def runMC( self, steps = 10, verbose = False, chem_potential=None, equil=True, equil_params=None ):
+        if ( chem_potential is None and self.chemical_potential is None ):
             ex_chem_pot = {
                 "c1_1":-0.1,
                 "c1_2":0.05
             }
             raise ValueError( "No chemicla potentials given. Has to be dictionary of the form {}".format(ex_chem_pot) )
-
-        eci = self.include_chemcical_potential_in_ecis( chem_potential, self.atoms._calc.eci )
-        self.atoms._calc.update_ecis( eci )
+        if ( chem_potential is not None ):
+            self.chemical_potential = chem_potential
         self.averager.reset()
+
+        if ( equil ):
+            maxiter = 1000
+            confidence_level = 0.05
+            window_length = 1000
+            if ( equil_params is not None ):
+                for key,value in equil_params.iteritems():
+                    if ( key == "maxiter" ):
+                        maxiter = value
+                    elif ( key == "confidence_level" ):
+                        confidence_level = value
+                    elif ( key == "window_length" ):
+                        window_length = value
+            self.equillibriate( window_length=window_length, confidence_level=confidence_level, maxiter=maxiter )
+            self.reset()
 
         if ( not self.has_attached_avg ):
             self.attach( self.averager )
             self.has_attached_avg = True
-        mc.Montecarlo.runMC( self, steps=steps, verbose=verbose )
+        mc.Montecarlo.runMC( self, steps=steps, verbose=verbose, equil=False )
 
-        eci = self.reset_eci_to_original( eci )
-        self.atoms._calc.update_ecis( eci )
+        # Reset the chemical potential to zero
+        #zero_chemical_potential = {key:0.0 for key in self.chemical_potential.keys()}
+        #self.chemical_potential = zero_chemical_potential
+        #eci = self.reset_eci_to_original( eci )
+        #self.atoms._calc.update_ecis( eci )
 
     def collect_averager_results(self):
         """
@@ -96,14 +133,19 @@ class SGCMonteCarlo( mc.Montecarlo ):
     def get_thermodynamic( self ):
         N = self.averager.counter
         quantities = {}
-        quantities["singlets"] = self.averager.singlets/N
-        quantities["chem_pots"] = self.chem_pots
+        singlets = self.averager.singlets/N
+        #quantities["chem_pots"] = self.chem_pots
         quantities["energy"] = self.averager.energy/N
-        for i in range( len(quantities["chem_pots"]) ):
-            quantities["energy"] += quantities["chem_pots"][i]*quantities["singlets"][i]
+        for i in range( len(self.chem_pots) ):
+            quantities["energy"] += self.chem_pots[i]*singlets[i]
 
         quantities["heat_capacity"] = self.averager.energy_sq/N - (self.averager.energy/N)**2 + \
-                                      np.sum( self.averager.singl_eng/N - (self.averager.energy/N)*quantities["singlets"] )
+                                      np.sum( self.averager.singl_eng/N - (self.averager.energy/N)*singlets )
         quantities["heat_capacity"] /= (kB*self.T**2)
         quantities["temperature"] = self.T
+
+        # Add singlets and chemical potential to the dictionary
+        for i in range(len(singlets)):
+            quantities["singlet_{}".format(self.chem_pot_names[i])] = singlets[i]
+            quantities["mu_{}".format(self.chem_pot_names[i])] = self.chem_pots[i]
         return quantities

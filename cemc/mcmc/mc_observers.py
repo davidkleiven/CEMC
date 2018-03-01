@@ -15,6 +15,12 @@ class MCObserver( object ):
         """
         pass
 
+    def reset(self):
+        """
+        Resets all values of the MC observer
+        """
+        pass
+
 class CorrelationFunctionTracker( MCObserver ):
     """
     Class that tracks the history of the Correlation function
