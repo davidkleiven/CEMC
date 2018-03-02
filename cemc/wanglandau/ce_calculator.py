@@ -269,6 +269,15 @@ class CE( Calculator ):
             start += n_at
         self.clear_history()
 
+    def set_symbols( self, symbs ):
+        """
+        Change the symbols of the entire atoms object
+        """
+        if ( len(symbs) != len(self.atoms ) ):
+            raise ValueError( "Length of the symbols array has to match the length of the atoms object.!" )
+        for i,symb in enumerate(symbs):
+            self.update_cf( (i,self.atoms[i].symbol,symb) )
+        self.clear_history()
 ################################################################################
 ##                           UNIT TESTS                                       ##
 ################################################################################

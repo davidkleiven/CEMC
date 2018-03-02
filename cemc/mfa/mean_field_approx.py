@@ -10,12 +10,13 @@ class MeanFieldApprox( object ):
     Class to study a cluster expansion model in the low temperature
     limit using the Mean Field Approximation
     """
-    def __init__( self, bc ):
+    def __init__( self, bc, symbols=None ):
         self.bc = bc
         if ( not isinstance(self.bc.atoms._calc,ClusterExpansion) ):
             raise TypeError( "The calculator of the atoms object of BulkCrystal has to be a ClusterExpansion calculator!" )
-        self.symbols = None
-        self.get_symbols()
+        self.symbols = symbols
+        if ( symbols is None ):
+            self.get_symbols()
 
         # Keep copies of the original ecis and cluster names
         self.cluster_names = copy.deepcopy( self.bc.atoms._calc.cluster_names )
@@ -28,6 +29,7 @@ class MeanFieldApprox( object ):
         self.flip_energies = []
         self.singlets = []
         self.singlet_indx = {}
+        self._chemical_potential = None
 
         for key in self.bc.atoms._calc.cluster_names:
             if ( key.startswith("c1") ):
@@ -61,8 +63,8 @@ class MeanFieldApprox( object ):
         for symb in self.symbols:
             self.bc.atoms[indx].symbol = symb
             dE =  self.bc.atoms.get_potential_energy()-self.E0
-            if ( dE < -1E-6 ):
-                raise RuntimeError( "The reference structure should be a ground state! dE < 0.0 should not be possible. dE={}".format(dE) )
+            #if ( dE < -1E-6 ):
+            #    raise RuntimeError( "The reference structure should be a ground state! dE < 0.0 should not be possible. dE={}".format(dE) )
             flip_energies.append( self.bc.atoms.get_potential_energy()-self.E0 )
             cf = self.bc.atoms._calc.cf
             for key in singlet_value:
@@ -84,19 +86,29 @@ class MeanFieldApprox( object ):
             self.singlets.append( singlet )
         #self.flip_energies = [self.compute_single_flip_energies(indx) for indx in range(len(self.bc.atoms))]
 
-    def set_chemical_potentials( self, chem_pot ):
-        """
-        Sets the chemical potential by subtracting the corresponding value from
-        the single point terms in the ECIs of the calculator
-        """
-        for key,mu in chem_pot.iteritems():
-            try:
-                indx = self.bc.atoms._calc.cluster_names.index(key)
-                self.bc.atoms._calc.eci[indx] -= mu
-            except:
-                pass
-        self.bc.atoms._calc.atoms = None # Force a new energy calculation
-        self.E0 = self.bc.atoms.get_potential_energy()
+    @property
+    def chemical_potential(self):
+        return self._chemical_potential
+
+    @chemical_potential.setter
+    def chemical_potential( self, chem_pot ):
+        if ( chem_pot is None ):
+            self._chemical_potential = chem_pot
+            return
+        if ( chem_pot != self.chemical_potential ):
+            self.reset_calculator_parameters()
+            self._chemical_potential = chem_pot
+            for key,mu in chem_pot.iteritems():
+                try:
+                    indx = self.bc.atoms._calc.cluster_names.index(key)
+                    self.bc.atoms._calc.eci[indx] -= mu
+                except:
+                    pass
+            self.bc.atoms._calc.atoms = None # Force a new energy calculation
+            self.E0 = self.bc.atoms.get_potential_energy()
+            self.flip_energies = []
+            self.singlets = []
+            self.compute_flip_energies()
 
     def reset_calculator_parameters( self ):
         """
@@ -108,6 +120,7 @@ class MeanFieldApprox( object ):
         """
         Computes the contribution to the partition function from one atom
         """
+        beta = np.array(beta)
         Z = 0.0
         for E in self.flip_energies[indx]:
             Z += np.exp( -beta*E )
@@ -119,35 +132,32 @@ class MeanFieldApprox( object ):
         """
         # Just compute the full partition function to update the chemical potentials
         # Not expensive if the chemical potential does not change
-        Z = self.partition_function( betas, chem_pot=chem_pot )
+        self.chemical_potential = chem_pot
+        betas = np.array(betas)
 
         # Create dictionary with the singlet terms
-        avg_singlets = {key:np.zeros_like(betas) for key in self.singlets_indx.keys()}
+        avg_singlets = {key:np.zeros_like(betas) for key in self.singlet_indx.keys()}
         for i in range( len(self.bc.atoms) ):
             Z_i = self.compute_partition_function_one_atom( i, betas )
             for key in avg_singlets.keys():
                 new_singl = np.zeros(len(betas))
-                for j in range( len(self.flip_energies) ):
-                    new_singl += self.singlets[i][key][j]*np.exp(-betas*E[i] )
-                avg_singlets[key] += new_singl/Zi
+                for j in range( len(self.flip_energies[i]) ):
+                    E = self.flip_energies[i]
+                    new_singl += self.singlets[i][key][j]*np.exp(-betas*E[j] )
+                avg_singlets[key] += new_singl/Z_i
+
+        for key in avg_singlets.keys():
+            avg_singlets[key] /= len(self.bc.atoms)
         return avg_singlets
 
     def partition_function( self, betas, chem_pot=None ):
         """
         Computes the partition function in the mean field approximation
         """
-        if ( chem_pot is not None ):
-            self.reset_calculator_parameters()
-            self.set_chemical_potentials( chem_pot )
-            self.E0 = self.bc.atoms.get_potential_energy()
-            if ( (self.last_chem_pot) is None or (chem_pot!=self.last_chem_pot) ):
-                self.flip_energies = []
-                self.compute_flip_energies()
-            self.last_chem_pot = chem_pot
-        else:
-            self.E0 = self.bc.atoms.get_potential_energy()
-            if ( len(self.flip_energies) == 0 ):
-                self.compute_flip_energies()
+        self.chemical_potential = chem_pot
+        if ( len(self.flip_energies) == 0 ):
+            self.compute_flip_energies()
+
         part_func = []
         self.betas = betas
         for beta in betas:
@@ -155,9 +165,6 @@ class MeanFieldApprox( object ):
             for i in range( len(self.bc.atoms) ):
                 Z *= self.compute_partition_function_one_atom( i, beta )
             part_func.append( Z )
-
-        if ( chem_pot is not None ):
-            self.reset_calculator_parameters()
         self.Z = part_func
         return self.Z
 
@@ -189,17 +196,18 @@ class MeanFieldApprox( object ):
         G = self.E0 - kT*np.log(z)
         return np.array(G)/len(self.bc.atoms)
 
-    def helmholtz_free_energy( self, sgc_free_energy, chem_pot=None ):
+    def helmholtz_free_energy( self, betas, chem_pot=None ):
         """
         Computes the Helmholtz Free Energy from the SGC Free energy
         """
         if ( chem_pot is None ):
             return sgc_free_energy
 
-        cf = self.get_cf_dict()
+        singl = self.average_singlets( betas, chem_pot=chem_pot )
+        free_eng = self.free_energy( betas, chem_pot=chem_pot )
         for key in chem_pot.keys():
-            sgc_free_energy += chem_pot[key]*cf[key]
-        return sgc_free_energy
+            free_eng += chem_pot[key]*singl[key]
+        return free_eng
 
 
     def get_cf_dict( self ):
@@ -215,6 +223,23 @@ class MeanFieldApprox( object ):
         Compute the internal energy by computing the partial derivative
         with respect to beta
         """
+        self.chemical_potential = chem_pot
+        total_energy = 0.0
+        betas = np.array( betas )
+        for i in range(len(self.bc.atoms)):
+            Zi = self.compute_partition_function_one_atom( i, betas )
+            sum_E = 0.0
+            for E in self.flip_energies[i]:
+                sum_E += E*np.exp(-betas*E)
+            total_energy += sum_E/Zi
+
+        avg_singlets = self.average_singlets( betas, chem_pot=chem_pot )
+        for key in avg_singlets.keys():
+            total_energy += chem_pot[key]*avg_singlets[key]*len(self.bc.atoms)
+        total_energy += self.E0
+        return total_energy/len(self.bc.atoms)
+
+        """
         Z = self.partition_function( betas, chem_pot=chem_pot)
         lnz = np.log( np.array(Z) )
         lnz_interp = UnivariateSpline( self.betas, lnz, k=3, s=1 )
@@ -225,6 +250,7 @@ class MeanFieldApprox( object ):
         if ( chem_pot is not None ):
             for key in chem_pot.keys():
                 energy += chem_pot[key]*cf[key]
+        """
         return np.array(energy)/(len(self.bc.atoms))
 
     def heat_capacity( self, betas, chem_pot=None ):
