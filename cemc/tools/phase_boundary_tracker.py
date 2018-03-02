@@ -46,22 +46,22 @@ class PhaseBoundaryTracker(object):
         mu_boundary = (E2-E1)/(x2-x1)
         return mu_boundary/len( self.gs1["bc"].atoms )
 
-    def is_equal( self, x1, x2, std1, std2, confidence_level=0.05 ):
+    def is_equal( self, x1, x2, std1, std2, confidence_level=0.05, std_threshold=1E-4 ):
         """
         Check if two numbers are equal provided that their standard deviations
         are known
         """
         diff = x2-x1
         std_diff = np.sqrt( std1**2 + std2**2 )
-        if ( std_diff < 1E-4 ):
-            # Cannot predict, say they are equal
-            return True
+        small_std_dev = False
+        if ( std_diff < std_threshold ):
+            small_std_dev = True
         z_diff = diff/std_diff
         min_percentile = stats.norm.ppf(confidence_level)
         max_percentile = stats.norm.ppf(1.0-confidence_level)
         if ( (z_diff < max_percentile) and (z_diff > min_percentile) ):
-            return True
-        return False
+            return True,small_std_dev
+        return False,small_std_dev
 
     def compositions_significantly_different( self, thermo1, thermo2, confidence_level=0.05, min_comp_res=0.01 ):
         """
@@ -160,7 +160,8 @@ class PhaseBoundaryTracker(object):
                 var_name = "var_singlet_{}".format(self.mu_name)
                 std1 = np.sqrt( thermo1[var_name]/thermo1["n_mc_steps"] )
                 std2 = np.sqrt( thermo2[var_name]/thermo1["n_mc_steps"] )
-                if ( self.is_equal(x1_predict,x2_predict,std1,std2,confidence_level=0.1) and (std1>1E-3) and (std2>1E-3)):
+                eq, small_threshold = self.is_equal(x1_predict,x2_predict,std1,std2,confidence_level=0.1)
+                if ( eq and not small_threshold ):
                     print (x1,x1_predict,std1)
                     print (x2,x2_predict,std2)
                     # The curves met
@@ -180,7 +181,12 @@ class PhaseBoundaryTracker(object):
                     var_name = "var_singlet_{}".format(self.mu_name)
                     std1 = np.sqrt( thermo1[var_name]/thermo1["n_mc_steps"] )
                     std2 = np.sqrt( thermo2[var_name]/thermo1["n_mc_steps"] )
-                    if ( not self.is_equal(x1,x1_predict,std1,std1) or not self.is_equal(x2,x2_predict,std2,std2) ):
+                    x1_eq,x1_small = self.is_equal(x1,x1_predict,std1,std1)
+                    x2_eq, x2_small = self.is_equal(x2,x2_predict,std2,std2)
+                    if ( x1_small and x2_small ):
+                        # Can't determine
+                        pass
+                    elif ( not x1_eq or not x2_eq ):
                         # If the comositions are different, but the new composition failes from being
                         # predicted by the previous compositions
                         # a third phase must have appeared
