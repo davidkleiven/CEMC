@@ -5,8 +5,8 @@ from ase.units import kB
 import copy
 
 class SGCMonteCarlo( mc.Montecarlo ):
-    def __init__( self, atoms, temp, indeces=None, symbols=None, mpicomm=None ):
-        mc.Montecarlo.__init__( self, atoms, temp, indeces=indeces, mpicomm=mpicomm )
+    def __init__( self, atoms, temp, indeces=None, symbols=None, mpicomm=None, logfile="" ):
+        mc.Montecarlo.__init__( self, atoms, temp, indeces=indeces, mpicomm=mpicomm, logfile=logfile )
         if ( not symbols is None ):
             # Override the symbols function in the main class
             self.symbols = symbols
