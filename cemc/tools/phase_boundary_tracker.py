@@ -208,11 +208,14 @@ class PhaseBoundaryTracker(object):
             return res
         return res
 
-    def separation_line( self, Tmin, Tmax, nsteps=10, n_mc_steps=100000 ):
+    def separation_line( self, temperatures, n_mc_steps=100000 ):
         """
         Computes the separation line. Assuming that the zero kelvin line
         is a good approximation at Tmin
         """
+        nsteps = len(temperatures)
+        Tmin = temperatures[0]
+        Tmax = temperatures[-1]
         mu0 = self.get_zero_temperature_mu_boundary()
         calc1 = CE( self.gs1["bc"], self.gs1["eci"], initial_cf=self.gs1["cf"] )
         calc2 = CE( self.gs2["bc"], self.gs2["eci"], initial_cf=self.gs2["cf"] )
@@ -220,8 +223,7 @@ class PhaseBoundaryTracker(object):
         self.gs2["bc"].atoms.set_calculator(calc2)
         sgc1 = SGCMonteCarlo( self.gs1["bc"].atoms, Tmin, symbols=["Al","Mg"], logfile="log_syst1.log" )
         sgc2 = SGCMonteCarlo( self.gs2["bc"].atoms, Tmin, symbols=["Al","Mg"], logfile="log_syst2.log" )
-        T = np.linspace( Tmin, Tmax, num=nsteps )
-        beta = 1.0/(kB*T)
+        beta = 1.0/(kB*temperatures)
         dbeta = beta[1]-beta[0]
         mu = np.zeros(nsteps)
         mu[0] = mu0
@@ -240,8 +242,6 @@ class PhaseBoundaryTracker(object):
         }
         while( n < nsteps ):
             self.logger.info( "Current mu: {}. Current temperature: {}K".format(mu[n-1],1.0/(kB*beta[n-1])))
-            if ( n > 1 ):
-                self.logger.info("Singlets: x1={},x2={}".format(comp1[n-2],comp2[n-2]))
             self.logger.handlers[0].flush()
             #self.flush_log()
             symbs1_old = [atom.symbol for atom in self.gs1["bc"].atoms]
@@ -264,6 +264,8 @@ class PhaseBoundaryTracker(object):
             x1 = thermo1[singl_name]
             comp1[n-1] = x1
             comp2[n-1] = x2
+            self.logger.info("Singlets: x1={},x2={}".format(comp1[n-1],comp2[n-1]))
+            self.logger.handlers[0].flush()
 
             var_name = "var_singlet_{}".format(self.mu_name)
             std1 = np.sqrt( thermo1[var_name]/thermo1["n_mc_steps"] )
