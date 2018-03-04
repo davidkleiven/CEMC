@@ -157,11 +157,11 @@ class PhaseBoundaryTracker(object):
         std1 = args["std1"]
         std2 = args["std2"]
         eq = self.is_equal( x1_pred, x2_pred, std1, std2, confidence_level=0.05 )
-        eq = (np.abs(x1_pred-x2_pred)<0.1)
+        #eq = (np.abs(x1_pred-x2_pred)<0.1)
         res = {"converged":False,"msg":"Continue simulation","mu":args["prev_mu"]}
         if ( eq ):
-            print (x1,x1_predict,std1)
-            print (x2,x2_predict,std2)
+            #print (x1,x1_predict,std1)
+            #print (x2,x2_predict,std2)
             # The curves met
             res["converged"] = True
             res["msg"] = "Phase boundaries met"
@@ -187,8 +187,8 @@ class PhaseBoundaryTracker(object):
         self.logger.info( "Compositions are different" )
         comp1_can_be_predicted = self.is_equal( args["current_comp1"], args["x1_pred"], args["std1"], args["std1"], confidence_level=0.0001 )
         comp2_can_be_predicted = self.is_equal( args["current_comp2"], args["x2_pred"], args["std2"], args["std2"], confidence_level=0.0001 )
-        comp1_can_be_predicted = ( np.abs(args["current_comp1"]-args["x1_pred"] ) < 0.1 )
-        comp2_can_be_predicted = ( np.abs(args["current_comp2"]-args["x2_pred"] ) < 0.1 )
+        ##comp1_can_be_predicted = ( np.abs(args["current_comp1"]-args["x1_pred"] ) < 0.1 )
+        ##comp2_can_be_predicted = ( np.abs(args["current_comp2"]-args["x2_pred"] ) < 0.1 )
         res = {"converged":False, "msg":"Continue simulation"}
         if ( not comp1_can_be_predicted and not comp2_can_be_predicted ):
             self.logger.info( "Both systems changed phase. Resetting mu to the previous value" )
@@ -270,6 +270,8 @@ class PhaseBoundaryTracker(object):
             var_name = "var_singlet_{}".format(self.mu_name)
             std1 = np.sqrt( thermo1[var_name]/thermo1["n_mc_steps"] )
             std2 = np.sqrt( thermo2[var_name]/thermo2["n_mc_steps"] )
+            std1 = np.sqrt( thermo1[var_name] )
+            std2 = np.sqrt( thermo2[var_name] )
             if ( not self.compositions_significantly_different(thermo1,thermo2,confidence_level=0.05) ):
                 if ( n == 1 ):
                     raise RuntimeError( "One of the systems changed phase on first iteration. Verify that the chemical potentials are correct \
@@ -319,23 +321,25 @@ class PhaseBoundaryTracker(object):
 
                 if ( update_mu_using_diff_equation and not result["converged"] ):
                     db = beta[n]-beta[n-1]
-                    rhs = (E2-E1)/( beta[n-1]*(x2-x1) ) - mu[n-1]/beta[n-1]
-                    mu[n] = mu[n-1] + rhs*db/len(sgc1.atoms)
+                    #print (E2,E1,x2,x1)
+                    #print ( (E2-E1)/((x2-x1)*len(sgc1.atoms)), mu[n-1])
+                    rhs = (E2-E1)/( beta[n-1]*(x2-x1)*len(sgc1.atoms) ) - mu[n-1]/beta[n-1]
+                    mu[n] = mu[n-1] + rhs*db
                     n += 1
 
             if ( 1.0/(kB*beta[n]) > Tmax ):
                 res["converged"] = True
             if ( res["converged"] ):
-                res["temperature"] = 1.0/(kB*beta[:n])
-                res["mu"] = mu[:n]
-                res["singlet1"] = comp1[:n]
-                res["singlet2"] = comp2[:n]
+                res["temperature"] = list( 1.0/(kB*beta[:n]) )
+                res["mu"] = list( mu[:n] )
+                res["singlet1"] = list( comp1[:n] )
+                res["singlet2"] = list( comp2[:n] )
                 return res
 
-        res["temperature"] = 1.0/(kB*beta)
-        res["mu"] = mu
-        res["singlet1"] = comp1
-        res["singlet2"] = comp2
+        res["temperature"] = list( 1.0/(kB*beta) )
+        res["mu"] = list( mu )
+        res["singlet1"] = list( comp1 )
+        res["singlet2"] = list( comp2 )
         return res
 
 

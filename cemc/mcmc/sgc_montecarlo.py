@@ -145,7 +145,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         #quantities["chem_pots"] = self.chem_pots
         quantities["energy"] = self.averager.energy/N
         for i in range( len(self.chem_pots) ):
-            quantities["energy"] += self.chem_pots[i]*singlets[i]
+            quantities["energy"] += self.chem_pots[i]*singlets[i]*len(self.atoms)
 
         quantities["heat_capacity"] = self.averager.energy_sq/N - (self.averager.energy/N)**2 + \
                                       np.sum( self.averager.singl_eng/N - (self.averager.energy/N)*singlets )
