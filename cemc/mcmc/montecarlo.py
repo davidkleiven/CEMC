@@ -243,6 +243,7 @@ class Montecarlo(object):
         self.logger.info( "Percentiles: {}, {}".format(min_percentile,max_percentile) )
         self.logger.info( "{:10} {:10} {:10} {:10}".format("Energy", "std.dev", "delta E", "quantile") )
         all_energies = []
+        means = []
         for i in range(maxiter):
             number_of_iterations += 1
             self.reset()
@@ -253,6 +254,7 @@ class Montecarlo(object):
                 if ( self.plot_debug ):
                     all_energies.append( self.current_energy/len(self.atoms) )
             E_new = self.mean_energy/window_length
+            means.append( E_new )
             var_E_new = (self.energy_squared/window_length - E_new**2)/window_length
 
             if ( E_prev is None ):
@@ -281,6 +283,12 @@ class Montecarlo(object):
                     fig = plt.figure()
                     ax = fig.add_subplot(1,1,1)
                     ax.plot( np.array( all_energies )*mol/kJ )
+                    start=0
+                    for i in range(len(means)):
+                        ax.plot( [start,start+window_length], [means[i],means[i]], color="#fc8d62" )
+                        ax.plot( start,means[i], "o", color="#fc8d62" )
+                        ax.axvline( x=start+window_length, color="#a6d854", ls="--")
+                        start += window_length
                     ax.set_xlabel( "Number of MC steps" )
                     ax.set_ylabel( "Energy (kJ/mol)" )
                     plt.show( block=self.pyplot_block )
