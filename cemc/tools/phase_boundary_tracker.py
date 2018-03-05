@@ -12,6 +12,10 @@ from cemc.tools.sequence_predicter import SequencePredicter
 import logging
 from logging.handlers import RotatingFileHandler
 
+class PhaseChangedOnFirstIterationError(Exception):
+    def __init__( self, message ):
+        super( PhaseChangedOnFirstIterationError,self).__init__(message)
+
 class PhaseBoundaryTracker(object):
     def __init__( self, gs1, gs2, mu_name="c1_1", chemical_potential=None, logfile="" ):
         """
@@ -274,7 +278,7 @@ class PhaseBoundaryTracker(object):
             std2 = np.sqrt( thermo2[var_name] )
             if ( not self.compositions_significantly_different(thermo1,thermo2,confidence_level=0.05) ):
                 if ( n == 1 ):
-                    raise RuntimeError( "One of the systems changed phase on first iteration. Verify that the chemical potentials are correct \
+                    raise PhaseChangedOnFirstIterationError( "One of the systems changed phase on first iteration. Verify that the chemical potentials are correct \
                                          and restart from a lower initial temperature" )
                 args = {
                     "current_comp1":comp1[n-1],
