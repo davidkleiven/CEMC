@@ -64,6 +64,8 @@ class Montecarlo(object):
         self.rand_b = 0
         self.selected_a = 0
         self.selected_b = 0
+        self.corrtime_energies = [] # Array of energies used to estimate the correlation time
+        self.correlation_info = None
 
     def reset(self):
         """
@@ -75,6 +77,8 @@ class Montecarlo(object):
         self.current_step = 0
         self.mean_energy = 0.0
         self.energy_squared = 0.0
+        #self.correlation_info = None
+        self.corrtime_energies = []
 
     def build_atoms_list( self ):
         """
@@ -134,6 +138,75 @@ class Montecarlo(object):
         # Update the seed
         np.random.seed(seed)
 
+    def get_var_average_energy( self ):
+        """
+        Returns the variance of the average energy, taking into account
+        the auto correlation time
+        """
+        U = self.mean_energy/self.current_step
+        E_sq = self.energy_squared/self.current_step
+        var = (E_sq - U**2)
+        if ( self.correlation_info is None or not self.correlation_info["correlation_time_found"] ):
+            return var/self.current_step
+
+        return 2.0*var*self.correlation_info["correlation_time"]/self.current_step
+
+
+
+    def estimate_correlation_time( self, window_length=1000, restart=False ):
+        """
+        Estimates the correlation time
+        """
+        self.logger.info( "*********** Estimating correlation time ***************" )
+        if ( restart ):
+            self.corrtime_energies = []
+        for i in range( window_length ):
+            self._mc_step()
+            self.corrtime_energies.append( self.current_energy )
+
+        mean = np.mean( self.corrtime_energies )
+        energy_dev = np.array( self.corrtime_energies ) - mean
+        var = np.var( energy_dev )
+        auto_corr = np.correlate( energy_dev, energy_dev, mode="full" )
+        auto_corr = auto_corr[int(len(auto_corr)/2):]
+
+        # Find the point where the ratio between var and auto_corr is 1/2
+        self.correlation_info = {
+            "correlation_time_found":False,
+            "correlation_time":0.0,
+            "msg":""
+        }
+
+        if ( var == 0.0 ):
+            self.correlation_info["msg"] = "Zero variance leads to infinite correlation time"
+            self.logger.info( self.correlation_info["msg"] )
+            return self.correlation_info
+
+        auto_corr /= (window_length*var)
+        if ( auto_corr[-1]/var > 0.5 ):
+            self.correlation_info["msg"] = "Window is too short. Add more samples"
+            self.logger.info( self.correlation_info["msg"] )
+            return self.correlation_info
+
+        # See:
+        # Van de Walle, A. & Asta, M.
+        # Self-driven lattice-model Monte Carlo simulations of alloy thermodynamic properties and
+        # phase diagrams Modelling and Simulation
+        # in Materials Science and Engineering, IOP Publishing, 2002, 10, 521
+        # for details on  the notation
+        indx = 0
+        for i in range(len(auto_corr)):
+            if ( auto_corr[i] < 0.5 ):
+                indx = i
+                break
+        rho = 2.0**(-1.0/indx)
+        tau = -1.0/np.log(rho)
+        self.correlation_info["correlation_time"] = tau
+        self.correlation_info["correlation_time_found"] = True
+        self.logger.info( "Estimated correlation time: {}".format(tau) )
+        return self.correlation_info
+
+
     def equillibriate( self, window_length=1000, confidence_level=0.05, maxiter=1000 ):
         """
         Runs the MC until equillibrium is reached
@@ -185,13 +258,16 @@ class Montecarlo(object):
 
         raise RuntimeError( "Did not manage to reach equillibrium!" )
 
-    def runMC(self,steps = 10, verbose = False, equil=True, equil_params=None ):
+    def runMC(self, mode="fixed", steps=10, verbose = False, equil=True, equil_params=None, prec=0.01, prec_confidence=0.05  ):
         """ Run Monte Carlo simulation
 
         Arguments:
         steps : Number of steps in the MC simulation
 
         """
+        allowed_modes = ["fixed","prec"]
+        if ( not mode in allowed_modes ):
+            raise ValueError( "Mode has to be one of {}".format(allowed_modes) )
 
         # Atoms object should have attached calculator
         # Add check that this is show
@@ -208,6 +284,10 @@ class Montecarlo(object):
         self.energy_squared = 0.0
         self.current_step = 0
 
+        if ( mode == "prec" ):
+            # Have to make sure that the system has reached equillibrium in this mode
+            equil = True
+
         if ( equil ):
             # Extract parameters
             maxiter = 1000
@@ -223,6 +303,14 @@ class Montecarlo(object):
                         window_length = value
             self.equillibriate( window_length=window_length, confidence_level=confidence_level, maxiter=maxiter )
 
+        if ( mode == "prec" ):
+            # Estimate correlation length
+            res = self.estimate_correlation_time()
+            while ( not res["correlation_time_found"] ):
+                res = self.estimate_correlation_time()
+            steps = 1E10 # Set the maximum number of steps to a very large number
+            self.reset()
+
         # self.current_step gets updated in the _mc_step function
         while( self.current_step < steps ):
             en, accept = self._mc_step( verbose=verbose )
@@ -233,6 +321,17 @@ class Montecarlo(object):
                 self.logger.info("%d of %d steps. %.2f ms per step"%(self.current_step,steps,1000.0*self.status_every_sec/float(self.current_step-prev)))
                 prev = self.current_step
                 start = time.time()
+            if ( mode == "prec" and self.current_step > 10*self.correlation_info["correlation_time"] ):
+                # Run at least for 10 times the correlation length
+                percentile = stats.norm.ppf(1.0-confidence_level)
+                var_E = self.get_var_average_energy()
+                converged = ( var_E < (prec/percentile)**2 )
+                if ( converged ):
+                    U = self.mean_energy/self.current_step
+                    self.logger.info( "Final mean energy: {} +- {}%".format(U,np.sqrt(var_E)/U ) )
+                    break
+
+
         return totalenergies
 
     def collect_energy( self ):

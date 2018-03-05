@@ -80,7 +80,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
     def reset_ecis( self ):
         return self.reset_eci_to_original( self.atoms.bc._calc.eci )
 
-    def runMC( self, steps = 10, verbose = False, chem_potential=None, equil=True, equil_params=None ):
+    def runMC( self, mode="fixed", steps = 10, verbose = False, chem_potential=None, equil=True, equil_params=None, prec_confidence=0.05, prec=0.01 ):
         if ( chem_potential is None and self.chemical_potential is None ):
             ex_chem_pot = {
                 "c1_1":-0.1,
@@ -109,7 +109,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         if ( not self.has_attached_avg ):
             self.attach( self.averager )
             self.has_attached_avg = True
-        mc.Montecarlo.runMC( self, steps=steps, verbose=verbose, equil=False )
+        mc.Montecarlo.runMC( self, steps=steps, verbose=verbose, equil=False, mode=mode, prec_confidence=prec_confidence, prec=prec )
 
         # Reset the chemical potential to zero
         #zero_chemical_potential = {key:0.0 for key in self.chemical_potential.keys()}
