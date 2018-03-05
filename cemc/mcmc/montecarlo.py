@@ -17,7 +17,7 @@ class Montecarlo(object):
 
     """
 
-    def __init__(self, atoms, temp, indeces=None, mpicomm=None ):
+    def __init__(self, atoms, temp, indeces=None, mpicomm=None, logfile="" ):
         """ Initiliaze Monte Carlo simulations object
 
         Arguments:
@@ -48,8 +48,14 @@ class Montecarlo(object):
         self.mpicomm = mpicomm
         self.logger = logging.getLogger( "MonteCarlo" )
         self.logger.setLevel( logging.DEBUG )
-        ch = logging.StreamHandler()
-        ch.setLevel( logging.INFO )
+        if ( logfile == "" ):
+            ch = logging.StreamHandler()
+            ch.setLevel( logging.INFO )
+            self.flush_log = ch.flush
+        else:
+            ch = logging.FileHandler( logfile )
+            ch.setLevel( logging.INFO )
+            self.flush_log = ch.emit
         if ( not self.logger.handlers ):
             self.logger.addHandler(ch)
 
@@ -164,7 +170,8 @@ class Montecarlo(object):
             else:
                 z_diff = diff/np.sqrt(var_diff)
             self.logger.info( "{:10.2f} {:10.6f} {:10.6f} {:10.2f}".format(E_new,var_E_new,diff, z_diff) )
-            self.logger.handlers[0].flush()
+            #self.logger.handlers[0].flush()
+            #self.flush_log()
             #print ("{:10.2f} {:10.6f} {:10.6f} {:10.2f}".format(E_new,var_E_new,diff, z_diff))
             if( (z_diff < max_percentile) and (z_diff > min_percentile) ):
                 self.logger.info( "System reached equillibrium in {} mc steps".format(number_of_iterations*window_length))
@@ -223,7 +230,7 @@ class Montecarlo(object):
             self.energy_squared += self.current_energy**2
 
             if ( time.time()-start > self.status_every_sec ):
-                print ("%d of %d steps. %.2f ms per step"%(self.current_step,steps,1000.0*self.status_every_sec/float(self.current_step-prev)))
+                self.logger.info("%d of %d steps. %.2f ms per step"%(self.current_step,steps,1000.0*self.status_every_sec/float(self.current_step-prev)))
                 prev = self.current_step
                 start = time.time()
         return totalenergies

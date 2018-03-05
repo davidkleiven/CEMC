@@ -5,8 +5,8 @@ from ase.units import kB
 import copy
 
 class SGCMonteCarlo( mc.Montecarlo ):
-    def __init__( self, atoms, temp, indeces=None, symbols=None, mpicomm=None ):
-        mc.Montecarlo.__init__( self, atoms, temp, indeces=indeces, mpicomm=mpicomm )
+    def __init__( self, atoms, temp, indeces=None, symbols=None, mpicomm=None, logfile="" ):
+        mc.Montecarlo.__init__( self, atoms, temp, indeces=indeces, mpicomm=mpicomm, logfile=logfile )
         if ( not symbols is None ):
             # Override the symbols function in the main class
             self.symbols = symbols
@@ -15,6 +15,8 @@ class SGCMonteCarlo( mc.Montecarlo ):
         self.chem_pot_names = []
         self.has_attached_avg = False
         self.name = "SGCMonteCarlo"
+        self._chemical_potential = None
+        self.chem_pot_in_ecis = False
 
     def get_trial_move( self ):
         indx = np.random.randint( low=0, high=len(self.atoms) )
@@ -40,12 +42,13 @@ class SGCMonteCarlo( mc.Montecarlo ):
 
     @property
     def chemical_potential( self ):
-        return self.__chemical_potential
+        return self._chemical_potential
 
     @chemical_potential.setter
     def chemical_potential( self, chem_pot ):
-        self.__chemical_potential = chem_pot
-        self.reset_eci_to_original( self.atoms._calc.eci)
+        self._chemical_potential = chem_pot
+        if ( self.chem_pot_in_ecis ):
+            self.reset_eci_to_original( self.atoms._calc.eci)
         self.include_chemcical_potential_in_ecis( chem_pot, self.atoms._calc.eci )
 
     def include_chemcical_potential_in_ecis( self, chem_potential, eci ):
@@ -60,8 +63,8 @@ class SGCMonteCarlo( mc.Montecarlo ):
             self.chem_pots.append( chem_potential[key] )
             self.chem_pot_names.append(key)
             eci[key] -= chem_potential[key]
-        print (eci)
         self.atoms._calc.update_ecis( eci )
+        self.chem_pot_in_ecis = True
         return eci
 
     def reset_eci_to_original( self, eci_with_chem_pot ):
@@ -71,7 +74,11 @@ class SGCMonteCarlo( mc.Montecarlo ):
         for name,val in zip(self.chem_pot_names,self.chem_pots):
             eci_with_chem_pot[name] += val
         self.atoms._calc.update_ecis( eci_with_chem_pot )
+        self.chem_pot_in_ecis = False
         return eci_with_chem_pot
+
+    def reset_ecis( self ):
+        return self.reset_eci_to_original( self.atoms.bc._calc.eci )
 
     def runMC( self, steps = 10, verbose = False, chem_potential=None, equil=True, equil_params=None ):
         if ( chem_potential is None and self.chemical_potential is None ):
@@ -130,22 +137,26 @@ class SGCMonteCarlo( mc.Montecarlo ):
                 for key in self.averager.quantities.keys():
                     self.averager[key] /= size
 
-    def get_thermodynamic( self ):
+    def get_thermodynamic( self, reset_ecis=True ):
         N = self.averager.counter
         quantities = {}
         singlets = self.averager.singlets/N
+        singlets_sq = self.averager.quantities["singlets_sq"]/N
         #quantities["chem_pots"] = self.chem_pots
         quantities["energy"] = self.averager.energy/N
         for i in range( len(self.chem_pots) ):
-            quantities["energy"] += self.chem_pots[i]*singlets[i]
+            quantities["energy"] += self.chem_pots[i]*singlets[i]*len(self.atoms)
 
         quantities["heat_capacity"] = self.averager.energy_sq/N - (self.averager.energy/N)**2 + \
                                       np.sum( self.averager.singl_eng/N - (self.averager.energy/N)*singlets )
         quantities["heat_capacity"] /= (kB*self.T**2)
         quantities["temperature"] = self.T
-
+        quantities["n_mc_steps"] = self.averager.counter
         # Add singlets and chemical potential to the dictionary
         for i in range(len(singlets)):
             quantities["singlet_{}".format(self.chem_pot_names[i])] = singlets[i]
+            quantities["var_singlet_{}".format(self.chem_pot_names[i])] = singlets_sq[i]-singlets[i]**2
             quantities["mu_{}".format(self.chem_pot_names[i])] = self.chem_pots[i]
+        if ( reset_ecis ):
+            self.reset_eci_to_original( self.atoms._calc.eci )
         return quantities

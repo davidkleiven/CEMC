@@ -127,6 +127,7 @@ class SGCObserver(MCObserver):
 
         self.quantities = {
             "singlets":np.zeros( n_singlets, dtype=np.float64 ),
+            "singlets_sq":np.zeros( n_singlets, dtype=np.float64 ),
             "energy":0.0,
             "energy_sq":0.0,
             "singl_eng":np.zeros( n_singlets, dtype=np.float64 ),
@@ -153,6 +154,7 @@ class SGCObserver(MCObserver):
         Resets all variables to zero
         """
         self.quantities["singlets"][:] = 0.0
+        self.quantities["singlets_sq"][:] = 0.0
         self.quantities["energy"] = 0.0
         self.quantities["energy_sq"] = 0.0
         self.quantities["singl_eng"][:] = 0.0
@@ -171,6 +173,7 @@ class SGCObserver(MCObserver):
         self.ce_calc.get_singlets(  new_singlets )
 
         self.quantities["singlets"] += new_singlets
+        self.quantities["singlets_sq"] += new_singlets**2
         self.quantities["energy"] += self.mc.current_energy
         self.quantities["energy_sq"] += self.mc.current_energy**2
         self.quantities["singl_eng"] += new_singlets*self.mc.current_energy
