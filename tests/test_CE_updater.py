@@ -4,7 +4,8 @@ try:
     from ase.ce.corrFunc import CorrFunction
     from cemc.wanglandau.ce_calculator import CE
     has_ase_with_ce = True
-except:
+except Exception as exc:
+    print (str(exc))
     has_ase_with_ce = False
 import numpy as np
 
