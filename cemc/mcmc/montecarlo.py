@@ -148,7 +148,6 @@ class Montecarlo(object):
         var = (E_sq - U**2)
         if ( self.correlation_info is None or not self.correlation_info["correlation_time_found"] ):
             return var/self.current_step
-
         return 2.0*var*self.correlation_info["correlation_time"]/self.current_step
 
 
@@ -258,6 +257,25 @@ class Montecarlo(object):
 
         raise RuntimeError( "Did not manage to reach equillibrium!" )
 
+    def has_converged_prec_mode( self, prec=0.01, confidence_level=0.05 ):
+        """
+        Returns True if the simulation has converged in the precission mode
+        """
+        percentile = stats.norm.ppf(1.0-confidence_level)
+        var_E = self.get_var_average_energy()
+        converged = ( var_E < (prec/percentile)**2 )
+        return converged
+
+    def on_converged_log( self ):
+        """
+        Returns message that is printed to the logger after the run
+        """
+        U = self.mean_energy/self.current_step
+        var_E = self.get_var_average_energy()
+        self.logger.info( "Total number of MC steps: {}".format(self.current_step) )
+        self.logger.info( "Final mean energy: {} +- {}%".format(U,np.sqrt(var_E)/np.abs(U) ) )
+
+
     def runMC(self, mode="fixed", steps=10, verbose = False, equil=True, equil_params=None, prec=0.01, prec_confidence=0.05  ):
         """ Run Monte Carlo simulation
 
@@ -323,12 +341,9 @@ class Montecarlo(object):
                 start = time.time()
             if ( mode == "prec" and self.current_step > 10*self.correlation_info["correlation_time"] ):
                 # Run at least for 10 times the correlation length
-                percentile = stats.norm.ppf(1.0-confidence_level)
-                var_E = self.get_var_average_energy()
-                converged = ( var_E < (prec/percentile)**2 )
+                converged = self.has_converged_prec_mode( prec=prec, confidence_level=prec_confidence )
                 if ( converged ):
-                    U = self.mean_energy/self.current_step
-                    self.logger.info( "Final mean energy: {} +- {}%".format(U,np.sqrt(var_E)/U ) )
+                    self.on_converged_log()
                     break
 
 

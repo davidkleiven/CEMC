@@ -3,6 +3,7 @@ from cemc.mcmc.mc_observers import SGCObserver
 import numpy as np
 from ase.units import kB
 import copy
+from scipy import stats
 
 class SGCMonteCarlo( mc.Montecarlo ):
     def __init__( self, atoms, temp, indeces=None, symbols=None, mpicomm=None, logfile="" ):
@@ -32,6 +33,41 @@ class SGCMonteCarlo( mc.Montecarlo ):
         Override the update of the atom tracker. The atom tracker is irrelevant in the semi grand canonical ensemble
         """
         pass
+
+    def get_var_average_singlets( self ):
+        """
+        Returns the variance for the average singlets taking the correlation time into account
+        """
+        N = self.averager.counter
+        singlets = self.averager.singlets/N
+        singlets_sq = self.averager.quantities["singlets_sq"]/N
+        var_n = ( singlets_sq - singlets**2 )
+
+        if ( self.correlation_info is None or not self.correlation_info["correlation_time_found"] ):
+            return var_n/N
+
+        return 2.0*var_n*self.correlation_info["correlation_time_found"]/N
+
+    def has_converged_prec_mode( self, prec=0.01, confidence_level=0.05 ):
+        """
+        Checks that the averages have converged to the desired precission
+        """
+        energy_converged = super( SGCMonteCarlo, self ).has_converged_prec_mode( prec=prec, confidence_level=confidence_level )
+        percentile = stats.norm.ppf(1.0-confidence_level)
+        var_n = self.get_var_average_energy()
+        singlet_converged = ( np.max(var_n) < (prec/percentile)**2 )
+        return singlet_converged and energy_converged
+
+    def on_converged_log(self):
+        """
+        Log the convergence message
+        """
+        super(SGCMonteCarlo,self).on_converged_log()
+        singlets = self.averager.singlets/self.averager.counter
+        var_n = self.get_var_average_singlets()
+        self.logger.info( "Final value of the thermal averaged singlet terms:" )
+        for i in range( len(singlets) ):
+            self.logger.info( "{}: {} +- {}%".format(self.chem_pot_names[i],singlets[i],np.sqrt(var_n[i])/np.abs(singlets[i]) ) )
 
     def reset(self):
         """
