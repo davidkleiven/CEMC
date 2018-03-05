@@ -13,6 +13,7 @@ mu = {"c1_1":data["mu"]}
 class TestFreeEnergy( unittest.TestCase ):
     def test_no_throw( self ):
         no_throw = True
+        msg=""
         try:
             free = fe.FreeEnergy()
             N_atoms = 1000.0
@@ -20,9 +21,9 @@ class TestFreeEnergy( unittest.TestCase ):
             G = free.free_energy_isochemical( T=T, sgc_energy=sgc_energy/N_atoms, nelem=2 )
             H = free.helmholtz_free_energy( G["free_energy"], mu, singlets )
         except Exception as exc:
-            print (str(exc))
+            msg=str(exc)
             no_throw = False
-        self.assertTrue( no_throw )
+        self.assertTrue( no_throw, msg=msg )
 
 if __name__ == "__main__":
     unittest.main()

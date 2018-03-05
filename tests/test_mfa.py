@@ -32,6 +32,7 @@ class TestMFA( unittest.TestCase ):
             return
 
         no_throw = True
+        msg = ""
         try:
             db_name = "test_db.db"
             conc_args = {
@@ -52,8 +53,8 @@ class TestMFA( unittest.TestCase ):
             Cv = mf.heat_capacity( betas )
         except Exception as exc:
             no_throw = False
-            print (str(exc))
-        self.assertTrue( no_throw )
+            msg = str(exc)
+        self.assertTrue( no_throw, msg=msg )
 
 if __name__ == "__main__":
     unittest.main()

@@ -155,5 +155,5 @@ class FreeEnergy(object):
         helmholtz = np.zeros_like( free_energy )
         helmholtz[:] = free_energy
         for key in chemical_potential.keys():
-            helmholtz += chemical_potential[key]*np.array( singlets[key][1:] )
+            helmholtz += chemical_potential[key]*np.array( singlets[key] )
         return helmholtz
