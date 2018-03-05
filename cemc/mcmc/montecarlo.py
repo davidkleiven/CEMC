@@ -10,6 +10,8 @@ import logging
 from mpi4py import MPI
 from scipy import stats
 import logging
+from matplotlib import pyplot as plt
+from ase.units import kJ,mol
 #from ase.io.trajectory import Trajectory
 
 class Montecarlo(object):
@@ -17,14 +19,17 @@ class Montecarlo(object):
 
     """
 
-    def __init__(self, atoms, temp, indeces=None, mpicomm=None, logfile="" ):
+    def __init__(self, atoms, temp, indeces=None, mpicomm=None, logfile="", plot_debug=False ):
         """ Initiliaze Monte Carlo simulations object
 
         Arguments:
         atoms : ASE atoms object
         temp  : Temperature of Monte Carlo simulation in Kelvin
-        indeves; List of atoms involved Monte Carlo swaps. default is all atoms.
-
+        indeces: List of atoms involved Monte Carlo swaps. default is all atoms.
+        mpicomm: MPI communicator object
+        logfile: Filename for logging
+        plot_debug: Boolean if true plots will be generated to visualize
+                    evolution of the system. Useful for debugging.
         """
         self.name = "MonteCarlo"
         self.atoms = atoms
@@ -66,6 +71,8 @@ class Montecarlo(object):
         self.selected_b = 0
         self.corrtime_energies = [] # Array of energies used to estimate the correlation time
         self.correlation_info = None
+        self.plot_debug = plot_debug
+        self.pyplot_block = True # Set to false if pyplot should not block when plt.show() is called
 
     def reset(self):
         """
@@ -146,6 +153,10 @@ class Montecarlo(object):
         U = self.mean_energy/self.current_step
         E_sq = self.energy_squared/self.current_step
         var = (E_sq - U**2)
+        if ( var < 0.0 ):
+            self.logger.warning( "Variance of energy is smaller than zero. (Probably due to numerical precission)" )
+            self.logger.info( "Variance of energy : {}".format(var) )
+            var = np.abs(var)
         if ( self.correlation_info is None or not self.correlation_info["correlation_time_found"] ):
             return var/self.current_step
         return 2.0*var*self.correlation_info["correlation_time"]/self.current_step
@@ -203,6 +214,18 @@ class Montecarlo(object):
         self.correlation_info["correlation_time"] = tau
         self.correlation_info["correlation_time_found"] = True
         self.logger.info( "Estimated correlation time: {}".format(tau) )
+
+        if ( self.plot_debug ):
+            gr_spec= {"hspace":0.0}
+            fig, ax = plt.subplots(nrows=2,gridspec_kw=gr_spec,sharex=True)
+            x = np.arange(len(self.corrtime_energies) )
+            ax[0].plot( x, np.array( self.corrtime_energies )*mol/kJ )
+            ax[0].set_ylabel( "Energy (kJ/mol)" )
+            ax[1].plot( x, auto_corr, lw=3 )
+            ax[1].plot( x, np.exp(-x/tau) )
+            ax[1].set_xlabel( "Number of MC steps" )
+            ax[1].set_ylabel( "ACF" )
+            plt.show( block=self.pyplot_block )
         return self.correlation_info
 
 
@@ -219,6 +242,7 @@ class Montecarlo(object):
         self.logger.info( "Confidence level: {}".format(confidence_level))
         self.logger.info( "Percentiles: {}, {}".format(min_percentile,max_percentile) )
         self.logger.info( "{:10} {:10} {:10} {:10}".format("Energy", "std.dev", "delta E", "quantile") )
+        all_energies = []
         for i in range(maxiter):
             number_of_iterations += 1
             self.reset()
@@ -226,6 +250,8 @@ class Montecarlo(object):
                 self._mc_step()
                 self.mean_energy += self.current_energy
                 self.energy_squared += self.current_energy**2
+                if ( self.plot_debug ):
+                    all_energies.append( self.current_energy/len(self.atoms) )
             E_new = self.mean_energy/window_length
             var_E_new = (self.energy_squared/window_length - E_new**2)/window_length
 
@@ -250,6 +276,14 @@ class Montecarlo(object):
                 self.mean_energy = 0.0
                 self.energy_squared = 0.0
                 self.current_step = 0
+
+                if ( self.plot_debug ):
+                    fig = plt.figure()
+                    ax = fig.add_subplot(1,1,1)
+                    ax.plot( np.array( all_energies )*mol/kJ )
+                    ax.set_xlabel( "Number of MC steps" )
+                    ax.set_ylabel( "Energy (kJ/mol)" )
+                    plt.show( block=self.pyplot_block )
                 return
 
             E_prev = E_new

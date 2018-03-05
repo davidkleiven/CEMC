@@ -6,8 +6,8 @@ import copy
 from scipy import stats
 
 class SGCMonteCarlo( mc.Montecarlo ):
-    def __init__( self, atoms, temp, indeces=None, symbols=None, mpicomm=None, logfile="" ):
-        mc.Montecarlo.__init__( self, atoms, temp, indeces=indeces, mpicomm=mpicomm, logfile=logfile )
+    def __init__( self, atoms, temp, indeces=None, symbols=None, mpicomm=None, logfile="", plot_debug=False ):
+        mc.Montecarlo.__init__( self, atoms, temp, indeces=indeces, mpicomm=mpicomm, logfile=logfile, plot_debug=plot_debug )
         if ( not symbols is None ):
             # Override the symbols function in the main class
             self.symbols = symbols
@@ -46,6 +46,10 @@ class SGCMonteCarlo( mc.Montecarlo ):
         if ( self.correlation_info is None or not self.correlation_info["correlation_time_found"] ):
             return var_n/N
 
+        if ( not np.all(var_n>0.0) ):
+            self.logger.warning( "Some variance where smaller than zero. (Probably due to numerical precission)" )
+            self.logger.info( "Variances: {}".format(var_n))
+            var_n = np.abs(var_n)
         return 2.0*var_n*self.correlation_info["correlation_time_found"]/N
 
     def has_converged_prec_mode( self, prec=0.01, confidence_level=0.05 ):

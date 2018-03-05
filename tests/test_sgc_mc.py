@@ -79,7 +79,7 @@ class TestSGCMC( unittest.TestCase ):
                 "c1_2":-0.03
             }
             T = 600.0
-            mc = SGCMonteCarlo( ceBulk.atoms, T, symbols=["Al","Mg","Si"] )
+            mc = SGCMonteCarlo( ceBulk.atoms, T, symbols=["Al","Mg","Si"], plot_debug=False )
             mc.runMC( chem_potential=chem_pots, mode="prec", prec_confidence=0.05, prec=0.01 )
             thermo = mc.get_thermodynamic()
         except Exception as exc:
