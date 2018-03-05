@@ -27,7 +27,7 @@ class FreeEnergy(object):
                 "sgc_energy":sgc_energy
             }
             # Sort data such that the highest temperature appear first
-            data = self.sort_key( data, mode="decreasing", sort_key="temperature" )
+            data, srt_indx = self.sort_key( data, mode="decreasing", sort_key="temperature" )
             beta_phi_ref = -np.log(nelem) + data["sgc_energy"][0]/(kB*data["temperature"][0])
             return beta_phi_ref
         else:
@@ -37,7 +37,7 @@ class FreeEnergy(object):
                 "temperature":temperature,
                 "sgc_energy":sgc_energy
             }
-            data = self.sort_key( data, mode="increasing", sort_key="temperature" )
+            data, srt_indx = self.sort_key( data, mode="increasing", sort_key="temperature" )
             T_ref = data["temperature"][0]
             beta_ref = 1.0/(kB*T_ref)
             phi = self.mean_field.free_energy( [beta_ref], chem_pot=self.chemical_potential )
@@ -69,7 +69,7 @@ class FreeEnergy(object):
             elif ( mode == "increasing" ):
                 if ( x[i] < x[i-1] ):
                     raise ValueError( "The sequence should be increasing!" )
-        return data
+        return data, srt_indx
 
     def get_sgc_energy( self, internal_energy, singlets, chemical_potential ):
         """
@@ -122,7 +122,7 @@ class FreeEnergy(object):
             sort_mode = "decreasing"
         else:
             sort_mode = "increasing"
-        data = self.sort_key( data, mode=sort_mode, sort_key="temperature" )
+        data, srt_indx = self.sort_key( data, mode=sort_mode, sort_key="temperature" )
         T = data["temperature"]
         sgc_energy = data["sgc_energy"]
         #beta_phi_ref = -np.log(nelem) + sgc_energy[0]/(kB*T[0])
@@ -137,7 +137,8 @@ class FreeEnergy(object):
         res = {
             "temperature":T,
             "free_energy":phi,
-            "temperature_integral":integral
+            "temperature_integral":integral,
+            "order":srt_indx
         }
         return res
 
