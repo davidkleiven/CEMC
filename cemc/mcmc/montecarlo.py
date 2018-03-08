@@ -83,7 +83,7 @@ class Montecarlo(object):
     def linear_vib_correction( self , linvib ):
         self._linear_vib_correction = linvib
         self.atoms._calc.linear_vib_correction= linvib
-        
+
     def reset(self):
         """
         Reset all member variables to their original values
@@ -178,7 +178,7 @@ class Montecarlo(object):
         """
         Returns the current energy without the contribution from vibrations
         """
-        return self.current_energy - self.atoms._calc.vib_energy(self.T)
+        return self.current_energy - self.atoms._calc.vib_energy(self.T)*len(self.atoms)
 
     def estimate_correlation_time( self, window_length=1000, restart=False ):
         """
