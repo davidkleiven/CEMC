@@ -19,7 +19,7 @@ class LinearVibCorrection(object):
             eci_with_out_vib[key] += value*kB*T
         return eci_with_out_vib
 
-    def remove( self ):
+    def reset( self ):
         """
         Removes the contribution from vibrations to the ECIs
         """

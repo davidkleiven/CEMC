@@ -626,6 +626,7 @@ void CEUpdater::get_singlets( PyObject *npy_obj ) const
 
 void CEUpdater::add_linear_vib_correction( const map<string,double> &eci_per_kbT )
 {
+  delete vibs;
   vibs = new LinearVibCorrection(eci_per_kbT);
 }
 

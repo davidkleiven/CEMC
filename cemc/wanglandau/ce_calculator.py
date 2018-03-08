@@ -11,6 +11,7 @@ import matplotlib as mpl
 mpl.rcParams["svg.fonttype"] = "none"
 from matplotlib import pyplot as plt
 from ase.visualize import view
+from cemc.mcmc import linear_vib_correction as lvc
 try:
     from cemc.ce_updater import ce_updater as ce_updater
     use_cpp = True
@@ -72,6 +73,51 @@ class CE( Calculator ):
 
         # Set the symbols back to their original value
         self.set_symbols(symbols)
+        self._linear_vib_correction = None
+
+    @property
+    def linear_vib_correction( self ):
+        return self._linear_vib_correction
+
+    @linear_vib_correction.setter
+    def linear_vib_correction( self, linvib ):
+        if ( not isinstance(linvib,lvc.LinearVibCorrection) ):
+            raise TypeError( "Linear vib correction has to be of type LinearVibCorrection!" )
+        if ( self.linear_vib_correction is not None ):
+            orig_eci = self.linear_vib_correction.reset()
+            if ( orig_eci is not None ):
+                self.eci = orig_eci
+            self.update_ecis(self.eci)
+        self._linear_vib_correction = linvib
+        if ( self.updater is not None ):
+            # This just initialize a LinearVibCorrection object, it does not change the ECIs
+            self.updater.add_linear_vib_correction( ce_updater.map_str_dbl(linvib.eci_per_kbT) )
+
+    def include_linvib_in_ecis( self, T ):
+        """
+        Includes the effect of linear vibration correction in the ECIs
+        """
+        if ( self.linear_vib_correction is None ):
+            return
+        orig_eci = self.linear_vib_correction.reset()
+
+        # Reset the ECIs to the original
+        if ( orig_eci is not None ):
+            self.eci = orig_eci
+            self.update_ecis(self.eci)
+        self.ecis = self.linear_vib_correction.include( self.eci, T )
+        self.update_ecis(self.eci)
+
+    def vib_energy( self, T ):
+        """
+        Returns the vibration energy per atom
+        """
+        if ( self.updater is not None ):
+            return self.updater.vib_energy(T)
+
+        if ( self.linear_vib_correction is not None ):
+            return self.linear_vib_correction.energy(T,self.cf)
+        return 0.0
 
     def initialize_correlation_functions( self ):
         """

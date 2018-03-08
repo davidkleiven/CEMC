@@ -1,13 +1,15 @@
 import unittest
 import os
 from mpi4py import MPI
+from cemc.mcmc import linear_vib_correction as lvc
 
 try:
     from ase.ce.settings import BulkCrystal
     from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
     from cemc.wanglandau.ce_calculator import CE
     has_ase_with_ce = True
-except:
+except Exception as exc:
+    print (str(exc))
     has_ase_with_ce = False
 
 ecis = {
@@ -81,6 +83,12 @@ class TestSGCMC( unittest.TestCase ):
             }
             T = 600.0
             mc = SGCMonteCarlo( ceBulk.atoms, T, symbols=["Al","Mg","Si"], plot_debug=False )
+            mc.runMC( chem_potential=chem_pots, mode="prec", prec_confidence=0.05, prec=0.01 )
+            thermo = mc.get_thermodynamic()
+
+            eci_vib={"c1_1":0.0}
+            vib_corr = lvc.LinearVibCorrection(eci_vib)
+            mc.linear_vib_correction = vib_corr
             mc.runMC( chem_potential=chem_pots, mode="prec", prec_confidence=0.05, prec=0.01 )
             thermo = mc.get_thermodynamic()
         except Exception as exc:

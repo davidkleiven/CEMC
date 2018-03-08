@@ -174,9 +174,9 @@ class SGCObserver(MCObserver):
 
         self.quantities["singlets"] += new_singlets
         self.quantities["singlets_sq"] += new_singlets**2
-        self.quantities["energy"] += self.mc.current_energy
-        self.quantities["energy_sq"] += self.mc.current_energy**2
-        self.quantities["singl_eng"] += new_singlets*self.mc.current_energy
+        self.quantities["energy"] += self.mc.current_energy_without_vib()
+        self.quantities["energy_sq"] += self.mc.current_energy_without_vib()**2
+        self.quantities["singl_eng"] += new_singlets*self.mc.current_energy_without_vib()
         """
         self.singlets += new_singlets
         self.energy += self.mc.current_energy

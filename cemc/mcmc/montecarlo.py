@@ -73,7 +73,17 @@ class Montecarlo(object):
         self.correlation_info = None
         self.plot_debug = plot_debug
         self.pyplot_block = True # Set to false if pyplot should not block when plt.show() is called
+        self._linear_vib_correction = None
 
+    @property
+    def linear_vib_correction(self):
+        return self._linear_vib_correction
+
+    @linear_vib_correction.setter
+    def linear_vib_correction( self , linvib ):
+        self._linear_vib_correction = linvib
+        self.atoms._calc.linear_vib_correction= linvib
+        
     def reset(self):
         """
         Reset all member variables to their original values
@@ -86,6 +96,9 @@ class Montecarlo(object):
         self.energy_squared = 0.0
         #self.correlation_info = None
         self.corrtime_energies = []
+
+    def include_vib( self ):
+        self.atoms._calc.include_linvib_in_ecis( self.T )
 
     def build_atoms_list( self ):
         """
@@ -161,7 +174,11 @@ class Montecarlo(object):
             return var/self.current_step
         return 2.0*var*self.correlation_info["correlation_time"]/self.current_step
 
-
+    def current_energy_without_vib(self):
+        """
+        Returns the current energy without the contribution from vibrations
+        """
+        return self.current_energy - self.atoms._calc.vib_energy(self.T)
 
     def estimate_correlation_time( self, window_length=1000, restart=False ):
         """
@@ -172,7 +189,7 @@ class Montecarlo(object):
             self.corrtime_energies = []
         for i in range( window_length ):
             self._mc_step()
-            self.corrtime_energies.append( self.current_energy )
+            self.corrtime_energies.append( self.current_energy_without_vib() )
 
         mean = np.mean( self.corrtime_energies )
         energy_dev = np.array( self.corrtime_energies ) - mean
@@ -249,10 +266,10 @@ class Montecarlo(object):
             self.reset()
             for i in range(window_length):
                 self._mc_step()
-                self.mean_energy += self.current_energy
-                self.energy_squared += self.current_energy**2
+                self.mean_energy += self.current_energy_without_vib()
+                self.energy_squared += self.current_energy_without_vib()**2
                 if ( self.plot_debug ):
-                    all_energies.append( self.current_energy/len(self.atoms) )
+                    all_energies.append( self.current_energy_without_vib()/len(self.atoms) )
             E_new = self.mean_energy/window_length
             means.append( E_new )
             var_E_new = (self.energy_squared/window_length - E_new**2)/window_length
@@ -329,6 +346,9 @@ class Montecarlo(object):
         if ( not mode in allowed_modes ):
             raise ValueError( "Mode has to be one of {}".format(allowed_modes) )
 
+        # Include vibrations in the ECIS, does nothing if no vibration ECIs are set
+        self.include_vib()
+
         # Atoms object should have attached calculator
         # Add check that this is show
         self.current_energy = 1E8
@@ -374,8 +394,8 @@ class Montecarlo(object):
         # self.current_step gets updated in the _mc_step function
         while( self.current_step < steps ):
             en, accept = self._mc_step( verbose=verbose )
-            self.mean_energy += self.current_energy
-            self.energy_squared += self.current_energy**2
+            self.mean_energy += self.current_energy_without_vib()
+            self.energy_squared += self.current_energy_without_vib()**2
 
             if ( time.time()-start > self.status_every_sec ):
                 self.logger.info("%d of %d steps. %.2f ms per step"%(self.current_step,steps,1000.0*self.status_every_sec/float(self.current_step-prev)))

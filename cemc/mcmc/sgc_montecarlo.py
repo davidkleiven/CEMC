@@ -130,6 +130,9 @@ class SGCMonteCarlo( mc.Montecarlo ):
         if ( chem_potential is not None ):
             self.chemical_potential = chem_potential
         self.averager.reset()
+        
+        # Include vibrations in the ECIS, does nothing if no vibration ECIs are set
+        self.include_vib()
 
         if ( equil ):
             maxiter = 1000
