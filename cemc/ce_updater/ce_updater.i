@@ -1,6 +1,7 @@
 %module ce_updater
 %include "exception.i"
 %include <std_string.i>
+%include <std_map.i>
 %{
 #define SWIG_FILE_WITH_INIT
 #include "ce_updater.hpp"
@@ -12,6 +13,8 @@
 %init %{
   import_array();
 %}
+
+%template(map_str_dbl) std::map<std::string,double>;
 
 %include "ce_updater.hpp"
 %include "matrix.hpp"

@@ -22,7 +22,7 @@ class TestSGCMC( unittest.TestCase ):
             "conc_ratio_min_1":[[1,0]],
             "conc_ratio_max_1":[[0,1]],
         }
-        ceBulk = BulkCrystal( "fcc", 4.05, None, [3,3,3], 1, [["Al","Mg","Si"]], conc_args, db_name, reconf_db=False)
+        ceBulk = BulkCrystal( "fcc", 4.05, None, [3,3,3], 1, [["Al","Mg","Si"]], conc_args, db_name, reconf_db=True)
         calc = CE( ceBulk, ecis )
         ceBulk.atoms.set_calculator(calc)
         return ceBulk
@@ -50,6 +50,7 @@ class TestSGCMC( unittest.TestCase ):
     def test_no_throw_mpi(self):
         if ( has_ase_with_ce ):
             no_throw = True
+            msg = ""
             try:
                 ceBulk = self.init_bulk_crystal()
                 chem_pots = {
@@ -62,9 +63,9 @@ class TestSGCMC( unittest.TestCase ):
                 mc.runMC( steps=100, chem_potential=chem_pots )
                 thermo = mc.get_thermodynamic()
             except Exception as exc:
-                print ( str(exc) )
+                msg = str(exc)
                 no_throw = False
-            self.assertTrue( no_throw )
+            self.assertTrue( no_throw, msg=msg )
 
     def test_no_throw_prec_mode( self ):
         if ( not has_ase_with_ce ):

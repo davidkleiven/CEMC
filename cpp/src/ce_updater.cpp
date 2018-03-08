@@ -14,6 +14,7 @@ CEUpdater::CEUpdater(){};
 CEUpdater::~CEUpdater()
 {
   delete history;
+  delete vibs; vibs=nullptr;
   if ( atoms != nullptr ) Py_DECREF(atoms);
 
   for ( unsigned int i=0;i<observers.size();i++ )
@@ -300,7 +301,7 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
   {
     return;
   }
-  
+
   SymbolChange *symb_change_track;
   cf &current_cf = history->get_current();
   cf *next_cf_ptr=nullptr;
@@ -621,4 +622,19 @@ void CEUpdater::get_singlets( PyObject *npy_obj ) const
     double *ptr = static_cast<double*>( PyArray_GETPTR1(npy_array,i) );
     *ptr = cfs[singlets[i]];
   }
+}
+
+void CEUpdater::add_linear_vib_correction( const map<string,double> &eci_per_kbT )
+{
+  vibs = new LinearVibCorrection(eci_per_kbT);
+}
+
+double CEUpdater::vib_energy( double T ) const
+{
+  if ( vibs != nullptr )
+  {
+    cf& corrfunc = history->get_current();
+    return vibs->energy( corrfunc, T );
+  }
+  return 0.0;
 }
