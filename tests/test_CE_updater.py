@@ -1,6 +1,6 @@
 import unittest
 try:
-    from ase.ce.settings import BulkCrystal
+    from ase.ce.settings_bulk import BulkCrystal
     from ase.ce.corrFunc import CorrFunction
     from cemc.wanglandau.ce_calculator import CE
     has_ase_with_ce = True
@@ -8,17 +8,22 @@ except Exception as exc:
     print (str(exc))
     has_ase_with_ce = False
 import numpy as np
+import os
 
 class TestCE( unittest.TestCase ):
     lattices = ["fcc","bcc","sc"]
     def get_calc(self, lat):
-        db_name = "test_db.db"
+        db_name = "test_db_{}.db".format(lat)
+
         conc_args = {
             "conc_ratio_min_1":[[1,0]],
             "conc_ratio_max_1":[[0,1]],
         }
         eci = {}
-        ceBulk = BulkCrystal( lat, 4.05, None, [4,4,4], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, reconf_db=True)
+        a = 4.05
+        ceBulk = BulkCrystal( crystalstructure=lat, a=a, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, \
+        db_name=db_name, max_cluster_size=4)
+        ceBulk._get_cluster_information()
         calc = CE( ceBulk, eci )
         calc.eci = {key:1.0 for key in calc.cf}
         eci = calc.eci
@@ -29,25 +34,23 @@ class TestCE( unittest.TestCase ):
             for lat in self.lattices:
                 msg = "Failed for lattice {}".format(lat)
                 calc,ceBulk,eci = self.get_calc(lat)
+                cf = CorrFunction(ceBulk)
                 n_tests = 10
                 for i in range(n_tests):
-                    calc.update_cf( (i+1, "Al", "Mg") )
+                    print (i)
+                    old_symb = ceBulk.atoms[i].symbol
+                    if ( old_symb == "Al" ):
+                        new_symb = "Mg"
+                    else:
+                        new_symb = "Al"
+                    calc.update_cf( (i, old_symb, new_symb) )
                     updated_cf = calc.get_cf()
-                    calc = CE( ceBulk, eci ) # Now the calculator is initialized with the new atoms object
+                    brute_force = cf.get_cf( ceBulk.atoms )
                     for key,value in updated_cf.iteritems():
-                        self.assertAlmostEqual( value, calc.cf[key], msg=msg )
+                        self.assertAlmostEqual( value, brute_force[key], msg=msg )
 
     def test_random_swaps( self ):
         if ( has_ase_with_ce ):
-            """
-            db_name = "test_db.db"
-            conc_args = {
-                "conc_ratio_min_1":[[1,0]],
-                "conc_ratio_max_1":[[0,1]],
-            }
-            ceBulk = BulkCrystal( "fcc", 4.05, None, [4,4,4], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, reconf_db=False)
-            eci = {name:1.0 for name in cf.keys()}
-            """
 
             for lat in self.lattices:
                 msg = "Failed for lattice {}".format(lat)
@@ -72,17 +75,6 @@ class TestCE( unittest.TestCase ):
 
     def test_double_swaps( self ):
         if ( has_ase_with_ce ):
-            """
-            db_name = "test_db.db"
-            conc_args = {
-                "conc_ratio_min_1":[[1,0]],
-                "conc_ratio_max_1":[[0,1]],
-            }
-            ceBulk = BulkCrystal( "fcc", 4.05, None, [4,4,4], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, reconf_db=False)
-            eci = {name:1.0 for name in cf.keys()}
-            calc = CE( ceBulk, eci )
-            ceBulk.atoms.set_calculator(calc)
-            """
 
             for lat in self.lattices:
                 calc,ceBulk,eci = self.get_calc(lat)

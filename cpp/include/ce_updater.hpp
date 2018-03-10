@@ -9,9 +9,15 @@
 #include <array>
 #include <Python.h>
 #include "linear_vib_correction.hpp"
+#include "cluster.hpp"
 
-typedef std::vector< std::vector<std::string> > name_list;
-typedef std::vector< std::vector< std::vector<std::vector<int> > > > cluster_list;
+// Read values from name_list
+// name_list[symm_group][cluster_size] = vector of string variables of all the cluster names
+typedef std::vector< std::vector< std::vector<std::string> > > name_list;
+
+// Read values form cluster_list
+// cluster_list[symm_group][cluster_size][indx] = vector of indices belonging to the cluster #indx.
+typedef std::vector< std::vector< std::vector< std::vector<std::vector<int> > > > > cluster_list;
 typedef std::vector< std::map<std::string,double> > bf_list;
 typedef std::map<std::string,double> cf;
 
@@ -51,6 +57,9 @@ public:
 
   /** Returns the value of the singlets */
   void get_singlets( PyObject *npy_array ) const;
+
+  /** Extracts basis functions from the cluster name */
+  void get_basis_functions( const std::string &cluster_name, std::vector<int> &bfs ) const;
 
   /** Updates the CF */
   void update_cf( PyObject *single_change );
@@ -103,6 +112,7 @@ private:
   std::vector<std::string> symbols;
   name_list cluster_names;
   cluster_list cluster_indx;
+  std::map<std::string,Cluster> clusters;
   bf_list basis_functions;
   Status_t status{Status_t::NOT_INITIALIZED};
   Matrix<int> trans_matrix;

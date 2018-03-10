@@ -1,6 +1,6 @@
 from ase.calculators.calculator import Calculator
 from ase.ce.corrFunc import CorrFunction
-from ase.ce.settings import BulkCrystal
+from ase.ce.settings_bulk import BulkCrystal
 from ase.build import bulk
 import unittest
 from itertools import product, combinations
@@ -43,7 +43,7 @@ class CE( Calculator ):
         if ( len(BC.atoms) != BC.trans_matrix.shape[0] ):
             raise ValueError( "The number of atoms and the dimension of the translation matrix is inconsistent. Try reconf_db=True in bulk crystal" )
 
-        if ( len(BC.site_elements) > 1 ):
+        if ( len(BC.basis_elements) > 1 ):
             raise ValueError( "At the moment only one site type is supported!" )
         self.old_cfs = []
         self.old_atoms = self.atoms.copy()
@@ -125,50 +125,52 @@ class CE( Calculator ):
         """
         temp_db_name = "temporary_database.db"
         conc_args = {
-            "conc_ratio_min_1":[[0 for i in range(len(self.BC.site_elements[0]))]],
-            "conc_ratio_max_1":[[0 for i in range(len(self.BC.site_elements[0]))]]
+            "conc_ratio_min_1":[[0 for i in range(len(self.BC.basis_elements[0]))]],
+            "conc_ratio_max_1":[[0 for i in range(len(self.BC.basis_elements[0]))]]
         }
         conc_args["conc_ratio_min_1"][0][0] = 1
         conc_args["conc_ratio_max_1"][0][-1] = 1
         clat = None
-        bc = BulkCrystal( crystalstructure=self.BC.crystalstructure, alat=self.BC.alat, clat=clat,
-        cell_dim=[4,4,4], num_sites=len(self.BC.site_elements), site_elements=self.BC.site_elements, conc_args=conc_args, db_name=temp_db_name,
-        max_cluster_size=4,reconf_db=True)
+        bc = BulkCrystal( crystalstructure=self.BC.crystalstructure, a=self.BC.a, c=self.BC.c,
+        size=[4,4,4], basis_elements=self.BC.basis_elements, conc_args=conc_args, db_name=temp_db_name,
+        max_cluster_size=4)
         cf = CorrFunction(bc)
 
         # TODO: This only works for one site type
         for atom in bc.atoms:
-            atom.symbol = bc.site_elements[0][0]
+            atom.symbol = bc.basis_elements[0][0]
 
         for atom in self.BC.atoms:
-            atom.symbol = bc.site_elements[0][0]
-        return cf.get_cf_by_cluster_names(bc.atoms,self.eci.keys())
+            atom.symbol = bc.basis_elements[0][0]
+        corr_funcs = cf.get_cf_by_cluster_names(bc.atoms,self.eci.keys())
+        os.remove(temp_db_name)
+        return corr_funcs
 
     def convert_cluster_indx_to_list( self ):
         """
         Converts potentials arrays to lists
         """
-        for i in range(len(self.BC.cluster_indx)):
-            if ( self.BC.cluster_indx[i] is None ):
+        for i in range(len(self.BC.cluster_indx[0])):
+            if ( self.BC.cluster_indx[0][i] is None ):
                 continue
-            for j in range(len(self.BC.cluster_indx[i])):
-                if ( self.BC.cluster_indx[i][j] is None ):
+            for j in range(len(self.BC.cluster_indx[0][i])):
+                if ( self.BC.cluster_indx[0][i][j] is None ):
                     continue
-                for k in range(len(self.BC.cluster_indx[i][j])):
-                    if ( isinstance(self.BC.cluster_indx[i][j][k],np.ndarray) ):
-                        self.BC.cluster_indx[i][j][k] = self.BC.cluster_indx[i][j][k].tolist()
+                for k in range(len(self.BC.cluster_indx[0][i][j])):
+                    if ( isinstance(self.BC.cluster_indx[0][i][j][k],np.ndarray) ):
+                        self.BC.cluster_indx[0][i][j][k] = self.BC.cluster_indx[0][i][j][k].tolist()
                     else:
-                        self.BC.cluster_indx[i][j][k] = list(self.BC.cluster_indx[i][j][k])
+                        self.BC.cluster_indx[0][i][j][k] = list(self.BC.cluster_indx[0][i][j][k])
 
-                if ( isinstance(self.BC.cluster_indx[i][j],np.ndarray) ):
-                    self.BC.cluster_indx[i][j] = self.BC.cluster_indx[i][j].tolist()
+                if ( isinstance(self.BC.cluster_indx[0][i][j],np.ndarray) ):
+                    self.BC.cluster_indx[0][i][j] = self.BC.cluster_indx[0][i][j].tolist()
                 else:
-                    self.BC.cluster_indx[i][j] = list(self.BC.cluster_indx[i][j])
+                    self.BC.cluster_indx[0][i][j] = list(self.BC.cluster_indx[0][i][j])
 
-            if ( isinstance(self.BC.cluster_indx[i],np.ndarray) ):
-                self.BC.cluster_indx[i] = self.BC.cluster_indx[i].tolist()
+            if ( isinstance(self.BC.cluster_indx[0][i],np.ndarray) ):
+                self.BC.cluster_indx[0][i] = self.BC.cluster_indx[0][i].tolist()
             else:
-                self.BC.cluster_indx[i] = list(self.BC.cluster_indx[i])
+                self.BC.cluster_indx[0][i] = list(self.BC.cluster_indx[0][i])
 
     def create_permutations( self ):
         """

@@ -21,3 +21,15 @@ std::ostream& operator << (std::ostream &out, const std::vector<T> &vec )
   out << "]";
   return out;
 }
+
+template<class T>
+std::vector<T>& cyclic_permute( std::vector<T> &vec )
+{
+  for ( unsigned int i=0;i<vec.size()-1;i++ )
+  {
+    T prev = vec[0];
+    vec[0] = vec[i+1];
+    vec[i+1] = prev;
+  }
+  return vec;
+}

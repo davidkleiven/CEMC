@@ -14,5 +14,8 @@ std::ostream& operator << (std::ostream &out, const SymbolChange &symb );
 template<class T>
 std::ostream& operator <<( std::ostream &out, const std::vector<T> &vec );
 
+template<class T>
+std::vector<T>& cyclic_permute( std::vector<T> &vec );
+
 #include "additional_tools.tpp"
 #endif
