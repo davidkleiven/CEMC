@@ -3,10 +3,11 @@ from cemc.mcmc.mc_observers import SGCObserver
 import numpy as np
 from ase.units import kB
 import copy
+from scipy import stats
 
 class SGCMonteCarlo( mc.Montecarlo ):
-    def __init__( self, atoms, temp, indeces=None, symbols=None, mpicomm=None, logfile="" ):
-        mc.Montecarlo.__init__( self, atoms, temp, indeces=indeces, mpicomm=mpicomm, logfile=logfile )
+    def __init__( self, atoms, temp, indeces=None, symbols=None, mpicomm=None, logfile="", plot_debug=False ):
+        mc.Montecarlo.__init__( self, atoms, temp, indeces=indeces, mpicomm=mpicomm, logfile=logfile, plot_debug=plot_debug )
         if ( not symbols is None ):
             # Override the symbols function in the main class
             self.symbols = symbols
@@ -32,6 +33,45 @@ class SGCMonteCarlo( mc.Montecarlo ):
         Override the update of the atom tracker. The atom tracker is irrelevant in the semi grand canonical ensemble
         """
         pass
+
+    def get_var_average_singlets( self ):
+        """
+        Returns the variance for the average singlets taking the correlation time into account
+        """
+        N = self.averager.counter
+        singlets = self.averager.singlets/N
+        singlets_sq = self.averager.quantities["singlets_sq"]/N
+        var_n = ( singlets_sq - singlets**2 )
+
+        if ( self.correlation_info is None or not self.correlation_info["correlation_time_found"] ):
+            return var_n/N
+
+        if ( not np.all(var_n>0.0) ):
+            self.logger.warning( "Some variance where smaller than zero. (Probably due to numerical precission)" )
+            self.logger.info( "Variances: {}".format(var_n))
+            var_n = np.abs(var_n)
+        return 2.0*var_n*self.correlation_info["correlation_time_found"]/N
+
+    def has_converged_prec_mode( self, prec=0.01, confidence_level=0.05 ):
+        """
+        Checks that the averages have converged to the desired precission
+        """
+        energy_converged = super( SGCMonteCarlo, self ).has_converged_prec_mode( prec=prec, confidence_level=confidence_level )
+        percentile = stats.norm.ppf(1.0-confidence_level)
+        var_n = self.get_var_average_energy()
+        singlet_converged = ( np.max(var_n) < (prec/percentile)**2 )
+        return singlet_converged and energy_converged
+
+    def on_converged_log(self):
+        """
+        Log the convergence message
+        """
+        super(SGCMonteCarlo,self).on_converged_log()
+        singlets = self.averager.singlets/self.averager.counter
+        var_n = self.get_var_average_singlets()
+        self.logger.info( "Final value of the thermal averaged singlet terms:" )
+        for i in range( len(singlets) ):
+            self.logger.info( "{}: {} +- {}%".format(self.chem_pot_names[i],singlets[i],np.sqrt(var_n[i])/np.abs(singlets[i]) ) )
 
     def reset(self):
         """
@@ -80,7 +120,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
     def reset_ecis( self ):
         return self.reset_eci_to_original( self.atoms.bc._calc.eci )
 
-    def runMC( self, steps = 10, verbose = False, chem_potential=None, equil=True, equil_params=None ):
+    def runMC( self, mode="fixed", steps = 10, verbose = False, chem_potential=None, equil=True, equil_params=None, prec_confidence=0.05, prec=0.01 ):
         if ( chem_potential is None and self.chemical_potential is None ):
             ex_chem_pot = {
                 "c1_1":-0.1,
@@ -90,6 +130,9 @@ class SGCMonteCarlo( mc.Montecarlo ):
         if ( chem_potential is not None ):
             self.chemical_potential = chem_potential
         self.averager.reset()
+        
+        # Include vibrations in the ECIS, does nothing if no vibration ECIs are set
+        self.include_vib()
 
         if ( equil ):
             maxiter = 1000
@@ -109,7 +152,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         if ( not self.has_attached_avg ):
             self.attach( self.averager )
             self.has_attached_avg = True
-        mc.Montecarlo.runMC( self, steps=steps, verbose=verbose, equil=False )
+        mc.Montecarlo.runMC( self, steps=steps, verbose=verbose, equil=False, mode=mode, prec_confidence=prec_confidence, prec=prec )
 
         # Reset the chemical potential to zero
         #zero_chemical_potential = {key:0.0 for key in self.chemical_potential.keys()}

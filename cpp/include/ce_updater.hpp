@@ -8,6 +8,7 @@
 #include "mc_observers.hpp"
 #include <array>
 #include <Python.h>
+#include "linear_vib_correction.hpp"
 
 typedef std::vector< std::vector<std::string> > name_list;
 typedef std::vector< std::vector< std::vector<std::vector<int> > > > cluster_list;
@@ -89,6 +90,12 @@ public:
 
   /** CE updater should keep track of where the atoms are */
   void set_atom_position_tracker( tracker_t *new_tracker ){ tracker=new_tracker; };
+
+  /** Adds a term that tracks the contribution from lattice vibrations */
+  void add_linear_vib_correction( const std::map<std::string,double> &eci_per_kbT );
+
+  /** Computes the vibrational energy at the given temperature */
+  double vib_energy( double T ) const;
 private:
   void create_ctype_lookup();
   void create_permutations( PyObject *pypermutations );
@@ -107,6 +114,7 @@ private:
   std::vector<MCObserver*> observers; // TODO: Not used at the moment. The accept/rejection is done in the Python code
   tracker_t *tracker{nullptr}; // Do not own this pointer
   std::vector< std::string > singlets;
+  LinearVibCorrection *vibs{nullptr};
 
   /** Undos the latest changes keeping the tracker CE tracker updated */
   void undo_changes_tracker();

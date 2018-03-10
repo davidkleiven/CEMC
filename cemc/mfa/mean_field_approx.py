@@ -234,8 +234,9 @@ class MeanFieldApprox( object ):
             total_energy += sum_E/Zi
 
         avg_singlets = self.average_singlets( betas, chem_pot=chem_pot )
-        for key in avg_singlets.keys():
-            total_energy += chem_pot[key]*avg_singlets[key]*len(self.bc.atoms)
+        if ( chem_pot is not None ):
+            for key in avg_singlets.keys():
+                total_energy += chem_pot[key]*avg_singlets[key]*len(self.bc.atoms)
         total_energy += self.E0
         return total_energy/len(self.bc.atoms)
 

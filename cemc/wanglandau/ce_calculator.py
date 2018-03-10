@@ -11,6 +11,7 @@ import matplotlib as mpl
 mpl.rcParams["svg.fonttype"] = "none"
 from matplotlib import pyplot as plt
 from ase.visualize import view
+from cemc.mcmc import linear_vib_correction as lvc
 try:
     from cemc.ce_updater import ce_updater as ce_updater
     use_cpp = True
@@ -28,9 +29,12 @@ class CE( Calculator ):
     def __init__( self, BC, eci, initial_cf=None ):
         Calculator.__init__( self )
         self.BC = BC
+        self.eci = eci
         self.corrFunc = CorrFunction(self.BC)
         self.atoms = self.BC.atoms
+        symbols = [atom.symbol for atom in self.BC.atoms] # Keep a copy of the original symbols
         if ( initial_cf is None ):
+            self.cf = self.initialize_correlation_functions()
             self.cf = self.corrFunc.get_cf_by_cluster_names(self.atoms,eci.keys())
         else:
             self.cf = initial_cf
@@ -38,9 +42,11 @@ class CE( Calculator ):
         # Make sure that the database information fits
         if ( len(BC.atoms) != BC.trans_matrix.shape[0] ):
             raise ValueError( "The number of atoms and the dimension of the translation matrix is inconsistent. Try reconf_db=True in bulk crystal" )
+
+        if ( len(BC.site_elements) > 1 ):
+            raise ValueError( "At the moment only one site type is supported!" )
         self.old_cfs = []
         self.old_atoms = self.atoms.copy()
-        self.eci = eci
         self.changes = []
         self.ctype = {}
         self.create_ctype_lookup()
@@ -64,6 +70,79 @@ class CE( Calculator ):
             self.clear_history = self.clear_history_pure_python
             self.undo_changes = self.undo_changes_pure_python
             self.update_cf = self.update_cf_pure_python
+
+        # Set the symbols back to their original value
+        self.set_symbols(symbols)
+        self._linear_vib_correction = None
+
+    @property
+    def linear_vib_correction( self ):
+        return self._linear_vib_correction
+
+    @linear_vib_correction.setter
+    def linear_vib_correction( self, linvib ):
+        if ( not isinstance(linvib,lvc.LinearVibCorrection) ):
+            raise TypeError( "Linear vib correction has to be of type LinearVibCorrection!" )
+        if ( self.linear_vib_correction is not None ):
+            orig_eci = self.linear_vib_correction.reset()
+            if ( orig_eci is not None ):
+                self.eci = orig_eci
+            self.update_ecis(self.eci)
+        self._linear_vib_correction = linvib
+        if ( self.updater is not None ):
+            # This just initialize a LinearVibCorrection object, it does not change the ECIs
+            self.updater.add_linear_vib_correction( ce_updater.map_str_dbl(linvib.eci_per_kbT) )
+
+    def include_linvib_in_ecis( self, T ):
+        """
+        Includes the effect of linear vibration correction in the ECIs
+        """
+        if ( self.linear_vib_correction is None ):
+            return
+        orig_eci = self.linear_vib_correction.reset()
+
+        # Reset the ECIs to the original
+        if ( orig_eci is not None ):
+            self.eci = orig_eci
+            self.update_ecis(self.eci)
+        self.ecis = self.linear_vib_correction.include( self.eci, T )
+        self.update_ecis(self.eci)
+
+    def vib_energy( self, T ):
+        """
+        Returns the vibration energy per atom
+        """
+        if ( self.updater is not None ):
+            return self.updater.vib_energy(T)
+
+        if ( self.linear_vib_correction is not None ):
+            return self.linear_vib_correction.energy(T,self.cf)
+        return 0.0
+
+    def initialize_correlation_functions( self ):
+        """
+        Initialize the correlation functions by characterizing a 4x4x4 structure
+        """
+        temp_db_name = "temporary_database.db"
+        conc_args = {
+            "conc_ratio_min_1":[[0 for i in range(len(self.BC.site_elements[0]))]],
+            "conc_ratio_max_1":[[0 for i in range(len(self.BC.site_elements[0]))]]
+        }
+        conc_args["conc_ratio_min_1"][0][0] = 1
+        conc_args["conc_ratio_max_1"][0][-1] = 1
+        clat = None
+        bc = BulkCrystal( crystalstructure=self.BC.crystalstructure, alat=self.BC.alat, clat=clat,
+        cell_dim=[4,4,4], num_sites=len(self.BC.site_elements), site_elements=self.BC.site_elements, conc_args=conc_args, db_name=temp_db_name,
+        max_cluster_size=4,reconf_db=True)
+        cf = CorrFunction(bc)
+
+        # TODO: This only works for one site type
+        for atom in bc.atoms:
+            atom.symbol = bc.site_elements[0][0]
+
+        for atom in self.BC.atoms:
+            atom.symbol = bc.site_elements[0][0]
+        return cf.get_cf_by_cluster_names(bc.atoms,self.eci.keys())
 
     def convert_cluster_indx_to_list( self ):
         """

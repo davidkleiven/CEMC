@@ -32,13 +32,14 @@ class TestMFA( unittest.TestCase ):
             return
 
         no_throw = True
+        msg = ""
         try:
             db_name = "test_db.db"
             conc_args = {
                 "conc_ratio_min_1":[[1,0]],
                 "conc_ratio_max_1":[[0,1]],
             }
-            ceBulk = BulkCrystal( "fcc", 4.05, None, [4,4,4], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, reconf_db=False)
+            ceBulk = BulkCrystal( "fcc", 4.05, None, [4,4,4], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, reconf_db=True)
             calc = ClusterExpansion( ceBulk, cluster_name_eci=ecis )
             ceBulk.atoms.set_calculator( calc )
             mf = MeanFieldApprox( ceBulk )
@@ -52,8 +53,8 @@ class TestMFA( unittest.TestCase ):
             Cv = mf.heat_capacity( betas )
         except Exception as exc:
             no_throw = False
-            print (str(exc))
-        self.assertTrue( no_throw )
+            msg = str(exc)
+        self.assertTrue( no_throw, msg=msg )
 
 if __name__ == "__main__":
     unittest.main()

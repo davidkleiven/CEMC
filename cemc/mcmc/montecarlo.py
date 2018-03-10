@@ -10,6 +10,8 @@ import logging
 from mpi4py import MPI
 from scipy import stats
 import logging
+from matplotlib import pyplot as plt
+from ase.units import kJ,mol
 #from ase.io.trajectory import Trajectory
 
 class Montecarlo(object):
@@ -17,14 +19,17 @@ class Montecarlo(object):
 
     """
 
-    def __init__(self, atoms, temp, indeces=None, mpicomm=None, logfile="" ):
+    def __init__(self, atoms, temp, indeces=None, mpicomm=None, logfile="", plot_debug=False ):
         """ Initiliaze Monte Carlo simulations object
 
         Arguments:
         atoms : ASE atoms object
         temp  : Temperature of Monte Carlo simulation in Kelvin
-        indeves; List of atoms involved Monte Carlo swaps. default is all atoms.
-
+        indeces: List of atoms involved Monte Carlo swaps. default is all atoms.
+        mpicomm: MPI communicator object
+        logfile: Filename for logging
+        plot_debug: Boolean if true plots will be generated to visualize
+                    evolution of the system. Useful for debugging.
         """
         self.name = "MonteCarlo"
         self.atoms = atoms
@@ -64,6 +69,20 @@ class Montecarlo(object):
         self.rand_b = 0
         self.selected_a = 0
         self.selected_b = 0
+        self.corrtime_energies = [] # Array of energies used to estimate the correlation time
+        self.correlation_info = None
+        self.plot_debug = plot_debug
+        self.pyplot_block = True # Set to false if pyplot should not block when plt.show() is called
+        self._linear_vib_correction = None
+
+    @property
+    def linear_vib_correction(self):
+        return self._linear_vib_correction
+
+    @linear_vib_correction.setter
+    def linear_vib_correction( self , linvib ):
+        self._linear_vib_correction = linvib
+        self.atoms._calc.linear_vib_correction= linvib
 
     def reset(self):
         """
@@ -75,6 +94,11 @@ class Montecarlo(object):
         self.current_step = 0
         self.mean_energy = 0.0
         self.energy_squared = 0.0
+        #self.correlation_info = None
+        self.corrtime_energies = []
+
+    def include_vib( self ):
+        self.atoms._calc.include_linvib_in_ecis( self.T )
 
     def build_atoms_list( self ):
         """
@@ -134,6 +158,94 @@ class Montecarlo(object):
         # Update the seed
         np.random.seed(seed)
 
+    def get_var_average_energy( self ):
+        """
+        Returns the variance of the average energy, taking into account
+        the auto correlation time
+        """
+        U = self.mean_energy/self.current_step
+        E_sq = self.energy_squared/self.current_step
+        var = (E_sq - U**2)
+        if ( var < 0.0 ):
+            self.logger.warning( "Variance of energy is smaller than zero. (Probably due to numerical precission)" )
+            self.logger.info( "Variance of energy : {}".format(var) )
+            var = np.abs(var)
+        if ( self.correlation_info is None or not self.correlation_info["correlation_time_found"] ):
+            return var/self.current_step
+        return 2.0*var*self.correlation_info["correlation_time"]/self.current_step
+
+    def current_energy_without_vib(self):
+        """
+        Returns the current energy without the contribution from vibrations
+        """
+        return self.current_energy - self.atoms._calc.vib_energy(self.T)*len(self.atoms)
+
+    def estimate_correlation_time( self, window_length=1000, restart=False ):
+        """
+        Estimates the correlation time
+        """
+        self.logger.info( "*********** Estimating correlation time ***************" )
+        if ( restart ):
+            self.corrtime_energies = []
+        for i in range( window_length ):
+            self._mc_step()
+            self.corrtime_energies.append( self.current_energy_without_vib() )
+
+        mean = np.mean( self.corrtime_energies )
+        energy_dev = np.array( self.corrtime_energies ) - mean
+        var = np.var( energy_dev )
+        auto_corr = np.correlate( energy_dev, energy_dev, mode="full" )
+        auto_corr = auto_corr[int(len(auto_corr)/2):]
+
+        # Find the point where the ratio between var and auto_corr is 1/2
+        self.correlation_info = {
+            "correlation_time_found":False,
+            "correlation_time":0.0,
+            "msg":""
+        }
+
+        if ( var == 0.0 ):
+            self.correlation_info["msg"] = "Zero variance leads to infinite correlation time"
+            self.logger.info( self.correlation_info["msg"] )
+            return self.correlation_info
+
+        auto_corr /= (window_length*var)
+        if ( auto_corr[-1]/var > 0.5 ):
+            self.correlation_info["msg"] = "Window is too short. Add more samples"
+            self.logger.info( self.correlation_info["msg"] )
+            return self.correlation_info
+
+        # See:
+        # Van de Walle, A. & Asta, M.
+        # Self-driven lattice-model Monte Carlo simulations of alloy thermodynamic properties and
+        # phase diagrams Modelling and Simulation
+        # in Materials Science and Engineering, IOP Publishing, 2002, 10, 521
+        # for details on  the notation
+        indx = 0
+        for i in range(len(auto_corr)):
+            if ( auto_corr[i] < 0.5 ):
+                indx = i
+                break
+        rho = 2.0**(-1.0/indx)
+        tau = -1.0/np.log(rho)
+        self.correlation_info["correlation_time"] = tau
+        self.correlation_info["correlation_time_found"] = True
+        self.logger.info( "Estimated correlation time: {}".format(tau) )
+
+        if ( self.plot_debug ):
+            gr_spec= {"hspace":0.0}
+            fig, ax = plt.subplots(nrows=2,gridspec_kw=gr_spec,sharex=True)
+            x = np.arange(len(self.corrtime_energies) )
+            ax[0].plot( x, np.array( self.corrtime_energies )*mol/kJ )
+            ax[0].set_ylabel( "Energy (kJ/mol)" )
+            ax[1].plot( x, auto_corr, lw=3 )
+            ax[1].plot( x, np.exp(-x/tau) )
+            ax[1].set_xlabel( "Number of MC steps" )
+            ax[1].set_ylabel( "ACF" )
+            plt.show( block=self.pyplot_block )
+        return self.correlation_info
+
+
     def equillibriate( self, window_length=1000, confidence_level=0.05, maxiter=1000 ):
         """
         Runs the MC until equillibrium is reached
@@ -147,14 +259,19 @@ class Montecarlo(object):
         self.logger.info( "Confidence level: {}".format(confidence_level))
         self.logger.info( "Percentiles: {}, {}".format(min_percentile,max_percentile) )
         self.logger.info( "{:10} {:10} {:10} {:10}".format("Energy", "std.dev", "delta E", "quantile") )
+        all_energies = []
+        means = []
         for i in range(maxiter):
             number_of_iterations += 1
             self.reset()
             for i in range(window_length):
                 self._mc_step()
-                self.mean_energy += self.current_energy
-                self.energy_squared += self.current_energy**2
+                self.mean_energy += self.current_energy_without_vib()
+                self.energy_squared += self.current_energy_without_vib()**2
+                if ( self.plot_debug ):
+                    all_energies.append( self.current_energy_without_vib()/len(self.atoms) )
             E_new = self.mean_energy/window_length
+            means.append( E_new )
             var_E_new = (self.energy_squared/window_length - E_new**2)/window_length
 
             if ( E_prev is None ):
@@ -178,6 +295,20 @@ class Montecarlo(object):
                 self.mean_energy = 0.0
                 self.energy_squared = 0.0
                 self.current_step = 0
+
+                if ( self.plot_debug ):
+                    fig = plt.figure()
+                    ax = fig.add_subplot(1,1,1)
+                    ax.plot( np.array( all_energies )*mol/kJ )
+                    start=0
+                    for i in range(len(means)):
+                        ax.plot( [start,start+window_length], [means[i],means[i]], color="#fc8d62" )
+                        ax.plot( start,means[i], "o", color="#fc8d62" )
+                        ax.axvline( x=start+window_length, color="#a6d854", ls="--")
+                        start += window_length
+                    ax.set_xlabel( "Number of MC steps" )
+                    ax.set_ylabel( "Energy (kJ/mol)" )
+                    plt.show( block=self.pyplot_block )
                 return
 
             E_prev = E_new
@@ -185,13 +316,38 @@ class Montecarlo(object):
 
         raise RuntimeError( "Did not manage to reach equillibrium!" )
 
-    def runMC(self,steps = 10, verbose = False, equil=True, equil_params=None ):
+    def has_converged_prec_mode( self, prec=0.01, confidence_level=0.05 ):
+        """
+        Returns True if the simulation has converged in the precission mode
+        """
+        percentile = stats.norm.ppf(1.0-confidence_level)
+        var_E = self.get_var_average_energy()
+        converged = ( var_E < (prec/percentile)**2 )
+        return converged
+
+    def on_converged_log( self ):
+        """
+        Returns message that is printed to the logger after the run
+        """
+        U = self.mean_energy/self.current_step
+        var_E = self.get_var_average_energy()
+        self.logger.info( "Total number of MC steps: {}".format(self.current_step) )
+        self.logger.info( "Final mean energy: {} +- {}%".format(U,np.sqrt(var_E)/np.abs(U) ) )
+
+
+    def runMC(self, mode="fixed", steps=10, verbose = False, equil=True, equil_params=None, prec=0.01, prec_confidence=0.05  ):
         """ Run Monte Carlo simulation
 
         Arguments:
         steps : Number of steps in the MC simulation
 
         """
+        allowed_modes = ["fixed","prec"]
+        if ( not mode in allowed_modes ):
+            raise ValueError( "Mode has to be one of {}".format(allowed_modes) )
+
+        # Include vibrations in the ECIS, does nothing if no vibration ECIs are set
+        self.include_vib()
 
         # Atoms object should have attached calculator
         # Add check that this is show
@@ -208,6 +364,10 @@ class Montecarlo(object):
         self.energy_squared = 0.0
         self.current_step = 0
 
+        if ( mode == "prec" ):
+            # Have to make sure that the system has reached equillibrium in this mode
+            equil = True
+
         if ( equil ):
             # Extract parameters
             maxiter = 1000
@@ -223,16 +383,32 @@ class Montecarlo(object):
                         window_length = value
             self.equillibriate( window_length=window_length, confidence_level=confidence_level, maxiter=maxiter )
 
+        if ( mode == "prec" ):
+            # Estimate correlation length
+            res = self.estimate_correlation_time()
+            while ( not res["correlation_time_found"] ):
+                res = self.estimate_correlation_time()
+            steps = 1E10 # Set the maximum number of steps to a very large number
+            self.reset()
+
         # self.current_step gets updated in the _mc_step function
         while( self.current_step < steps ):
             en, accept = self._mc_step( verbose=verbose )
-            self.mean_energy += self.current_energy
-            self.energy_squared += self.current_energy**2
+            self.mean_energy += self.current_energy_without_vib()
+            self.energy_squared += self.current_energy_without_vib()**2
 
             if ( time.time()-start > self.status_every_sec ):
                 self.logger.info("%d of %d steps. %.2f ms per step"%(self.current_step,steps,1000.0*self.status_every_sec/float(self.current_step-prev)))
                 prev = self.current_step
                 start = time.time()
+            if ( mode == "prec" and self.current_step > 10*self.correlation_info["correlation_time"] ):
+                # Run at least for 10 times the correlation length
+                converged = self.has_converged_prec_mode( prec=prec, confidence_level=prec_confidence )
+                if ( converged ):
+                    self.on_converged_log()
+                    break
+
+
         return totalenergies
 
     def collect_energy( self ):
