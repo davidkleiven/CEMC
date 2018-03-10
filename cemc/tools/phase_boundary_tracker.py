@@ -72,13 +72,13 @@ class PhaseBoundaryTracker(object):
             return True
         return False
 
-    def compositions_significantly_different( self, thermo1, thermo2, confidence_level=0.05, min_comp_res=0.01 ):
+    def compositions_significantly_different( self, thermo1, thermo2, confidence_level=0.05 ):
         """
         Returns True if the compositions are significantly different
         """
         name = "var_singlet_{}".format(self.mu_name)
-        var1 = thermo1[name]/thermo1["n_mc_steps"]
-        var2 = thermo2[name]/thermo2["n_mc_steps"]
+        var1 = thermo1[name]#/thermo1["n_mc_steps"]
+        var2 = thermo2[name]#/thermo2["n_mc_steps"]
         name = "singlet_{}".format(self.mu_name)
         comp1 = thermo1[name]
         comp2 = thermo2[name]
@@ -88,8 +88,6 @@ class PhaseBoundaryTracker(object):
         min_percentile = stats.norm.ppf(confidence_level)
         max_percentile = stats.norm.ppf(1.0-confidence_level)
 
-        if ( np.abs(diff) < min_comp_res ):
-            return False
         if (( z > max_percentile ) or ( z < min_percentile )):
             return True
         return False
