@@ -118,6 +118,7 @@ private:
   Matrix<int> trans_matrix;
   std::map<std::string,int> ctype_lookup;
   std::map<std::string,double> ecis;
+  std::map<std::string,std::string> cname_with_dec;
   CFHistoryTracker *history{nullptr};
   std::map< int, std::vector< std::vector<int> > > permutations;
   PyObject *atoms{nullptr};
@@ -137,5 +138,8 @@ private:
 
   /** Returns true if all decoration numbers are equal */
   bool all_decoration_nums_equal( const std::vector<int> &dec_num ) const;
+
+  /** Initialize the cluster name with decoration lookup */
+  void create_cname_with_dec( PyObject *corrfuncs );
 };
 #endif

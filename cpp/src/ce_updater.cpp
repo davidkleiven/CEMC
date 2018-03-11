@@ -54,6 +54,7 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   #endif
 
   // Read cluster names
+  create_cname_with_dec( corrFunc );
   PyObject *clist = PyObject_GetAttrString( BC, "cluster_names" );
   PyObject *clst_indx = PyObject_GetAttrString( BC, "cluster_indx" );
   if ( clist == NULL )
@@ -125,7 +126,16 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
           }
           members.push_back(sub_clust);
         }
-        clusters[cluster_name] = Cluster( cluster_name, members );
+        if ( cname_with_dec.find(cluster_name) == cname_with_dec.end() )
+        {
+          stringstream ss;
+          ss << "Could not find the full cluster name for name " << cluster_name;
+          ss << ". Full cluster names exists for: ";
+          ss << cname_with_dec;
+          throw invalid_argument( ss.str() );
+        }
+        string full_cname = cname_with_dec.at(cluster_name);
+        clusters[full_cname] = Cluster( cluster_name, members );
       }
     }
   }
@@ -254,7 +264,7 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   Py_ssize_t pos = 0;
   while(  PyDict_Next(pyeci, &pos, &key,&value) )
   {
-    ecis[PyString_AsString(key)] = PyFloat_AS_DOUBLE(value);
+    ecis[cname_with_dec.at(PyString_AsString(key))] = PyFloat_AS_DOUBLE(value);
   }
   #ifdef CE_DEBUG
     cerr << "Parsing correlation function\n";
@@ -410,7 +420,6 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
       next_cf[name] = current_cf[name] + (basis_functions[dec][symb_change.new_symb] - basis_functions[dec][symb_change.old_symb])/symbols.size();
       continue;
     }
-
     const vector< vector<int> > &cluster_indices = clusters.at(name).get();
     unsigned int size = clusters.at(name).size;
     double normalization = cluster_indices.size()*symbols.size();
@@ -443,9 +452,6 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
       delta_sp += basis_functions[bf_ref][symb_change.new_symb]*sp_new - basis_functions[bf_ref][symb_change.old_symb]*sp_ref;
       bfs = cyclic_permute(bfs);
     }
-    delta_sp *= size; // Multi-counting
-    //sp /= normalization;
-    //next_cf[name] = current_cf[name] + sp;
     delta_sp /= normalization;
     next_cf[name] = current_cf[name] + delta_sp;
   }
@@ -694,5 +700,19 @@ void CEUpdater::get_basis_functions( const string &cname, vector<int> &bfs ) con
   for ( unsigned int i=0;i<bfs_str.size();i++ )
   {
     bfs.push_back( bfs_str[i]-'0' );
+  }
+}
+
+void CEUpdater::create_cname_with_dec( PyObject *cf )
+{
+  Py_ssize_t pos = 0;
+  PyObject *key;
+  PyObject *value;
+  while(  PyDict_Next(cf, &pos, &key,&value) )
+  {
+    string new_key = PyString_AsString(key);
+    int pos = new_key.rfind("_");
+    string prefix = new_key.substr(0,pos);
+    cname_with_dec[prefix] = new_key;
   }
 }

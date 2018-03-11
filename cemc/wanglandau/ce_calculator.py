@@ -35,7 +35,8 @@ class CE( Calculator ):
         symbols = [atom.symbol for atom in self.BC.atoms] # Keep a copy of the original symbols
         if ( initial_cf is None ):
             self.cf = self.initialize_correlation_functions()
-            self.cf = self.corrFunc.get_cf_by_cluster_names(self.atoms,eci.keys())
+            full_names = self.get_full_cluster_names(eci.keys())
+            self.cf = self.corrFunc.get_cf_by_cluster_names(self.atoms,full_names)
         else:
             self.cf = initial_cf
 
@@ -74,6 +75,18 @@ class CE( Calculator ):
         # Set the symbols back to their original value
         self.set_symbols(symbols)
         self._linear_vib_correction = None
+
+    def get_full_cluster_names( self, cnames ):
+        """
+        Returns the full cluster names with decoration info in the end
+        """
+        full_names = self.cf.keys()
+        only_prefix = [name.rpartition("_")[0] for name in full_names]
+        full_cluster_names = []
+        for name in cnames:
+            indx = only_prefix.index(name)
+            full_cluster_names.append( full_names[indx] )
+        return full_cluster_names
 
     @property
     def linear_vib_correction( self ):
@@ -134,6 +147,7 @@ class CE( Calculator ):
         bc = BulkCrystal( crystalstructure=self.BC.crystalstructure, a=self.BC.a, c=self.BC.c,
         size=[4,4,4], basis_elements=self.BC.basis_elements, conc_args=conc_args, db_name=temp_db_name,
         max_cluster_size=4)
+        bc._get_cluster_information()
         cf = CorrFunction(bc)
 
         # TODO: This only works for one site type
@@ -142,7 +156,7 @@ class CE( Calculator ):
 
         for atom in self.BC.atoms:
             atom.symbol = bc.basis_elements[0][0]
-        corr_funcs = cf.get_cf_by_cluster_names(bc.atoms,self.eci.keys())
+        corr_funcs = cf.get_cf(bc.atoms)
         os.remove(temp_db_name)
         return corr_funcs
 
