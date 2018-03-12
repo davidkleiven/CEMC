@@ -629,7 +629,7 @@ void CEUpdater::set_ecis( PyObject *new_ecis )
   Py_ssize_t pos = 0;
   while( PyDict_Next(new_ecis, &pos, &key,&value) )
   {
-    ecis[PyString_AsString(key)] = PyFloat_AS_DOUBLE(value);
+    ecis[cname_with_dec[PyString_AsString(key)]] = PyFloat_AS_DOUBLE(value);
   }
 }
 
@@ -711,8 +711,15 @@ void CEUpdater::create_cname_with_dec( PyObject *cf )
   while(  PyDict_Next(cf, &pos, &key,&value) )
   {
     string new_key = PyString_AsString(key);
-    int pos = new_key.rfind("_");
-    string prefix = new_key.substr(0,pos);
-    cname_with_dec[prefix] = new_key;
+    if ( new_key.substr(0,2) == "c1" )
+    {
+      cname_with_dec[new_key] = new_key;
+    }
+    else
+    {
+      int pos = new_key.rfind("_");
+      string prefix = new_key.substr(0,pos);
+      cname_with_dec[prefix] = new_key;
+    }
   }
 }

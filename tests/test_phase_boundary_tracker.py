@@ -2,7 +2,7 @@ import unittest
 import copy
 import numpy as np
 try:
-    from ase.ce.settings import BulkCrystal
+    from ase.ce.settings_bulk import BulkCrystal
     from cemc.tools.phase_boundary_tracker import PhaseBoundaryTracker, PhaseChangedOnFirstIterationError
     has_ase_with_ce = True
 except:

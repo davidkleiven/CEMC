@@ -36,7 +36,7 @@ class CE( Calculator ):
         if ( initial_cf is None ):
             self.cf = self.initialize_correlation_functions()
             full_names = self.get_full_cluster_names(eci.keys())
-            self.cf = self.corrFunc.get_cf_by_cluster_names(self.atoms,full_names)
+            #self.cf = self.corrFunc.get_cf_by_cluster_names(self.atoms,full_names)
         else:
             self.cf = initial_cf
 
@@ -81,9 +81,17 @@ class CE( Calculator ):
         Returns the full cluster names with decoration info in the end
         """
         full_names = self.cf.keys()
+        print (full_names)
         only_prefix = [name.rpartition("_")[0] for name in full_names]
         full_cluster_names = []
+
+        # First insert the one body names, nothing to be done for them
         for name in cnames:
+            if ( name.startswith("c1") ):
+                full_cluster_names.append(name)
+        for name in cnames:
+            if ( name.startswith("c1") ):
+                continue
             indx = only_prefix.index(name)
             full_cluster_names.append( full_names[indx] )
         return full_cluster_names

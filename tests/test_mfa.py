@@ -1,6 +1,6 @@
 import unittest
 try:
-    from ase.ce.settings import BulkCrystal
+    from ase.ce.settings_bulk import BulkCrystal
     from ase.calculators.cluster_expansion.cluster_expansion import ClusterExpansion
     from cemc.mfa.mean_field_approx import MeanFieldApprox
     from ase.units import kB
