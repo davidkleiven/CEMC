@@ -412,11 +412,11 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
       continue;
     }
 
-    int dec = get_decoration_number( name );
     vector<int> bfs;
     get_basis_functions( name, bfs );
     if ( name.find("c1") == 0 )
     {
+      int dec = bfs[0];
       next_cf[name] = current_cf[name] + (basis_functions[dec][symb_change.new_symb] - basis_functions[dec][symb_change.old_symb])/symbols.size();
       continue;
     }

@@ -108,8 +108,9 @@ class TestCE( unittest.TestCase ):
                         self.assertAlmostEqual( value, updated_cf[key] )
 
     def test_double_swaps_ternary( self ):
-        if ( not has_ase_with_ce or True ): # Disable this test
+        if ( not has_ase_with_ce ): # Disable this test
             self.skipTest( "ASE version has not cluster expansion" )
+            return
 
         db_name = "test_db_ternary.db"
         conc_args = {
@@ -124,22 +125,22 @@ class TestCE( unittest.TestCase ):
         ceBulk._get_cluster_information()
         corr_func = CorrFunction( ceBulk )
         cf = corr_func.get_cf( ceBulk.atoms )
-        eci = {name:ceBulk.basis_functions[0] for name in cf.keys()}
+        prefixes = [name.rpartition("_")[0] for name in cf.keys()]
+        prefixes.remove("")
+        eci = {name:1.0 for name in prefixes}
+        print (eci)
         calc = CE( ceBulk, eci )
         n_tests = 10
 
         # Insert 25 Mg atoms and 25 Si atoms
         n = 18
-        keys = eci.keys()
-        keys.sort()
         for i in range(n):
             print ( "Changing element {} of {}".format(i,n) )
             calc.calculate( ceBulk.atoms, ["energy"], [(i,"Al","Mg")])
             calc.calculate( ceBulk.atoms, ["energy"], [(i+n,"Al","Si")])
             updated_cf = calc.get_cf()
-            brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, eci.keys() )
-            for key in keys:
-                print (key,brute_force[key],updated_cf[key])
+            brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, updated_cf.keys() )
+            for key in updated_cf.keys():
                 self.assertAlmostEqual( brute_force[key], updated_cf[key])
 
         # Swap atoms
@@ -154,7 +155,7 @@ class TestCE( unittest.TestCase ):
                 symb2 = ceBulk.atoms[indx2].symbol
             calc.calculate( ceBulk.atoms, ["energy"], [(indx1,symb1,symb2),(indx2,symb2,symb1)])
             update_cf = calc.get_cf()
-            brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, eci.keys() )
+            brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, update_cf.keys() )
             for key,value in brute_force.iteritems():
                 self.assertAlmostEqual( value, update_cf[key])
 
