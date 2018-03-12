@@ -39,11 +39,12 @@ class TestMFA( unittest.TestCase ):
                 "conc_ratio_min_1":[[1,0]],
                 "conc_ratio_max_1":[[0,1]],
             }
-            ceBulk = BulkCrystal( "fcc", 4.05, None, [4,4,4], 1, [["Al","Mg"]], conc_args, db_name, max_cluster_size=4, reconf_db=True)
-            calc = ClusterExpansion( ceBulk, cluster_name_eci=ecis )
+            ceBulk = BulkCrystal( crystalstructure="fcc", a=4.05, size=[4,4,4], basis_elements=[["Al","Mg"]], conc_args=conc_args, db_name=db_name, max_cluster_size=4)
+            ceBulk._get_cluster_information()
+            calc = ClusterExpansion( ceBulk, cluster_name_eci=ecis ) # Bug in the update
             ceBulk.atoms.set_calculator( calc )
             mf = MeanFieldApprox( ceBulk )
-            chem_pot = {"c1_1":-1.05}
+            chem_pot = {"c1_0":-1.05}
             betas = np.linspace( 1.0/(kB*100), 1.0/(kB*800), 50 )
             G = mf.free_energy( betas, chem_pot=chem_pot)
             G = mf.free_energy( betas ) # Try when chem_pot is not given
