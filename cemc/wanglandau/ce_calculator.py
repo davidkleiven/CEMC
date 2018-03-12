@@ -35,7 +35,7 @@ class CE( Calculator ):
         symbols = [atom.symbol for atom in self.BC.atoms] # Keep a copy of the original symbols
         if ( initial_cf is None ):
             self.cf = self.initialize_correlation_functions()
-            full_names = self.get_full_cluster_names(eci.keys())
+            #full_names = self.get_full_cluster_names(eci.keys())
             #self.cf = self.corrFunc.get_cf_by_cluster_names(self.atoms,full_names)
         else:
             self.cf = initial_cf

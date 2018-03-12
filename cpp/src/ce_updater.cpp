@@ -64,17 +64,17 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   }
 
   unsigned int num_trans_symm = PyList_Size( clist );
-  if ( num_trans_symm != 1 )
+  /*if ( num_trans_symm != 1 )
   {
     throw invalid_argument( "The CE udpater only supports 1 site type at the moment..." );
-  }
+  }*/
   // Loop over all symmetry equivalent sites
   for ( unsigned int s=0;s<num_trans_symm;s++ )
   {
     PyObject *clusters_name_list = PyList_GetItem( clist, s );
     PyObject *current_indx_outer = PyList_GetItem( clst_indx, s );
     int n_cluster_sizes = PyList_Size( clusters_name_list );
-
+    map<string,Cluster> new_clusters;
     if ( n_cluster_sizes < 0 )
     {
       throw runtime_error( "Could not read clusters! Length list is smaller than zero!" );
@@ -135,9 +135,11 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
           throw invalid_argument( ss.str() );
         }
         string full_cname = cname_with_dec.at(cluster_name);
-        clusters[full_cname] = Cluster( cluster_name, members );
+        cout << full_cname << endl;
+        new_clusters[cluster_name] = Cluster( cluster_name, members );
       }
     }
+    clusters.push_back( new_clusters );
   }
   Py_DECREF( clst_indx );
   Py_DECREF( clist );
@@ -264,7 +266,7 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   Py_ssize_t pos = 0;
   while(  PyDict_Next(pyeci, &pos, &key,&value) )
   {
-    ecis[cname_with_dec.at(PyString_AsString(key))] = PyFloat_AS_DOUBLE(value);
+    ecis[PyString_AsString(key)] = PyFloat_AS_DOUBLE(value);
   }
   #ifdef CE_DEBUG
     cerr << "Parsing correlation function\n";
@@ -420,39 +422,61 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
       next_cf[name] = current_cf[name] + (basis_functions[dec][symb_change.new_symb] - basis_functions[dec][symb_change.old_symb])/symbols.size();
       continue;
     }
-    const vector< vector<int> > &cluster_indices = clusters.at(name).get();
-    unsigned int size = clusters.at(name).size;
-    double normalization = cluster_indices.size()*symbols.size();
-    assert( cluster_indices[0].size() == size );
-    assert( bfs.size() == size );
-    /*double sp_ref = spin_product_one_atom( symb_change.indx, cur_cluster_indx[size][ctype], bfs, symbols );
-    double sp_new = spin_product_one_atom( symb_change.indx, cur_cluster_indx[size][ctype], bfs, symbols );
-    //double sp = spin_product_one_atom( symb_change.indx, cluster_indx[size][ctype], permutations[size][dec] );
-    int bf_ref = bfs[0];
 
-    double sp = basis_functions[bf_ref][symb_change.new_symb]*sp_new - basis_functions[bf_ref][symb_change.old_symb]*sp_ref;
-    //if ( basis_functions.size() == 1 )
-    //if ( all_decoration_nums_equal( permutations[size][dec] ) )
-    if ( all_decoration_nums_equal( bfs ) )
-    {
-      // Account for degeneracy
-      sp *= size;
-    }
-    else
-    {
-      // Cyclic permutation of the basis functions
-    }*/
+    // Extract the prefix
+    int pos = name.rfind("_");
+    string prefix = name.substr(0,pos);
 
+    double normalization = 0.0;
+    int count = 0;
     double delta_sp = 0.0;
-    for ( unsigned int i=0;i<size;i++ )
+    for ( unsigned int symm=0;symm<clusters.size();symm++ )
     {
-      double sp_ref = spin_product_one_atom( symb_change.indx, cluster_indices, bfs, symbols );
-      double sp_new = spin_product_one_atom( symb_change.indx, cluster_indices, bfs, symbols );
+      const vector< vector<int> > &cluster_indices = clusters[symm].at(prefix).get();
+      unsigned int size = clusters[symm].at(prefix).size;
+      normalization += cluster_indices.size();
+      count += size;
+      assert( cluster_indices[0].size() == size );
+      assert( bfs.size() == size );
+      /*double sp_ref = spin_product_one_atom( symb_change.indx, cur_cluster_indx[size][ctype], bfs, symbols );
+      double sp_new = spin_product_one_atom( symb_change.indx, cur_cluster_indx[size][ctype], bfs, symbols );
+      //double sp = spin_product_one_atom( symb_change.indx, cluster_indx[size][ctype], permutations[size][dec] );
       int bf_ref = bfs[0];
-      delta_sp += basis_functions[bf_ref][symb_change.new_symb]*sp_new - basis_functions[bf_ref][symb_change.old_symb]*sp_ref;
-      bfs = cyclic_permute(bfs);
+
+      double sp = basis_functions[bf_ref][symb_change.new_symb]*sp_new - basis_functions[bf_ref][symb_change.old_symb]*sp_ref;
+      //if ( basis_functions.size() == 1 )
+      //if ( all_decoration_nums_equal( permutations[size][dec] ) )
+      if ( all_decoration_nums_equal( bfs ) )
+      {
+        // Account for degeneracy
+        sp *= size;
+      }
+      else
+      {
+        // Cyclic permutation of the basis functions
+      }*/
+
+      /*
+      for ( unsigned int i=0;i<size;i++ )
+      {
+        double sp_ref = spin_product_one_atom( symb_change.indx, cluster_indices, bfs, symbols );
+        double sp_new = spin_product_one_atom( symb_change.indx, cluster_indices, bfs, symbols );
+        int bf_ref = bfs[0];
+        delta_sp += basis_functions[bf_ref][symb_change.new_symb]*sp_new - basis_functions[bf_ref][symb_change.old_symb]*sp_ref;
+        bfs = cyclic_permute(bfs);
+      }*/
+      int permutation_counter = 0;
+      do
+      {
+        double sp_ref = spin_product_one_atom( symb_change.indx, cluster_indices, bfs, symbols );
+        double sp_new = spin_product_one_atom( symb_change.indx, cluster_indices, bfs, symbols );
+        int bf_ref = bfs[0];
+        delta_sp += basis_functions[bf_ref][symb_change.new_symb]*sp_new - basis_functions[bf_ref][symb_change.old_symb]*sp_ref;
+        permutation_counter += 1;
+      } while ( next_permutation( bfs.begin(),bfs.end() ) );
+      delta_sp *= (static_cast<double>(size)/permutation_counter);
     }
-    delta_sp /= normalization;
+    delta_sp /= (normalization*symbols.size());
     next_cf[name] = current_cf[name] + delta_sp;
   }
 }
@@ -629,7 +653,7 @@ void CEUpdater::set_ecis( PyObject *new_ecis )
   Py_ssize_t pos = 0;
   while( PyDict_Next(new_ecis, &pos, &key,&value) )
   {
-    ecis[cname_with_dec[PyString_AsString(key)]] = PyFloat_AS_DOUBLE(value);
+    ecis[PyString_AsString(key)] = PyFloat_AS_DOUBLE(value);
   }
 }
 

@@ -3,6 +3,7 @@ try:
     from ase.ce.settings_bulk import BulkCrystal
     from ase.ce.corrFunc import CorrFunction
     from cemc.wanglandau.ce_calculator import CE
+    from ase.visualize import view
     has_ase_with_ce = True
 except Exception as exc:
     print (str(exc))
@@ -25,9 +26,9 @@ class TestCE( unittest.TestCase ):
         ceBulk._get_cluster_information()
         cf = CorrFunction(ceBulk)
         corrfuncs = cf.get_cf(ceBulk.atoms)
-        prefixes = [key.rpartition("_")[0] for key in corrfuncs.keys()]
-        prefixes.remove("")
-        eci = {name:1.0 for name in prefixes}
+        #prefixes = [key.rpartition("_")[0] for key in corrfuncs.keys()]
+        #prefixes.remove("")
+        eci = {name:1.0 for name in corrfuncs.keys()}
         ceBulk._get_cluster_information()
         calc = CE( ceBulk, eci )
         return calc,ceBulk,eci
@@ -125,9 +126,10 @@ class TestCE( unittest.TestCase ):
         ceBulk._get_cluster_information()
         corr_func = CorrFunction( ceBulk )
         cf = corr_func.get_cf( ceBulk.atoms )
-        prefixes = [name.rpartition("_")[0] for name in cf.keys()]
-        prefixes.remove("")
-        eci = {name:1.0 for name in prefixes}
+        print (ceBulk.unique_cluster_names)
+        #prefixes = [name.rpartition("_")[0] for name in cf.keys()]
+        #prefixes.remove("")
+        eci = {name:1.0 for name in cf.keys()}
         print (eci)
         calc = CE( ceBulk, eci )
         n_tests = 10

@@ -112,7 +112,7 @@ private:
   std::vector<std::string> symbols;
   name_list cluster_names;
   cluster_list cluster_indx;
-  std::map<std::string,Cluster> clusters;
+  std::vector< std::map<std::string,Cluster> > clusters;
   bf_list basis_functions;
   Status_t status{Status_t::NOT_INITIALIZED};
   Matrix<int> trans_matrix;
