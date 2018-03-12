@@ -82,7 +82,7 @@ class Montecarlo(object):
     @linear_vib_correction.setter
     def linear_vib_correction( self , linvib ):
         self._linear_vib_correction = linvib
-        self.atoms._calc.linear_vib_correction= linvib
+        self.atoms._calc.linear_vib_correction = linvib
 
     def reset(self):
         """
@@ -332,7 +332,7 @@ class Montecarlo(object):
         U = self.mean_energy/self.current_step
         var_E = self.get_var_average_energy()
         self.logger.info( "Total number of MC steps: {}".format(self.current_step) )
-        self.logger.info( "Final mean energy: {} +- {}%".format(U,np.sqrt(var_E)/np.abs(U) ) )
+        self.logger.info( "Mean energy: {} +- {}%".format(U,np.sqrt(var_E)/np.abs(U) ) )
 
 
     def runMC(self, mode="fixed", steps=10, verbose = False, equil=True, equil_params=None, prec=0.01, prec_confidence=0.05  ):
@@ -382,7 +382,6 @@ class Montecarlo(object):
                     elif ( key == "window_length" ):
                         window_length = value
             self.equillibriate( window_length=window_length, confidence_level=confidence_level, maxiter=maxiter )
-
         if ( mode == "prec" ):
             # Estimate correlation length
             res = self.estimate_correlation_time()
@@ -399,6 +398,7 @@ class Montecarlo(object):
 
             if ( time.time()-start > self.status_every_sec ):
                 self.logger.info("%d of %d steps. %.2f ms per step"%(self.current_step,steps,1000.0*self.status_every_sec/float(self.current_step-prev)))
+                self.on_converged_log()
                 prev = self.current_step
                 start = time.time()
             if ( mode == "prec" and self.current_step > 10*self.correlation_info["correlation_time"] ):

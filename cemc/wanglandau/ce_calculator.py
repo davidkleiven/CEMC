@@ -84,9 +84,7 @@ class CE( Calculator ):
         if ( not isinstance(linvib,lvc.LinearVibCorrection) ):
             raise TypeError( "Linear vib correction has to be of type LinearVibCorrection!" )
         if ( self.linear_vib_correction is not None ):
-            orig_eci = self.linear_vib_correction.reset()
-            if ( orig_eci is not None ):
-                self.eci = orig_eci
+            self.eci = self.linear_vib_correction.reset(self.eci)
             self.update_ecis(self.eci)
         self._linear_vib_correction = linvib
         if ( self.updater is not None ):
@@ -99,12 +97,10 @@ class CE( Calculator ):
         """
         if ( self.linear_vib_correction is None ):
             return
-        orig_eci = self.linear_vib_correction.reset()
+        self.eci = self.linear_vib_correction.reset(self.eci)
 
         # Reset the ECIs to the original
-        if ( orig_eci is not None ):
-            self.eci = orig_eci
-            self.update_ecis(self.eci)
+        self.update_ecis(self.eci)
         self.ecis = self.linear_vib_correction.include( self.eci, T )
         self.update_ecis(self.eci)
 

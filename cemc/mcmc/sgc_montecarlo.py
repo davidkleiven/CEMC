@@ -69,7 +69,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         super(SGCMonteCarlo,self).on_converged_log()
         singlets = self.averager.singlets/self.averager.counter
         var_n = self.get_var_average_singlets()
-        self.logger.info( "Final value of the thermal averaged singlet terms:" )
+        self.logger.info( "Thermal averaged singlet terms:" )
         for i in range( len(singlets) ):
             self.logger.info( "{}: {} +- {}%".format(self.chem_pot_names[i],singlets[i],np.sqrt(var_n[i])/np.abs(singlets[i]) ) )
 
@@ -126,11 +126,12 @@ class SGCMonteCarlo( mc.Montecarlo ):
                 "c1_1":-0.1,
                 "c1_2":0.05
             }
-            raise ValueError( "No chemicla potentials given. Has to be dictionary of the form {}".format(ex_chem_pot) )
+            raise ValueError( "No chemicalpotentials given. Has to be dictionary of the form {}".format(ex_chem_pot) )
+
         if ( chem_potential is not None ):
             self.chemical_potential = chem_potential
         self.averager.reset()
-        
+
         # Include vibrations in the ECIS, does nothing if no vibration ECIs are set
         self.include_vib()
 
