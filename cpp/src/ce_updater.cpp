@@ -141,7 +141,6 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
           throw invalid_argument( ss.str() );
         }
         string full_cname = cname_with_dec.at(cluster_name);
-        cout << full_cname << endl;
         new_clusters[cluster_name] = Cluster( cluster_name, members );
       }
     }

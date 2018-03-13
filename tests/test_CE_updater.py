@@ -49,8 +49,6 @@ class TestCE( unittest.TestCase ):
                     calc.update_cf( (i, old_symb, new_symb) )
                     updated_cf = calc.get_cf()
                     brute_force = cf.get_cf( ceBulk.atoms )
-                    print (updated_cf)
-                    print (brute_force)
                     for key,value in updated_cf.iteritems():
                         self.assertAlmostEqual( value, brute_force[key], msg=msg )
 
@@ -127,11 +125,9 @@ class TestCE( unittest.TestCase ):
         ceBulk._get_cluster_information()
         corr_func = CorrFunction( ceBulk )
         cf = corr_func.get_cf( ceBulk.atoms )
-        print (ceBulk.unique_cluster_names)
         #prefixes = [name.rpartition("_")[0] for name in cf.keys()]
         #prefixes.remove("")
         eci = {name:1.0 for name in cf.keys()}
-        print (eci)
         calc = CE( ceBulk, eci )
         n_tests = 10
 

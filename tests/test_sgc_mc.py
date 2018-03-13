@@ -27,7 +27,6 @@ class TestSGCMC( unittest.TestCase ):
         ceBulk = BulkCrystal( crystalstructure="fcc", a=4.05, size=[3,3,3], basis_elements=[["Al","Mg","Si"]], conc_args=conc_args, db_name=db_name, \
         max_cluster_size=4, max_cluster_dia=4.05)
         ceBulk._get_cluster_information()
-        print (ceBulk.unique_cluster_names)
         calc = CE( ceBulk, ecis )
         ceBulk.atoms.set_calculator(calc)
         return ceBulk
