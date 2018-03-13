@@ -12,7 +12,8 @@ import numpy as np
 import os
 
 class TestCE( unittest.TestCase ):
-    lattices = ["fcc","bcc","sc"]
+    lattices = ["fcc","bcc","sc","hcp"]
+    #lattices = ["hcp"]
     def get_calc(self, lat):
         db_name = "test_db_{}.db".format(lat)
 
@@ -26,8 +27,6 @@ class TestCE( unittest.TestCase ):
         ceBulk._get_cluster_information()
         cf = CorrFunction(ceBulk)
         corrfuncs = cf.get_cf(ceBulk.atoms)
-        #prefixes = [key.rpartition("_")[0] for key in corrfuncs.keys()]
-        #prefixes.remove("")
         eci = {name:1.0 for name in corrfuncs.keys()}
         ceBulk._get_cluster_information()
         calc = CE( ceBulk, eci )
@@ -50,6 +49,8 @@ class TestCE( unittest.TestCase ):
                     calc.update_cf( (i, old_symb, new_symb) )
                     updated_cf = calc.get_cf()
                     brute_force = cf.get_cf( ceBulk.atoms )
+                    print (updated_cf)
+                    print (brute_force)
                     for key,value in updated_cf.iteritems():
                         self.assertAlmostEqual( value, brute_force[key], msg=msg )
 

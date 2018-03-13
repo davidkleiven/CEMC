@@ -113,6 +113,7 @@ private:
   name_list cluster_names;
   cluster_list cluster_indx;
   std::vector< std::map<std::string,Cluster> > clusters;
+  std::vector<int> trans_symm_group;
   bf_list basis_functions;
   Status_t status{Status_t::NOT_INITIALIZED};
   Matrix<int> trans_matrix;
@@ -141,5 +142,8 @@ private:
 
   /** Initialize the cluster name with decoration lookup */
   void create_cname_with_dec( PyObject *corrfuncs );
+
+  /** Build a list over which translation symmetry group a site belongs to */
+  void build_trans_symm_group( PyObject* single_term_clusters );
 };
 #endif

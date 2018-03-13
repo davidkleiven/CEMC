@@ -48,6 +48,12 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
     Py_DECREF(pyindx);
     Py_DECREF(atom);
   }
+  trans_symm_group.resize(n_atoms);
+
+  // Build read the translational sites
+  PyObject* py_trans_symm_group = PyObject_GetAttrString( BC, "index_by_trans_symm" );
+  build_trans_symm_group( py_trans_symm_group );
+  Py_DECREF( py_trans_symm_group );
 
   #ifdef CE_DEBUG
     cerr << "Getting cluster names from atoms object\n";
@@ -427,55 +433,24 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
     int pos = name.rfind("_");
     string prefix = name.substr(0,pos);
 
-    double normalization = 0.0;
-    int count = 0;
     double delta_sp = 0.0;
-    for ( unsigned int symm=0;symm<clusters.size();symm++ )
+    int symm = trans_symm_group[symb_change.indx];
+    const vector< vector<int> > &cluster_indices = clusters[symm].at(prefix).get();
+    unsigned int size = clusters[symm].at(prefix).size;
+    double normalization = cluster_indices.size();
+    assert( cluster_indices[0].size() == size );
+    assert( bfs.size() == size );
+
+    int permutation_counter = 0;
+    do
     {
-      const vector< vector<int> > &cluster_indices = clusters[symm].at(prefix).get();
-      unsigned int size = clusters[symm].at(prefix).size;
-      normalization += cluster_indices.size();
-      count += size;
-      assert( cluster_indices[0].size() == size );
-      assert( bfs.size() == size );
-      /*double sp_ref = spin_product_one_atom( symb_change.indx, cur_cluster_indx[size][ctype], bfs, symbols );
-      double sp_new = spin_product_one_atom( symb_change.indx, cur_cluster_indx[size][ctype], bfs, symbols );
-      //double sp = spin_product_one_atom( symb_change.indx, cluster_indx[size][ctype], permutations[size][dec] );
+      double sp_ref = spin_product_one_atom( symb_change.indx, cluster_indices, bfs, symbols );
+      double sp_new = spin_product_one_atom( symb_change.indx, cluster_indices, bfs, symbols );
       int bf_ref = bfs[0];
-
-      double sp = basis_functions[bf_ref][symb_change.new_symb]*sp_new - basis_functions[bf_ref][symb_change.old_symb]*sp_ref;
-      //if ( basis_functions.size() == 1 )
-      //if ( all_decoration_nums_equal( permutations[size][dec] ) )
-      if ( all_decoration_nums_equal( bfs ) )
-      {
-        // Account for degeneracy
-        sp *= size;
-      }
-      else
-      {
-        // Cyclic permutation of the basis functions
-      }*/
-
-      /*
-      for ( unsigned int i=0;i<size;i++ )
-      {
-        double sp_ref = spin_product_one_atom( symb_change.indx, cluster_indices, bfs, symbols );
-        double sp_new = spin_product_one_atom( symb_change.indx, cluster_indices, bfs, symbols );
-        int bf_ref = bfs[0];
-        delta_sp += basis_functions[bf_ref][symb_change.new_symb]*sp_new - basis_functions[bf_ref][symb_change.old_symb]*sp_ref;
-        bfs = cyclic_permute(bfs);
-      }*/
-      int permutation_counter = 0;
-      do
-      {
-        double sp_ref = spin_product_one_atom( symb_change.indx, cluster_indices, bfs, symbols );
-        double sp_new = spin_product_one_atom( symb_change.indx, cluster_indices, bfs, symbols );
-        int bf_ref = bfs[0];
-        delta_sp += basis_functions[bf_ref][symb_change.new_symb]*sp_new - basis_functions[bf_ref][symb_change.old_symb]*sp_ref;
-        permutation_counter += 1;
-      } while ( next_permutation( bfs.begin(),bfs.end() ) );
-      delta_sp *= (static_cast<double>(size)/permutation_counter);
-    }
+      delta_sp += basis_functions[bf_ref][symb_change.new_symb]*sp_new - basis_functions[bf_ref][symb_change.old_symb]*sp_ref;
+      permutation_counter += 1;
+    } while ( next_permutation( bfs.begin(),bfs.end() ) );
+    delta_sp *= (static_cast<double>(size)/permutation_counter);
     delta_sp /= (normalization*symbols.size());
     next_cf[name] = current_cf[name] + delta_sp;
   }
@@ -744,6 +719,42 @@ void CEUpdater::create_cname_with_dec( PyObject *cf )
       int pos = new_key.rfind("_");
       string prefix = new_key.substr(0,pos);
       cname_with_dec[prefix] = new_key;
+    }
+  }
+}
+
+void CEUpdater::build_trans_symm_group( PyObject *py_trans_symm_group )
+{
+  // Fill the symmetry group array with -1 indicating an invalid value
+  for ( unsigned int i=0;i<trans_symm_group.size();i++ )
+  {
+    trans_symm_group[i] = -1;
+  }
+
+  int list_size = PyList_Size( py_trans_symm_group );
+  for ( int i=0;i<list_size;i++ )
+  {
+    PyObject *sublist = PyList_GetItem( py_trans_symm_group, i );
+    int n_sites = PyList_Size( sublist );
+    for ( unsigned int j=0;j<n_sites;j++ )
+    {
+      int indx = PyInt_AsLong( PyList_GetItem( sublist, j ) );
+      if ( trans_symm_group[indx] != -1 )
+      {
+        throw runtime_error( "One site appears to be present in more than one translation symmetry group!" );
+      }
+      trans_symm_group[indx] = i;
+    }
+  }
+
+  // Check that all sites belongs to one translational symmetry group
+  for ( unsigned int i=0;i<trans_symm_group.size();i++ )
+  {
+    if ( trans_symm_group[i] == -1 )
+    {
+      stringstream msg;
+      msg << "Site " << i << " has not been assigned to any translational symmetry group!";
+      throw runtime_error( msg.str() );
     }
   }
 }

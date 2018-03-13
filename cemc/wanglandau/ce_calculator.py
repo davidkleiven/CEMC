@@ -172,27 +172,28 @@ class CE( Calculator ):
         """
         Converts potentials arrays to lists
         """
-        for i in range(len(self.BC.cluster_indx[0])):
-            if ( self.BC.cluster_indx[0][i] is None ):
-                continue
-            for j in range(len(self.BC.cluster_indx[0][i])):
-                if ( self.BC.cluster_indx[0][i][j] is None ):
+        for symm in range(len(self.BC.cluster_indx)):
+            for i in range(len(self.BC.cluster_indx[symm])):
+                if ( self.BC.cluster_indx[symm][i] is None ):
                     continue
-                for k in range(len(self.BC.cluster_indx[0][i][j])):
-                    if ( isinstance(self.BC.cluster_indx[0][i][j][k],np.ndarray) ):
-                        self.BC.cluster_indx[0][i][j][k] = self.BC.cluster_indx[0][i][j][k].tolist()
+                for j in range(len(self.BC.cluster_indx[symm][i])):
+                    if ( self.BC.cluster_indx[symm][i][j] is None ):
+                        continue
+                    for k in range(len(self.BC.cluster_indx[symm][i][j])):
+                        if ( isinstance(self.BC.cluster_indx[symm][i][j][k],np.ndarray) ):
+                            self.BC.cluster_indx[symm][i][j][k] = self.BC.cluster_indx[symm][i][j][k].tolist()
+                        else:
+                            self.BC.cluster_indx[symm][i][j][k] = list(self.BC.cluster_indx[symm][i][j][k])
+
+                    if ( isinstance(self.BC.cluster_indx[symm][i][j],np.ndarray) ):
+                        self.BC.cluster_indx[symm][i][j] = self.BC.cluster_indx[symm][i][j].tolist()
                     else:
-                        self.BC.cluster_indx[0][i][j][k] = list(self.BC.cluster_indx[0][i][j][k])
+                        self.BC.cluster_indx[symm][i][j] = list(self.BC.cluster_indx[symm][i][j])
 
-                if ( isinstance(self.BC.cluster_indx[0][i][j],np.ndarray) ):
-                    self.BC.cluster_indx[0][i][j] = self.BC.cluster_indx[0][i][j].tolist()
+                if ( isinstance(self.BC.cluster_indx[symm][i],np.ndarray) ):
+                    self.BC.cluster_indx[symm][i] = self.BC.cluster_indx[symm][i].tolist()
                 else:
-                    self.BC.cluster_indx[0][i][j] = list(self.BC.cluster_indx[0][i][j])
-
-            if ( isinstance(self.BC.cluster_indx[0][i],np.ndarray) ):
-                self.BC.cluster_indx[0][i] = self.BC.cluster_indx[0][i].tolist()
-            else:
-                self.BC.cluster_indx[0][i] = list(self.BC.cluster_indx[0][i])
+                    self.BC.cluster_indx[symm][i] = list(self.BC.cluster_indx[symm][i])
 
     def create_permutations( self ):
         """
