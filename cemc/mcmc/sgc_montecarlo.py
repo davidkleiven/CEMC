@@ -48,7 +48,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
 
         if ( not np.all(var_n>0.0) ):
             self.logger.warning( "Some variance where smaller than zero. (Probably due to numerical precission)" )
-            self.logger.info( "Variances: {}".format(var_n))
+            self.log( "Variances: {}".format(var_n))
             var_n = np.abs(var_n)
         return 2.0*var_n*self.correlation_info["correlation_time_found"]/N
 
@@ -59,6 +59,8 @@ class SGCMonteCarlo( mc.Montecarlo ):
         energy_converged = super( SGCMonteCarlo, self ).has_converged_prec_mode( prec=prec, confidence_level=confidence_level )
         percentile = stats.norm.ppf(1.0-confidence_level)
         var_n = self.get_var_average_energy()
+        if ( self.mpicomm is not None ):
+            var_n /= self.mpicomm.Get_size()
         singlet_converged = ( np.max(var_n) < (prec/percentile)**2 )
         return singlet_converged and energy_converged
 
@@ -69,9 +71,9 @@ class SGCMonteCarlo( mc.Montecarlo ):
         super(SGCMonteCarlo,self).on_converged_log()
         singlets = self.averager.singlets/self.averager.counter
         var_n = self.get_var_average_singlets()
-        self.logger.info( "Final value of the thermal averaged singlet terms:" )
+        self.log( "Final value of the thermal averaged singlet terms:" )
         for i in range( len(singlets) ):
-            self.logger.info( "{}: {} +- {}%".format(self.chem_pot_names[i],singlets[i],np.sqrt(var_n[i])/np.abs(singlets[i]) ) )
+            self.log( "{}: {} +- {}%".format(self.chem_pot_names[i],singlets[i],np.sqrt(var_n[i])/np.abs(singlets[i]) ) )
 
     def reset(self):
         """
@@ -178,9 +180,10 @@ class SGCMonteCarlo( mc.Montecarlo ):
 
                 # Normalize by the number of processors
                 for key in self.averager.quantities.keys():
-                    self.averager[key] /= size
+                    self.averager.quantities[key] /= size
 
     def get_thermodynamic( self, reset_ecis=True ):
+        self.collect_averager_results()
         N = self.averager.counter
         quantities = {}
         singlets = self.averager.singlets/N

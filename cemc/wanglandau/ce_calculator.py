@@ -12,6 +12,7 @@ mpl.rcParams["svg.fonttype"] = "none"
 from matplotlib import pyplot as plt
 from ase.visualize import view
 from cemc.mcmc import linear_vib_correction as lvc
+from mpi4py import MPI
 try:
     from cemc.ce_updater import ce_updater as ce_updater
     use_cpp = True
@@ -105,7 +106,7 @@ class CE( Calculator ):
         if ( not isinstance(linvib,lvc.LinearVibCorrection) ):
             raise TypeError( "Linear vib correction has to be of type LinearVibCorrection!" )
         if ( self.linear_vib_correction is not None ):
-            orig_eci = self.linear_vib_correction.reset()
+            orig_eci = self.linear_vib_correction.reset(self.eci)
             if ( orig_eci is not None ):
                 self.eci = orig_eci
             self.update_ecis(self.eci)
@@ -120,7 +121,7 @@ class CE( Calculator ):
         """
         if ( self.linear_vib_correction is None ):
             return
-        orig_eci = self.linear_vib_correction.reset()
+        orig_eci = self.linear_vib_correction.reset( self.eci )
 
         # Reset the ECIs to the original
         if ( orig_eci is not None ):
@@ -144,7 +145,7 @@ class CE( Calculator ):
         """
         Initialize the correlation functions by characterizing a 4x4x4 structure
         """
-        temp_db_name = "temporary_database.db"
+        temp_db_name = "temporary_database{}.db".format(MPI.COMM_WORLD.Get_rank())
         conc_args = {
             "conc_ratio_min_1":[[0 for i in range(len(self.BC.basis_elements[0]))]],
             "conc_ratio_max_1":[[0 for i in range(len(self.BC.basis_elements[0]))]]

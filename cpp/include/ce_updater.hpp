@@ -145,5 +145,8 @@ private:
 
   /** Build a list over which translation symmetry group a site belongs to */
   void build_trans_symm_group( PyObject* single_term_clusters );
+
+  /** Verifies that each ECI has a correlation function otherwise it throws an exception */
+  bool all_eci_corresponds_to_cf();
 };
 #endif

@@ -105,10 +105,16 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
       for ( int j=0;j<n_clusters;j++ )
       {
         string cluster_name( PyString_AsString( PyList_GetItem(current_list_name,j) ) );
+        if ( cname_with_dec.find(cluster_name) == cname_with_dec.end() )
+        {
+          // Skip this cluster
+          continue;
+        }
         if ( (cluster_name.substr(0,2) == "c0") || (cluster_name.substr(0,2) == "c1") )
         {
           continue;
         }
+
         PyObject *py_members = PyList_GetItem( current_indx_list, j );
         int n_sub_clusters = PyList_Size(py_members);
         if ( n_sub_clusters < 0 )
@@ -298,6 +304,12 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   #ifdef CE_DEBUG
     cout << "CEUpdater initialized sucessfully!\n";
   #endif
+
+  // Verify that the ECIs given corresponds to a correlation function
+  if ( !all_eci_corresponds_to_cf() )
+  {
+    throw invalid_argument( "All ECIs does not correspond to a correlation function!" );
+  }
 }
 
 void CEUpdater::create_ctype_lookup()
@@ -629,6 +641,11 @@ void CEUpdater::set_ecis( PyObject *new_ecis )
   {
     ecis[PyString_AsString(key)] = PyFloat_AS_DOUBLE(value);
   }
+
+  if ( !all_eci_corresponds_to_cf() )
+  {
+    throw invalid_argument( "All ECIs has to correspond to a correlation function!" );
+  }
 }
 
 int CEUpdater::get_decoration_number( const string &cname ) const
@@ -756,4 +773,17 @@ void CEUpdater::build_trans_symm_group( PyObject *py_trans_symm_group )
       throw runtime_error( msg.str() );
     }
   }
+}
+
+bool CEUpdater::all_eci_corresponds_to_cf()
+{
+    cf& corrfunc = history->get_current();
+    for ( auto iter=ecis.begin(); iter != ecis.end(); ++iter )
+    {
+      if ( corrfunc.find(iter->first) == corrfunc.end() )
+      {
+        return false;
+      }
+    }
+    return true;
 }
