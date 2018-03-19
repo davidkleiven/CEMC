@@ -11,7 +11,7 @@ except Exception as exc:
 
 ecis = {
     "c1_0":-0.1,
-    "c2_1000_1":0.1,
+    "c2_1000_1_00":0.1,
 }
 
 db_name = "test_sgc.db"

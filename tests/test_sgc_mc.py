@@ -86,13 +86,13 @@ class TestSGCMC( unittest.TestCase ):
             }
             T = 600.0
             mc = SGCMonteCarlo( ceBulk.atoms, T, symbols=["Al","Mg","Si"], plot_debug=False )
-            mc.runMC( chem_potential=chem_pots, mode="prec", prec_confidence=0.05, prec=0.01 )
+            mc.runMC( chem_potential=chem_pots, mode="prec", prec_confidence=0.05, prec=10.0 )
             thermo = mc.get_thermodynamic()
 
             eci_vib={"c1_0":0.0}
             vib_corr = lvc.LinearVibCorrection(eci_vib)
             mc.linear_vib_correction = vib_corr
-            mc.runMC( chem_potential=chem_pots, mode="prec", prec_confidence=0.05, prec=0.01 )
+            mc.runMC( chem_potential=chem_pots, mode="prec", prec_confidence=0.05, prec=10.0 )
             thermo = mc.get_thermodynamic()
         except Exception as exc:
             msg = str(exc)

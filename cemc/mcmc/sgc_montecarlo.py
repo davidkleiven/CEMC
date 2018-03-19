@@ -104,7 +104,9 @@ class SGCMonteCarlo( mc.Montecarlo ):
         var_n /= nproc
         diff = singlets - prev_composition
         var_diff = var_n + var_prev
-        z = np.max( np.abs(diff)/np.sqrt(var_diff) )
+        if ( len(var_diff[var_diff>0.0]) == 0 ):
+            return True, singlets, var_n
+        z = np.max( np.abs(diff[var_diff>0.0])/np.sqrt(var_diff[var_diff>0.0]) )
         converged = False
         if ( z > min_percentile and z < max_percentile ):
             converged = True
