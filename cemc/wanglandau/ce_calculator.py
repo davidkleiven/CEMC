@@ -1,6 +1,6 @@
 from ase.calculators.calculator import Calculator
 from ase.ce.corrFunc import CorrFunction
-from ase.ce.settings import BulkCrystal
+from ase.ce.settings_bulk import BulkCrystal
 from ase.build import bulk
 import unittest
 from itertools import product, combinations
@@ -12,6 +12,7 @@ mpl.rcParams["svg.fonttype"] = "none"
 from matplotlib import pyplot as plt
 from ase.visualize import view
 from cemc.mcmc import linear_vib_correction as lvc
+from mpi4py import MPI
 try:
     from cemc.ce_updater import ce_updater as ce_updater
     use_cpp = True
@@ -35,7 +36,8 @@ class CE( Calculator ):
         symbols = [atom.symbol for atom in self.BC.atoms] # Keep a copy of the original symbols
         if ( initial_cf is None ):
             self.cf = self.initialize_correlation_functions()
-            self.cf = self.corrFunc.get_cf_by_cluster_names(self.atoms,eci.keys())
+            #full_names = self.get_full_cluster_names(eci.keys())
+            #self.cf = self.corrFunc.get_cf_by_cluster_names(self.atoms,full_names)
         else:
             self.cf = initial_cf
 
@@ -43,7 +45,7 @@ class CE( Calculator ):
         if ( len(BC.atoms) != BC.trans_matrix.shape[0] ):
             raise ValueError( "The number of atoms and the dimension of the translation matrix is inconsistent. Try reconf_db=True in bulk crystal" )
 
-        if ( len(BC.site_elements) > 1 ):
+        if ( len(BC.basis_elements) > 1 ):
             raise ValueError( "At the moment only one site type is supported!" )
         self.old_cfs = []
         self.old_atoms = self.atoms.copy()
@@ -75,6 +77,26 @@ class CE( Calculator ):
         self.set_symbols(symbols)
         self._linear_vib_correction = None
 
+    def get_full_cluster_names( self, cnames ):
+        """
+        Returns the full cluster names with decoration info in the end
+        """
+        full_names = self.cf.keys()
+        print (full_names)
+        only_prefix = [name.rpartition("_")[0] for name in full_names]
+        full_cluster_names = []
+
+        # First insert the one body names, nothing to be done for them
+        for name in cnames:
+            if ( name.startswith("c1") ):
+                full_cluster_names.append(name)
+        for name in cnames:
+            if ( name.startswith("c1") ):
+                continue
+            indx = only_prefix.index(name)
+            full_cluster_names.append( full_names[indx] )
+        return full_cluster_names
+
     @property
     def linear_vib_correction( self ):
         return self._linear_vib_correction
@@ -84,7 +106,7 @@ class CE( Calculator ):
         if ( not isinstance(linvib,lvc.LinearVibCorrection) ):
             raise TypeError( "Linear vib correction has to be of type LinearVibCorrection!" )
         if ( self.linear_vib_correction is not None ):
-            orig_eci = self.linear_vib_correction.reset()
+            orig_eci = self.linear_vib_correction.reset(self.eci)
             if ( orig_eci is not None ):
                 self.eci = orig_eci
             self.update_ecis(self.eci)
@@ -99,7 +121,7 @@ class CE( Calculator ):
         """
         if ( self.linear_vib_correction is None ):
             return
-        orig_eci = self.linear_vib_correction.reset()
+        orig_eci = self.linear_vib_correction.reset( self.eci )
 
         # Reset the ECIs to the original
         if ( orig_eci is not None ):
@@ -123,52 +145,56 @@ class CE( Calculator ):
         """
         Initialize the correlation functions by characterizing a 4x4x4 structure
         """
-        temp_db_name = "temporary_database.db"
+        temp_db_name = "temporary_database{}.db".format(MPI.COMM_WORLD.Get_rank())
         conc_args = {
-            "conc_ratio_min_1":[[0 for i in range(len(self.BC.site_elements[0]))]],
-            "conc_ratio_max_1":[[0 for i in range(len(self.BC.site_elements[0]))]]
+            "conc_ratio_min_1":[[0 for i in range(len(self.BC.basis_elements[0]))]],
+            "conc_ratio_max_1":[[0 for i in range(len(self.BC.basis_elements[0]))]]
         }
         conc_args["conc_ratio_min_1"][0][0] = 1
         conc_args["conc_ratio_max_1"][0][-1] = 1
         clat = None
-        bc = BulkCrystal( crystalstructure=self.BC.crystalstructure, alat=self.BC.alat, clat=clat,
-        cell_dim=[4,4,4], num_sites=len(self.BC.site_elements), site_elements=self.BC.site_elements, conc_args=conc_args, db_name=temp_db_name,
-        max_cluster_size=4,reconf_db=True)
+        bc = BulkCrystal( crystalstructure=self.BC.crystalstructure, a=self.BC.a, c=self.BC.c,
+        size=[4,4,4], basis_elements=self.BC.basis_elements, conc_args=conc_args, db_name=temp_db_name,
+        max_cluster_size=4)
+        bc._get_cluster_information()
         cf = CorrFunction(bc)
 
         # TODO: This only works for one site type
         for atom in bc.atoms:
-            atom.symbol = bc.site_elements[0][0]
+            atom.symbol = bc.basis_elements[0][0]
 
         for atom in self.BC.atoms:
-            atom.symbol = bc.site_elements[0][0]
-        return cf.get_cf_by_cluster_names(bc.atoms,self.eci.keys())
+            atom.symbol = bc.basis_elements[0][0]
+        corr_funcs = cf.get_cf(bc.atoms)
+        os.remove(temp_db_name)
+        return corr_funcs
 
     def convert_cluster_indx_to_list( self ):
         """
         Converts potentials arrays to lists
         """
-        for i in range(len(self.BC.cluster_indx)):
-            if ( self.BC.cluster_indx[i] is None ):
-                continue
-            for j in range(len(self.BC.cluster_indx[i])):
-                if ( self.BC.cluster_indx[i][j] is None ):
+        for symm in range(len(self.BC.cluster_indx)):
+            for i in range(len(self.BC.cluster_indx[symm])):
+                if ( self.BC.cluster_indx[symm][i] is None ):
                     continue
-                for k in range(len(self.BC.cluster_indx[i][j])):
-                    if ( isinstance(self.BC.cluster_indx[i][j][k],np.ndarray) ):
-                        self.BC.cluster_indx[i][j][k] = self.BC.cluster_indx[i][j][k].tolist()
+                for j in range(len(self.BC.cluster_indx[symm][i])):
+                    if ( self.BC.cluster_indx[symm][i][j] is None ):
+                        continue
+                    for k in range(len(self.BC.cluster_indx[symm][i][j])):
+                        if ( isinstance(self.BC.cluster_indx[symm][i][j][k],np.ndarray) ):
+                            self.BC.cluster_indx[symm][i][j][k] = self.BC.cluster_indx[symm][i][j][k].tolist()
+                        else:
+                            self.BC.cluster_indx[symm][i][j][k] = list(self.BC.cluster_indx[symm][i][j][k])
+
+                    if ( isinstance(self.BC.cluster_indx[symm][i][j],np.ndarray) ):
+                        self.BC.cluster_indx[symm][i][j] = self.BC.cluster_indx[symm][i][j].tolist()
                     else:
-                        self.BC.cluster_indx[i][j][k] = list(self.BC.cluster_indx[i][j][k])
+                        self.BC.cluster_indx[symm][i][j] = list(self.BC.cluster_indx[symm][i][j])
 
-                if ( isinstance(self.BC.cluster_indx[i][j],np.ndarray) ):
-                    self.BC.cluster_indx[i][j] = self.BC.cluster_indx[i][j].tolist()
+                if ( isinstance(self.BC.cluster_indx[symm][i],np.ndarray) ):
+                    self.BC.cluster_indx[symm][i] = self.BC.cluster_indx[symm][i].tolist()
                 else:
-                    self.BC.cluster_indx[i][j] = list(self.BC.cluster_indx[i][j])
-
-            if ( isinstance(self.BC.cluster_indx[i],np.ndarray) ):
-                self.BC.cluster_indx[i] = self.BC.cluster_indx[i].tolist()
-            else:
-                self.BC.cluster_indx[i] = list(self.BC.cluster_indx[i])
+                    self.BC.cluster_indx[symm][i] = list(self.BC.cluster_indx[symm][i])
 
     def create_permutations( self ):
         """
