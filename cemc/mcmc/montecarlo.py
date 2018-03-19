@@ -265,11 +265,21 @@ class Montecarlo(object):
             plt.show( block=self.pyplot_block )
         return self.correlation_info
 
+    def composition_reached_equillibrium(self, prev_composition, var_prev, confidence_level=0.05):
+        """
+        Returns True if the composition reached equillibrium.
+        Default the simulation runs at fixed composition so
+        this function just returns True
+        """
+        return True, prev_composition, var_prev
 
     def equillibriate( self, window_length=1000, confidence_level=0.05, maxiter=1000 ):
         """
         Runs the MC until equillibrium is reached
         """
+        nproc = 1
+        if ( self.mpicomm is not None ):
+            nproc = self.mpicomm.Get_size()
         E_prev = None
         var_E_prev = None
         min_percentile = stats.norm.ppf(confidence_level)
@@ -281,6 +291,8 @@ class Montecarlo(object):
         self.log( "{:10} {:10} {:10} {:10}".format("Energy", "std.dev", "delta E", "quantile") )
         all_energies = []
         means = []
+        composition = []
+        var_comp = []
         for i in range(maxiter):
             number_of_iterations += 1
             self.reset()
@@ -293,7 +305,8 @@ class Montecarlo(object):
             E_new = self.mean_energy/window_length
             means.append( E_new )
             var_E_new = (self.energy_squared/window_length - E_new**2)/window_length
-
+            var_E_new /= nproc
+            comp_conv, composition, var_comp = self.composition_reached_equillibrium( composition, var_comp, confidence_level=confidence_level )
             if ( E_prev is None ):
                 E_prev = E_new
                 var_E_prev = var_E_new
@@ -310,11 +323,14 @@ class Montecarlo(object):
             #self.logger.handlers[0].flush()
             #self.flush_log()
             #print ("{:10.2f} {:10.6f} {:10.6f} {:10.2f}".format(E_new,var_E_new,diff, z_diff))
-            if( (z_diff < max_percentile) and (z_diff > min_percentile) ):
+            if( (z_diff < max_percentile) and (z_diff > min_percentile) and comp_conv ):
                 self.log( "System reached equillibrium in {} mc steps".format(number_of_iterations*window_length))
                 self.mean_energy = 0.0
                 self.energy_squared = 0.0
                 self.current_step = 0
+
+                if ( len(composition) > 0 ):
+                    self.log( "Singlet values at equillibrium: {}".format(composition) )
 
                 if ( self.plot_debug ):
                     fig = plt.figure()

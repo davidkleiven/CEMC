@@ -18,6 +18,8 @@ class SGCMonteCarlo( mc.Montecarlo ):
         self.name = "SGCMonteCarlo"
         self._chemical_potential = None
         self.chem_pot_in_ecis = False
+        self.attach( self.averager )
+        self.has_attached_avg = True
 
     def get_trial_move( self ):
         indx = np.random.randint( low=0, high=len(self.atoms) )
@@ -74,6 +76,48 @@ class SGCMonteCarlo( mc.Montecarlo ):
         self.log( "Final value of the thermal averaged singlet terms:" )
         for i in range( len(singlets) ):
             self.log( "{}: {} +- {}%".format(self.chem_pot_names[i],singlets[i],np.sqrt(var_n[i])/np.abs(singlets[i]) ) )
+
+    def composition_reached_equillibrium(self, prev_composition, var_prev, confidence_level=0.05):
+        """
+        Returns True if the composition reached equillibrium
+        """
+        min_percentile = stats.norm.ppf(confidence_level)
+        max_percentile = stats.norm.ppf(1.0-confidence_level)
+        nproc = 1
+        if ( self.mpicomm is not None ):
+            nproc = self.mpicomm.Get_size()
+        self.collect_averager_results()
+        N = self.averager.counter
+        singlets = self.averager.singlets/N
+        singlets_sq = self.averager.quantities["singlets_sq"]/N
+        var_n = (singlets_sq-singlets**2)/N
+
+        if ( len(prev_composition) != len(singlets) ):
+            # Prev composition is unknown so makes no sense
+            # to check
+            return False, singlets, var_n
+
+        # Just in case variance should be smaller than zero. Should never
+        # happen but can happen due to numerical precission
+        var_n[var_n<0.0] = 0.0
+
+        var_n /= nproc
+        diff = singlets - prev_composition
+        var_diff = var_n + var_prev
+        z = np.max( np.abs(diff)/np.sqrt(var_diff) )
+        converged = False
+        if ( z > min_percentile and z < max_percentile ):
+            converged = True
+
+        if ( self.mpicomm is not None ):
+            # Broadcast the result to the other processors
+            converged = self.mpicomm.bcast(converged,root=0)
+            singlets = self.mpicomm.bcast(singlets,root=0)
+            var_n = self.mpicomm.bcast(var_n,root=0)
+        return converged, singlets, var_n
+
+
+
 
     def reset(self):
         """
