@@ -1,6 +1,6 @@
 import unittest
 try:
-    from ase.ce.settings import BulkCrystal
+    from ase.ce.settings_bulk import BulkCrystal
     from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
     from cemc.wanglandau.ce_calculator import CE
     from cemc.mcmc.mc_parameter_sweep import MCParameterSweep
@@ -10,8 +10,8 @@ except Exception as exc:
     has_ase_with_ce = False
 
 ecis = {
-    "c1_1":-0.1,
-    "c2_1000_1_1":0.1,
+    "c1_0":-0.1,
+    "c2_1000_1_00":0.1,
 }
 
 db_name = "test_sgc.db"
@@ -21,7 +21,8 @@ class TestMCParameterSweep( unittest.TestCase ):
             "conc_ratio_min_1":[[1,0]],
             "conc_ratio_max_1":[[0,1]],
         }
-        ceBulk = BulkCrystal( "fcc", 4.05, None, [3,3,3], 1, [["Al","Mg"]], conc_args, db_name, reconf_db=False)
+        ceBulk = BulkCrystal( crystalstructure="fcc", a=4.05, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, db_name=db_name)
+        ceBulk._get_cluster_information()
         calc = CE( ceBulk, ecis )
         ceBulk.atoms.set_calculator(calc)
         return ceBulk
@@ -39,11 +40,11 @@ class TestMCParameterSweep( unittest.TestCase ):
             parameters = [
                 {
                     "temperature":10000.0,
-                    "chemical_potential":{"c1_1":-1.072}
+                    "chemical_potential":{"c1_0":-1.072}
                 },
                 {
                     "temperature":9000.0,
-                    "chemical_potential":{"c1_1":-1.072}
+                    "chemical_potential":{"c1_0":-1.072}
                 }
             ]
             equil_params = {

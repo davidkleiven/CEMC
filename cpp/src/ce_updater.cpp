@@ -6,6 +6,8 @@
 #include <sstream>
 #include <algorithm>
 #include <omp.h>
+#include <cassert>
+#include <stdexcept>
 
 #define CE_DEBUG
 using namespace std;
@@ -46,33 +48,114 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
     Py_DECREF(pyindx);
     Py_DECREF(atom);
   }
+  trans_symm_group.resize(n_atoms);
+
+  // Build read the translational sites
+  PyObject* py_trans_symm_group = PyObject_GetAttrString( BC, "index_by_trans_symm" );
+  build_trans_symm_group( py_trans_symm_group );
+  Py_DECREF( py_trans_symm_group );
 
   #ifdef CE_DEBUG
     cerr << "Getting cluster names from atoms object\n";
   #endif
 
   // Read cluster names
+  create_cname_with_dec( corrFunc );
   PyObject *clist = PyObject_GetAttrString( BC, "cluster_names" );
+  PyObject *clst_indx = PyObject_GetAttrString( BC, "cluster_indx" );
   if ( clist == NULL )
   {
     status = Status_t::INIT_FAILED;
     return;
   }
 
-  unsigned int n_cluster_sizes = PyList_Size( clist );
-  for ( unsigned int i=0;i<n_cluster_sizes;i++ )
+  unsigned int num_trans_symm = PyList_Size( clist );
+  /*if ( num_trans_symm != 1 )
   {
-    vector<string> new_list;
-    PyObject* current_list = PyList_GetItem(clist,i);
-    unsigned int n_clusters = PyList_Size( current_list );
-    for ( unsigned int j=0;j<n_clusters;j++ )
+    throw invalid_argument( "The CE udpater only supports 1 site type at the moment..." );
+  }*/
+  // Loop over all symmetry equivalent sites
+  for ( unsigned int s=0;s<num_trans_symm;s++ )
+  {
+    PyObject *clusters_name_list = PyList_GetItem( clist, s );
+    PyObject *current_indx_outer = PyList_GetItem( clst_indx, s );
+    int n_cluster_sizes = PyList_Size( clusters_name_list );
+    map<string,Cluster> new_clusters;
+    if ( n_cluster_sizes < 0 )
     {
-      new_list.push_back( PyString_AsString( PyList_GetItem(current_list,j)) );
+      throw runtime_error( "Could not read clusters! Length list is smaller than zero!" );
     }
-    cluster_names.push_back(new_list);
+
+    // Loop over the different cluster sizes
+    for ( int i=0;i<n_cluster_sizes;i++ )
+    {
+      PyObject* current_list_name = PyList_GetItem(clusters_name_list,i);
+      PyObject *current_indx_list = PyList_GetItem( current_indx_outer, i );
+
+      int n_clusters = PyList_Size( current_list_name );
+      if ( n_clusters < 0 )
+      {
+        stringstream msg;
+        msg << "Could not read clusters for cluster size " << i;
+        msg << ". Length is smaller than zero!";
+        throw runtime_error( msg.str() );
+      }
+
+      // Loop over each cluster at that given size
+      for ( int j=0;j<n_clusters;j++ )
+      {
+        string cluster_name( PyString_AsString( PyList_GetItem(current_list_name,j) ) );
+        if ( cname_with_dec.find(cluster_name) == cname_with_dec.end() )
+        {
+          // Skip this cluster
+          continue;
+        }
+        if ( (cluster_name.substr(0,2) == "c0") || (cluster_name.substr(0,2) == "c1") )
+        {
+          continue;
+        }
+
+        PyObject *py_members = PyList_GetItem( current_indx_list, j );
+        int n_sub_clusters = PyList_Size(py_members);
+        if ( n_sub_clusters < 0 )
+        {
+          stringstream msg;
+          msg << "Could not read cluster. Size: " << i << " subcluster: " << j << " name: " << cluster_name;
+          msg << ". Length smaller than zero!";
+          throw runtime_error( msg.str() );
+        }
+
+        vector< vector<int> > members;
+        // Loop over the indivudal clusters
+        for ( int k=0;k<n_sub_clusters;k++ )
+        {
+          PyObject *py_one_cluster = PyList_GetItem(py_members,k);
+          int n_members = PyList_Size(py_one_cluster);
+          vector<int> sub_clust;
+          for ( unsigned int l=0;l<n_members;l++ )
+          {
+            sub_clust.push_back( PyInt_AsLong( PyList_GetItem(py_one_cluster,l)) );
+          }
+          members.push_back(sub_clust);
+        }
+        if ( cname_with_dec.find(cluster_name) == cname_with_dec.end() )
+        {
+          stringstream ss;
+          ss << "Could not find the full cluster name for name " << cluster_name;
+          ss << ". Full cluster names exists for: ";
+          ss << cname_with_dec;
+          throw invalid_argument( ss.str() );
+        }
+        string full_cname = cname_with_dec.at(cluster_name);
+        new_clusters[cluster_name] = Cluster( cluster_name, members );
+      }
+    }
+    clusters.push_back( new_clusters );
   }
+  Py_DECREF( clst_indx );
+  Py_DECREF( clist );
 
-
+  /*
   #ifdef CE_DEBUG
     cerr << "Getting cluster indices from atoms object\n";
   #endif
@@ -84,7 +167,11 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
     return;
   }
 
-  n_cluster_sizes = PyList_Size( clst_indx );
+  num_trans_symm = PyList_Size( clst_indx );
+  for ( unsigned int s=0;s<num_trans_symm;s++ )
+  {
+  unsigned int n_cluster_sizes = PyList_Size( clst_indx );
+  vector < vector < vector<int> > > new_outer_list;
   for ( unsigned int i=0;i<n_cluster_sizes;i++ )
   {
     vector< vector< vector<int> > > outer_list;
@@ -112,6 +199,7 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
         status = Status_t::INIT_FAILED;
         return;
       }
+
       vector< vector<int> > inner_list;
       for ( int k=0;k<n_members;k++ )
       {
@@ -132,8 +220,10 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
       }
       outer_list.push_back(inner_list);
     }
-    cluster_indx.push_back(outer_list);
+    new_outer_list.push_back(outer_list);
   }
+  cluster_indx.push_back(new_outer_list);
+}*/
 
   #ifdef CE_DEBUG
     cerr << "Reading basis functions from BC object\n";
@@ -197,8 +287,8 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   flattened_cluster_names(flattened_cnames);
   history = new CFHistoryTracker(flattened_cnames);
   history->insert( corrFunc, nullptr );
-  create_ctype_lookup();
-  create_permutations( perms );
+  //create_ctype_lookup();
+  //create_permutations( perms );
 
   // Store the singlets names
   for ( unsigned int i=0;i<flattened_cnames.size();i++ )
@@ -214,15 +304,21 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   #ifdef CE_DEBUG
     cout << "CEUpdater initialized sucessfully!\n";
   #endif
+
+  // Verify that the ECIs given corresponds to a correlation function
+  if ( !all_eci_corresponds_to_cf() )
+  {
+    throw invalid_argument( "All ECIs does not correspond to a correlation function!" );
+  }
 }
 
 void CEUpdater::create_ctype_lookup()
 {
   for ( unsigned int n=2;n<cluster_names.size();n++ )
   {
-    for ( unsigned int ctype=0;ctype<cluster_names[n].size();ctype++ )
+    for ( unsigned int ctype=0;ctype<cluster_names[0][n].size();ctype++ )
     {
-      ctype_lookup[cluster_names[n][ctype]] = ctype;
+      ctype_lookup[cluster_names[0][n][ctype]] = ctype;
     }
   }
 }
@@ -335,73 +431,39 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
       continue;
     }
 
-    int dec = get_decoration_number( name );
+    vector<int> bfs;
+    get_basis_functions( name, bfs );
     if ( name.find("c1") == 0 )
     {
+      int dec = bfs[0];
       next_cf[name] = current_cf[name] + (basis_functions[dec][symb_change.new_symb] - basis_functions[dec][symb_change.old_symb])/symbols.size();
       continue;
     }
 
-    int pos_last_underscore = name.find_last_of("_");
-    string prefix = name.substr(0,pos_last_underscore);
-    string size_str = prefix.substr(1,1);
-    int size = atoi(size_str.c_str());
-    int ctype = ctype_lookup[prefix];
-    double normalization = cluster_indx[size][ctype].size()*symbols.size();
-    double sp_ref = spin_product_one_atom( symb_change.indx, cluster_indx[size][ctype], permutations[size][dec], symbols );
-    double sp_new = spin_product_one_atom( symb_change.indx, cluster_indx[size][ctype], permutations[size][dec], symbols );
-    //double sp = spin_product_one_atom( symb_change.indx, cluster_indx[size][ctype], permutations[size][dec] );
-    int bf_ref = permutations[size][dec][0];
+    // Extract the prefix
+    int pos = name.rfind("_");
+    string prefix = name.substr(0,pos);
 
-    double sp = basis_functions[bf_ref][symb_change.new_symb]*sp_new - basis_functions[bf_ref][symb_change.old_symb]*sp_ref;
-    //if ( basis_functions.size() == 1 )
-    if ( all_decoration_nums_equal( permutations[size][dec] ) )
+    double delta_sp = 0.0;
+    int symm = trans_symm_group[symb_change.indx];
+    const vector< vector<int> > &cluster_indices = clusters[symm].at(prefix).get();
+    unsigned int size = clusters[symm].at(prefix).size;
+    double normalization = cluster_indices.size();
+    assert( cluster_indices[0].size() == size );
+    assert( bfs.size() == size );
+
+    int permutation_counter = 0;
+    do
     {
-      // Account for degeneracy
-      sp *= size;
-    }
-    else
-    {
-      // When the decoration numbers are different the change is not symmetric (i.e. it contains different basis functions)
-      // One cannot take the degeneracy into account by multiplying by the number of clusters
-
-      // Use same approach as in ASE python version
-      /*
-      double new_sp = 0.0;
-      double old_sp = 0.0;
-      cout << name << " " << permutations[size][dec] << endl;
-      for ( unsigned int i=0;i<cluster_indx[size][ctype].size();i++ )
-      {
-        for ( unsigned int j=0;j<cluster_indx[size][ctype][i].size();j++ )
-        {
-          symbols[symb_change.indx] = symb_change.old_symb;
-          int indx_in_cluster = cluster_indx[size][ctype][i][j];
-          int ref_indx = trans_matrix(symb_change.indx, indx_in_cluster );
-          old_sp += spin_product_one_atom( ref_indx, cluster_indx[size][ctype], permutations[size][dec], symbols )*basis_functions[bf_ref][symbols[ref_indx]];
-          symbols[symb_change.indx] = symb_change.new_symb;
-          new_sp += spin_product_one_atom( ref_indx, cluster_indx[size][ctype], permutations[size][dec], symbols )*basis_functions[bf_ref][symbols[ref_indx]];
-        }
-      }
-      sp += (new_sp-old_sp);*/
-      cout << name << " " << permutations[size][dec] << endl;
-      vector<int> current_perm = permutations[size][dec];
-      for ( unsigned int i=0;i<current_perm.size()-1;i++ )
-      {
-        // Cyclic change the order of the permutation
-        vector<int> current_perm_copy = current_perm;
-        for ( unsigned int j=0;j<current_perm.size();j++ )
-        {
-          current_perm[(j+1)%current_perm.size()] = current_perm_copy[j];
-        }
-
-        int bf_ref = current_perm[0];
-        double sp_ref = spin_product_one_atom( symb_change.indx, cluster_indx[size][ctype], current_perm, symbols );
-        double new_sp = (basis_functions[bf_ref][symb_change.new_symb]-basis_functions[bf_ref][symb_change.old_symb])*sp_ref;
-        sp += new_sp;
-      }
-    }
-    sp /= normalization;
-    next_cf[name] = current_cf[name] + sp;
+      double sp_ref = spin_product_one_atom( symb_change.indx, cluster_indices, bfs, symbols );
+      double sp_new = spin_product_one_atom( symb_change.indx, cluster_indices, bfs, symbols );
+      int bf_ref = bfs[0];
+      delta_sp += basis_functions[bf_ref][symb_change.new_symb]*sp_new - basis_functions[bf_ref][symb_change.old_symb]*sp_ref;
+      permutation_counter += 1;
+    } while ( next_permutation( bfs.begin(),bfs.end() ) );
+    delta_sp *= (static_cast<double>(size)/permutation_counter);
+    delta_sp /= (normalization*symbols.size());
+    next_cf[name] = current_cf[name] + delta_sp;
   }
 }
 
@@ -579,6 +641,11 @@ void CEUpdater::set_ecis( PyObject *new_ecis )
   {
     ecis[PyString_AsString(key)] = PyFloat_AS_DOUBLE(value);
   }
+
+  if ( !all_eci_corresponds_to_cf() )
+  {
+    throw invalid_argument( "All ECIs has to correspond to a correlation function!" );
+  }
 }
 
 int CEUpdater::get_decoration_number( const string &cname ) const
@@ -638,4 +705,85 @@ double CEUpdater::vib_energy( double T ) const
     return vibs->energy( corrfunc, T );
   }
   return 0.0;
+}
+
+void CEUpdater::get_basis_functions( const string &cname, vector<int> &bfs ) const
+{
+  int pos = cname.rfind("_");
+  string bfs_str = cname.substr(pos+1);
+  bfs.clear();
+  for ( unsigned int i=0;i<bfs_str.size();i++ )
+  {
+    bfs.push_back( bfs_str[i]-'0' );
+  }
+}
+
+void CEUpdater::create_cname_with_dec( PyObject *cf )
+{
+  Py_ssize_t pos = 0;
+  PyObject *key;
+  PyObject *value;
+  while(  PyDict_Next(cf, &pos, &key,&value) )
+  {
+    string new_key = PyString_AsString(key);
+    if ( new_key.substr(0,2) == "c1" )
+    {
+      cname_with_dec[new_key] = new_key;
+    }
+    else
+    {
+      int pos = new_key.rfind("_");
+      string prefix = new_key.substr(0,pos);
+      cname_with_dec[prefix] = new_key;
+    }
+  }
+}
+
+void CEUpdater::build_trans_symm_group( PyObject *py_trans_symm_group )
+{
+  // Fill the symmetry group array with -1 indicating an invalid value
+  for ( unsigned int i=0;i<trans_symm_group.size();i++ )
+  {
+    trans_symm_group[i] = -1;
+  }
+
+  int list_size = PyList_Size( py_trans_symm_group );
+  for ( int i=0;i<list_size;i++ )
+  {
+    PyObject *sublist = PyList_GetItem( py_trans_symm_group, i );
+    int n_sites = PyList_Size( sublist );
+    for ( unsigned int j=0;j<n_sites;j++ )
+    {
+      int indx = PyInt_AsLong( PyList_GetItem( sublist, j ) );
+      if ( trans_symm_group[indx] != -1 )
+      {
+        throw runtime_error( "One site appears to be present in more than one translation symmetry group!" );
+      }
+      trans_symm_group[indx] = i;
+    }
+  }
+
+  // Check that all sites belongs to one translational symmetry group
+  for ( unsigned int i=0;i<trans_symm_group.size();i++ )
+  {
+    if ( trans_symm_group[i] == -1 )
+    {
+      stringstream msg;
+      msg << "Site " << i << " has not been assigned to any translational symmetry group!";
+      throw runtime_error( msg.str() );
+    }
+  }
+}
+
+bool CEUpdater::all_eci_corresponds_to_cf()
+{
+    cf& corrfunc = history->get_current();
+    for ( auto iter=ecis.begin(); iter != ecis.end(); ++iter )
+    {
+      if ( corrfunc.find(iter->first) == corrfunc.end() )
+      {
+        return false;
+      }
+    }
+    return true;
 }

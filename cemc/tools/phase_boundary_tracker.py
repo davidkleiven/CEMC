@@ -17,7 +17,7 @@ class PhaseChangedOnFirstIterationError(Exception):
         super( PhaseChangedOnFirstIterationError,self).__init__(message)
 
 class PhaseBoundaryTracker(object):
-    def __init__( self, gs1, gs2, mu_name="c1_1", chemical_potential=None, logfile="" ):
+    def __init__( self, gs1, gs2, mu_name="c1_0", chemical_potential=None, logfile="" ):
         """
         Class for tracker phase boundary
         """
