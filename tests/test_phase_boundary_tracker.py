@@ -4,6 +4,7 @@ import numpy as np
 try:
     from ase.ce.settings_bulk import BulkCrystal
     from cemc.tools.phase_boundary_tracker import PhaseBoundaryTracker, PhaseChangedOnFirstIterationError
+    from cemc.mcmc import linear_vib_correction as lvc
     has_ase_with_ce = True
 except:
     has_ase_with_ce = False
@@ -20,6 +21,10 @@ cf1 = {
 cf2 = {
     "c1_0":-1.0,
     "c2_1000_1_00":1.0
+}
+
+ecivib = {
+    "c1_0":0.42
 }
 
 db_name = "test_phase_boundary.db"
@@ -69,6 +74,34 @@ class TestPhaseBoundaryMC( unittest.TestCase ):
             msg = str(exc)
 
         self.assertTrue( no_throw, msg=msg )
+
+    def test_with_linvib( self ):
+        if ( not has_ase_with_ce ):
+            self.skipTest( "ASE version does not have CE" )
+        try:
+            b1, b2 = self.init_bulk_crystal()
+            gs1 = {
+                "bc":b1,
+                "eci":eci,
+                "cf":cf1,
+                "linvib":lvc.LinearVibCorrection( eci_vib )
+            }
+
+            gs2 = {
+                "bc":b2,
+                "eci":eci,
+                "cf":cf2,
+                "linvib":lvc.LinearVibCorrection( eci_vib )
+            }
+
+            boundary = PhaseBoundaryTracker( gs1, gs2 )
+            T = [10,20]
+            res = boundary.separation_line( np.array(T) )
+        except PhaseChangedOnFirstIterationError as exc:
+            pass
+        except Exception as exc:
+            no_throw = False
+            msg = str(exc)
 
 if __name__ == "__main__":
     unittest.main()

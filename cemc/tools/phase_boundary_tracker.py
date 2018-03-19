@@ -242,6 +242,12 @@ class PhaseBoundaryTracker(object):
             "singlet2":[],
             "mu":[]
         }
+
+        # Add the linear vibration correction if present
+        if ( "linvib" in self.gs1.keys() ):
+            sgc1.linear_vib_correction = self.gs1["linvib"]
+        if ( "linvib" in self.gs2.keys() ):
+            sgc2.linear_vib_correction = self.gs2["linvib"]
         while( n < nsteps ):
             self.logger.info( "Current mu: {}. Current temperature: {}K".format(mu[n-1],1.0/(kB*beta[n-1])))
             self.logger.handlers[0].flush()
