@@ -186,7 +186,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         if ( equil ):
             maxiter = 1000
             confidence_level = 0.05
-            window_length = 1000
+            window_length = "auto"
             if ( equil_params is not None ):
                 for key,value in equil_params.iteritems():
                     if ( key == "maxiter" ):
