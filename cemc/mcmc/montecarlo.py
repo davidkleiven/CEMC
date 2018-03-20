@@ -116,6 +116,9 @@ class Montecarlo(object):
         self.corrtime_energies = []
 
     def include_vib( self ):
+        """
+        Includes the vibrational ECIs in the CE ECIs
+        """
         self.atoms._calc.include_linvib_in_ecis( self.T )
 
     def build_atoms_list( self ):
@@ -144,6 +147,11 @@ class Montecarlo(object):
         """
         Attach observers that is called on each MC step
         and receives information of which atoms get swapped
+
+        Arguments
+        ----------
+        obs - Instance of the MCObserver class
+        interval - the obs.__call__ method is called at mc steps separated by interval
         """
         if ( callable(obs) ):
             self.observers.append( (interval,obs) )
@@ -272,10 +280,38 @@ class Montecarlo(object):
         """
         return True, prev_composition, var_prev
 
-    def equillibriate( self, window_length=1000, confidence_level=0.05, maxiter=1000 ):
+    def equillibriate( self, window_length="auto", confidence_level=0.05, maxiter=1000 ):
         """
         Runs the MC until equillibrium is reached
+
+        Arguments
+        ----------
+        window_length    - the length of the window used to compare averages
+                           if window_lenth='auto' then the length of window is set to
+                           10*len(self.atoms)
+        confidence_level - Confidence level used in hypothesis testing
+                           The question asked in the hypothesis testing is:
+                           Given that the two windows have the same average
+                           and the variance observed (null hypothesis is correct),
+                           what is the probability of observering an even larger
+                           difference between the average values in the to windows?
+                           If the probability of observing an even larger difference
+                           is considerable, then we conclude that the system
+                           has reaced equillibrium.
+                           confidence_level=0.05 means that the algorithm will
+                           terminate if the probability of observering an even
+                           larger difference is larger than 5 percent.
+
+                           NOTE: Since a Markiv Chain has large correlation
+                           the variance is underestimated. Hence, one can
+                           safely use a lower confidence level.
+
+        maxiter - The maximum number of windows it will try to sample.
+                  If it reaches this number of iteration the algorithm will
+                  raise an error
         """
+        if ( window_length == "auto" ):
+            window_length = 10*len(self.atoms)
         nproc = 1
         if ( self.mpicomm is not None ):
             nproc = self.mpicomm.Get_size()
@@ -292,6 +328,7 @@ class Montecarlo(object):
         means = []
         composition = []
         var_comp = []
+        energy_conv = False
         for i in range(maxiter):
             number_of_iterations += 1
             self.reset()
@@ -318,11 +355,18 @@ class Montecarlo(object):
                 z_diff = 0.0
             else:
                 z_diff = diff/np.sqrt(var_diff)
-            self.log( "{:10.2f} {:10.6f} {:10.6f} {:10.2f}".format(E_new,var_E_new,diff, z_diff) )
+
+            if ( len(composition) == 0 ):
+                self.log( "{:10.2f} {:10.6f} {:10.6f} {:10.2f}".format(E_new,var_E_new,diff, z_diff) )
+            else:
+                self.log( "{:10.2f} {:10.6f} {:10.6f} {:10.2f} {}".format(E_new,var_E_new,diff, z_diff, composition) )
             #self.logger.handlers[0].flush()
             #self.flush_log()
             #print ("{:10.2f} {:10.6f} {:10.6f} {:10.2f}".format(E_new,var_E_new,diff, z_diff))
-            if( (z_diff < max_percentile) and (z_diff > min_percentile) and comp_conv ):
+            if( (z_diff < max_percentile) and (z_diff > min_percentile) ):
+                energy_conv = True
+
+            if ( energy_conv and comp_conv ):
                 self.log( "System reached equillibrium in {} mc steps".format(number_of_iterations*window_length))
                 self.mean_energy = 0.0
                 self.energy_squared = 0.0
@@ -399,9 +443,24 @@ class Montecarlo(object):
     def runMC(self, mode="fixed", steps=10, verbose = False, equil=True, equil_params=None, prec=0.01, prec_confidence=0.05  ):
         """ Run Monte Carlo simulation
 
-        Arguments:
-        steps : Number of steps in the MC simulation
-
+        Arguments
+        ----------
+        steps - Number of steps in the MC simulation
+        verbose - If True information is printed on each step
+        equil - If the True the MC steps will be performed until equillibrium is reached
+        equil_params - Dictionary of parameters used in the equillibriation routine
+                       Default values
+                       {
+                        "maxiter":1000,
+                        "confidence_level":0.05,
+                        "window_length":1000
+                       }
+                       See the doc-string of the equillibriate function for more
+                       information
+        prec - Precission of the run. The simulation terminates when
+            <E>/std(E) < prec with a confidence given prec_confidence
+        prec_confidence - Confidence level used when determining if enough
+                          MC samples have been collected
         """
         allowed_modes = ["fixed","prec"]
         if ( not mode in allowed_modes ):
