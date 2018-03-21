@@ -33,13 +33,15 @@ class CE( Calculator ):
         self.BC = BC
         self.eci = eci
         self.corrFunc = CorrFunction(self.BC)
-        view(self.BC.atoms)
         if ( initial_cf is None ):
             self.cf = self.corrFunc.get_cf( self.BC.atoms )
         else:
             self.cf = initial_cf
         # Make supercell
         if ( size != (1,1,1) ):
+            rank = MPI.MPI_COMM.Get_rank()
+            db_name = self.BC.db_name.split(".")[0]+"{}.db".format(rank)
+            self.BC.atoms.db_name = db_name
             self.BC.atoms = self.BC.atoms*size
             self.BC.index_by_trans_symm = self.BC._group_indices_by_trans_symmetry()
             self.BC.num_trans_symm = len(self.BC.index_by_trans_symm)
