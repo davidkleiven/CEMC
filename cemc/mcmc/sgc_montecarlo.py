@@ -40,19 +40,25 @@ class SGCMonteCarlo( mc.Montecarlo ):
         """
         Returns the variance for the average singlets taking the correlation time into account
         """
+        self.collect_averager_results()
         N = self.averager.counter
-        singlets = self.averager.singlets/N
+        singlets = self.averager.quantities["singlets"]/N
         singlets_sq = self.averager.quantities["singlets_sq"]/N
+        print ("{}-{}-{}-{}".format(self.rank,singlets,np.sqrt(singlets_sq),np.sqrt(singlets_sq[0])>np.abs(singlets[0])) )
         var_n = ( singlets_sq - singlets**2 )
 
+        nproc = 1
+        if ( self.mpicomm is not None ):
+            nproc = self.mpicomm.Get_size()
+
         if ( self.correlation_info is None or not self.correlation_info["correlation_time_found"] ):
-            return var_n/N
+            return var_n/(N*nproc)
 
         if ( not np.all(var_n>0.0) ):
             self.logger.warning( "Some variance where smaller than zero. (Probably due to numerical precission)" )
             self.log( "Variances: {}".format(var_n))
             var_n = np.abs(var_n)
-        return 2.0*var_n*self.correlation_info["correlation_time_found"]/N
+        return 2.0*var_n*self.correlation_info["correlation_time_found"]/(N*nproc)
 
     def has_converged_prec_mode( self, prec=0.01, confidence_level=0.05 ):
         """
@@ -60,10 +66,11 @@ class SGCMonteCarlo( mc.Montecarlo ):
         """
         energy_converged = super( SGCMonteCarlo, self ).has_converged_prec_mode( prec=prec, confidence_level=confidence_level )
         percentile = stats.norm.ppf(1.0-confidence_level)
-        var_n = self.get_var_average_energy()
+        var_n = self.get_var_average_singlets()
         if ( self.mpicomm is not None ):
             var_n /= self.mpicomm.Get_size()
         singlet_converged = ( np.max(var_n) < (prec/percentile)**2 )
+        print ("{}-{}-{}".format(self.rank,singlet_converged,energy_converged))
         return singlet_converged and energy_converged
 
     def on_converged_log(self):
@@ -73,6 +80,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         super(SGCMonteCarlo,self).on_converged_log()
         singlets = self.averager.singlets/self.averager.counter
         var_n = self.get_var_average_singlets()
+        var_n = np.abs(var_n) # Just in case some variances should be negative
         self.logger.info( "Thermal averaged singlet terms:" )
         for i in range( len(singlets) ):
             self.log( "{}: {} +- {}%".format(self.chem_pot_names[i],singlets[i],np.sqrt(var_n[i])/np.abs(singlets[i]) ) )
@@ -86,11 +94,14 @@ class SGCMonteCarlo( mc.Montecarlo ):
         nproc = 1
         if ( self.mpicomm is not None ):
             nproc = self.mpicomm.Get_size()
+        # Collect the result from the other processes
+        # and average them into the values on the root node
         self.collect_averager_results()
         N = self.averager.counter
         singlets = self.averager.singlets/N
         singlets_sq = self.averager.quantities["singlets_sq"]/N
         var_n = (singlets_sq-singlets**2)/N
+        print ("{}: {}".format(self.rank, var_n))
 
         if ( len(prev_composition) != len(singlets) ):
             # Prev composition is unknown so makes no sense
@@ -169,6 +180,9 @@ class SGCMonteCarlo( mc.Montecarlo ):
         return self.reset_eci_to_original( self.atoms.bc._calc.eci )
 
     def runMC( self, mode="fixed", steps = 10, verbose = False, chem_potential=None, equil=True, equil_params=None, prec_confidence=0.05, prec=0.01 ):
+        if ( self.mpicomm is not None ):
+            self.mpicomm.barrier()
+
         if ( chem_potential is None and self.chemical_potential is None ):
             ex_chem_pot = {
                 "c1_1":-0.1,
@@ -195,7 +209,16 @@ class SGCMonteCarlo( mc.Montecarlo ):
                         confidence_level = value
                     elif ( key == "window_length" ):
                         window_length = value
-            self.equillibriate( window_length=window_length, confidence_level=confidence_level, maxiter=maxiter )
+            reached_equil = True
+            try:
+                self.equillibriate( window_length=window_length, confidence_level=confidence_level, maxiter=maxiter )
+            except mc.DidNotReachEquillibriumError:
+                reached_equil = False
+            atleast_one_proc = self.atleast_one_reached_equillibrium(reached_equil)
+
+            if ( not atleast_one_proc ):
+                raise mc.DidNotReachEquillibriumError()
+
             self.reset()
 
         if ( not self.has_attached_avg ):
@@ -217,9 +240,9 @@ class SGCMonteCarlo( mc.Montecarlo ):
             return
 
         size = self.mpicomm.Get_size()
+        self.mpicomm.barrier() # TODO: Is this nessecary?
         all_res = self.mpicomm.gather( self.averager.quantities, root=0 )
-        rank = self.mpicomm.Get_rank()
-        if ( rank == 0 ):
+        if ( self.rank == 0 ):
             self.averager.quantities = all_res[0]
             for i in range(1,len(all_res)):
                 for key,value in all_res[i].iteritems():
@@ -228,6 +251,13 @@ class SGCMonteCarlo( mc.Montecarlo ):
                 # Normalize by the number of processors
                 for key in self.averager.quantities.keys():
                     self.averager.quantities[key] /= size
+        # Broadcast the averaged results
+        self.mpicomm.barrier() # TODO: Is this nessecary?
+        self.averager.quantities = self.mpicomm.bcast( self.averager.quantities, root=0 )
+        N = self.averager.counter
+        singlets = self.averager.quantities["singlets"]/N
+        singlets_sq = self.averager.quantities["singlets_sq"]/N
+        print ("{}-{}-{}-{}".format(self.rank,singlets,np.sqrt(singlets_sq),np.sqrt(singlets_sq[0])>np.abs(singlets[0])))
 
     def get_thermodynamic( self, reset_ecis=True ):
         self.collect_averager_results()
