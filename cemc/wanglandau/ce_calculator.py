@@ -28,7 +28,7 @@ class CE( Calculator ):
     """
 
     implemented_properties = ["energy"]
-    def __init__( self, BC, eci, initial_cf=None, size=(1,1,1) ):
+    def __init__( self, BC, eci, initial_cf=None ):
         Calculator.__init__( self )
         self.BC = BC
         self.eci = eci
@@ -38,21 +38,14 @@ class CE( Calculator ):
         else:
             self.cf = initial_cf
         # Make supercell
-        if ( size != (1,1,1) ):
-            rank = MPI.MPI_COMM.Get_rank()
-            db_name = self.BC.db_name.split(".")[0]+"{}.db".format(rank)
-            self.BC.atoms.db_name = db_name
-            self.BC.atoms = self.BC.atoms*size
-            self.BC.index_by_trans_symm = self.BC._group_indices_by_trans_symmetry()
-            self.BC.num_trans_symm = len(self.BC.index_by_trans_symm)
-            self.BC.ref_index_trans_symm = [i[0] for i in self.BC.index_by_trans_symm]
-            self.BC.reconfigure_settings()
         self.atoms = self.BC.atoms
         symbols = [atom.symbol for atom in self.BC.atoms] # Keep a copy of the original symbols
 
         # Make sure that the database information fits
-        if ( len(BC.atoms) != BC.trans_matrix.shape[0] ):
-            raise ValueError( "The number of atoms and the dimension of the translation matrix is inconsistent. Try reconf_db=True in bulk crystal" )
+        if ( len(self.BC.atoms) != self.BC.trans_matrix.shape[0] ):
+            msg = "The number of atoms and the dimension of the translation matrix is inconsistent"
+            msg = "Dimension of translation matrix: {}. Number of atoms: {}".format(self.BC.trans_matrix.shape,len(self.BC.atoms))
+            raise ValueError( msg )
 
         #print (self.basis_elements)
         #if ( len(BC.basis_elements) > 1 ):

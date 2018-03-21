@@ -25,6 +25,7 @@ class TestCE( unittest.TestCase ):
         a = 4.05
         ceBulk = BulkCrystal( crystalstructure=lat, a=a, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, \
         db_name=db_name, max_cluster_size=4)
+        ceBulk.reconfigure_settings()
         ceBulk._get_cluster_information()
         cf = CorrFunction(ceBulk)
         corrfuncs = cf.get_cf(ceBulk.atoms)
@@ -110,13 +111,15 @@ class TestCE( unittest.TestCase ):
 
     def test_supercell( self ):
         calc,ceBulk,eci = self.get_calc( "fcc" )
-        size = [3,3,3]
-        calc = CE( ceBulk, eci, size=size )
+        calc = CE( ceBulk, eci )
+        init_cf = calc.get_cf()
+        calc,ceBulk,eci = self.get_calc( "fcc" )
         corr_func = CorrFunction(ceBulk)
-        for i in range(25):
+        for i in range(3):
             calc.calculate( ceBulk.atoms, ["energy"], [(i,"Al","Mg")] )
             updated_cf = calc.get_cf()
             brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, updated_cf.keys() )
+            print (updated_cf)
             for key,value in brute_force.iteritems():
                 self.assertAlmostEqual( value, updated_cf[key] )
 
