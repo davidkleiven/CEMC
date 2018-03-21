@@ -28,26 +28,34 @@ class CE( Calculator ):
     """
 
     implemented_properties = ["energy"]
-    def __init__( self, BC, eci, initial_cf=None, size=None ):
+    def __init__( self, BC, eci, size=[1,1,1] ):
         Calculator.__init__( self )
         self.BC = BC
         self.eci = eci
         self.corrFunc = CorrFunction(self.BC)
+        self.cf = self.corrFunc.get_cf( self.BC.atoms )
+
+        # Make supercell
+        self.BC.size = size
+        self.BC.reconfigure_settings()
         self.atoms = self.BC.atoms
         symbols = [atom.symbol for atom in self.BC.atoms] # Keep a copy of the original symbols
+        """
         if ( initial_cf is None ):
             self.cf = self.initialize_correlation_functions()
             #full_names = self.get_full_cluster_names(eci.keys())
             #self.cf = self.corrFunc.get_cf_by_cluster_names(self.atoms,full_names)
         else:
             self.cf = initial_cf
+        """
 
         # Make sure that the database information fits
         if ( len(BC.atoms) != BC.trans_matrix.shape[0] ):
             raise ValueError( "The number of atoms and the dimension of the translation matrix is inconsistent. Try reconf_db=True in bulk crystal" )
 
-        if ( len(BC.basis_elements) > 1 ):
-            raise ValueError( "At the moment only one site type is supported!" )
+        #print (self.basis_elements)
+        #if ( len(BC.basis_elements) > 1 ):
+        #    raise ValueError( "At the moment only one site type is supported!" )
         self.old_cfs = []
         self.old_atoms = self.atoms.copy()
         self.changes = []

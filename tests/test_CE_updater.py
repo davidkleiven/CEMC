@@ -107,6 +107,18 @@ class TestCE( unittest.TestCase ):
                     for key,value in brute_force.iteritems():
                         self.assertAlmostEqual( value, updated_cf[key] )
 
+    def test_supercell( self ):
+        calc,ceBulk,eci = self.get_calc( "fcc" )
+        size = [3,3,3]
+        calc = CE( ceBulk, eci, size=size )
+        corr_func = CorrFunction(ceBulk)
+        for i in range(25):
+            calc.calculate( ceBulk.atoms, ["energy"], [(i,"Al","Mg")] )
+            updated_cf = calc.get_cf()
+            brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, updated_cf.keys() )
+            for key,value in brute_force.iteritems():
+                self.assertAlmostEqual( value, updated_cf[key] )
+
     def test_double_swaps_ternary( self ):
         if ( not has_ase_with_ce ): # Disable this test
             self.skipTest( "ASE version has not cluster expansion" )
