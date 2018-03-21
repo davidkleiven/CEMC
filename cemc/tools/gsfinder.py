@@ -13,7 +13,7 @@ class GSFinder(object):
         """
         calc = CE( BC, ecis )
         BC.atoms.set_calculator( calc )
-
+        #print (calc.get_cf())
         if ( temps is None ):
             temps = np.linspace( 1, 1500, 30 )[::-1]
         if ( composition is not None ):

@@ -33,11 +33,10 @@ class CE( Calculator ):
         self.BC = BC
         self.eci = eci
         self.corrFunc = CorrFunction(self.BC)
-        if ( initial_cf is not None ):
+        if ( initial_cf is None ):
             self.cf = self.corrFunc.get_cf( self.BC.atoms )
         else:
             self.cf = initial_cf
-
         # Make supercell
         if ( size != [1,1,1] ):
             self.BC.size = size
@@ -366,7 +365,8 @@ class CE( Calculator ):
         # Change all atoms to the first one
         init_elm = comp.keys()[0]
         for i in range( len(self.atoms) ):
-            self.update_cf( (i,self.atoms[i].symbol,init_elm) ) # Set all atoms to init element
+            #self.update_cf( (i,self.atoms[i].symbol,init_elm) ) # Set all atoms to init element
+            self.calculate( self.atoms, ["energy"], [(i,self.atoms[i].symbol,init_elm)] )
         start = 0
         for elm,conc in comp.iteritems():
             if ( elm == init_elm ):
