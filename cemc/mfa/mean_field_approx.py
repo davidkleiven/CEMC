@@ -259,6 +259,8 @@ class MeanFieldApprox( object ):
         Computes the heat capacity by computing the derivative of the internal energy
         with respect to temperature
         """
+        if ( betas[1] < betas[0] ):
+            betas = betas[::-1]
         energy = self.internal_energy( betas, chem_pot=chem_pot )
         energy_interp = UnivariateSpline( betas, energy, k=3, s=1 )
         Cv_interp = energy_interp.derivative()

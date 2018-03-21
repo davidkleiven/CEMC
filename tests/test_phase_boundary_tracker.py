@@ -22,7 +22,7 @@ cf2 = {
     "c2_1000_1_00":1.0
 }
 
-db_name = "test_sgc.db"
+db_name = "test_phase_boundary.db"
 class TestPhaseBoundaryMC( unittest.TestCase ):
     def init_bulk_crystal(self):
         conc_args = {
