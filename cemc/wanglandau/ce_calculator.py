@@ -1,6 +1,7 @@
 from ase.calculators.calculator import Calculator
 from ase.ce.corrFunc import CorrFunction
-from ase.ce.settings_bulk import BulkCrystal
+from ase.ce import BulkCrystal
+from ase.ce import BulkSpacegroup
 from ase.build import bulk
 import unittest
 from itertools import product, combinations
@@ -27,7 +28,7 @@ class CE( Calculator ):
     """
 
     implemented_properties = ["energy"]
-    def __init__( self, BC, eci, initial_cf=None ):
+    def __init__( self, BC, eci, initial_cf=None, size=None ):
         Calculator.__init__( self )
         self.BC = BC
         self.eci = eci

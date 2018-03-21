@@ -4,7 +4,6 @@ from __future__ import division
 
 import numpy as np
 import ase.units as units
-from cemc.wanglandau import ce_calculator
 import time
 import logging
 from mpi4py import MPI
