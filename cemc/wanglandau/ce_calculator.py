@@ -28,18 +28,22 @@ class CE( Calculator ):
     """
 
     implemented_properties = ["energy"]
-    def __init__( self, BC, eci, initial_cf=None, size=[1,1,1] ):
+    def __init__( self, BC, eci, initial_cf=None, size=(1,1,1) ):
         Calculator.__init__( self )
         self.BC = BC
         self.eci = eci
         self.corrFunc = CorrFunction(self.BC)
+        view(self.BC.atoms)
         if ( initial_cf is None ):
             self.cf = self.corrFunc.get_cf( self.BC.atoms )
         else:
             self.cf = initial_cf
         # Make supercell
-        if ( size != [1,1,1] ):
-            self.BC.size = size
+        if ( size != (1,1,1) ):
+            self.BC.atoms = self.BC.atoms*size
+            self.BC.index_by_trans_symm = self.BC._group_indices_by_trans_symmetry()
+            self.BC.num_trans_symm = len(self.BC.index_by_trans_symm)
+            self.BC.ref_index_trans_symm = [i[0] for i in self.BC.index_by_trans_symm]
             self.BC.reconfigure_settings()
         self.atoms = self.BC.atoms
         symbols = [atom.symbol for atom in self.BC.atoms] # Keep a copy of the original symbols
