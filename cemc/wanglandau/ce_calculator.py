@@ -36,14 +36,21 @@ def get_ce_calc( small_bc, bc_kwargs, eci, size=[1,1,1] ):
     """
     calc1 = CE( small_bc, eci )
     init_cf = calc1.get_cf()
+    cell_lenghts = small_bc.atoms.get_cell_lengths_and_angles()[:3]
+    min_length = np.min(cell_lenghts)/2.0
+
     bc_kwargs["size"] = size
+    bc_kwargs["max_cluster_dia"] = min_length
+
     rank = MPI.COMM_WORLD.Get_rank()
     db_name = "temporary_db_{}.db".format(rank)
     if ( os.path.exists(db_name) ):
         os.remove( db_name )
     bc_kwargs["db_name"] = db_name
+
     if ( isinstance(small_bc,BulkCrystal) ):
         large_bc = BulkCrystal(**bc_kwargs)
+        print ("here")
     elif ( isinstance(small_bc,BulkSpacegroup) ):
         large_bc = BulkSpacegroup(**bc_kwargs)
     else:
