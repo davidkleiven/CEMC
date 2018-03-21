@@ -22,6 +22,35 @@ except Exception as exc:
     print (str(exc))
     print ("Could not find C++ version, falling back to Python version")
 
+def get_ce_calc( small_bc, bc_kwargs, eci, size=[1,1,1] ):
+    """
+    Constructs a CE calculator by first computing the correlation function
+    from a small cell
+
+    Arguments
+    -----------
+    small_bc - Instance of BulkCrystal or BulkSpacegroup with a relatively small unitcell
+    bc_kwargs - dictionary of the keyword arguments used to construct small_bc
+    eci - Effective Cluster Interactions
+    size - The atoms in small_bc will be extended by this amount
+    """
+    calc1 = CE( small_bc, eci )
+    init_cf = calc1.get_cf()
+    bc_kwargs["size"] = size
+    rank = MPI.COMM_WORLD.Get_rank()
+    db_name = "temporary_db_{}.db".format(rank)
+    if ( os.path.exists(db_name) ):
+        os.remove( db_name )
+    bc_kwargs["db_name"] = db_name
+    if ( isinstance(small_bc,BulkCrystal) ):
+        large_bc = BulkCrystal(**bc_kwargs)
+    elif ( isinstance(small_bc,BulkSpacegroup) ):
+        large_bc = BulkSpacegroup(**bc_kwargs)
+    else:
+        raise TypeError( "The small_bc argument has to by of type BulkCrystal or BulkSpacegroup" )
+    calc2 = CE( large_bc, eci, initial_cf=init_cf )
+    return calc2
+
 class CE( Calculator ):
     """
     Class for updating the CE when symbols change
