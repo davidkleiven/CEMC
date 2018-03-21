@@ -28,26 +28,22 @@ class CE( Calculator ):
     """
 
     implemented_properties = ["energy"]
-    def __init__( self, BC, eci, size=[1,1,1] ):
+    def __init__( self, BC, eci, initial_cf=None, size=[1,1,1] ):
         Calculator.__init__( self )
         self.BC = BC
         self.eci = eci
         self.corrFunc = CorrFunction(self.BC)
-        self.cf = self.corrFunc.get_cf( self.BC.atoms )
-
-        # Make supercell
-        self.BC.size = size
-        self.BC.reconfigure_settings()
-        self.atoms = self.BC.atoms
-        symbols = [atom.symbol for atom in self.BC.atoms] # Keep a copy of the original symbols
-        """
-        if ( initial_cf is None ):
-            self.cf = self.initialize_correlation_functions()
-            #full_names = self.get_full_cluster_names(eci.keys())
-            #self.cf = self.corrFunc.get_cf_by_cluster_names(self.atoms,full_names)
+        if ( initial_cf is not None ):
+            self.cf = self.corrFunc.get_cf( self.BC.atoms )
         else:
             self.cf = initial_cf
-        """
+
+        # Make supercell
+        if ( size != [1,1,1] ):
+            self.BC.size = size
+            self.BC.reconfigure_settings()
+        self.atoms = self.BC.atoms
+        symbols = [atom.symbol for atom in self.BC.atoms] # Keep a copy of the original symbols
 
         # Make sure that the database information fits
         if ( len(BC.atoms) != BC.trans_matrix.shape[0] ):
@@ -60,7 +56,7 @@ class CE( Calculator ):
         self.old_atoms = self.atoms.copy()
         self.changes = []
         self.ctype = {}
-        self.create_ctype_lookup()
+        #self.create_ctype_lookup()
         self.convert_cluster_indx_to_list()
         self.permutations = {}
         self.create_permutations()

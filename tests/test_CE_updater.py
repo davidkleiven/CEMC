@@ -4,6 +4,7 @@ try:
     from ase.ce.corrFunc import CorrFunction
     from cemc.wanglandau.ce_calculator import CE
     from ase.visualize import view
+    from helper_functions import get_bulkspacegroup_binary
     has_ase_with_ce = True
 except Exception as exc:
     print (str(exc))
@@ -169,6 +170,27 @@ class TestCE( unittest.TestCase ):
             brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, update_cf.keys() )
             for key,value in brute_force.iteritems():
                 self.assertAlmostEqual( value, update_cf[key])
+
+    def test_binary_spacegroup( self ):
+        bs, db_name = get_bulkspacegroup_binary()
+        cf = CorrFunction( bs )
+        cf_vals = cf.get_cf( bs.atoms )
+        ecis = {name:1.0 for name in cf_vals.keys()}
+        calc = CE( bs, ecis )
+        bs.atoms.set_calculator( calc )
+        for i in range(25):
+            if ( bs.atoms[i].symbol == "Al" ):
+                new_symb = "Mg"
+                old_symb = "Al"
+            else:
+                new_symb = "Al"
+                old_symb = "Mg"
+            calc.calculate( bs.atoms, ["energy"], [(i,old_symb,new_symb)] )
+            updated_cf = calc.get_cf()
+            brute_force = cf.get_cf_by_cluster_names( bs.atoms, updated_cf.keys() )
+            for key,value in brute_force.iteritems():
+                self.assertAlmostEqual( value, updated_cf[key] )
+
 
 if __name__ == "__main__":
     unittest.main()

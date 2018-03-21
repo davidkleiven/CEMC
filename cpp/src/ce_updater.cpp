@@ -148,82 +148,21 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
         }
         string full_cname = cname_with_dec.at(cluster_name);
         new_clusters[cluster_name] = Cluster( cluster_name, members );
+
+        if ( cluster_symm_group_count.find(cluster_name) == cluster_symm_group_count.end() )
+        {
+          cluster_symm_group_count[cluster_name] = members.size();
+        }
+        else
+        {
+          cluster_symm_group_count[cluster_name] += members.size();
+        }
       }
     }
     clusters.push_back( new_clusters );
   }
   Py_DECREF( clst_indx );
   Py_DECREF( clist );
-
-  /*
-  #ifdef CE_DEBUG
-    cerr << "Getting cluster indices from atoms object\n";
-  #endif
-  // Read cluster indices
-  PyObject *clst_indx = PyObject_GetAttrString( BC, "cluster_indx" );
-  if ( clst_indx == NULL )
-  {
-    status = Status_t::INIT_FAILED;
-    return;
-  }
-
-  num_trans_symm = PyList_Size( clst_indx );
-  for ( unsigned int s=0;s<num_trans_symm;s++ )
-  {
-  unsigned int n_cluster_sizes = PyList_Size( clst_indx );
-  vector < vector < vector<int> > > new_outer_list;
-  for ( unsigned int i=0;i<n_cluster_sizes;i++ )
-  {
-    vector< vector< vector<int> > > outer_list;
-    if ( i <= 1 )
-    {
-      // Insert empty lists
-      cluster_indx.push_back(outer_list);
-      continue;
-    }
-
-    PyObject *current_list = PyList_GetItem( clst_indx, i );
-    int n_clusters = PyList_Size( current_list );
-    if ( n_clusters < 0 )
-    {
-      status = Status_t::INIT_FAILED;
-      return;
-    }
-
-    for ( int j=0;j<n_clusters;j++ )
-    {
-      PyObject *members = PyList_GetItem( current_list, j );
-      int n_members = PyList_Size(members);
-      if ( n_members < 0 )
-      {
-        status = Status_t::INIT_FAILED;
-        return;
-      }
-
-      vector< vector<int> > inner_list;
-      for ( int k=0;k<n_members;k++ )
-      {
-        vector<int> one_cluster;
-        PyObject *py_one_cluster = PyList_GetItem(members,k);
-        int n_members_in_cluster = PyList_Size(py_one_cluster);
-        if ( n_members_in_cluster < 0 )
-        {
-          status = Status_t::INIT_FAILED;
-          return;
-        }
-
-        for ( int l=0;l<n_members_in_cluster;l++ )
-        {
-          one_cluster.push_back( PyInt_AsLong( PyList_GetItem(py_one_cluster,l)) );
-        }
-        inner_list.push_back( one_cluster );
-      }
-      outer_list.push_back(inner_list);
-    }
-    new_outer_list.push_back(outer_list);
-  }
-  cluster_indx.push_back(new_outer_list);
-}*/
 
   #ifdef CE_DEBUG
     cerr << "Reading basis functions from BC object\n";
@@ -422,6 +361,7 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
     Py_DECREF(atom);
   }
 
+  // Loop over all ECIs
   for ( auto iter=ecis.begin(); iter != ecis.end(); ++iter )
   {
     const string &name = iter->first;
@@ -446,6 +386,11 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
 
     double delta_sp = 0.0;
     int symm = trans_symm_group[symb_change.indx];
+    if ( clusters[symm].find(prefix) == clusters[symm].end() )
+    {
+      next_cf[name] = current_cf[name];
+      continue;
+    }
     const vector< vector<int> > &cluster_indices = clusters[symm].at(prefix).get();
     unsigned int size = clusters[symm].at(prefix).size;
     double normalization = cluster_indices.size();
@@ -462,7 +407,9 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
       permutation_counter += 1;
     } while ( next_permutation( bfs.begin(),bfs.end() ) );
     delta_sp *= (static_cast<double>(size)/permutation_counter);
-    delta_sp /= (normalization*symbols.size());
+    //delta_sp /= (normalization*symbols.size()); // This was the old normalization
+    delta_sp /= (cluster_symm_group_count.at(prefix)*trans_symm_group_count[symm]);
+    //cout << name << " " << cluster_indices << endl;
     next_cf[name] = current_cf[name] + delta_sp;
   }
 }
@@ -772,6 +719,13 @@ void CEUpdater::build_trans_symm_group( PyObject *py_trans_symm_group )
       msg << "Site " << i << " has not been assigned to any translational symmetry group!";
       throw runtime_error( msg.str() );
     }
+  }
+
+  // Count the number of atoms in each symmetry group
+  trans_symm_group_count.resize(list_size);
+  for ( unsigned int i=0;i<trans_symm_group.size();i++ )
+  {
+    trans_symm_group_count[trans_symm_group[i]] += 1;
   }
 }
 

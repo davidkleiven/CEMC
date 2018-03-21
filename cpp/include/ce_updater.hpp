@@ -114,6 +114,8 @@ private:
   cluster_list cluster_indx;
   std::vector< std::map<std::string,Cluster> > clusters;
   std::vector<int> trans_symm_group;
+  std::vector<int> trans_symm_group_count;
+  std::map<std::string,int> cluster_symm_group_count;
   bf_list basis_functions;
   Status_t status{Status_t::NOT_INITIALIZED};
   Matrix<int> trans_matrix;
