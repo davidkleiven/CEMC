@@ -47,6 +47,12 @@ class SGCMonteCarlo( mc.Montecarlo ):
         print ("{}-{}-{}-{}".format(self.rank,singlets,np.sqrt(singlets_sq),np.sqrt(singlets_sq[0])>np.abs(singlets[0])) )
         var_n = ( singlets_sq - singlets**2 )
 
+        if ( np.min(var_n) < -1E-6 ):
+            msg = "The computed variances is {}".format(var_n)
+            msg += "This is significantly smaller than zero and cannot be "
+            msg += "attributed to numerical precission!"
+            raise RuntimeError( msg )
+
         nproc = 1
         if ( self.mpicomm is not None ):
             nproc = self.mpicomm.Get_size()
