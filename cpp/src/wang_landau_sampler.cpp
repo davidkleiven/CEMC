@@ -285,7 +285,6 @@ void WangLandauSampler::step()
 
   histogram->update_bin_transfer(old_current_bin,bin);
 
-
   /*
   if ( (n_outside_range/iter_since_last > 0.1) && (iter_since_last>histogram->get_nbins()) )
   {

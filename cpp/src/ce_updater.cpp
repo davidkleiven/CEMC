@@ -558,11 +558,16 @@ CEUpdater* CEUpdater::copy() const
   obj->symbols = symbols;
   obj->cluster_names = cluster_names;
   obj->cluster_indx = cluster_indx;
+  obj->clusters = clusters;
+  obj->trans_symm_group = trans_symm_group;
+  obj->trans_symm_group_count = trans_symm_group_count;
+  obj->cluster_symm_group_count = cluster_symm_group_count;
   obj->basis_functions = basis_functions;
   obj->status = status;
   obj->trans_matrix = trans_matrix;
   obj->ctype_lookup = ctype_lookup;
   obj->ecis = ecis;
+  obj->cname_with_dec = cname_with_dec;
   obj->history = new CFHistoryTracker(*history);
   obj->permutations = permutations;
   obj->atoms = nullptr; // Left as nullptr by intention

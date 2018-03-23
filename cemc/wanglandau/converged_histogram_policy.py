@@ -1,4 +1,4 @@
-import wang_landau_scg as wlg
+import wang_landau_sampler as wlg
 from settings import SimulationState
 
 class ConvergedHistogramPolicy( object ):
@@ -7,8 +7,8 @@ class ConvergedHistogramPolicy( object ):
     when the histogram in the WL algorithm has converged
     """
     def __init__( self, wl_sim ):
-        if ( not isinstance(wl_sim, wlg.WangLandauSGC) ):
-            raise TypeError( "wl_sim has to be of type WangLandauSGC" )
+        if ( not isinstance(wl_sim, wlg.WangLandau) ):
+            raise TypeError( "wl_sim has to be of type WangLandau" )
         self.wl_sim = wl_sim
 
     def __call__( self ):

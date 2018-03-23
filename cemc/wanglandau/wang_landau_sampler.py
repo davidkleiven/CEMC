@@ -19,15 +19,15 @@ import time
 from histogram import Histogram
 from matplotlib import pyplot as plt
 from ase import units
-from wanglandau import ce_calculator
+import ce_calculator
 try:
-    from ce_updater.ce_updater import WangLandauSampler
+    from cemc.ce_updater.ce_updater import WangLandauSampler
     has_fast_wl_sampler = True
 except Exception as exc:
     print (str(exc))
     has_fast_wl_sampler = False
 
-class WangLandauSGC( object ):
+class WangLandau( object ):
     def __init__( self, atoms, db_name, db_id, site_types=None, site_elements=None, Nbins=100, initial_f=2.71,
     flatness_criteria=0.8, fmin=1E-6, Emin=0.0, Emax=1.0, conv_check="flathist", scheme="fixed_f",
     logfile="default.log", ensemble="canonical" ):

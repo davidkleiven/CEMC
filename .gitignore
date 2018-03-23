@@ -10,3 +10,5 @@ cemc.egg-info/*
 *.h5
 .pytest_cache/*
 *.log
+*.csv
+*.pkl

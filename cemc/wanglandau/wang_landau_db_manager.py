@@ -1,7 +1,7 @@
 import sys
 import sqlite3 as sq
 import numpy as np
-from wang_landau_scg import WangLandauSGC
+from cemc.wanglandau import WangLandau
 from wl_analyzer import WangLandauSGCAnalyzer
 import wltools
 from ase.db import connect
@@ -59,6 +59,10 @@ class WangLandauDBManager( object ):
         conn = sq.connect( self.db_name )
         cur = conn.cursor()
 
+        default_values = {
+            "converged":0
+        }
+
         for tabname in required_tables:
             sql = "create table if not exists %s (uid integer)"%(tabname)
             cur.execute(sql)
@@ -69,6 +73,8 @@ class WangLandauDBManager( object ):
             for col in required_fields[tabname]:
                 try:
                     sql = "alter table %s add column %s %s"%(tabname, col, types[col] )
+                    if ( col in default_values ):
+                        sql += " DEFAULT({})".format(default_values[col])
                     cur.execute( sql )
                 except Exception as exc:
                     pass
@@ -284,11 +290,9 @@ class WangLandauDBManager( object ):
         """
         conn = sq.connect( self.db_name )
         cur = conn.cursor()
-        cur.execute( "SELECT uid FROM simulations WHERE atomID=? AND converged=0",(atomID,) )
-        try:
-            next_uid = cur.fetchone()
-        except Exception as exc:
-            print (str(exc) )
-            next_uid = -1
+        cur.execute( "SELECT uid FROM simulations WHERE atomID=? AND converged=?",(atomID,0) )
+        next_uid = cur.fetchone()[0]
         conn.close()
+        if ( next_uid is None ):
+            return -1
         return next_uid

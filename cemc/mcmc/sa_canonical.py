@@ -2,7 +2,7 @@ from ase.units import kB
 import montecarlo as mc
 import numpy as np
 
-class SimmulatedAnnealingCanonical( object ):
+class SimulatedAnnealingCanonical( object ):
     def __init__( self, atoms, temperatures, mode="minimize" ):
         self.atoms = atoms
         self.temperatures = temperatures
