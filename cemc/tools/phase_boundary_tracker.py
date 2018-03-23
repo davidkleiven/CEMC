@@ -242,6 +242,7 @@ class PhaseBoundaryTracker(object):
             "singlet2":[],
             "mu":[]
         }
+
         while( n < nsteps ):
             self.logger.info( "Current mu: {}. Current temperature: {}K".format(mu[n-1],1.0/(kB*beta[n-1])))
             self.logger.handlers[0].flush()

@@ -2,7 +2,7 @@ import unittest
 try:
     from ase.ce.settings_bulk import BulkCrystal
     from ase.ce.corrFunc import CorrFunction
-    from cemc.wanglandau.ce_calculator import CE
+    from cemc.wanglandau.ce_calculator import CE, get_ce_calc
     from ase.visualize import view
     from helper_functions import get_bulkspacegroup_binary
     has_ase_with_ce = True
@@ -25,6 +25,7 @@ class TestCE( unittest.TestCase ):
         a = 4.05
         ceBulk = BulkCrystal( crystalstructure=lat, a=a, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, \
         db_name=db_name, max_cluster_size=4)
+        ceBulk.reconfigure_settings()
         ceBulk._get_cluster_information()
         cf = CorrFunction(ceBulk)
         corrfuncs = cf.get_cf(ceBulk.atoms)
@@ -109,14 +110,33 @@ class TestCE( unittest.TestCase ):
                         self.assertAlmostEqual( value, updated_cf[key] )
 
     def test_supercell( self ):
-        calc,ceBulk,eci = self.get_calc( "fcc" )
-        size = [3,3,3]
-        calc = CE( ceBulk, eci, size=size )
-        corr_func = CorrFunction(ceBulk)
-        for i in range(25):
+        calc, ceBulk,eci = self.get_calc("fcc")
+        db_name = "test_db_fcc_super.db"
+
+        conc_args = {
+            "conc_ratio_min_1":[[1,0]],
+            "conc_ratio_max_1":[[0,1]],
+        }
+
+        kwargs = {
+            "crystalstructure":"fcc",
+            "a":4.05,
+            "size":[3,3,3],
+            "basis_elements":[["Al","Mg"]],
+            "conc_args":conc_args,
+            "db_name":db_name,
+            "max_cluster_size":4
+        }
+        ceBulk = BulkCrystal( **kwargs )
+        calc = get_ce_calc( ceBulk, kwargs, eci, size=[4,4,4] )
+        corr_func = CorrFunction(calc.BC)
+        ceBulk = calc.BC
+        ceBulk.atoms.set_calculator(calc)
+        for i in range(10):
             calc.calculate( ceBulk.atoms, ["energy"], [(i,"Al","Mg")] )
             updated_cf = calc.get_cf()
             brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, updated_cf.keys() )
+            print (updated_cf)
             for key,value in brute_force.iteritems():
                 self.assertAlmostEqual( value, updated_cf[key] )
 

@@ -22,31 +22,78 @@ except Exception as exc:
     print (str(exc))
     print ("Could not find C++ version, falling back to Python version")
 
+def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1] ):
+    """
+    Constructs a CE calculator by first computing the correlation function
+    from a small cell
+
+    Arguments
+    -----------
+    small_bc - Instance of BulkCrystal or BulkSpacegroup with a relatively small unitcell
+    bc_kwargs - dictionary of the keyword arguments used to construct small_bc
+    eci - Effective Cluster Interactions
+    size - The atoms in small_bc will be extended by this amount
+    """
+    rank = MPI.COMM_WORLD.Get_rank()
+    unknown_type = False
+    large_bc = small_bc # Just for the other processes
+    init_cf = None
+    if ( rank == 0 ):
+        calc1 = CE( small_bc, eci )
+        init_cf = calc1.get_cf()
+        cell_lenghts = small_bc.atoms.get_cell_lengths_and_angles()[:3]
+        min_length = np.min(cell_lenghts)/2.0
+
+        bc_kwargs["size"] = size
+        bc_kwargs["max_cluster_dia"] = min_length
+
+        db_name = "temporary_db.db"
+        if ( os.path.exists(db_name) ):
+            os.remove( db_name )
+        bc_kwargs["db_name"] = db_name
+
+        if ( isinstance(small_bc,BulkCrystal) ):
+            large_bc = BulkCrystal(**bc_kwargs)
+        elif ( isinstance(small_bc,BulkSpacegroup) ):
+            large_bc = BulkSpacegroup(**bc_kwargs)
+        else:
+            unknown_type = True
+
+    unknown_type = MPI.COMM_WORLD.bcast( unknown_type, root=0 )
+    if ( unknown_type ):
+        raise TypeError( "The small_bc argument has to by of type BulkCrystal or BulkSpacegroup" )
+    large_bc = MPI.COMM_WORLD.bcast( large_bc, root=0 )
+    init_cf = MPI.COMM_WORLD.bcast( init_cf, root=0 )
+    calc2 = CE( large_bc, eci, initial_cf=init_cf )
+    return calc2
+
 class CE( Calculator ):
     """
     Class for updating the CE when symbols change
     """
 
     implemented_properties = ["energy"]
-    def __init__( self, BC, eci, initial_cf=None, size=[1,1,1] ):
+    def __init__( self, BC, eci=None, initial_cf=None ):
         Calculator.__init__( self )
         self.BC = BC
-        self.eci = eci
         self.corrFunc = CorrFunction(self.BC)
         if ( initial_cf is None ):
             self.cf = self.corrFunc.get_cf( self.BC.atoms )
         else:
             self.cf = initial_cf
+
+        if ( eci is None ):
+            eci = {name:1.0 for name in self.cf.keys()}
+        self.eci = eci
         # Make supercell
-        if ( size != [1,1,1] ):
-            self.BC.size = size
-            self.BC.reconfigure_settings()
         self.atoms = self.BC.atoms
         symbols = [atom.symbol for atom in self.BC.atoms] # Keep a copy of the original symbols
 
         # Make sure that the database information fits
-        if ( len(BC.atoms) != BC.trans_matrix.shape[0] ):
-            raise ValueError( "The number of atoms and the dimension of the translation matrix is inconsistent. Try reconf_db=True in bulk crystal" )
+        if ( len(self.BC.atoms) != self.BC.trans_matrix.shape[0] ):
+            msg = "The number of atoms and the dimension of the translation matrix is inconsistent"
+            msg = "Dimension of translation matrix: {}. Number of atoms: {}".format(self.BC.trans_matrix.shape,len(self.BC.atoms))
+            raise ValueError( msg )
 
         #print (self.basis_elements)
         #if ( len(BC.basis_elements) > 1 ):
