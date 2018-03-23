@@ -18,8 +18,15 @@ class SGCMonteCarlo( mc.Montecarlo ):
         self.name = "SGCMonteCarlo"
         self._chemical_potential = None
         self.chem_pot_in_ecis = False
-        self.attach( self.averager )
-        self.has_attached_avg = True
+
+        has_attached_obs = False
+        for obs in self.observers:
+            if ( obs.name == "SGCObserver" ):
+                has_attached_obs = True
+                self.averager = obs
+                break
+        if ( not has_attached_obs ):
+            self.attach( self.averager )
 
     def get_trial_move( self ):
         indx = np.random.randint( low=0, high=len(self.atoms) )
@@ -44,8 +51,8 @@ class SGCMonteCarlo( mc.Montecarlo ):
         N = self.averager.counter
         singlets = self.averager.quantities["singlets"]/N
         singlets_sq = self.averager.quantities["singlets_sq"]/N
-        print ("{}-{}-{}-{}".format(self.rank,singlets,np.sqrt(singlets_sq),np.sqrt(singlets_sq[0])>np.abs(singlets[0])) )
         var_n = ( singlets_sq - singlets**2 )
+        #var_n = self.averager.quantities["singlet_diff"]/N
 
         if ( np.min(var_n) < -1E-6 ):
             msg = "The computed variances is {}".format(var_n)
@@ -106,8 +113,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         N = self.averager.counter
         singlets = self.averager.singlets/N
         singlets_sq = self.averager.quantities["singlets_sq"]/N
-        var_n = (singlets_sq-singlets**2)/N
-        print ("{}: {}".format(self.rank, var_n))
+        var_n = self.get_var_average_singlets()
 
         if ( len(prev_composition) != len(singlets) ):
             # Prev composition is unknown so makes no sense
@@ -186,6 +192,8 @@ class SGCMonteCarlo( mc.Montecarlo ):
         return self.reset_eci_to_original( self.atoms.bc._calc.eci )
 
     def runMC( self, mode="fixed", steps = 10, verbose = False, chem_potential=None, equil=True, equil_params=None, prec_confidence=0.05, prec=0.01 ):
+        self.set_seeds()
+        self.reset()
         if ( self.mpicomm is not None ):
             self.mpicomm.barrier()
 
@@ -198,7 +206,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
 
         if ( chem_potential is not None ):
             self.chemical_potential = chem_potential
-        self.averager.reset()
+        self.reset()
 
         # Include vibrations in the ECIS, does nothing if no vibration ECIs are set
         self.include_vib()
@@ -216,6 +224,11 @@ class SGCMonteCarlo( mc.Montecarlo ):
                     elif ( key == "window_length" ):
                         window_length = value
             reached_equil = True
+            res = self.estimate_correlation_time( restart=True )
+            if ( not res["correlation_time_found"] ):
+                res["correlation_time_found"] = True
+                res["correlation_time"] = 1000
+            self.distribute_correlation_time()
             try:
                 self.equillibriate( window_length=window_length, confidence_level=confidence_level, maxiter=maxiter )
             except mc.DidNotReachEquillibriumError:
@@ -225,18 +238,8 @@ class SGCMonteCarlo( mc.Montecarlo ):
             if ( not atleast_one_proc ):
                 raise mc.DidNotReachEquillibriumError()
 
-            self.reset()
-
-        if ( not self.has_attached_avg ):
-            self.attach( self.averager )
-            self.has_attached_avg = True
+        self.reset()
         mc.Montecarlo.runMC( self, steps=steps, verbose=verbose, equil=False, mode=mode, prec_confidence=prec_confidence, prec=prec )
-
-        # Reset the chemical potential to zero
-        #zero_chemical_potential = {key:0.0 for key in self.chemical_potential.keys()}
-        #self.chemical_potential = zero_chemical_potential
-        #eci = self.reset_eci_to_original( eci )
-        #self.atoms._calc.update_ecis( eci )
 
     def collect_averager_results(self):
         """
@@ -246,8 +249,35 @@ class SGCMonteCarlo( mc.Montecarlo ):
             return
 
         size = self.mpicomm.Get_size()
-        self.mpicomm.barrier() # TODO: Is this nessecary?
         all_res = self.mpicomm.gather( self.averager.quantities, root=0 )
+
+        # Check that all processors have performed the same number of steps (which they should)
+        same_number_of_steps = True
+        msg = ""
+        if ( self.rank == 0 ):
+            for i in range(1,len(all_res)):
+                if ( all_res[i]["counter"] != all_res[0]["counter"] ):
+                    same_number_of_steps = False
+                    msg = "Processor {} have performed a different number steps compared to 0.".format(i)
+                    msg += "Number of stest {}: {}. Number of steps 0: {}".format( i, all_res[i]["counter"], all_res[0]["counter"])
+                    break
+        same_number_of_steps = self.mpicomm.bcast( same_number_of_steps, root=0 )
+
+        if ( not same_number_of_steps ):
+            raise RuntimeError( msg )
+
+        par_works = True
+        if ( self.rank == 0 ):
+            par_works = self.parallelization_works( all_res )
+        par_works = self.mpicomm.bcast( par_works, root=0 )
+        if ( not par_works ):
+            # This can happen either because the seed on all processors are the same
+            # or because the results hav already been collected
+            return
+            msg = "It seems like exactly the same process is running on multiple processors!"
+            raise RuntimeError( msg )
+
+        # Average all the results from the all the processors
         if ( self.rank == 0 ):
             self.averager.quantities = all_res[0]
             for i in range(1,len(all_res)):
@@ -257,13 +287,18 @@ class SGCMonteCarlo( mc.Montecarlo ):
                 # Normalize by the number of processors
                 for key in self.averager.quantities.keys():
                     self.averager.quantities[key] /= size
+
+            """
+            # Numerical pressicion issue?
+            self.averager.quantities["singlet_diff"] = all_res[0]["singlets_sq"] - all_res[0]["singlets"]**2
+            N = self.averager.counter
+            for i in range(1,len(all_res)):
+                self.averager.quantities["singlet_diff"] += all_res[i]["singlets_sq"] - all_res[i]["singlets"]**2
+            self.averager.quantities["singlet_diff"] /= (size*N)
+            """
+
         # Broadcast the averaged results
-        self.mpicomm.barrier() # TODO: Is this nessecary?
         self.averager.quantities = self.mpicomm.bcast( self.averager.quantities, root=0 )
-        N = self.averager.counter
-        singlets = self.averager.quantities["singlets"]/N
-        singlets_sq = self.averager.quantities["singlets_sq"]/N
-        print ("{}-{}-{}-{}".format(self.rank,singlets,np.sqrt(singlets_sq),np.sqrt(singlets_sq[0])>np.abs(singlets[0])))
 
     def get_thermodynamic( self, reset_ecis=True ):
         self.collect_averager_results()
@@ -289,3 +324,26 @@ class SGCMonteCarlo( mc.Montecarlo ):
         if ( reset_ecis ):
             self.reset_eci_to_original( self.atoms._calc.eci )
         return quantities
+
+    def parallelization_works( self, all_res ):
+        """
+        Checks that the entries in all_res are different.
+        If not it seems like the same process is running on
+        all the processors
+        """
+        if ( all_res is None ):
+            return True
+
+        ref_proc = all_res[-1] # Use the last processor as reference
+        for i in range(0,len(all_res)-1):
+            for key in ref_proc.keys():
+                if ( key == "counter" ):
+                    continue
+
+                if ( isinstance( ref_proc[key],np.ndarray) ):
+                    if ( not np.allclose( ref_proc[key], all_res[i][key] ) ):
+                        return True
+                else:
+                    if ( ref_proc[key] != all_res[i][key] ):
+                        return True
+        return False

@@ -7,7 +7,7 @@ import numpy as np
 
 class MCObserver( object ):
     def __init__( self ):
-        pass
+        self.name = "GenericObserver"
 
     def __call__( self, system_changes ):
         """
@@ -29,6 +29,7 @@ class CorrelationFunctionTracker( MCObserver ):
     def __init__( self, ce_calc ):
         self.cf = []
         self.ce_calc = ce_calc
+        self.name = "CorrelationFunctionTracker"
 
     def __call__( self, system_changes ):
         """
@@ -64,6 +65,7 @@ class PairCorrelationObserver( MCObserver ):
         if ( self.ce_calc.updater is None ):
             raise RuntimeError( "This observer can only be used with the C++ version of the CF updater" )
         self.n_entries = 0
+        self.name = "PairCorrelationObserver"
 
         for key,value in self.ce_calc.eci.iteritems():
             if ( key.startswith("c2_") ):
@@ -106,6 +108,7 @@ class LowestEnergyStructure(MCObserver):
         self.lowest_energy_atoms = None
         self.lowest_energy_cf = None
         self.atoms = None
+        self.name = "LowestEnergyStructure"
 
     def __call__( self, system_changes ):
         if ( self.lowest_energy_atoms is None or self.lowest_energy_cf is None ):
@@ -122,6 +125,8 @@ class LowestEnergyStructure(MCObserver):
 
 class SGCObserver(MCObserver):
     def __init__( self, ce_calc, mc_obj, n_singlets ):
+        super(SGCObserver,self).__init__()
+        self.name = "SGCObersver"
         self.ce_calc = ce_calc
         self.mc = mc_obj
 

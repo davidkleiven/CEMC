@@ -277,3 +277,18 @@ class WangLandauDBManager( object ):
             analyzers.append( new_analyzer )
         filtered = [entry for entry in analyzers if not entry is None] # Remove non-converged entries
         return filtered
+
+    def get_next_non_converged_uid( self, atomID ):
+        """
+        Returns the UID of the next non-converged entry
+        """
+        conn = sq.connect( self.db_name )
+        cur = conn.cursor()
+        cur.execute( "SELECT uid FROM simulations WHERE atomID=? AND converged=0",(atomID,) )
+        try:
+            next_uid = cur.fetchone()
+        except Exception as exc:
+            print (str(exc) )
+            next_uid = -1
+        conn.close()
+        return next_uid

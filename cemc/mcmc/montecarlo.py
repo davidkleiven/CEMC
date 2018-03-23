@@ -189,6 +189,14 @@ class Montecarlo(object):
         # Update the seed
         np.random.seed(seed)
 
+        if ( size > 1 ):
+            # Verify that numpy rand produces different result on the processors
+            random_test = np.random.randint( low=0, high=100, size=100 )
+            sum_all = np.zeros_like(random_test)
+            self.mpicomm.Allreduce( random_test, sum_all )
+            if ( np.allclose(sum_all,size*random_test) ):
+                raise RuntimeError( "The seeding does not appear to have any effect on Numpy's rand functions!" )
+
     def get_var_average_energy( self ):
         """
         Returns the variance of the average energy, taking into account
@@ -354,8 +362,7 @@ class Montecarlo(object):
             self.collect_energy()
             E_new = self.mean_energy/window_length
             means.append( E_new )
-            var_E_new = (self.energy_squared/window_length - E_new**2)/window_length
-            var_E_new /= nproc
+            var_E_new = self.get_var_average_energy()
             comp_conv, composition, var_comp = self.composition_reached_equillibrium( composition, var_comp, confidence_level=confidence_level )
             if ( E_prev is None ):
                 E_prev = E_new
@@ -542,6 +549,12 @@ class Montecarlo(object):
                     elif ( key == "window_length" ):
                         window_length = value
             reached_equil = True
+            res = self.estimate_correlation_time(restart=True)
+            if ( not res["correlation_time_found"] ):
+                res["correlation_time"] = 1000
+                res["correlation_time_found"] = True
+            self.distribute_correlation_time()
+
             try:
                 self.equillibriate( window_length=window_length, confidence_level=confidence_level, maxiter=maxiter )
             except DidNotReachEquillibriumError:
@@ -557,7 +570,7 @@ class Montecarlo(object):
         next_convergence_check = 1000
         if ( mode == "prec" ):
             # Estimate correlation length
-            res = self.estimate_correlation_time()
+            res = self.estimate_correlation_time( restart=True )
             while ( not res["correlation_time_found"] ):
                 res = self.estimate_correlation_time()
             steps = 1E10 # Set the maximum number of steps to a very large number
@@ -568,6 +581,7 @@ class Montecarlo(object):
 
         print ( "Proc: {} - {}".format(self.rank,check_convergence_every) )
         # self.current_step gets updated in the _mc_step function
+        self.reset()
         while( self.current_step < steps ):
             en, accept = self._mc_step( verbose=verbose )
             self.mean_energy += self.current_energy_without_vib()
