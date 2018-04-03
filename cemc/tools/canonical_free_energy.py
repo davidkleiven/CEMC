@@ -11,7 +11,7 @@ class CanonicalFreeEnergy( object ):
         """
         concs = np.array( [value for key,value in self.comp.iteritems()] )
         infinite_temp_value = np.sum( concs*np.log(concs) )
-        beta = kB*T
+        beta = 1.0/(kB*T)
         ref_energy = infinite_temp_value + energy*beta
         return ref_energy
 
@@ -33,7 +33,8 @@ class CanonicalFreeEnergy( object ):
         temperature, internal_energy = self.sort( temperature, internal_energy )
         betas = 1.0/(kB*temperature)
         ref_energy = self.reference_energy( temperature[0], internal_energy[0] )
-
         free_energy = [np.trapz(internal_energy[:i],x=betas[:i]) for i in range(1,len(betas))]
         free_energy.append( np.trapz(internal_energy,x=betas) )
+        free_energy += ref_energy
+        free_energy *= kB*temperature
         return temperature, internal_energy, free_energy

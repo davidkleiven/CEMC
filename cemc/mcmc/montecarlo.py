@@ -435,6 +435,14 @@ class Montecarlo(object):
         percentile = stats.norm.ppf(1.0-confidence_level)
         var_E = self.get_var_average_energy()
         converged = ( var_E < (prec*len(self.atoms)/percentile)**2 )
+
+        if ( self.mpicomm is not None ):
+            # Make sure that all processors has the same converged flag
+            send_buf = np.zeros(1)
+            recv_buf = np.zeros(1)
+            send_buf[0] = converged
+            self.mpicomm.Allreduce( send_buf, recv_buf )
+            converged = (recv_buf[0] == self.mpicomm.Get_size())
         return converged
 
     def on_converged_log( self ):
