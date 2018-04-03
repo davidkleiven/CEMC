@@ -35,6 +35,10 @@ class WangLandauInit(object):
         bc = calc.BC
         bc.atoms.set_calculator(calc)
 
+        formula = bc.atoms.get_chemical_formula()
+        if ( self.template_atoms_exists(formula) ):
+            raise RuntimeError( "An atom object with the specified composition already exists in the database" )
+
         Emin, Emax = self._find_energy_range( bc.atoms, T, n_steps_per_temp )
         cf = calc.get_cf()
         data = {"cf":cf}
@@ -98,6 +102,16 @@ class WangLandauInit(object):
             if ( row.id == atomID ):
                 continue
             if ( row.formula == ref_formula ):
+                return True
+        return False
+
+    def template_atoms_exists( self, formula ):
+        """
+        Check if the template object already exists
+        """
+        db = connect( self.wl_db_name )
+        for row in db.select():
+            if ( row.formula == formula ):
                 return True
         return False
 
