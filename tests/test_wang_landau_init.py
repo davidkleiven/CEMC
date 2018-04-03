@@ -2,7 +2,7 @@ import unittest
 from ase.build import bulk
 try:
     from ase.ce import BulkCrystal
-    from cemc.wanglandau import WangLandauInit, WangLandau, WangLandauDBManager
+    from cemc.wanglandau import WangLandauInit, WangLandau, WangLandauDBManager, AtomExistsError
     has_CE = True
 except Exception as exc:
     print (exc)
@@ -35,7 +35,10 @@ class TestInitWLSim( unittest.TestCase ):
             initializer = WangLandauInit( wl_db_name )
             T = [1000,10]
             comp = {"Al":0.5,"Mg":0.5}
-            initializer.insert_atoms( bc_kwargs, size=[5,5,5], T=T, n_steps_per_temp=10, eci=eci, composition=comp )
+            try:
+                initializer.insert_atoms( bc_kwargs, size=[5,5,5], T=T, n_steps_per_temp=10, eci=eci, composition=comp )
+            except AtomExistsError:
+                pass
             initializer.prepare_wang_landau_run( [("id","=","1")] )
             atoms = initializer.get_atoms( 1, eci )
             db_manager = WangLandauDBManager( wl_db_name )

@@ -6,6 +6,10 @@ from ase.calculators.singlepoint import SinglePointCalculator
 import pickle as pck
 import wang_landau_db_manager as wldbm
 
+class AtomExistsError(Exception):
+    def __init__(self, msg):
+        super(AtomExistsError,self).__init__(msg)
+
 class WangLandauInit(object):
     def __init__( self, wl_db_name ):
         self.wl_db_name = wl_db_name
@@ -37,7 +41,7 @@ class WangLandauInit(object):
 
         formula = bc.atoms.get_chemical_formula()
         if ( self.template_atoms_exists(formula) ):
-            raise RuntimeError( "An atom object with the specified composition already exists in the database" )
+            raise AtomExistsError( "An atom object with the specified composition already exists in the database" )
 
         Emin, Emax = self._find_energy_range( bc.atoms, T, n_steps_per_temp )
         cf = calc.get_cf()
