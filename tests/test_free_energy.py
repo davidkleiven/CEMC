@@ -1,6 +1,10 @@
 import unittest
 import json
-from cemc.tools import free_energy as fe
+try:
+    from cemc.tools import free_energy as fe
+    has_CE = True
+except ImportError:
+    has_CE = False
 
 with open( "tests/test_data/free_energy_test_data.json", 'r') as infile:
     data = json.load( infile )
@@ -12,6 +16,8 @@ mu = {"c1_1":data["mu"]}
 
 class TestFreeEnergy( unittest.TestCase ):
     def test_no_throw( self ):
+        if ( not has_CE ):
+            self.skipTest("ASE version does not have CE")
         no_throw = True
         msg=""
         try:

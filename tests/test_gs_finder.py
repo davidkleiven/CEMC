@@ -1,9 +1,15 @@
 import unittest
-from cemc.tools import GSFinder
-from ase.ce import BulkCrystal
+try:
+    from cemc.tools import GSFinder
+    from ase.ce import BulkCrystal
+    has_CE = True
+except ImportError:
+    has_CE = False
 
 class TestGSFinder( unittest.TestCase ):
     def test_gs_finder( self ):
+        if ( not has_CE ):
+            self.skipTest("ASE version does not have CE")
         no_throw = True
         msg = ""
         try:

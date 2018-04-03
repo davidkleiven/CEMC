@@ -1,8 +1,8 @@
 import unittest
-from cemc.wanglandau import WangLandauInit, WangLandau, WangLandauDBManager
 from ase.build import bulk
 try:
     from ase.ce import BulkCrystal
+    from cemc.wanglandau import WangLandauInit, WangLandau, WangLandauDBManager
     has_CE = True
 except Exception as exc:
     print (exc)
