@@ -409,6 +409,10 @@ void WangLandauSampler::send_results_to_python()
   PyObject *py_iter = PyFloat_FromDouble(iter);
   PyObject_SetAttrString( py_wl, "iter", py_iter );
   Py_DECREF( py_iter );
+
+  // Save the results in the database
+  PyObject* result = PyObject_CallMethod( py_wl, "save_db", NULL );
+  Py_DECREF( result );
 }
 
 void WangLandauSampler::run_until_valid_energy( double emin, double emax )
@@ -465,7 +469,8 @@ void WangLandauSampler::run_until_valid_energy( double emin, double emax )
         delete updaters[i];
         updaters[i] = updaters[proc_in_valid_state]->copy();
         current_bin[i] = current_bin[proc_in_valid_state];
-        atom_positions_track[i] = atom_positions_track[proc_in_valid_state];
+        delete atom_positions_track[i];
+        atom_positions_track[i] = new map<string,vector<int> >( *atom_positions_track[proc_in_valid_state] );
       }
       #ifdef WANG_LANDAU_DEBUG
         cout << current_bin << endl;
@@ -594,6 +599,11 @@ void WangLandauSampler::update_atom_position_track( unsigned int uid, array<Symb
   const string& symb2_old = change[1].old_symb;
   unsigned int indx1 = change[0].indx;
   unsigned int indx2 = change[1].indx;
+
+  // NOTE: The following lines are commentet because the
+  // CEupdater updates the tracker.
+  // This function will be removed in the future
+
   //atom_positions_track[uid][symb1_old][select1] = indx2;
   //atom_positions_track[uid][symb2_old][select2] = indx1;
 }
