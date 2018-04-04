@@ -210,6 +210,122 @@ class PhaseBoundaryTracker(object):
             return res
         return res
 
+    def separation_line_adaptive_euler( self, T0=100, min_step=1, stepsize=100, mc_args={} ):
+        """
+        Solve the differential equation using adaptive euler
+        """
+        mu_prev = self.get_zero_temperature_mu_boundary()
+        calc1 = CE( self.gs1["bc"], self.gs1["eci"], initial_cf=self.gs1["cf"] )
+        calc2 = CE( self.gs2["bc"], self.gs2["eci"], initial_cf=self.gs2["cf"] )
+        self.gs1["bc"].atoms.set_calculator(calc1)
+        self.gs2["bc"].atoms.set_calculator(calc2)
+        sgc1 = SGCMonteCarlo( self.gs1["bc"].atoms, T0, symbols=["Al","Mg"], logfile="log_syst1.log" )
+        sgc2 = SGCMonteCarlo( self.gs2["bc"].atoms, T0, symbols=["Al","Mg"], logfile="log_syst2.log" )
+        comp1 = []
+        comp2 = []
+        mu_array = []
+        temp_array = []
+        dT = stepsize
+        Tprev = T0
+        substep_comp1 = []
+        substep_comp2 = []
+        substep_mu = []
+        substep_temp = []
+        ref_comp1 = None
+        ref_comp2 = None
+        ref_temp = None
+        ref_mu = None
+        is_first = True
+        mu = mu_prev
+        n_steps_required_to_reach_temp = 1
+        substep_count = 1
+        update_symbols = True
+        T = Tprev
+        singl_name = "singlet_{}".format(self.mu_name)
+        while( dT > min_step ):
+            self.chemical_potential[self.mu_name] = mu
+            mc_args["chem_potential"] = self.chemical_potential
+            Tnext = T+dT
+            if ( update_symbols ):
+                symbs1_old = [atom.symbol for atom in self.gs1["bc"].atoms]
+                symbs2_old = [atom.symbol for atom in self.gs2["bc"].atoms]
+                update_symbols = False
+
+            beta_prev = 1.0/(kB*T)
+            beta_next = 1.0/(kB*Tnext)
+            dbeta = beta_next-beta_prev
+            sgc1.T = T
+            sgc2.T = T
+            sgc1.runMC( **mc_args )
+            thermo1 = sgc1.get_thermodynamic()
+            sgc2.runMC( **mc_args )
+            thermo2 = sgc2.get_thermodynamic()
+
+            x1 = thermo1[singl_name]
+            x2 = thermo2[singl_name]
+            E1 = thermo1["energy"]
+            E2 = thermo2["energy"]
+            rhs = (E2-E1)/( beta_prev*(x2-x1)*len(sgc1.atoms) ) - mu_prev/beta_prev
+            mu = mu_prev + rhs*dbeta
+
+            if ( is_first ):
+                is_first = False
+                continue
+
+            step_converged = False
+            if ( ref_comp1 is None and ref_comp2 is None ):
+                ref_comp1 = thermo1[singl_name]
+                ref_comp2 = thermo2[singl_name]
+                ref_temp = T
+                ref_mu = mu
+                dT /= 2.0
+                n_steps_required_to_reach_temp *= 2
+                substep_count = 1
+
+            if ( substep_count == n_steps_required_to_reach_temp ):
+                # Compare with the reference composition
+                x1 = thermo1[singl_name]
+                x2 = thermo2[singl_name]
+                var_name = "var_singlet_{}".format(self.mu_name)
+                std1 = np.sqrt( thermo1[var_name] )
+                std2 = np.sqrt( thermo2[var_name] )
+                x1_is_equal = self.is_equal( ref_comp1, x1, std1, std1 )
+                x2_is_equal = self.is_equal( ref_comp2, x2, std2, std2 )
+                if ( x1_is_equal and x2_is_equal ):
+                    # Converged
+                    dT = stepsize
+                    update_symbols = True
+                    ref_comp1 = x1
+                    ref_comp2 = x2
+                    ref_temp = T
+                    ref_mu = mu
+                    comp1 += substep_comp1
+                    comp2 += substep_comp2
+                    temp_array += substep_temp
+                    mu_array += substep_mu
+                else:
+                    # Did not converge reset and decrease the stepsize
+                    T = ref_temp
+                    calc1.set_symbols(symbols1)
+                    calc2.set_symbols(symbols2)
+                    dT /= 2.0
+                    n_steps_required_to_reach_temp *= 2
+                    substep_count = 1
+                    mu = ref_mu
+                    substep_comp1 = []
+                    substep_comp2 = []
+                    substep_temp = []
+                    substep_mu = []
+            else:
+                T += dT
+                mu_prev = mu
+        res = {}
+        res["temperature"] = temp_array
+        res["mu"] = mu
+        res["singlet1"] = comp1
+        res["singlet2"] = comp2
+        return res
+
     def separation_line( self, temperatures, n_mc_steps=100000 ):
         """
         Computes the separation line. Assuming that the zero kelvin line
