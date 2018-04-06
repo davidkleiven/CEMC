@@ -219,7 +219,11 @@ class Montecarlo(object):
 
         if ( self.correlation_info is None or not self.correlation_info["correlation_time_found"] ):
             return var/(self.current_step*nproc)
-        return 2.0*var*self.correlation_info["correlation_time"]/(self.current_step*nproc)
+
+        tau = self.correlation_info["correlation_time"]
+        if ( tau < 1.0 ):
+            tau = 1.0
+        return 2.0*var*tau/(self.current_step*nproc)
 
     def current_energy_without_vib(self):
         """
@@ -374,6 +378,7 @@ class Montecarlo(object):
             if ( var_diff < 1E-6 ):
                 self.log ( "Zero variance. System does not move." )
                 z_diff = 0.0
+                comp_conv = True
             else:
                 z_diff = diff/np.sqrt(var_diff)
 
@@ -518,7 +523,7 @@ class Montecarlo(object):
         prec_confidence - Confidence level used when determining if enough
                           MC samples have been collected
         """
-        print ("Proc start MC: {}".format(self.rank))
+        #print ("Proc start MC: {}".format(self.rank))
         if ( self.mpicomm is not None ):
             self.mpicomm.barrier()
         allowed_modes = ["fixed","prec"]
@@ -587,7 +592,7 @@ class Montecarlo(object):
             check_convergence_every = 10*self.correlation_info["correlation_time"]
             next_convergence_check = check_convergence_every
 
-        print ( "Proc: {} - {}".format(self.rank,check_convergence_every) )
+        #print ( "Proc: {} - {}".format(self.rank,check_convergence_every) )
         # self.current_step gets updated in the _mc_step function
         self.reset()
         while( self.current_step < steps ):
@@ -602,7 +607,7 @@ class Montecarlo(object):
             if ( mode == "prec" and self.current_step > next_convergence_check ):
                 next_convergence_check += check_convergence_every
                 # TODO: Is this barrier nessecary, or does it impact performance?
-                print ("Proc check_conv: {}".format(self.rank))
+                #print ("Proc check_conv: {}".format(self.rank))
                 if ( self.mpicomm is not None ):
                     self.mpicomm.barrier()
                 converged = self.has_converged_prec_mode( prec=prec, confidence_level=prec_confidence )

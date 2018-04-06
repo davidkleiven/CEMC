@@ -18,6 +18,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         self.name = "SGCMonteCarlo"
         self._chemical_potential = None
         self.chem_pot_in_ecis = False
+        self.composition_correlation_time = np.zeros( len(self.symbols)-1 )
 
         has_attached_obs = False
         for obs in self.observers:
@@ -54,11 +55,11 @@ class SGCMonteCarlo( mc.Montecarlo ):
         var_n = ( singlets_sq - singlets**2 )
         #var_n = self.averager.quantities["singlet_diff"]/N
 
-        if ( np.min(var_n) < -1E-6 ):
+        if ( np.min(var_n) < -1E-5 ):
             msg = "The computed variances is {}".format(var_n)
             msg += "This is significantly smaller than zero and cannot be "
             msg += "attributed to numerical precission!"
-            raise RuntimeError( msg )
+            self.log( msg )
 
         nproc = 1
         if ( self.mpicomm is not None ):
@@ -71,7 +72,10 @@ class SGCMonteCarlo( mc.Montecarlo ):
             self.logger.warning( "Some variance where smaller than zero. (Probably due to numerical precission)" )
             self.log( "Variances: {}".format(var_n))
             var_n = np.abs(var_n)
-        return 2.0*var_n*self.correlation_info["correlation_time_found"]/(N*nproc)
+        tau = self.correlation_info["correlation_time"]
+        if ( tau < 1.0 ):
+            tau = 1.0
+        return 2.0*var_n*tau/(N*nproc)
 
     def has_converged_prec_mode( self, prec=0.01, confidence_level=0.05 ):
         """
@@ -83,8 +87,16 @@ class SGCMonteCarlo( mc.Montecarlo ):
         if ( self.mpicomm is not None ):
             var_n /= self.mpicomm.Get_size()
         singlet_converged = ( np.max(var_n) < (prec/percentile)**2 )
-        print ("{}-{}-{}".format(self.rank,singlet_converged,energy_converged))
-        return singlet_converged and energy_converged
+        #print ("{}-{}-{}".format(self.rank,singlet_converged,energy_converged))
+
+        result = singlet_converged and energy_converged
+        if ( self.mpicomm is not None ):
+            send_buf = np.zeros(1,dtype=np.uint8)
+            recv_buf = np.zeros(1,dtype=np.uint8)
+            send_buf[0] = result
+            self.mpicomm.Allreduce( send_buf, recv_buf )
+            result = (recv_buf[0] == self.mpicomm.Get_size())
+        return result
 
     def on_converged_log(self):
         """
@@ -94,7 +106,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         singlets = self.averager.singlets/self.averager.counter
         var_n = self.get_var_average_singlets()
         var_n = np.abs(var_n) # Just in case some variances should be negative
-        self.logger.info( "Thermal averaged singlet terms:" )
+        self.log( "Thermal averaged singlet terms:" )
         for i in range( len(singlets) ):
             self.log( "{}: {} +- {}%".format(self.chem_pot_names[i],singlets[i],np.sqrt(var_n[i])/np.abs(singlets[i]) ) )
 
@@ -191,6 +203,63 @@ class SGCMonteCarlo( mc.Montecarlo ):
     def reset_ecis( self ):
         return self.reset_eci_to_original( self.atoms.bc._calc.eci )
 
+    def estimate_correlation_time_composition( self, window_length=1000, restart=False ):
+        """
+        #Estimate the corralation time for energy and composition
+        """
+        mc.Montecarlo.estimate_correlation_time( self, window_length=window_length, restart=restart )
+        singlets = [[] for _ in range(len(self.symbols)-1)]
+        for i in range(window_length):
+            self.averager.reset()
+            self._mc_step()
+            singl = self.averger.singlets
+            for i in range(len(singl)):
+                singlets[i].append(singl[i])
+
+        corr_times = []
+        window_length_too_short = False
+        for dset in singlets:
+            mean = np.mean(dset)
+            centered_dset = np.array(dset)-mean
+            corr = np.correlate( centered_dset, centered_dset, mode="full" )
+            corr = corr[int(len(corr)/2):]
+            var = np.var(centered_dset)
+            corr /= (var*window_length)
+            if ( np.min(corr) > 0.5 ):
+                window_length_too_short = True
+                corr_times.append( window_length )
+            else:
+                indx = 0
+                for i in range(len(corr)):
+                    if ( corr[i] < 0.5 ):
+                        indx = i
+                        break
+                rho = 2.0**(-1.0/indx)
+                tau = -1.0/np.log(rho)
+                corr_times.append(tau)
+
+        self.composition_correlation_time = np.array(corr_times)
+        if ( self.mpicomm is not None ):
+            send_buf = np.zeros(1, dtype=np.uint8)
+            recv_buf = np.zeros(1, dtype=np.uint8)
+            send_buf[0] = window_length_too_short
+            self.mpicomm.Allreduce( send_buf, recv_buf )
+            window_length_too_short = ( recv_buf[0] >= 1 )
+
+        if ( window_length_too_short ):
+            msg = "The window length is too short to estimate the correlation time."
+            msg += " Using the window length as correlation time."
+            self.log( msg )
+
+        # Collect the correlation times from all processes
+        if ( self.mpicomm is not None ):
+            recv_buf = np.zeros_like( self.composition_correlation_time )
+            size = self.mpicomm.Get_size()
+            self.mpicomm.Allreduce( self.composition_correlation_time, recv_buf )
+            self.composition_correlation_time = recv_buf/size
+        self.log( "Correlation time for the compositions:" )
+        self.log( "{}".format(self.composition_correlation_time) )
+
     def runMC( self, mode="fixed", steps = 10, verbose = False, chem_potential=None, equil=True, equil_params=None, prec_confidence=0.05, prec=0.01 ):
         self.set_seeds()
         self.reset()
@@ -282,11 +351,11 @@ class SGCMonteCarlo( mc.Montecarlo ):
             self.averager.quantities = all_res[0]
             for i in range(1,len(all_res)):
                 for key,value in all_res[i].iteritems():
-                    self.averager.quantities[key] += value
+                    self.averager.quantities[key] += value/float(size)
 
                 # Normalize by the number of processors
-                for key in self.averager.quantities.keys():
-                    self.averager.quantities[key] /= size
+                #for key in self.averager.quantities.keys():
+                #    self.averager.quantities[key] /= size
 
             """
             # Numerical pressicion issue?

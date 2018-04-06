@@ -433,6 +433,15 @@ class CE( Calculator ):
         for i,symb in enumerate(symbs):
             self.update_cf( (i,self.atoms[i].symbol,symb) )
         self.clear_history()
+
+    def write( self, fname ):
+        """
+        Stores all nessecary information required to restart the calculation
+        from the state it ended
+        """
+        backup_data = {}
+        backup_data["cf"] = self.get_cf()
+
 ################################################################################
 ##                           UNIT TESTS                                       ##
 ################################################################################
