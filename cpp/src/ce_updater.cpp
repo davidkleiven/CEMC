@@ -633,6 +633,7 @@ void CEUpdater::get_singlets( PyObject *npy_obj ) const
     stringstream ss;
     ss << "Minimum size: " << singlets.size() << ". Given size: " << PyArray_SIZE(npy_array);
     msg += ss.str();
+    Py_DECREF( npy_array );
     throw runtime_error( msg );
   }
   cf& cfs = history->get_current();
@@ -641,6 +642,7 @@ void CEUpdater::get_singlets( PyObject *npy_obj ) const
     double *ptr = static_cast<double*>( PyArray_GETPTR1(npy_array,i) );
     *ptr = cfs[singlets[i]];
   }
+  Py_DECREF( npy_array );
 }
 
 void CEUpdater::add_linear_vib_correction( const map<string,double> &eci_per_kbT )

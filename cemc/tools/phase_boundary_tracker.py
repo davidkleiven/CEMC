@@ -12,6 +12,10 @@ from cemc.tools.sequence_predicter import SequencePredicter
 import logging
 from logging.handlers import RotatingFileHandler
 from mpi4py import MPI
+import h5py as h5
+from scipy.interpolate import UnivariateSpline
+import os
+import gc
 
 comm = MPI.COMM_WORLD
 
@@ -21,7 +25,7 @@ class PhaseChangedOnFirstIterationError(Exception):
 
 class PhaseBoundaryTracker(object):
     def __init__( self, gs1, gs2, mu_name="c1_0", chemical_potential=None, logfile="",
-    conf_same_phase=0.45, conf_substep_conv=0.05, max_singlet_change=0.05 ):
+    conf_same_phase=0.45, conf_substep_conv=0.05, max_singlet_change=0.05, backupfile="backup_phase_track.h5" ):
         """
         Class for tracker phase boundary
 
@@ -55,6 +59,11 @@ class PhaseBoundaryTracker(object):
         self._conf_same_phase = conf_same_phase
         self._conf_substep_conv = conf_substep_conv
         self.max_singlet_change = max_singlet_change
+        self.backupfile = backupfile
+
+        if ( os.path.exists(self.backupfile) ):
+            os.remove(self.backupfile)
+
         if ( chemical_potential is None ):
             self.chemical_potential = {mu_name:0.0}
         else:
@@ -69,6 +78,7 @@ class PhaseBoundaryTracker(object):
 
         self.mfa1 = MeanFieldApprox( self.gs1["bc"] )
         self.mfa2 = MeanFieldApprox( self.gs2["bc"] )
+        self.current_backup_indx = 0
 
         self.logger = logging.getLogger( "PhaseBoundaryTracker" )
         self.logger.setLevel( logging.INFO )
@@ -132,6 +142,36 @@ class PhaseBoundaryTracker(object):
                 self.logger.info( msg )
             elif ( mode == "warning" ):
                 self.logger.warning(msg)
+
+    def backup( self, data, dsetname="data" ):
+        """
+        Stores backup data to hdf5 file
+        """
+        rank = comm.Get_rank()
+        if ( rank == 0 ):
+            with h5.File( self.backupfile, 'a' ) as f:
+                grp = f.create_group(dsetname+"{}".format(self.current_backup_indx))
+                for key,value in data.iteritems():
+                    grp.create_dataset( key, data=value )
+            self.current_backup_indx += 1
+        comm.barrier()
+
+    def predict_composition( self, comp, temperatures, target_temp ):
+        """
+        Performs a prediction of the next composition value based on history
+        """
+        if ( len(comp) <= 2 ):
+            return comp[-1]
+        x = np.arange(0,len(temperatures))[::-1]
+        weights = np.exp(-2.0*x/len(temperatures) )
+
+        # Weight the data sich that the last point is more important than
+        # the first.
+        # Impact of the first point is exp(-2) relative to the impact of the
+        # last point
+        spl = UnivariateSpline( temperatures, comp, k=2 )
+        predicted_comp = spl(target_temp)
+        return predicted_comp
 
     def is_equal( self, x1, x2, std1, std2, confidence_level=0.05 ):
         """
@@ -305,6 +345,19 @@ class PhaseBoundaryTracker(object):
             return True
         return False
 
+    def reset_symbols( self, calc, old_symbs ):
+        """
+        Resetting symbol and print a log message of the new elements
+        """
+        calc.set_symbols( old_symbs )
+        cf = calc.get_cf()
+        singlets = {}
+        for key,value in cf.iteritems():
+            if ( key.startswith("c1") ):
+                singlets[key] = value
+        self.log( "Singlets in system: {}".format(singlets) )
+
+
     def separation_line_adaptive_euler( self, T0=100, min_step=1, stepsize=100, mc_args={} ):
         """
         Solve the differential equation using adaptive euler
@@ -315,6 +368,7 @@ class PhaseBoundaryTracker(object):
         self.gs1["bc"].atoms.set_calculator(calc1)
         self.gs2["bc"].atoms.set_calculator(calc2)
         reference_logical_phase_check = False
+        orig_stepsize = stepsize
 
         if ( "equil" not in mc_args.keys() ):
             # Default: Do not equillibriate the system
@@ -334,16 +388,10 @@ class PhaseBoundaryTracker(object):
         temp_array = []
         dT = stepsize
         Tprev = T0
-        substep_comp1 = []
-        substep_comp2 = []
-        substep_mu = []
-        substep_temp = []
         target_comp1 = None
         target_comp2 = None
         target_temp = None
-        start_temp = None
-        start_mu = None
-        start_rhs = None
+        rhs_prev = None
         is_first = True
         mu = mu_prev
         n_steps_required_to_reach_temp = 1
@@ -352,11 +400,13 @@ class PhaseBoundaryTracker(object):
         T = Tprev
         singl_name = "singlet_{}".format(self.mu_name)
         ref_compare = False
+        iteration = 1
         while( stepsize > min_step ):
             self.log( "Current temperature {}K. Current chemical_potential: {} eV/atom".format(int(T),mu) )
             self.chemical_potential[self.mu_name] = mu
             mc_args["chem_potential"] = self.chemical_potential
             Tnext = T+dT
+
             if ( update_symbols ):
                 symbs1_old = [atom.symbol for atom in self.gs1["bc"].atoms]
                 symbs2_old = [atom.symbol for atom in self.gs2["bc"].atoms]
@@ -379,11 +429,11 @@ class PhaseBoundaryTracker(object):
             rhs = (E2-E1)/( beta*(x2-x1)*len(sgc1.atoms) ) - mu/beta
 
             if ( is_first ):
-                start_rhs = rhs
+                rhs_prev = rhs
                 is_first = False
                 beta_prev = 1.0/(kB*T)
-                start_mu = mu
-                start_temp = T
+                mu_prev = mu
+                Tprev = T
                 comp1.append(x1)
                 comp2.append(x2)
                 temp_array.append(T)
@@ -394,23 +444,6 @@ class PhaseBoundaryTracker(object):
                 mu += rhs*dbeta
                 ref_compare = self.composition_first_larger_than_second( x1, x2 )
                 continue
-
-            step_converged = False
-            if ( target_temp is None ):
-                self.log( "Updating the target temperature" )
-                target_comp1 = thermo1[singl_name]
-                target_comp2 = thermo2[singl_name]
-                target_temp = T
-                self.log( "New target temperature: {}K".format(target_temp) )
-                self.log( "New target compositions: x1: {}, x2: {}".format(target_comp1,target_comp2) )
-                T = start_temp # Reset to old temperature
-                mu = start_mu
-                rhs = start_rhs
-                calc1.set_symbols( symbs1_old )
-                calc2.set_symbols( symbs2_old )
-                dT /= 2.0 # Refine step size
-                n_steps_required_to_reach_temp *= 2
-                substep_count = 0
 
             x1 = thermo1[singl_name]
             x2 = thermo2[singl_name]
@@ -426,16 +459,23 @@ class PhaseBoundaryTracker(object):
             else:
                 x1_equal_to_x2 = np.abs(x1-x2) < eps
 
-            reset = False
             compositions_swapped = self.composition_first_larger_than_second(x1,x2) != ref_compare
 
             # Check if one of the systems changed phase
-            if ( len(substep_comp1) == 0 ):
-                ref1 = comp1[-1]
-                ref2 = comp2[-1]
+            if ( len(comp1) == 0 or len(comp2) == 0 ):
+                ref1 = x1
+                ref2 = x2
             else:
-                ref1 = substep_comp1[-1]
-                ref2 = substep_comp2[-1]
+                ref1 = self.predict_composition( comp1, temp_array, T )
+                ref2 = self.predict_composition( comp2, temp_array, T )
+                self.log( "Temperatures used for prediction:")
+                self.log( "{}".format(temp_array) )
+                self.log( "Compositions syst1:" )
+                self.log( "{}".format(comp1) )
+                self.log( "Predicted composition for T={}K: {}".format(T,ref1))
+                self.log( "Compositions syst2:" )
+                self.log( "{}".format(comp2) )
+                self.log( "Predicted composition for T={}K: {}".format(T,ref2) )
 
             one_system_changed_phase = self.system_changed_phase(x1,ref1) or self.system_changed_phase(x2,ref2)
             if ( x1_equal_to_x2 or compositions_swapped or one_system_changed_phase):
@@ -449,25 +489,19 @@ class PhaseBoundaryTracker(object):
                 self.log( "Too reduce the chance of spurious phase change of this type happening again, the trial step size will also be reduced" )
                 dT /= 2.0
                 stepsize = dT # No point in trying larger steps than this
-                T = start_temp
-                target_temp = None
-                n_steps_required_to_reach_temp = 1
-                substep_count = 0
-                mu = start_mu
-                rhs = start_rhs
-                substep_comp1 = []
-                substep_comp2 = []
-                substep_temp = []
-                substep_mu = []
-                substep_temp = []
-                reset = True
+                T = Tprev
+                mu = mu_prev
+                rhs = rhs_prev
+
+                self.reset_symbols( calc1, symbs1_old )
+                self.reset_symbols( calc2, symbs2_old )
 
                 self.log( "New step size: {}K".format(dT) )
                 self.log( "New trial step size (used when computing the first target temperature after convergence): {}K".format(stepsize))
+            else:
+                target_comp1 = ref1
+                target_comp2 = ref2
 
-
-
-            if ( substep_count == n_steps_required_to_reach_temp ):
                 # Compare with the reference composition
                 if ( std1 > 1E-6 ):
                     x1_is_equal = self.is_equal( target_comp1, x1, std1, std1 )
@@ -481,61 +515,41 @@ class PhaseBoundaryTracker(object):
                 if ( x1_is_equal and x2_is_equal ):
                     self.log( "Converged. Proceeding to the next temperature interval" )
                     # Converged
+                    stepsize = orig_stepsize
                     dT = stepsize
                     update_symbols = True
-                    T = target_temp
-                    target_temp = None
-                    start_temp = T
-                    start_rhs = rhs
-                    start_mu = mu
-                    comp1 += substep_comp1
-                    comp2 += substep_comp2
-                    temp_array += substep_temp
-                    mu_array += substep_mu
-                    n_steps_required_to_reach_temp = 1
-                    substep_comp1 = []
-                    substep_comp2 = []
-                    substep_temp = []
-                    substep_mu = []
-                    substep_temp = []
-                    reset = True
+                    Tprev = T
+                    rhs_prev = rhs
+                    mu_prev = mu
+                    comp1.append(x1)
+                    comp2.append(x2)
+                    temp_array.append(T)
+                    mu_array.append(mu)
+                    backupdata = {
+                        "comp1":comp1,
+                        "comp2":comp2,
+                        "temperature":temp_array,
+                        "mu":mu_array
+                    }
+                    self.backup( backupdata, dsetname="iter")
                 else:
                     # Did not converge reset and decrease the stepsize
-                    T = start_temp
-                    calc1.set_symbols(symbs1_old)
-                    calc2.set_symbols(symbs2_old)
+                    T = Tprev
                     dT /= 2.0
-                    n_steps_required_to_reach_temp *= 2
-                    substep_count = 0
-                    mu = start_mu
-                    rhs = start_rhs
-
-                    substep_comp1 = []
-                    substep_comp2 = []
-                    substep_temp = []
-                    substep_mu = []
-                    substep_temp = []
-                    reset = True
+                    mu = mu_prev
+                    rhs = rhs_prev
 
                     # Update the target compositions to the new ones
-                    target_comp1 = x1
-                    target_comp2 = x2
                     self.log( "Did not converge. Updating target compositions. Refining stepsize. New stepsize: {}K".format(dT) )
-                    self.log( "New target compositions: x1: {}, x2: {}".format(x1,x2) )
+                    self.log( "Resetting system" )
+                    self.reset_symbols( calc1, symbs1_old )
+                    self.reset_symbols( calc2, symbs2_old )
 
-            if ( not reset ):
-                # If the sub step arrays were reset the current temperature
-                # is already present
-                substep_mu.append(mu)
-                substep_comp1.append(x1)
-                substep_comp2.append(x2)
-                substep_temp.append(T)
             beta_prev = 1.0/(kB*T)
             T += dT
             beta_next = 1.0/(kB*T)
             dbeta = beta_next - beta_prev
             mu += rhs*dbeta
-            substep_count += 1
 
         res = {}
         res["temperature"] = temp_array
