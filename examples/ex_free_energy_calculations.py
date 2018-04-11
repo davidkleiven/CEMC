@@ -33,6 +33,7 @@ temperature, internal_energy = np.loadtxt( fname, delimiter=",", unpack=True )
 temperature,internal_energy,helmholtz_free_energy = free_eng.get( temperature, internal_energy/n_atoms )
 
 entropy = (internal_energy-helmholtz_free_energy)/temperature
+enthalpy = helmholtz_free_energy + temperature*entropy
 
 # Plot the results
 from matplotlib import pyplot as plt
@@ -40,13 +41,16 @@ fig, ax = plt.subplots( ncols=2, nrows=2 )
 ax[0,0].plot( temperature, internal_energy, marker="o" )
 ax[0,1].plot( temperature, helmholtz_free_energy, marker="o" )
 ax[1,0].plot( temperature, entropy, marker="o" )
+ax[1,1].plot( temperature, enthalpy, marker="o")
 
 ax[0,0].set_xlabel( "Temperature (K)" )
 ax[0,1].set_xlabel( "Temperature (K)" )
 ax[1,0].set_xlabel( "Temperature (K)" )
+ax[1,1].set_xlabel( "Temperature (K)")
 ax[0,0].set_ylabel( "Internal energy (eV/atom)" )
 ax[0,1].set_ylabel( "Helmholtz Free Energy (eV/atom)" )
 ax[1,0].set_ylabel( "Entropy (eV/K atom)" )
+ax[1,1].set_ylabel( "Enthalpy (eV/atom)" )
 
 if __name__ == "__main__":
     plt.show()
