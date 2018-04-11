@@ -29,8 +29,8 @@ pip install .
 # Examples
 Examples of application of the package are listed below
 
-* [Ground State of Al-Mg](examples/test_ground_state.ipynb)
-* [Monte Carlo in SGC Ensemble](examples/test_sgc_mc.ipynb)
+* [Ground State of Al-Mg](examples/ex_ground_state.py)
+* [Monte Carlo in SGC Ensemble](examples/ex_sgc_montecarlo.py)
 
 # Troubleshooting
 1. **Missing C++ version of CE updater** try to install with
