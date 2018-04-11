@@ -142,7 +142,7 @@ class FreeEnergy(object):
         }
         return res
 
-    def helmholtz_free_energy( self, free_energy, chemical_potential, singlets ):
+    def helmholtz_free_energy( self, free_energy, singlets, chemical_potential ):
         """
         Compute the Helmholtz free energy from the Grand Potential (Free Energy in the SGC ensemble)
 
