@@ -10,6 +10,7 @@ class TestGSFinder( unittest.TestCase ):
     def test_gs_finder( self ):
         if ( not has_CE ):
             self.skipTest("ASE version does not have CE")
+            return
         no_throw = True
         msg = ""
         try:
