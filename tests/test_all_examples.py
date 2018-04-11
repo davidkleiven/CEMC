@@ -2,8 +2,17 @@ import unittest
 import importlib
 import os
 import sys
+try:
+    from ase.ce import BulkCrystal
+    has_CE = True
+except Exception as exc:
+    print (exc)
+    has_CE = False
 
 def run_example( testcase, fname ):
+    if ( not has_CE ):
+        testcase.skipTest("ASE version needs CE to run the examples")
+        return
     no_throw = True
     msg = ""
     try:
