@@ -173,15 +173,22 @@ class PhaseBoundaryTracker(object):
         predicted_comp = spl(target_temp)
         return predicted_comp
 
-    def is_equal( self, x1, x2, std1, std2, confidence_level=0.05 ):
+    def is_equal( self, x1, x2, std1, std2, confidence_level=0.05, stdtol=1E-6, eps_fallback=0.05 ):
         """
         Check if two numbers are equal provided that their standard deviations
         are known
         """
         if ( confidence_level >= 0.5 ):
             raise ValueError( "The confidence level has to be in the range [0,0.5)")
+
         diff = x2-x1
         std_diff = np.sqrt( std1**2 + std2**2 )
+
+        if ( std_diff < stdtol ):
+            # Standard deviation is close to zero. Use the eps_fallback to judge
+            # if the two are equal
+            return np.abs(x2-x1) < eps_fallback
+
         z_diff = diff/std_diff
         min_percentile = stats.norm.ppf(confidence_level)
         max_percentile = stats.norm.ppf(1.0-confidence_level)
@@ -370,11 +377,11 @@ class PhaseBoundaryTracker(object):
         reference_logical_phase_check = False
         orig_stepsize = stepsize
 
-        if ( "equil" not in mc_args.keys() ):
-            # Default: Do not equillibriate the system
-            # The temperature changes only gradually so it should
-            # not be nessecary
-            mc_args["equil"] = False
+        if ( "equil" in mc_args.keys() ):
+            if ( not mc_args["equil"] ):
+                self.log( "This scheme requires that the system can equillibriate. Changing to equil=True" )
+
+        mc_args["equil"] = True
 
         if ( comm.Get_size() > 1 ):
             mpicomm = comm
@@ -396,21 +403,19 @@ class PhaseBoundaryTracker(object):
         mu = mu_prev
         n_steps_required_to_reach_temp = 1
         substep_count = 1
-        update_symbols = True
+        update_symbols1 = True
+        update_symbols2 = True
         T = Tprev
         singl_name = "singlet_{}".format(self.mu_name)
         ref_compare = False
         iteration = 1
+        symbs1_old = [atom.symbol for atom in self.gs1["bc"].atoms]
+        symbs2_old = [atom.symbol for atom in self.gs2["bc"].atoms]
         while( stepsize > min_step ):
             self.log( "Current temperature {}K. Current chemical_potential: {} eV/atom".format(int(T),mu) )
             self.chemical_potential[self.mu_name] = mu
             mc_args["chem_potential"] = self.chemical_potential
             Tnext = T+dT
-
-            if ( update_symbols ):
-                symbs1_old = [atom.symbol for atom in self.gs1["bc"].atoms]
-                symbs2_old = [atom.symbol for atom in self.gs2["bc"].atoms]
-                update_symbols = False
 
             beta = 1.0/(kB*T)
             sgc1.T = T
@@ -454,10 +459,7 @@ class PhaseBoundaryTracker(object):
             eps = 0.01
 
             # Check if the two phases ended up in the same phase
-            if ( std1 > 1E-6 or std2 > 1E-6 ):
-                x1_equal_to_x2 = self.is_equal( x1, x2, std1, std2, confidence_level=0.45 )
-            else:
-                x1_equal_to_x2 = np.abs(x1-x2) < eps
+            x1_equal_to_x2 = self.is_equal( x1, x2, std1, std2, confidence_level=0.45 )
 
             compositions_swapped = self.composition_first_larger_than_second(x1,x2) != ref_compare
 
@@ -503,21 +505,14 @@ class PhaseBoundaryTracker(object):
                 target_comp2 = ref2
 
                 # Compare with the reference composition
-                if ( std1 > 1E-6 ):
-                    x1_is_equal = self.is_equal( target_comp1, x1, std1, std1 )
-                else:
-                    x1_is_equal = np.abs(x1-target_comp1) < eps
-                if ( std2 > 1E-6 ):
-                    x2_is_equal = self.is_equal( target_comp2, x2, std2, std2 )
-                else:
-                    x2_is_equal = np.abs(x2-target_comp2) < eps
+                x1_is_equal = self.is_equal( target_comp1, x1, std1, std1, stdtol=1E-6, eps_fallback=eps )
+                x2_is_equal = self.is_equal( target_comp2, x2, std2, std2, stdtol=1E-6, eps_fallback=eps )
 
                 if ( x1_is_equal and x2_is_equal ):
                     self.log( "Converged. Proceeding to the next temperature interval" )
                     # Converged
                     stepsize = orig_stepsize
                     dT = stepsize
-                    update_symbols = True
                     Tprev = T
                     rhs_prev = rhs
                     mu_prev = mu
@@ -542,6 +537,8 @@ class PhaseBoundaryTracker(object):
                     # Update the target compositions to the new ones
                     self.log( "Did not converge. Updating target compositions. Refining stepsize. New stepsize: {}K".format(dT) )
                     self.log( "Resetting system" )
+
+                    # Reset the system to pure phases
                     self.reset_symbols( calc1, symbs1_old )
                     self.reset_symbols( calc2, symbs2_old )
 
@@ -550,6 +547,13 @@ class PhaseBoundaryTracker(object):
             beta_next = 1.0/(kB*T)
             dbeta = beta_next - beta_prev
             mu += rhs*dbeta
+
+            # Append the last step to the array
+            if ( stepsize <= min_step ):
+                temp_array.append(T)
+                mu_array.append(mu)
+                comp1.append(x1)
+                comp2.append(x2)
 
         res = {}
         res["temperature"] = temp_array

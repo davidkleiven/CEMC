@@ -423,6 +423,7 @@ class CE( Calculator ):
                 self.update_cf( (i,init_elm,elm) )
             start += n_at
         self.clear_history()
+        print ("Composition set")
 
     def set_symbols( self, symbs ):
         """
