@@ -55,3 +55,9 @@ should also include tests verifying that the code produce the desired result.
 
 All examples should be written as python notebooks and located in the
 *example* folder. They should be verified with the [py.test](https://pypi.python.org/pypi/pytest-ipynb) command.
+
+At any time *ALL* tests in the *tests* folder should pass, meaning that
+```bash
+python -m unittest discover tests/
+```
+should give no errors.
