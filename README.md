@@ -45,3 +45,13 @@ try to convert the jupyter notebook locally
 jupyter nbconvert --to html test_sgc_mc.ipynb
 ```
 and open the resulting html file in a browser.
+
+# Guidelines
+Any code that is in this repository should have *at least* one unittest
+located in the *tests* folder. The minimum test required is that the
+code does what it is supposed to do without raising unexpected exceptions.
+Code producing results that can be verified against some reference values,
+should also include tests verifying that the code produce the desired result.
+
+All examples should be written as python notebooks and located in the
+*example* folder. They should be verified with the [py.test](https://pypi.python.org/pypi/pytest-ipynb) command.
