@@ -12,3 +12,4 @@ cemc.egg-info/*
 *.log
 *.pkl
 subbin.csv
+demo.traj
