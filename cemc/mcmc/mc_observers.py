@@ -4,6 +4,7 @@ mpl.rcParams["axes.unicode_minus"] = False
 from matplotlib import pyplot as plt
 import copy
 import numpy as np
+from ase.io.trajectory import TrajectoryWriter
 
 class MCObserver( object ):
     def __init__( self ):
@@ -208,3 +209,18 @@ class SGCObserver(MCObserver):
     @property
     def counter(self):
         return self.quantities["counter"]
+
+class Snapshot( MCObserver ):
+    def __init__(self, trajfile="default.traj", atoms=None ):
+        super(Snapshot,self).__init__()
+        self.name = "Snapshot"
+        if ( not trajfile.endswith(".traj") ):
+            raise ValueError( "This object stores all images in a trajectory file. File extension should be .traj" )
+        if ( atoms is None ):
+            raise ValueError( "No atoms object given!" )
+        self.atoms = atoms
+        self.traj = TrajectoryWriter( trajfile, mode="a" )
+
+
+    def __call__( self, system_changes ):
+        self.traj.write(self.atoms)

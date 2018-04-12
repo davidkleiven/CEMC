@@ -33,6 +33,7 @@ Examples of application of the package are listed below
 * [Monte Carlo in SGC Ensemble](examples/ex_sgc_montecarlo.py)
 * [Computing Free Energy From MC data](examples/ex_free_energy_calculations.py)
 * [Free Energies in the SGC ensemble](examples/ex_free_energy_sgc.py)
+* [Using MC observers to extract information on each MC step](examples/ex_using_mc_observers.py)
 
 # Troubleshooting
 1. **Missing C++ version of CE updater** try to install with
