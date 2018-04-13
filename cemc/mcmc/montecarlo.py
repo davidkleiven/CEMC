@@ -259,12 +259,14 @@ class Montecarlo(object):
             self.correlation_info["msg"] = "Zero variance leads to infinite correlation time"
             self.log( self.correlation_info["msg"] )
             self.correlation_info["correlation_time_found"] = True
+            self.correlation_info["correlation_time"] = window_length
             return self.correlation_info
 
         auto_corr /= (window_length*var)
         if ( np.min(auto_corr) > 0.5 ):
             self.correlation_info["msg"] = "Window is too short. Add more samples"
             self.log( self.correlation_info["msg"] )
+            self.correlation_info["correlation_time"] = window_length
             return self.correlation_info
 
         # See:
