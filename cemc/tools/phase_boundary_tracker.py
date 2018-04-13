@@ -16,6 +16,9 @@ import h5py as h5
 from scipy.interpolate import UnivariateSpline
 import os
 import gc
+from matplotlib import pyplot as plt
+plt.switch_backend("Agg") # With this backend one does not need a screen (useful for clusters)
+import Image
 
 comm = MPI.COMM_WORLD
 
@@ -152,26 +155,64 @@ class PhaseBoundaryTracker(object):
             with h5.File( self.backupfile, 'a' ) as f:
                 grp = f.create_group(dsetname+"{}".format(self.current_backup_indx))
                 for key,value in data.iteritems():
-                    grp.create_dataset( key, data=value )
+                    if ( value is None ):
+                        continue
+                    if ( key.startswith("img") ):
+                        img = value.T
+                        dset = grp.create_dataset( key, data=img )
+                        dset.attrs['CLASS'] = "IMAGE"
+                        dset.attrs['IMAGE_VERSION'] = '1.2'
+                        dset.attrs['IMAGE_SUBCLASS'] =  'IMAGE_INDEXED'
+                        dset.attrs['IMAGE_MINMAXRANGE'] = np.array([0,255], dtype=np.uint8)
+                    else:
+                        grp.create_dataset( key, data=value )
             self.current_backup_indx += 1
         comm.barrier()
 
-    def predict_composition( self, comp, temperatures, target_temp ):
+    def predict_composition( self, comp, temperatures, target_temp, target_comp=0.0 ):
         """
         Performs a prediction of the next composition value based on history
         """
         if ( len(comp) <= 2 ):
-            return comp[-1]
+            return comp[-1], None
+        if ( len(comp) == 3 ):
+            k = 2
+        else:
+            k = 3
         x = np.arange(0,len(temperatures))[::-1]
         weights = np.exp(-2.0*x/len(temperatures) )
+
+        # Ad hoc smoothing parameter
+        # This choice leads to the deviation from the last point being
+        # maximum 0.05
+        smoothing = 0.05*np.sum(weights)
+
 
         # Weight the data sich that the last point is more important than
         # the first.
         # Impact of the first point is exp(-2) relative to the impact of the
         # last point
-        spl = UnivariateSpline( temperatures, comp, k=2 )
+        spl = UnivariateSpline( temperatures, comp, k=k, w=weights, s=smoothing )
         predicted_comp = spl(target_temp)
-        return predicted_comp
+
+        rgbimage = None
+        rank = comm.Get_rank()
+        if ( rank == 0 ):
+            # Create a plot of how the spline performs
+            fig = plt.figure()
+            ax = fig.add_subplot(1,1,1)
+            ax.plot( temperatures, comp, marker='^', color="black", label="History" )
+            x = np.linspace( np.min(temperatures), target_temp+40, 100 )
+            pred = spl(x)
+            ax.plot( x, pred, "--", label="Spline" )
+            ax.plot( [target_temp], [target_comp], 'x', label="Computed" )
+            ax.set_ylabel( "Singlets" )
+            ax.set_xlabel( "Temperature (K)" )
+            ax.legend()
+            rgbimage = fig2rgb(fig)
+            plt.close("all")
+        rgbimage = comm.bcast( rgbimage, root=0 )
+        return predicted_comp, rgbimage
 
     def is_equal( self, x1, x2, std1, std2, confidence_level=0.05, stdtol=1E-6, eps_fallback=0.05 ):
         """
@@ -468,8 +509,8 @@ class PhaseBoundaryTracker(object):
                 ref1 = x1
                 ref2 = x2
             else:
-                ref1 = self.predict_composition( comp1, temp_array, T )
-                ref2 = self.predict_composition( comp2, temp_array, T )
+                ref1, img1 = self.predict_composition( comp1, temp_array, T, target_comp=x1 )
+                ref2, img2 = self.predict_composition( comp2, temp_array, T, target_comp=x2 )
                 self.log( "Temperatures used for prediction:")
                 self.log( "{}".format(temp_array) )
                 self.log( "Compositions syst1:" )
@@ -524,7 +565,9 @@ class PhaseBoundaryTracker(object):
                         "comp1":comp1,
                         "comp2":comp2,
                         "temperature":temp_array,
-                        "mu":mu_array
+                        "mu":mu_array,
+                        "splineimg1":img1,
+                        "splineimg2":img2
                     }
                     self.backup( backupdata, dsetname="iter")
                 else:
@@ -780,3 +823,17 @@ class PhaseBoundaryTracker(object):
 
         if ( not self.mu_name in self.gs1["eci"].keys() or not self.mu_name in self.gs2["eci"].keys() ):
             raise ValueError( "There are no ECI corresponding to the chemical potential under consideration!" )
+
+def fig2rgb( fig ):
+    """
+    Convert matplotlib figure instance to a png
+    """
+    fig.canvas.draw()
+
+    # Get RGB values
+    w,h = fig.canvas.get_width_height()
+    buf = np.fromstring( fig.canvas.tostring_rgb(), dtype=np.uint8 )
+    buf.shape = (h,w,3)
+    greyscale = 0.2989 * buf[:,:,0] + 0.5870 * buf[:,:,1] + 0.1140 * buf[:,:,2]
+    greyscale = greyscale.astype(np.uint8)
+    return greyscale
