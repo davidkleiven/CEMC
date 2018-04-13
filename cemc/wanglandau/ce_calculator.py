@@ -418,7 +418,7 @@ class CE( Calculator ):
         for elm,conc in comp.iteritems():
             if ( elm == init_elm ):
                 continue
-            n_at = int( conc*len(self.atoms) )
+            n_at = int( round(conc*len(self.atoms)) )
             for i in range(start,start+n_at):
                 self.update_cf( (i,init_elm,elm) )
             start += n_at
