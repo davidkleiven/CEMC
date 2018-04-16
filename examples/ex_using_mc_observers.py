@@ -42,6 +42,12 @@ calc = get_ce_calc( ceBulk, kwargs, eci=eci, size=mc_cell_size )
 ceBulk = calc.BC
 ceBulk.atoms.set_calculator(calc)
 
+conc = {
+    "Al":0.8,
+    "Mg":0.2
+}
+calc.set_composition(conc)
+
 # Now we import the Monte Carlo class
 from cemc.mcmc.montecarlo import Montecarlo
 T = 400 # Run the simulation at 400K
