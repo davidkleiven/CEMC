@@ -2,6 +2,9 @@
 #define CLUSTER_TRACKER_H
 #include <vector>
 #include <string>
+#include <map>
+#include <Python.h>
+#include "ce_updater.hpp"
 
 class ClusterTracker
 {
@@ -12,12 +15,16 @@ public:
   void find_clusters();
 
   /** Collect the cluster statistics */
-  std::map<std::string,double> & get_cluster_statistics( std::map<std::string,double> &res );
+  void get_cluster_statistics( std::map<std::string,double> &res ) const;
+  void get_cluster_statistics( PyObject *dict ) const;
 
+  /** Converts the atomis-cluster indices into group index */
+  void atomic_clusters2group_indx( std::vector<int> &grp_indx ) const;
+  void atomic_clusters2group_indx( PyObject *list ) const;
 private:
   std::string element;
   std::string cname;
-  CEUpdater *updater; // Not owing
+  CEUpdater *updater; // Do not own this
   std::vector<int> atomic_clusters;
 };
 #endif

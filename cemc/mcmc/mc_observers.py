@@ -5,6 +5,7 @@ from matplotlib import pyplot as plt
 import copy
 import numpy as np
 from ase.io.trajectory import TrajectoryWriter
+from cemc.ce_updater import ce_updater
 
 class MCObserver( object ):
     def __init__( self ):
@@ -224,3 +225,35 @@ class Snapshot( MCObserver ):
 
     def __call__( self, system_changes ):
         self.traj.write(self.atoms)
+
+class NetworkObserver( MCObserver ):
+    def __init__( self, calc=None, cluster_name=None, element=None ):
+        if ( calc is None ):
+            raise ValueError( "No calculator given. Has to be a CE calculator (with C++ support)" )
+        if ( cluster_name is None ):
+            raise ValueError( "No cluster name given!" )
+        if ( element is None ):
+            raise ValueError( "No element given!" )
+        self.fast_cluster_tracker = ce_updater.ClusterTracker( calc.ce_updater, cluster_name, element )
+        super(ClusterTracker,self).__init__()
+        self.name = "NetworkObserver"
+        self.res = {
+            "avg_size":0.0,
+            "avg_size_sq":0.0,
+            "tot_number_of_clusters":0
+        }
+        self.max_size = 0
+        self.indx_max_cluster = []
+        self.atoms_max_cluster = None
+
+    def __call__( self, system_changes ):
+        new_res = {}
+        clust_indx = []
+        self.fast_cluster_tracker.get_cluster_statistics( new_res )
+        for key,value in new_res.iteritems():
+            self.res[key] += value
+        if ( new_res["max_size"] > self.max_size ):
+            self.max_size = new_res["max_size"]
+            self.atoms_max_cluster = self.calc.atoms.copy()
+            self.fast_cluster_tracker.atomic_clusters2group_indx(clust_indx)
+            self.indx_max_cluster = clust_indx

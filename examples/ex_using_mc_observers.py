@@ -54,7 +54,7 @@ T = 400 # Run the simulation at 400K
 mc_obj = Montecarlo( ceBulk.atoms, T )
 
 # Now we define the observers
-from cemc.mcmc import CorrelationFunctionTracker, PairCorrelationObserver, Snapshot, LowestEnergyStructure
+from cemc.mcmc import CorrelationFunctionTracker, PairCorrelationObserver, Snapshot, LowestEnergyStructure, NetworkObserver
 
 # The Correlation Function Tracker computes the thermodynamic
 # average of all the correlation functions
@@ -73,11 +73,15 @@ snapshot = Snapshot( trajfile="demo.traj", atoms=ceBulk.atoms )
 # This observer stores the structure having the lowest energy
 low_en = LowestEnergyStructure( calc, mc_obj )
 
+# This observer tracks networks of a certain atom type
+network_observer = NetworkObserver( calc=calc, cluster_name="c2_1000_1_00", element="Mg" )
+
 # Now we can attach the observers to the mc_obj
 mc_obj.attach( corr_func_obs, interval=1 )
 mc_obj.attach( pair_obs, interval=1 )
 mc_obj.attach( snapshot, interval=10 ) # Take a snap shot every then iteration
 mc_obj.attach( low_en, interval=1 )
+mc_obj.attach( network_obs, interal=5 )
 
 # Now run 30 MC steps
 mc_obj.runMC( mode="fixed", steps=30, equil=False )
