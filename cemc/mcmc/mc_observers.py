@@ -234,26 +234,46 @@ class NetworkObserver( MCObserver ):
             raise ValueError( "No cluster name given!" )
         if ( element is None ):
             raise ValueError( "No element given!" )
-        self.fast_cluster_tracker = ce_updater.ClusterTracker( calc.ce_updater, cluster_name, element )
-        super(ClusterTracker,self).__init__()
+        self.fast_cluster_tracker = ce_updater.ClusterTracker( calc.updater, cluster_name, element )
+        super(NetworkObserver,self).__init__()
         self.name = "NetworkObserver"
         self.res = {
             "avg_size":0.0,
             "avg_size_sq":0.0,
-            "tot_number_of_clusters":0
+            "number_of_clusters":0
         }
         self.max_size = 0
         self.indx_max_cluster = []
         self.atoms_max_cluster = None
 
     def __call__( self, system_changes ):
-        new_res = {}
-        clust_indx = []
-        self.fast_cluster_tracker.get_cluster_statistics( new_res )
-        for key,value in new_res.iteritems():
-            self.res[key] += value
+        new_res = self.fast_cluster_tracker.get_cluster_statistics_python()
+        for key in self.res.keys():
+            self.res[key] += new_res[key]
         if ( new_res["max_size"] > self.max_size ):
             self.max_size = new_res["max_size"]
             self.atoms_max_cluster = self.calc.atoms.copy()
-            self.fast_cluster_tracker.atomic_clusters2group_indx(clust_indx)
+            clust_indx = self.fast_cluster_tracker.atomic_clusters2group_indx_python()
             self.indx_max_cluster = clust_indx
+
+    def get_atoms_with_largest_cluster( self, highlight_element="Na" ):
+        """
+        Returns the atoms object which had the largest cluster and change the element
+        of the atoms in the cluster to *highlight_element*
+        """
+        explored_grp_indices = []
+        largest_cluster = []
+        # Locate the largest cluster
+        for i in range(0,len(self.atoms_max_cluster)):
+            if ( self.atoms_max_cluster[i] in explored_grp_indices ):
+                continue
+            current_cluster = []
+            for j in range(0,len(self.atoms_max_cluster)):
+                if ( self.atoms_max_cluster[j] == self.atoms_max_cluster[i] ):
+                    current_cluster.append(j)
+            if ( len(current_cluster) > len(largest_cluster) ):
+                largest_cluster = current_cluster
+
+        for indx in largest_cluster:
+            self.atoms_max_cluster[indx].symbol = highlight_element
+        return self.atoms_max_cluster

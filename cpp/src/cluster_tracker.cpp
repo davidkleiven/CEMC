@@ -1,10 +1,11 @@
 #include "cluster_tracker.hpp"
 #include "cluster.hpp"
 #include "matrix.hpp"
+#include "additional_tools.hpp"
 
 using namespace std;
 
-ClusterTracker::ClusterTracker( CEUpdater &updater, const std::string &cname, std::string &element ): \
+ClusterTracker::ClusterTracker( CEUpdater &updater, const std::string &cname, const std::string &element ): \
 updater(&updater),cname(cname),element(element){};
 
 void ClusterTracker::find_clusters()
@@ -94,15 +95,16 @@ void ClusterTracker::get_cluster_statistics( map<string,double> &res ) const
       max_size = iter->second;
     }
   }
-  res["average_size"] = average_size;
+  res["avg_size"] = average_size;
   res["max_size"] = max_size;
   res["avg_size_sq"] = avg_size_sq;
   res["number_of_clusters"] = num_members_in_cluster.size();
 }
 
-void ClusterTracker::get_cluster_statistics( PyObject* dict ) const
+PyObject* ClusterTracker::get_cluster_statistics_python() const
 {
-  map<string,int> res,
+  PyObject* dict = PyDict_New();
+  map<string,double> res;
   get_cluster_statistics(res);
   for ( auto iter=res.begin(); iter != res.end(); ++iter )
   {
@@ -110,6 +112,7 @@ void ClusterTracker::get_cluster_statistics( PyObject* dict ) const
     PyDict_SetItemString( dict, iter->first.c_str(), value );
     Py_DECREF(value);
   }
+  return dict;
 }
 
 void ClusterTracker::atomic_clusters2group_indx( vector<int> &group_indx ) const
@@ -126,8 +129,9 @@ void ClusterTracker::atomic_clusters2group_indx( vector<int> &group_indx ) const
   }
 }
 
-void ClusterTracker::atomic_clusters2group_indx( PyObject *list ) const
+PyObject* ClusterTracker::atomic_clusters2group_indx_python() const
 {
+  PyObject *list = PyList_New(0);
   vector<int> grp_indx;
   atomic_clusters2group_indx(grp_indx);
   for ( unsigned int i=0;i<grp_indx.size();i++ )
@@ -136,4 +140,5 @@ void ClusterTracker::atomic_clusters2group_indx( PyObject *list ) const
     PyList_Append( list, pyint );
     Py_DECREF(pyint);
   }
+  return list;
 }

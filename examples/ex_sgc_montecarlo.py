@@ -79,7 +79,7 @@ T = 400
 
 from cemc.mcmc import SGCMonteCarlo
 
-mc = SGCMonteCarlo( ceBulk.atoms, T, symboles=["Al"."Mg"] )
+mc = SGCMonteCarlo( ceBulk.atoms, T, symbols=["Al","Mg"] )
 
 # To make the exampl fast, we don't equillibriate the system
 # In general, it is a good idea to equillibriate the system
