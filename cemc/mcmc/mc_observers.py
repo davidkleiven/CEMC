@@ -227,7 +227,7 @@ class Snapshot( MCObserver ):
         self.traj.write(self.atoms)
 
 class NetworkObserver( MCObserver ):
-    def __init__( self, calc=None, cluster_name=None, element=None ):
+    def __init__( self, calc=None, cluster_name=None, element=None, nbins=30 ):
         if ( calc is None ):
             raise ValueError( "No calculator given. Has to be a CE calculator (with C++ support)" )
         if ( cluster_name is None ):
@@ -237,6 +237,7 @@ class NetworkObserver( MCObserver ):
         self.fast_cluster_tracker = ce_updater.ClusterTracker( calc.updater, cluster_name, element )
         super(NetworkObserver,self).__init__()
         self.name = "NetworkObserver"
+        self.calc = calc
         self.res = {
             "avg_size":0.0,
             "avg_size_sq":0.0,
@@ -245,35 +246,96 @@ class NetworkObserver( MCObserver ):
         self.max_size = 0
         self.indx_max_cluster = []
         self.atoms_max_cluster = None
+        self.n_calls = 0
+        self.n_atoms_in_cluster = 0
+
+        # Count the number of atoms of the element type being tracked
+        n_atoms = 0
+        for atom in self.calc.atoms:
+            if ( atom.symbol == element ):
+                n_atoms += 1
+        self.max_size_hist = n_atoms
+        self.nbins = nbins
+        self.size_histogram = np.zeros( self.nbins )
 
     def __call__( self, system_changes ):
+        self.n_calls += 1
+        self.fast_cluster_tracker.find_clusters()
         new_res = self.fast_cluster_tracker.get_cluster_statistics_python()
         for key in self.res.keys():
             self.res[key] += new_res[key]
+
+        self.update_histogram( new_res["cluster_sizes"])
+        self.n_atoms_in_cluster += np.sum( new_res["cluster_sizes"] )
         if ( new_res["max_size"] > self.max_size ):
             self.max_size = new_res["max_size"]
             self.atoms_max_cluster = self.calc.atoms.copy()
             clust_indx = self.fast_cluster_tracker.atomic_clusters2group_indx_python()
             self.indx_max_cluster = clust_indx
 
+    def update_histogram( self, sizes ):
+        """
+        Updates the histogram
+        """
+        for size in sizes:
+            if ( size >= self.max_size_hist ):
+                continue
+            indx = int( self.nbins*float(size)/self.max_size_hist )
+            self.size_histogram[indx] += 1
+
+    def reset(self):
+        """
+        Rests the observer
+        """
+        for key in self.res.keys():
+            self.res[key] = 0
+
+        self.max_size = 0
+        self.indx_max_cluster = []
+        self.atoms_max_cluster = None
+        self.n_calls = 0
+        self.n_atoms_in_cluster = 0
+
     def get_atoms_with_largest_cluster( self, highlight_element="Na" ):
         """
         Returns the atoms object which had the largest cluster and change the element
         of the atoms in the cluster to *highlight_element*
         """
+        if ( self.atoms_max_cluster is None ):
+            print ("No clusters was detected!")
+            return
         explored_grp_indices = []
         largest_cluster = []
-        # Locate the largest cluster
-        for i in range(0,len(self.atoms_max_cluster)):
-            if ( self.atoms_max_cluster[i] in explored_grp_indices ):
-                continue
-            current_cluster = []
-            for j in range(0,len(self.atoms_max_cluster)):
-                if ( self.atoms_max_cluster[j] == self.atoms_max_cluster[i] ):
-                    current_cluster.append(j)
-            if ( len(current_cluster) > len(largest_cluster) ):
-                largest_cluster = current_cluster
+        group_indx_count = {}
+        for indx in self.indx_max_cluster:
+            if ( indx in group_indx_count.keys() ):
+                group_indx_count[indx] += 1
+            else:
+                group_indx_count[indx] = 1
+
+        max_grp = 0
+        prev_max = 0
+        for key,value in group_indx_count.iteritems():
+            if ( value > prev_max ):
+                max_grp = key
+                prev_max = value
+
+        for i,indx in enumerate(self.indx_max_cluster):
+            if ( indx == max_grp ):
+                largest_cluster.append(i)
 
         for indx in largest_cluster:
             self.atoms_max_cluster[indx].symbol = highlight_element
         return self.atoms_max_cluster
+
+    def get_statistics(self):
+        """
+        Compute network size statistics
+        """
+        stat = {}
+        stat["avg_size"] = self.res["avg_size"]/self.res["number_of_clusters"]
+        avg_sq = self.res["avg_size_sq"]/self.res["number_of_clusters"]
+        stat["std"] = np.sqrt( avg_sq - stat["avg_size"]**2 )
+        stat["max_size"] = self.max_size
+        stat["frac_atoms_in_cluster"] = float(self.n_atoms_in_cluster)/(self.n_calls*self.max_size_hist)
+        return stat

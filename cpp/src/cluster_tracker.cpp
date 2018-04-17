@@ -2,11 +2,16 @@
 #include "cluster.hpp"
 #include "matrix.hpp"
 #include "additional_tools.hpp"
+#include <stdexcept>
+#include <sstream>
 
 using namespace std;
 
 ClusterTracker::ClusterTracker( CEUpdater &updater, const std::string &cname, const std::string &element ): \
-updater(&updater),cname(cname),element(element){};
+updater(&updater),cname(cname),element(element)
+{
+  verify_cluster_name_exists();
+};
 
 void ClusterTracker::find_clusters()
 {
@@ -25,6 +30,17 @@ void ClusterTracker::find_clusters()
     if ( symbs[i] != element )
     {
       continue;
+    }
+
+    int current_root_indx = i;
+    while( atomic_clusters[current_root_indx] != -1 )
+    {
+      current_root_indx = atomic_clusters[current_root_indx];
+    }
+
+    if ( atomic_clusters[current_root_indx] != -1 )
+    {
+      throw runtime_error( "Something strange happend. ID of root index is not -1!" );
     }
 
     // Loop over all symmetries
@@ -48,32 +64,34 @@ void ClusterTracker::find_clusters()
           {
             root_indx = atomic_clusters[root_indx];
           }
-          atomic_clusters[root_indx] = i;
+
+          if ( root_indx != current_root_indx )
+          {
+            atomic_clusters[root_indx] = current_root_indx;
+          }
         }
       }
     }
   }
 }
 
-void ClusterTracker::get_cluster_statistics( map<string,double> &res ) const
+void ClusterTracker::get_cluster_statistics( map<string,double> &res, vector<int> &cluster_sizes ) const
 {
   double average_size = 0.0;
   double max_size = 0.0;
   double avg_size_sq = 0.0;
   map<int,int> num_members_in_cluster;
+  cluster_sizes.clear();
 
   for ( unsigned int i=0;i<atomic_clusters.size();i++ )
   {
-    int counter = 0;
     int root_indx = i;
-    vector<int> new_cluster;
     while ( atomic_clusters[root_indx] != -1 )
     {
-      counter += 1;
       root_indx = atomic_clusters[root_indx];
     }
 
-    if ( counter > 0 )
+    if ( root_indx != i )
     {
       if ( num_members_in_cluster.find(root_indx) != num_members_in_cluster.end() )
       {
@@ -88,6 +106,10 @@ void ClusterTracker::get_cluster_statistics( map<string,double> &res ) const
 
   for ( auto iter=num_members_in_cluster.begin(); iter != num_members_in_cluster.end(); ++iter )
   {
+    if ( iter->second > 2 )
+    {
+      cluster_sizes.push_back(iter->second);
+    }
     average_size += iter->second;
     avg_size_sq += iter->second*iter->second;
     if ( iter->second > max_size )
@@ -98,20 +120,31 @@ void ClusterTracker::get_cluster_statistics( map<string,double> &res ) const
   res["avg_size"] = average_size;
   res["max_size"] = max_size;
   res["avg_size_sq"] = avg_size_sq;
-  res["number_of_clusters"] = num_members_in_cluster.size();
+  res["number_of_clusters"] = cluster_sizes.size();
 }
 
 PyObject* ClusterTracker::get_cluster_statistics_python() const
 {
   PyObject* dict = PyDict_New();
   map<string,double> res;
-  get_cluster_statistics(res);
+  vector<int> cluster_sizes;
+  get_cluster_statistics(res,cluster_sizes);
   for ( auto iter=res.begin(); iter != res.end(); ++iter )
   {
-    PyObject* value = PyFloat_FromDouble( iter->second );
-    PyDict_SetItemString( dict, iter->first.c_str(), value );
+      PyObject* value = PyFloat_FromDouble( iter->second );
+      PyDict_SetItemString( dict, iter->first.c_str(), value );
+      Py_DECREF(value);
+  }
+
+  PyObject* size_list = PyList_New(0);
+  for ( int i=0; i< cluster_sizes.size();i++ )
+  {
+    PyObject *value = PyInt_FromLong( cluster_sizes[i] );
+    PyList_Append( size_list, value );
     Py_DECREF(value);
   }
+  PyDict_SetItemString( dict, "cluster_sizes", size_list );
+
   return dict;
 }
 
@@ -121,7 +154,7 @@ void ClusterTracker::atomic_clusters2group_indx( vector<int> &group_indx ) const
   for ( unsigned i=0;i<atomic_clusters.size();i++ )
   {
     int root_indx = i;
-    while ( root_indx != -1 )
+    while ( atomic_clusters[root_indx] != -1 )
     {
       root_indx = atomic_clusters[root_indx];
     }
@@ -141,4 +174,26 @@ PyObject* ClusterTracker::atomic_clusters2group_indx_python() const
     Py_DECREF(pyint);
   }
   return list;
+}
+
+void ClusterTracker::verify_cluster_name_exists() const
+{
+  const vector< map<string,Cluster> >& clusters = updater->get_clusters();
+  vector<string> all_names;
+  for ( unsigned int i=0;i<clusters.size();i++ )
+  {
+    if ( clusters[i].find(cname) != clusters[i].end() )
+    {
+      return;
+    }
+    for ( auto iter=clusters[0].begin(); iter != clusters[0].end(); ++iter )
+    {
+      all_names.push_back( iter->first );
+    }
+  }
+  stringstream ss;
+  ss << "There are now correlation functions corresponding to the cluster name given!\n";
+  ss << "Available names:\n";
+  ss << all_names;
+  throw invalid_argument( ss.str() );
 }

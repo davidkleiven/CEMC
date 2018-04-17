@@ -15,12 +15,15 @@ public:
   void find_clusters();
 
   /** Collect the cluster statistics */
-  void get_cluster_statistics( std::map<std::string,double> &res ) const;
+  void get_cluster_statistics( std::map<std::string,double> &res, std::vector<int> &cluster_sizes ) const;
   PyObject* get_cluster_statistics_python() const;
 
   /** Converts the atomis-cluster indices into group index */
   void atomic_clusters2group_indx( std::vector<int> &grp_indx ) const;
   PyObject* atomic_clusters2group_indx_python() const;
+
+  /** Verifies that the cluster name provided exists */
+  void verify_cluster_name_exists() const;
 private:
   std::string element;
   std::string cname;

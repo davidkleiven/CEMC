@@ -2,6 +2,7 @@
 %include "exception.i"
 %include <std_string.i>
 %include <std_map.i>
+%include <std_vector.i>
 %{
 #define SWIG_FILE_WITH_INIT
 #include "ce_updater.hpp"
@@ -16,6 +17,7 @@
 %}
 
 %template(map_str_dbl) std::map<std::string,double>;
+%template(string_vector) std::vector<std::string>;
 
 %include "ce_updater.hpp"
 %include "matrix.hpp"

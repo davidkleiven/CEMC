@@ -74,7 +74,7 @@ snapshot = Snapshot( trajfile="demo.traj", atoms=ceBulk.atoms )
 low_en = LowestEnergyStructure( calc, mc_obj )
 
 # This observer tracks networks of a certain atom type
-network_obs = NetworkObserver( calc=calc, cluster_name="c2_1000_1_00", element="Mg" )
+network_obs = NetworkObserver( calc=calc, cluster_name="c2_1000_1", element="Mg" )
 
 # Now we can attach the observers to the mc_obj
 mc_obj.attach( corr_func_obs, interval=1 )
