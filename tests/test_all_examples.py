@@ -12,7 +12,7 @@ except Exception as exc:
 def test_generator(fname):
     def run_example( self):
         if ( not has_CE ):
-            testcase.skipTest("ASE version needs CE to run the examples")
+            self.skipTest("ASE version needs CE to run the examples")
             return
         no_throw = True
         msg = ""
