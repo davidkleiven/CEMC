@@ -22,7 +22,7 @@ except Exception as exc:
     print (str(exc))
     print ("Could not find C++ version, falling back to Python version")
 
-def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1] ):
+def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays_BC=False ):
     """
     Constructs a CE calculator by first computing the correlation function
     from a small cell
@@ -64,7 +64,7 @@ def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1] ):
         raise TypeError( "The small_bc argument has to by of type BulkCrystal or BulkSpacegroup" )
     large_bc = MPI.COMM_WORLD.bcast( large_bc, root=0 )
     init_cf = MPI.COMM_WORLD.bcast( init_cf, root=0 )
-    calc2 = CE( large_bc, eci, initial_cf=init_cf )
+    calc2 = CE( large_bc, eci, initial_cf=init_cf, free_unused_arrays_BC=free_unused_arrays_BC )
     return calc2
 
 class CE( Calculator ):
@@ -73,7 +73,7 @@ class CE( Calculator ):
     """
 
     implemented_properties = ["energy"]
-    def __init__( self, BC, eci=None, initial_cf=None ):
+    def __init__( self, BC, eci=None, initial_cf=None, free_unused_arrays_BC=False ):
         Calculator.__init__( self )
         self.BC = BC
         self.corrFunc = CorrFunction(self.BC)
@@ -114,6 +114,13 @@ class CE( Calculator ):
 
             if ( not self.updater.ok() ):
                 raise RuntimeError( "Could not initialize C++ CE updater" )
+
+            if ( free_unused_arrays_BC ):
+                self.BC.dist_matrix = None
+                self.BC.trans_matrix = None
+                msg = "ClusterExpansion setting is potentially invalid.\n"
+                msg += "dist_matrix and trans_matrix is set to None to save memory"
+                print (msg)
 
         if ( use_cpp ):
             self.clear_history = self.updater.clear_history

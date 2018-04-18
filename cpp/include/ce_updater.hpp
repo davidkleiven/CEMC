@@ -94,6 +94,12 @@ public:
   /** Read-only reference to the symbols */
   const std::vector<std::string>& get_symbols() const { return symbols; };
 
+  /** Returns the cluster members */
+  const std::vector< std::map<std::string,Cluster> >& get_clusters() const {return clusters;};
+
+  /** Returns the translation matrix */
+  const Matrix<int>& get_trans_matrix() const {return trans_matrix;};
+
   /** Sets the symbols */
   void set_symbols( const std::vector<std::string> &new_symbs );
 

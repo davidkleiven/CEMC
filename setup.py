@@ -17,7 +17,7 @@ if ( sys.version_info >= (3,0) ):
 src_folder = "cpp/src"
 inc_folder = "cpp/include"
 ce_updater_sources = ["ce_updater.cpp","cf_history_tracker.cpp","additional_tools.cpp","histogram.cpp","wang_landau_sampler.cpp","adaptive_windows.cpp","mc_observers.cpp", \
-                       "linear_vib_correction.cpp","cluster.cpp"]
+                       "linear_vib_correction.cpp","cluster.cpp","cluster_tracker.cpp"]
 ce_updater_sources = [src_folder+"/"+srcfile for srcfile in ce_updater_sources]
 ce_updater_sources.append( "cemc/ce_updater/ce_updater.i" )
 ce_updater = Extension( "_ce_updater", sources=ce_updater_sources,include_dirs=[inc_folder,np.get_include()],
