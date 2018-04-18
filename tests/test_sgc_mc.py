@@ -1,9 +1,9 @@
 import unittest
 import os
 from mpi4py import MPI
-from cemc.mcmc import linear_vib_correction as lvc
 
 try:
+    from cemc.mcmc import linear_vib_correction as lvc
     from ase.ce.settings_bulk import BulkCrystal
     from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
     from cemc.wanglandau.ce_calculator import CE
