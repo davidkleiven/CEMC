@@ -85,3 +85,6 @@ mc_obj.attach( network_obs, interval=5 )
 
 # Now run 30 MC steps
 mc_obj.runMC( mode="fixed", steps=30, equil=False )
+
+# Get statistice from the Network Observer
+cluster_stat = network_obs.get_statistics()

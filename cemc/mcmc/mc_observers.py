@@ -6,6 +6,9 @@ import copy
 import numpy as np
 from ase.io.trajectory import TrajectoryWriter
 from cemc.ce_updater import ce_updater
+from mpi4py import MPI
+
+comm = MPI.COMM_WORLD
 
 class MCObserver( object ):
     def __init__( self ):
@@ -328,10 +331,34 @@ class NetworkObserver( MCObserver ):
             self.atoms_max_cluster[indx].symbol = highlight_element
         return self.atoms_max_cluster
 
+    def collect_stat_MPI( self ):
+        """
+        Collects the statistics from MPI
+        """
+        if ( comm.Get_size() == 1 ):
+            return
+        recv_buf = np.zeros_like(self.size_histogram)
+        comm.Allreduce( self.size_histogram, recv_buf, op=MPI.SUM )
+        self.size_histogram[:] = recv_buf[:]
+
+        # Find the maximum cluster
+        max_size = comm.gather(self.max_size,root=0)
+        rank = comm.Get_rank()
+        if ( rank == 0 ):
+            self.max_size = np.max(max_size)
+        self.max_size = comm.bcast(self.max_size,root=0)
+
+        if ( rank == 0 ):
+            msg = "Waring! The MPI collection of results for the NetworkObserver is incomplete."
+            msg += "The histogram is correctly collected and the maximum cluster size."
+            msg += "Entries received by get_statisttics() is not collected yet."
+            print (msg)
+
     def get_statistics(self):
         """
         Compute network size statistics
         """
+        self.collect_stat_MPI()
         stat = {}
         stat["avg_size"] = self.res["avg_size"]/self.res["number_of_clusters"]
         avg_sq = self.res["avg_size_sq"]/self.res["number_of_clusters"]
