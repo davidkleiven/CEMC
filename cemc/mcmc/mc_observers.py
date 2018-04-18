@@ -339,3 +339,10 @@ class NetworkObserver( MCObserver ):
         stat["max_size"] = self.max_size
         stat["frac_atoms_in_cluster"] = float(self.n_atoms_in_cluster)/(self.n_calls*self.max_size_hist)
         return stat
+
+    def get_size_histogram(self):
+        """
+        Returns the size histogram and the corresponding size
+        """
+        x = np.linspace(3,self.max_size_hist,self.nbins)
+        return x,self.size_histogram
