@@ -4,6 +4,11 @@
 #include <map>
 #include <string>
 
+/** This is a class that mimic a map.
+Random access is slower, here linear in the number of elements
+It is most efficent when two maps having exactly the same keys are
+iterated over.
+*/
 class NamedArray
 {
 public:
