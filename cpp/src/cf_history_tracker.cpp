@@ -10,7 +10,8 @@ CFHistoryTracker::CFHistoryTracker( const vector<string> &cluster_names )
   {
     cf_history[i] = new cf;
     changes[i] = new SymbolChange;
-    init_all_keys(*cf_history[i],cluster_names);
+    cf_history[i]->set_order(cluster_names);
+    //init_all_keys(*cf_history[i],cluster_names);
   }
 }
 
@@ -108,9 +109,10 @@ void CFHistoryTracker::insert( PyObject *pycf, SymbolChange *symb_changes )
 
 void CFHistoryTracker::insert( cf &new_cf, SymbolChange* symb_changes )
 {
-  for ( auto iter=new_cf.begin(); iter != new_cf.end(); ++iter )
+  //for ( auto iter=new_cf.begin(); iter != new_cf.end(); ++iter )
+  for ( unsigned int i=0;i<new_cf.size();i++ )
   {
-    (*cf_history[current])[iter->first] = iter->second;
+    (*cf_history[current])[i] = new_cf[i];
   }
 
   if ( symb_changes != nullptr )

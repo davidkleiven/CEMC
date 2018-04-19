@@ -17,5 +17,7 @@ std::ostream& operator <<( std::ostream &out, const std::vector<T> &vec );
 template<class T>
 std::vector<T>& cyclic_permute( std::vector<T> &vec );
 
+template<class T>
+void keys( std::map<std::string,T> &, std::vector<std::string> &keys );
 #include "additional_tools.tpp"
 #endif

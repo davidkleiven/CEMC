@@ -8,6 +8,7 @@
 #include <omp.h>
 #include <cassert>
 #include <stdexcept>
+#include <iterator>
 
 #define CE_DEBUG
 using namespace std;
@@ -214,17 +215,20 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
 
   // Read the ECIs
   Py_ssize_t pos = 0;
+  map<string,double> temp_ecis;
   while(  PyDict_Next(pyeci, &pos, &key,&value) )
   {
-    ecis[PyString_AsString(key)] = PyFloat_AS_DOUBLE(value);
+    temp_ecis[PyString_AsString(key)] = PyFloat_AS_DOUBLE(value);
   }
+  ecis.init(temp_ecis);
   #ifdef CE_DEBUG
     cerr << "Parsing correlation function\n";
   #endif
 
   vector<string> flattened_cnames;
   flattened_cluster_names(flattened_cnames);
-  history = new CFHistoryTracker(flattened_cnames);
+  //history = new CFHistoryTracker(flattened_cnames);
+  history = new CFHistoryTracker(ecis.get_names());
   history->insert( corrFunc, nullptr );
   //create_ctype_lookup();
   //create_permutations( perms );
@@ -290,10 +294,12 @@ double CEUpdater::get_energy()
 {
   double energy = 0.0;
   cf& corr_func = history->get_current();
+  energy = ecis.dot( corr_func );
+  /*
   for ( auto iter=ecis.begin(); iter != ecis.end(); ++iter )
   {
     energy += corr_func[iter->first]*iter->second;
-  }
+  }*/
   return energy*symbols.size();
 }
 
@@ -362,12 +368,15 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
   }
 
   // Loop over all ECIs
-  for ( auto iter=ecis.begin(); iter != ecis.end(); ++iter )
+  //for ( auto iter=ecis.begin(); iter != ecis.end(); ++iter )
+  for ( unsigned int i=0;i<ecis.size();i++ )
   {
-    const string &name = iter->first;
+    //const string &name = iter->first;
+    const string& name = ecis.name(i);
     if ( name.find("c0") == 0 )
     {
-      next_cf[name] = current_cf[name];
+      //next_cf[name] = current_cf[name];
+      next_cf[i] = current_cf[i];
       continue;
     }
 
@@ -376,7 +385,8 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
     if ( name.find("c1") == 0 )
     {
       int dec = bfs[0];
-      next_cf[name] = current_cf[name] + (basis_functions[dec][symb_change.new_symb] - basis_functions[dec][symb_change.old_symb])/symbols.size();
+      //next_cf[name] = current_cf[name] + (basis_functions[dec][symb_change.new_symb] - basis_functions[dec][symb_change.old_symb])/symbols.size();
+      next_cf[i] = current_cf[i] + (basis_functions[dec][symb_change.new_symb] - basis_functions[dec][symb_change.old_symb])/symbols.size();
       continue;
     }
 
@@ -388,7 +398,7 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
     int symm = trans_symm_group[symb_change.indx];
     if ( clusters[symm].find(prefix) == clusters[symm].end() )
     {
-      next_cf[name] = current_cf[name];
+      next_cf[i] = current_cf[i];
       continue;
     }
     const vector< vector<int> > &cluster_indices = clusters[symm].at(prefix).get();
@@ -410,7 +420,7 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
     //delta_sp /= (normalization*symbols.size()); // This was the old normalization
     delta_sp /= (cluster_symm_group_count.at(prefix)*trans_symm_group_count[symm]);
     //cout << name << " " << cluster_indices << endl;
-    next_cf[name] = current_cf[name] + delta_sp;
+    next_cf[i] = current_cf[i] + delta_sp;
   }
 }
 
@@ -529,10 +539,12 @@ void CEUpdater::clear_history()
 
 void CEUpdater::flattened_cluster_names( vector<string> &flattened )
 {
+  /*
   for ( auto iter=ecis.begin(); iter != ecis.end(); ++iter )
   {
     flattened.push_back( iter->first );
-  }
+  }*/
+  flattened = ecis.get_names();
 
   // Sort the cluster names for consistency
   sort( flattened.begin(), flattened.end() );
@@ -543,10 +555,11 @@ PyObject* CEUpdater::get_cf()
   PyObject* cf_dict = PyDict_New();
   cf& corrfunc = history->get_current();
 
-  for ( auto iter=corrfunc.begin(); iter != corrfunc.end(); ++iter )
+  //for ( auto iter=corrfunc.begin(); iter != corrfunc.end(); ++iter )
+  for ( unsigned int i=0;i<corrfunc.size();i++ )
   {
-    PyObject *pyvalue =  PyFloat_FromDouble(iter->second);
-    PyDict_SetItemString( cf_dict, iter->first.c_str(), pyvalue );
+    PyObject *pyvalue =  PyFloat_FromDouble(corrfunc[i]);
+    PyDict_SetItemString( cf_dict, corrfunc.name(i).c_str(), pyvalue );
     Py_DECREF(pyvalue);
   }
   return cf_dict;
@@ -739,6 +752,8 @@ void CEUpdater::build_trans_symm_group( PyObject *py_trans_symm_group )
 bool CEUpdater::all_eci_corresponds_to_cf()
 {
     cf& corrfunc = history->get_current();
+    return ecis.names_are_equal(corrfunc);
+    /*
     for ( auto iter=ecis.begin(); iter != ecis.end(); ++iter )
     {
       if ( corrfunc.find(iter->first) == corrfunc.end() )
@@ -746,5 +761,5 @@ bool CEUpdater::all_eci_corresponds_to_cf()
         return false;
       }
     }
-    return true;
+    return true;*/
 }

@@ -33,3 +33,13 @@ std::vector<T>& cyclic_permute( std::vector<T> &vec )
   }
   return vec;
 }
+
+template<class T>
+void keys( std::map<std::string,T> &dict, std::vector<std::string> &names )
+{
+  names.clear();
+  for ( auto iter=dict.begin(); iter != dict.end(); ++iter )
+  {
+    names.push_back(iter->first);
+  }
+}

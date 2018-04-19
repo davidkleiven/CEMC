@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <unordered_map>
 #include "matrix.hpp"
 #include "cf_history_tracker.hpp"
 #include "mc_observers.hpp"
@@ -10,6 +11,7 @@
 #include <Python.h>
 #include "linear_vib_correction.hpp"
 #include "cluster.hpp"
+#include "named_array.hpp"
 
 // Read values from name_list
 // name_list[symm_group][cluster_size] = vector of string variables of all the cluster names
@@ -19,7 +21,8 @@ typedef std::vector< std::vector< std::vector<std::string> > > name_list;
 // cluster_list[symm_group][cluster_size][indx] = vector of indices belonging to the cluster #indx.
 typedef std::vector< std::vector< std::vector< std::vector<std::vector<int> > > > > cluster_list;
 typedef std::vector< std::map<std::string,double> > bf_list;
-typedef std::map<std::string,double> cf;
+//typedef std::unordered_map<std::string,double> cf;
+typedef NamedArray cf;
 
 enum class Status_t {
   READY, INIT_FAILED,NOT_INITIALIZED
@@ -126,7 +129,8 @@ private:
   Status_t status{Status_t::NOT_INITIALIZED};
   Matrix<int> trans_matrix;
   std::map<std::string,int> ctype_lookup;
-  std::map<std::string,double> ecis;
+  //std::map<std::string,double> ecis;
+  NamedArray ecis;
   std::map<std::string,std::string> cname_with_dec;
   CFHistoryTracker *history{nullptr};
   std::map< int, std::vector< std::vector<int> > > permutations;

@@ -5,8 +5,11 @@
 #include <Python.h>
 #include <map>
 #include <vector>
+#include <unordered_map>
+#include "named_array.hpp"
 
-typedef std::map<std::string,double> cf;
+//typedef std::unordered_map<std::string,double> cf;
+typedef NamedArray cf;
 
 struct SymbolChange
 {
@@ -19,7 +22,7 @@ struct SymbolChange
 class CFHistoryTracker
 {
 public:
-  CFHistoryTracker( const std::vector< std::string> &cluster_names );
+  CFHistoryTracker( const std::vector<std::string> &cluster_names );
   CFHistoryTracker( const CFHistoryTracker &other );
   CFHistoryTracker& operator=( const CFHistoryTracker& other );
 
