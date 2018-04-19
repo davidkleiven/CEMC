@@ -7,6 +7,7 @@ import numpy as np
 from ase.io.trajectory import TrajectoryWriter
 from cemc.ce_updater import ce_updater
 from mpi4py import MPI
+from ase.data import atomic_numbers
 
 comm = MPI.COMM_WORLD
 
@@ -187,6 +188,7 @@ class SGCObserver(MCObserver):
         self.quantities["energy"] += self.mc.current_energy_without_vib()
         self.quantities["energy_sq"] += self.mc.current_energy_without_vib()**2
         self.quantities["singl_eng"] += new_singlets*self.mc.current_energy_without_vib()
+
         """
         self.singlets += new_singlets
         self.energy += self.mc.current_energy
@@ -299,7 +301,7 @@ class NetworkObserver( MCObserver ):
         self.n_calls = 0
         self.n_atoms_in_cluster = 0
 
-    def get_atoms_with_largest_cluster( self, highlight_element="Na" ):
+    def get_atoms_with_largest_cluster( self ):
         """
         Returns the atoms object which had the largest cluster and change the element
         of the atoms in the cluster to *highlight_element*
@@ -316,19 +318,20 @@ class NetworkObserver( MCObserver ):
             else:
                 group_indx_count[indx] = 1
 
-        max_grp = 0
-        prev_max = 0
+        elems_in_atoms_obj = []
+        for atom in self.atoms_max_cluster:
+            if ( atom.symbol not in elems_in_atoms_obj ):
+                elems_in_atoms_obj.append( atom.symbol )
+
+        highlight_element = atomic_numbers.keys()
+        current_highlight_element = 0
         for key,value in group_indx_count.iteritems():
-            if ( value > prev_max ):
-                max_grp = key
-                prev_max = value
-
-        for i,indx in enumerate(self.indx_max_cluster):
-            if ( indx == max_grp ):
-                largest_cluster.append(i)
-
-        for indx in largest_cluster:
-            self.atoms_max_cluster[indx].symbol = highlight_element
+            if ( value <= 3 ):
+                continue
+            for i,indx in enumerate(self.indx_max_cluster):
+                if ( indx == key ):
+                    self.atoms_max_cluster[i].symbol = highlight_element[current_highlight_element]
+            current_highlight_element += 1
         return self.atoms_max_cluster
 
     def collect_stat_MPI( self ):
