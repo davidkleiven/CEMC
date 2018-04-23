@@ -106,9 +106,9 @@ void ClusterTracker::get_cluster_statistics( map<string,double> &res, vector<int
 
   for ( auto iter=num_members_in_cluster.begin(); iter != num_members_in_cluster.end(); ++iter )
   {
-    if ( iter->second > 2 )
+    if ( iter->second >= 1 )
     {
-      cluster_sizes.push_back(iter->second);
+      cluster_sizes.push_back(iter->second+1);
     }
     average_size += iter->second;
     avg_size_sq += iter->second*iter->second;
