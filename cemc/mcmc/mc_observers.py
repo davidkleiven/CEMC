@@ -376,3 +376,9 @@ class NetworkObserver( MCObserver ):
         """
         x = np.linspace(3,self.max_size_hist,self.nbins)
         return x,self.size_histogram
+
+    def grow_cluster(self,size):
+        """
+        Grow a cluster of the given size
+        """
+        self.fast_cluster_tracker.grow_cluster(size)

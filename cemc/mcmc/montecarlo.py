@@ -679,10 +679,10 @@ class Montecarlo(object):
         Returns True if the trial step is accepted
         """
         self.new_energy = self.atoms._calc.calculate( self.atoms, ["energy"], system_changes )
-        if ( new_energy < self.current_energy ):
+        if ( self.new_energy < self.current_energy ):
             return True
         kT = kT = self.T*units.kB
-        energy_diff = new_energy-self.current_energy
+        energy_diff = self.new_energy-self.current_energy
         probability = np.exp(-energy_diff/kT)
         return np.random.rand() <= probability
 

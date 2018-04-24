@@ -24,6 +24,21 @@ public:
 
   /** Verifies that the cluster name provided exists */
   void verify_cluster_name_exists() const;
+
+  /** Grow a cluster of with a certain size */
+  void grow_cluster( unsigned int size );
+
+  /** Get all the members of the largest cluster */
+  void get_members_of_largest_cluster( std::vector<int> &members );
+
+  /** Returns a map with all the cluster sizes. Key is the root index */
+  void get_cluster_size( std::map<int,int> &cluster_sizes ) const;
+
+  /** Get the root index of the largest cluster */
+  unsigned int root_indx_largest_cluster() const;
+
+  /** Returns the root index of an atom */
+  unsigned int root_indx( unsigned int indx ) const;
 private:
   std::string element;
   std::string cname;
