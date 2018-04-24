@@ -52,6 +52,7 @@ class Montecarlo(object):
         self.symbols = []
         self.build_atoms_list()
         self.current_energy = 1E100
+        self.new_energy = self.current_energy
         self.mean_energy = 0.0
         self.energy_squared = 0.0
         self.mpicomm = mpicomm
@@ -673,6 +674,18 @@ class Montecarlo(object):
         system_changes = [(self.rand_a,symb_a,symb_b),(self.rand_b,symb_b,symb_a)]
         return system_changes
 
+    def accept( self, system_changes ):
+        """
+        Returns True if the trial step is accepted
+        """
+        self.new_energy = self.atoms._calc.calculate( self.atoms, ["energy"], system_changes )
+        if ( new_energy < self.current_energy ):
+            return True
+        kT = kT = self.T*units.kB
+        energy_diff = new_energy-self.current_energy
+        probability = np.exp(-energy_diff/kT)
+        return np.random.rand() <= probability
+
     def _mc_step(self, verbose = False ):
         """
         Make one Monte Carlo step by swithing two atoms
@@ -682,6 +695,7 @@ class Montecarlo(object):
 
 
         system_changes= self.get_trial_move()
+        """
         new_energy = self.atoms._calc.calculate( self.atoms, ["energy"], system_changes )
 
         if ( verbose ):
@@ -707,16 +721,26 @@ class Montecarlo(object):
                 #self.atoms[self.rand_a].symbol = symb_a
                 #self.atoms[self.rand_b].symbol = symb_b
                 accept = False
+        """
+        move_accepted = self.accept( system_changes )
+        if ( move_accepted ):
+            self.current_energy = self.new_energy
+        else:
+            # Reset the sytem back to original
+            for change in system_changes:
+                indx = change[0]
+                old_symb = change[1]
+                self.atoms[indx].symbol = old_symb
 
         # TODO: Wrap this functionality into a cleaning object
         if ( hasattr(self.atoms._calc,"clear_history") and hasattr(self.atoms._calc,"undo_changes") ):
             # The calculator is a CE calculator which support clear_history and undo_changes
-            if ( accept ):
+            if ( move_accepted ):
                 self.atoms._calc.clear_history()
             else:
                 self.atoms._calc.undo_changes()
 
-        if ( accept ):
+        if ( move_accepted ):
             # Update the atom_indices
             self.update_tracker( system_changes )
         else:
@@ -732,4 +756,4 @@ class Montecarlo(object):
             if ( self.current_step%interval == 0 ):
                 obs = entry[1]
                 obs(system_changes)
-        return self.current_energy,accept
+        return self.current_energy,move_accepted
