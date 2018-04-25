@@ -268,6 +268,8 @@ void ClusterTracker::grow_cluster( unsigned int size )
   }
   updater->clear_history();
 
+  if ( size == 0 ) return;
+
   // Start to grow a cluster from element 0
   SymbolChange symb_change;
   symb_change.new_symb = element;
@@ -279,8 +281,11 @@ void ClusterTracker::grow_cluster( unsigned int size )
   const vector< map<string,Cluster> >& clusters = updater->get_clusters();
   const Matrix<int>& trans_mat = updater->get_trans_matrix();
   unsigned int start_indx = 0;
-  while( num_inserted < size-1 )
+  unsigned int max_attempts = 20000;
+  unsigned int number_of_attempts = 0;
+  while( (num_inserted < size-1) && (number_of_attempts < max_attempts) )
   {
+    number_of_attempts++;
     bool inserted = false;
     for ( unsigned int trans_group=0;trans_group<clusters.size();trans_group++ )
     {
@@ -309,5 +314,11 @@ void ClusterTracker::grow_cluster( unsigned int size )
       }
     if ( inserted ) break;
   }
+}
+updater->clear_history();
+
+if ( number_of_attempts == max_attempts )
+{
+  throw runtime_error( "Did not manage to grow a cluster with the specified size!" );
 }
 }

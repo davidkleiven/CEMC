@@ -363,11 +363,18 @@ class NetworkObserver( MCObserver ):
         """
         self.collect_stat_MPI()
         stat = {}
-        stat["avg_size"] = self.res["avg_size"]/self.res["number_of_clusters"]
-        avg_sq = self.res["avg_size_sq"]/self.res["number_of_clusters"]
+        if ( self.res["number_of_clusters"] == 0 ):
+            stat["avg_size"] = 0
+            avg_sq =  0
+        else:
+            stat["avg_size"] = self.res["avg_size"]/self.res["number_of_clusters"]
+            avg_sq = self.res["avg_size_sq"]/self.res["number_of_clusters"]
         stat["std"] = np.sqrt( avg_sq - stat["avg_size"]**2 )
         stat["max_size"] = self.max_size
-        stat["frac_atoms_in_cluster"] = float(self.n_atoms_in_cluster)/(self.n_calls*self.max_size_hist)
+        if ( self.max_size_hist == 0 ):
+            stat["frac_atoms_in_cluster"] = 0.0
+        else:
+            stat["frac_atoms_in_cluster"] = float(self.n_atoms_in_cluster)/(self.n_calls*self.max_size_hist)
         return stat
 
     def get_size_histogram(self):
