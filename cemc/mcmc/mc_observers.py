@@ -6,10 +6,7 @@ import copy
 import numpy as np
 from ase.io.trajectory import TrajectoryWriter
 from cemc.ce_updater import ce_updater
-from mpi4py import MPI
 from ase.data import atomic_numbers
-
-comm = MPI.COMM_WORLD
 
 class MCObserver( object ):
     def __init__( self ):
@@ -232,7 +229,7 @@ class Snapshot( MCObserver ):
         self.traj.write(self.atoms)
 
 class NetworkObserver( MCObserver ):
-    def __init__( self, calc=None, cluster_name=None, element=None, nbins=30 ):
+    def __init__( self, calc=None, cluster_name=None, element=None, nbins=30, mpicomm=None ):
         if ( calc is None ):
             raise ValueError( "No calculator given. Has to be a CE calculator (with C++ support)" )
         if ( cluster_name is None ):
@@ -253,6 +250,7 @@ class NetworkObserver( MCObserver ):
         self.atoms_max_cluster = None
         self.n_calls = 0
         self.n_atoms_in_cluster = 0
+        self.mpicomm = mpicomm
 
         # Count the number of atoms of the element type being tracked
         n_atoms = 0
@@ -338,18 +336,18 @@ class NetworkObserver( MCObserver ):
         """
         Collects the statistics from MPI
         """
-        if ( comm.Get_size() == 1 ):
+        if ( self.mpicomm is None ):
             return
         recv_buf = np.zeros_like(self.size_histogram)
-        comm.Allreduce( self.size_histogram, recv_buf, op=MPI.SUM )
+        self.mpicomm.Allreduce( self.size_histogram, recv_buf, op=MPI.SUM )
         self.size_histogram[:] = recv_buf[:]
 
         # Find the maximum cluster
-        max_size = comm.gather(self.max_size,root=0)
-        rank = comm.Get_rank()
+        max_size = self.mpicomm.gather(self.max_size,root=0)
+        rank = self.mpicomm.Get_rank()
         if ( rank == 0 ):
             self.max_size = np.max(max_size)
-        self.max_size = comm.bcast(self.max_size,root=0)
+        self.max_size = self.mpicomm.bcast(self.max_size,root=0)
 
         if ( rank == 0 ):
             msg = "Waring! The MPI collection of results for the NetworkObserver is incomplete."

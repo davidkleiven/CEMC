@@ -4,6 +4,7 @@ from cemc.mcmc import NetworkObserver
 import h5py as h5
 import numpy as np
 from ase.visualize import view
+from scipy.stats import linregress
 import os
 
 class Mode(object):
@@ -17,6 +18,21 @@ class NucleationMC( SGCMonteCarlo ):
         self.network_name = kwargs.pop("network_name")
         self.network_element = kwargs.pop("network_element")
         self.max_cluster_size = kwargs.pop("max_cluster_size")
+        self.merge_strategy = "normalize_overlap"
+        if ( "merge_strategy" in kwargs.keys() ):
+            self.merge_strategy = kwargs.pop("merge_strategy")
+
+        # The Nucleation barrier algorithm requires a lot of communication if
+        # parallelized in the same way as SGCMonteCarlo
+        # therefore we snap the mpicomm object passed,
+        # and parallelize in a different way
+        self.nucleation_mpicomm = None
+        if ( "mpicomm" in kwargs.keys() ):
+            self.nucleation_mpicomm = kwargs.pop("mpicomm")
+
+        allowed_merge_strategies = ["normalize_overlap","fit"]
+        if ( self.merge_strategy not in allowed_merge_strategies ):
+            raise ValueError( "Merge strategy has to be one of {}".format(allowed_merge_strategies))
         chem_pot = kwargs.pop("chemical_potential")
 
         super(NucleationMC,self).__init__(atoms,temp,**kwargs)
@@ -26,9 +42,15 @@ class NucleationMC( SGCMonteCarlo ):
 
         self.n_bins = self.size_window_width
         self.n_windows = int(self.max_cluster_size/self.size_window_width)
-        self.histograms = [np.ones(self.n_bins+1) for _ in range(self.n_windows)]
+        self.histograms = []
+        for i in range(self.n_windows):
+            if ( i==0 ):
+                self.histograms.append( np.ones(self.n_bins) )
+            else:
+                self.histograms.append( np.ones(self.n_bins+1) )
         self.current_window = 0
         self.mode = Mode.bring_system_into_window
+        self.set_seeds( self.nucleation_mpicomm )
 
     def get_window_boundaries(self, num):
         """
@@ -95,62 +117,97 @@ class NucleationMC( SGCMonteCarlo ):
             raise ValueError( "Given size: {}. Boundaries: [{},{})".format(stat["max_size"],lower,upper))
         self.histograms[self.current_window][indx] += 1
 
+    def collect_results(self):
+        """
+        Collect results from all processors if this algorithm is run in parallel
+        """
+        if ( self.nucleation_mpicomm is None ):
+            return
+
+        for i in range(len(self.histograms)):
+            recv_buf = np.zeros_like(self.histograms[i])
+            send_buf = self.histograms[i]
+            self.nucleation_mpicomm.Allreduce( send_buf, recv_buf )
+            self.histograms[i][:] = recv_buf[:]
+
     def save( self, fname="nucleation_track.h5" ):
         """
         Saves data to the file
         """
-        all_data = [np.zeros_like(self.histograms[i]) for i in range(len(self.histograms))]
-        try:
-            with h5.File(fname,'r') as hfile:
+        self.collect_results()
+        rank = 0
+        if ( self.nucleation_mpicomm is not None ):
+            rank = self.nucleation_mpicomm.Get_rank()
+
+        if ( rank == 0 ):
+            all_data = [np.zeros_like(self.histograms[i]) for i in range(len(self.histograms))]
+            try:
+                with h5.File(fname,'r') as hfile:
+                    for i in range(len(self.histograms)):
+                        name = "hist{}".format(i)
+                        if ( name in hfile ):
+                            all_data[i] = np.array( hfile[name] )
+            except Exception as exc:
+                print (str(exc))
+                print ("Creating new file")
+
+            for i in range(len(self.histograms)):
+                all_data[i] += self.histograms[i]
+            self.histograms = all_data
+            overall_hist = self.merge_histogram(strategy=self.merge_strategy)
+
+            if ( os.path.exists(fname) ):
+                flag = "r+"
+            else:
+                flag = "w"
+
+            with h5.File(fname,flag) as hfile:
                 for i in range(len(self.histograms)):
                     name = "hist{}".format(i)
                     if ( name in hfile ):
-                        all_data[i] = np.array( hfile[name] )
-        except Exception as exc:
-            print (str(exc))
-            print ("Creating new file")
+                        data = hfile[name]
+                        data[...] = all_data[i]
+                    else:
+                        dset = hfile.create_dataset( name, data=all_data[i] )
 
-        for i in range(len(self.histograms)):
-            all_data[i] += self.histograms[i]
-        self.histograms = all_data
-        overall_hist = self.merge_histogram()
-
-        if ( os.path.exists(fname) ):
-            flag = "r+"
-        else:
-            flag = "w"
-
-        with h5.File(fname,flag) as hfile:
-            for i in range(len(self.histograms)):
-                name = "hist{}".format(i)
-                if ( name in hfile ):
-                    data = hfile[name]
-                    data[...] = all_data[i]
+                if ( "overall_hist" in hfile ):
+                    data = hfile["overall_hist"]
+                    data[...] = overall_hist
                 else:
-                    dset = hfile.create_dataset( name, data=all_data[i] )
+                    dset = hfile.create_dataset( "overall_hist", data=overall_hist )
+            self.log( "Data saved to {}".format(fname) )
 
-            if ( "overall_hist" in hfile ):
-                data = hfile["overall_hist"]
-                data[...] = overall_hist
-            else:
-                dset = hfile.create_dataset( "overall_hist", data=overall_hist )
-        self.log( "Data saved to {}".format(fname) )
-
-    def merge_histogram(self):
+    def merge_histogram(self,strategy="normalize_overlap"):
         """
         Merge the histograms
         """
         overall_hist = self.histograms[0].tolist()
-        for i in range(1,len(self.histograms)):
-            ratio = float(overall_hist[-1])/float(self.histograms[i][0])
-            self.histograms[i] *= ratio
-            overall_hist += self.histograms[i][1:].tolist()
+
+        if ( strategy == "normalize_overlap" ):
+            for i in range(1,len(self.histograms)):
+                ratio = float(overall_hist[-1])/float(self.histograms[i][0])
+                normalized_hist = self.histograms[i]*ratio
+                overall_hist += normalized_hist[1:].tolist()
+        elif ( strategy == "fit" ):
+            for i in range(1,len(self.histograms)):
+                x1 = [1,2,3,4]
+                slope1,interscept1,rvalue1,pvalue1,stderr1 = linregress(x1,overall_hist[-4:])
+                x2 = [4,5,6,7]
+                slope2,interscept2,rvalue2,pvalue2,stderr2 = linregress(x2,self.histograms[i][:4])
+                x_eval = np.array([1,2,3,4,5,6,7])
+                y1 = slope1*x_eval + interscept1
+                y2 = slope2*x_eval + interscept2
+                ratio = np.mean( y1/y2 )
+                normalized_hist = self.histograms[i]*ratio
+                overall_hist += normalized_hist[1:].tolist()
         return np.array( overall_hist )
 
     def run( self, nsteps=10000 ):
         """
         Run samples in each window until a desired precission is found
         """
+        if ( self.nucleation_mpicomm is not None ):
+            self.nucleation_mpicomm.barrier()
         for i in range(self.n_windows):
             self.log( "Window {} of {}".format(i,self.n_windows) )
             self.current_window = i
@@ -168,3 +225,6 @@ class NucleationMC( SGCMonteCarlo ):
                 self._mc_step()
                 self.update_histogram()
                 self.network.reset()
+
+        if ( self.nucleation_mpicomm is not None ):
+            self.nucleation_mpicomm.barrier()

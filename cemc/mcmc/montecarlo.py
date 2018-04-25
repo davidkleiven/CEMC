@@ -164,15 +164,15 @@ class Montecarlo(object):
         else:
             raise ValueError( "The observer has to be a callable class!" )
 
-    def set_seeds(self):
+    def set_seeds(self,comm):
         """
         This function guaranties different seeds on different processors
         """
-        if ( self.mpicomm is None ):
+        if ( comm is None ):
             return
 
-        rank = self.mpicomm.Get_rank()
-        size = self.mpicomm.Get_size()
+        rank = comm.Get_rank()
+        size = comm.Get_size()
         maxint = np.iinfo(np.int32).max
         if ( rank == 0 ):
             seed = []
@@ -185,7 +185,7 @@ class Montecarlo(object):
             seed = None
 
         # Scatter the seeds to the other processes
-        seed = self.mpicomm.scatter(seed, root=0)
+        seed = comm.scatter(seed, root=0)
 
         # Update the seed
         np.random.seed(seed)
@@ -194,7 +194,7 @@ class Montecarlo(object):
             # Verify that numpy rand produces different result on the processors
             random_test = np.random.randint( low=0, high=100, size=100 )
             sum_all = np.zeros_like(random_test)
-            self.mpicomm.Allreduce( random_test, sum_all )
+            comm.Allreduce( random_test, sum_all )
             if ( np.allclose(sum_all,size*random_test) ):
                 raise RuntimeError( "The seeding does not appear to have any effect on Numpy's rand functions!" )
 
@@ -542,7 +542,7 @@ class Montecarlo(object):
         self._mc_step()
         #self.current_energy = self.atoms.get_potential_energy() # Get starting energy
 
-        self.set_seeds()
+        self.set_seeds(self.mpicomm)
         totalenergies = []
         totalenergies.append(self.current_energy)
         start = time.time()
