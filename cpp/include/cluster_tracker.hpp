@@ -39,6 +39,12 @@ public:
 
   /** Returns the root index of an atom */
   unsigned int root_indx( unsigned int indx ) const;
+
+  /** Computes the surface of the clusters */
+  void surface( std::map<int,int> &surf ) const;
+
+  /** Compute the surface of the clusters and return the result in a Python dict */
+  PyObject* surface_python() const;
 private:
   std::string element;
   std::string cname;

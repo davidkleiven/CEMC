@@ -281,12 +281,15 @@ void ClusterTracker::grow_cluster( unsigned int size )
   const vector< map<string,Cluster> >& clusters = updater->get_clusters();
   const Matrix<int>& trans_mat = updater->get_trans_matrix();
   unsigned int start_indx = 0;
-  unsigned int max_attempts = 20000;
+  unsigned int max_attempts = 200000;
   unsigned int number_of_attempts = 0;
+  vector<int> cluster_members;
+  cluster_members.push_back(start_indx);
   while( (num_inserted < size-1) && (number_of_attempts < max_attempts) )
   {
+    start_indx = cluster_members[rand()%cluster_members.size()];
     number_of_attempts++;
-    bool inserted = false;
+    bool finished = false;
     for ( unsigned int trans_group=0;trans_group<clusters.size();trans_group++ )
     {
       if ( clusters[trans_group].find(cname) == clusters[trans_group].end() )
@@ -307,12 +310,12 @@ void ClusterTracker::grow_cluster( unsigned int size )
           symb_change.indx = indx;
           updater->update_cf( symb_change );
           num_inserted++;
-          inserted = true;
-          start_indx = indx;
-          break;
+          finished =  num_inserted >= size-1;
+          cluster_members.push_back(indx);
         }
+        if ( finished ) break;
       }
-    if ( inserted ) break;
+      if ( finished ) break;
   }
 }
 updater->clear_history();
@@ -321,4 +324,59 @@ if ( number_of_attempts == max_attempts )
 {
   throw runtime_error( "Did not manage to grow a cluster with the specified size!" );
 }
+}
+
+void ClusterTracker::surface( map<int,int> &surf ) const
+{
+  const vector<string>& symbs = updater->get_symbols();
+  const vector< map<string,Cluster> >& clusters = updater->get_clusters();
+  const Matrix<int>& trans_mat = updater->get_trans_matrix();
+
+  for ( unsigned int i=0;i<atomic_clusters.size();i++ )
+  {
+    if ( atomic_clusters[i] != -1 )
+    {
+      // This site is part of a cluster
+      unsigned int root = root_indx(i);
+      if ( surf.find(root) == surf.end() )
+      {
+        surf[root] = 0;
+      }
+
+      for ( unsigned int symm_group=0;symm_group<clusters.size();symm_group++ )
+      {
+        if ( clusters[symm_group].find(cname) == clusters[symm_group].end() )
+        {
+          // Cluster does not exist in this translattional symmetry group
+          continue;
+        }
+
+        const vector< vector<int> >& members = clusters[symm_group].at(cname).get();
+        for ( int subgroup=0;subgroup<members.size();subgroup++ )
+        {
+          int indx = trans_mat( i,members[subgroup][0] );
+          if ( symbs[indx] != element )
+          {
+            surf[root] += 1;
+          }
+        }
+      }
+    }
+  }
+}
+
+PyObject* ClusterTracker::surface_python() const
+{
+  map<int,int> surf;
+  surface(surf);
+  PyObject* dict = PyDict_New();
+  for ( auto iter=surf.begin(); iter != surf.end(); ++iter )
+  {
+    PyObject* py_int_key = PyInt_FromLong(iter->first);
+    PyObject* py_int_surf = PyInt_FromLong(iter->second);
+    PyDict_SetItem( dict, py_int_key, py_int_surf );
+    Py_DECREF(py_int_key);
+    Py_DECREF(py_int_surf);
+  }
+  return dict;
 }
