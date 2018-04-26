@@ -6,3 +6,4 @@ from mc_observers import MCObserver, CorrelationFunctionTracker, PairCorrelation
 LowestEnergyStructure, SGCObserver, Snapshot, NetworkObserver
 from sa_canonical import SimulatedAnnealingCanonical
 from nucleation_mc import NucleationMC
+from transition_path_relaxer import TransitionPathRelaxer

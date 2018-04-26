@@ -298,6 +298,14 @@ class NucleationMC( SGCMonteCarlo ):
                     outfile.write("{} ".format(entry))
                 outfile.write("\n")
 
+    def reset(self):
+        """
+        Overrides the parents method
+        """
+        super(NucleationMC,self).reset()
+        self.current_energy = np.inf
+        self.network.reset()
+
     def read_list_of_lists(self,fname,dtype="str"):
         """
         Read list of lists
@@ -339,9 +347,40 @@ class NucleationMC( SGCMonteCarlo ):
         """
         Stores the path result to a JSON file
         """
+        res["min_size_product"] = self.min_size_product
+        res["max_size_reactant"] = self.max_size_reactant
         with open(fname,'w') as outfile:
             json.dump(res,outfile)
 
+    def sweep(self):
+        """
+        Performs one MC sweep
+        """
+        for i in range(len(self.atoms)):
+            self._mc_step()
+
+    def set_mode( self, mode ):
+        """
+        Set the mode
+        """
+        known_modes = ["bring_system_into_window","sample_in_window","equillibriate","transition_path_sampling"]
+        if ( mode not in known_modes ):
+            raise ValueError( "Mode has to be one of {}".format(known_modes))
+
+        if ( mode == "bring_system_into_window" ):
+            self.mode = Mode.bring_system_into_window
+        elif ( mode == "sample_in_window" ):
+            self.mode = Mode.sample_in_window
+        elif ( mode == "equillibriate" ):
+            self.mode = Mode.sample_in_window
+        elif ( mode == "transition_path_sampling" ):
+            self.mode = Mode.transition_path_sampling
+
+    def set_state( self, symbols ):
+        """
+        Sets the state of the system
+        """
+        self.atoms._calc.set_symbols(symbols)
 
     def find_transition_path( self, initial_cluster_size=None, max_size_reactant=None, min_size_product=None, path_length=1000, max_attempts=100, folder="." ):
         """
@@ -445,8 +484,7 @@ class NucleationMC( SGCMonteCarlo ):
             if ( time.time() - now > output_every_sec ):
                 self.log( "Sweep {} of {}".format(sweep,path_length))
                 now = time.time()
-            for step in range(len(self.atoms)):
-                self._mc_step()
+            self.sweep()
             self.network(None) # Explicitly enforce a construction of the network
             energies.append(self.current_energy)
             symbs.append( [atom.symbol for atom in self.atoms] )
@@ -459,13 +497,13 @@ class NucleationMC( SGCMonteCarlo ):
             if ( target == "reactant" ):
                 if ( self.is_product() ):
                     # Terminate before the desired path length is reached
-                    result["type"] = "reactant"
+                    result["type"] = "product"
                     result["symbols"] = symbs
                     result["energy"] = energies
                     return result
             elif ( target == "product" ):
                 if ( self.is_reactant() ):
-                    result["type"] = "product"
+                    result["type"] = "reactant"
                     result["symbols"] = symbs
                     result["energy"] = energies
                     # Terminate before the desired path length is reached
