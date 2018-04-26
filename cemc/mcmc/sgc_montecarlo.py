@@ -261,7 +261,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         self.log( "{}".format(self.composition_correlation_time) )
 
     def runMC( self, mode="fixed", steps = 10, verbose = False, chem_potential=None, equil=True, equil_params=None, prec_confidence=0.05, prec=0.01 ):
-        self.set_seeds()
+        self.set_seeds(self.mpicomm)
         self.reset()
         if ( self.mpicomm is not None ):
             self.mpicomm.barrier()

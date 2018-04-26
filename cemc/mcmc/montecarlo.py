@@ -52,6 +52,7 @@ class Montecarlo(object):
         self.symbols = []
         self.build_atoms_list()
         self.current_energy = 1E100
+        self.new_energy = self.current_energy
         self.mean_energy = 0.0
         self.energy_squared = 0.0
         self.mpicomm = mpicomm
@@ -163,15 +164,15 @@ class Montecarlo(object):
         else:
             raise ValueError( "The observer has to be a callable class!" )
 
-    def set_seeds(self):
+    def set_seeds(self,comm):
         """
         This function guaranties different seeds on different processors
         """
-        if ( self.mpicomm is None ):
+        if ( comm is None ):
             return
 
-        rank = self.mpicomm.Get_rank()
-        size = self.mpicomm.Get_size()
+        rank = comm.Get_rank()
+        size = comm.Get_size()
         maxint = np.iinfo(np.int32).max
         if ( rank == 0 ):
             seed = []
@@ -184,7 +185,7 @@ class Montecarlo(object):
             seed = None
 
         # Scatter the seeds to the other processes
-        seed = self.mpicomm.scatter(seed, root=0)
+        seed = comm.scatter(seed, root=0)
 
         # Update the seed
         np.random.seed(seed)
@@ -193,7 +194,7 @@ class Montecarlo(object):
             # Verify that numpy rand produces different result on the processors
             random_test = np.random.randint( low=0, high=100, size=100 )
             sum_all = np.zeros_like(random_test)
-            self.mpicomm.Allreduce( random_test, sum_all )
+            comm.Allreduce( random_test, sum_all )
             if ( np.allclose(sum_all,size*random_test) ):
                 raise RuntimeError( "The seeding does not appear to have any effect on Numpy's rand functions!" )
 
@@ -541,7 +542,7 @@ class Montecarlo(object):
         self._mc_step()
         #self.current_energy = self.atoms.get_potential_energy() # Get starting energy
 
-        self.set_seeds()
+        self.set_seeds(self.mpicomm)
         totalenergies = []
         totalenergies.append(self.current_energy)
         start = time.time()
@@ -673,6 +674,18 @@ class Montecarlo(object):
         system_changes = [(self.rand_a,symb_a,symb_b),(self.rand_b,symb_b,symb_a)]
         return system_changes
 
+    def accept( self, system_changes ):
+        """
+        Returns True if the trial step is accepted
+        """
+        self.new_energy = self.atoms._calc.calculate( self.atoms, ["energy"], system_changes )
+        if ( self.new_energy < self.current_energy ):
+            return True
+        kT = kT = self.T*units.kB
+        energy_diff = self.new_energy-self.current_energy
+        probability = np.exp(-energy_diff/kT)
+        return np.random.rand() <= probability
+
     def _mc_step(self, verbose = False ):
         """
         Make one Monte Carlo step by swithing two atoms
@@ -682,6 +695,7 @@ class Montecarlo(object):
 
 
         system_changes= self.get_trial_move()
+        """
         new_energy = self.atoms._calc.calculate( self.atoms, ["energy"], system_changes )
 
         if ( verbose ):
@@ -707,16 +721,26 @@ class Montecarlo(object):
                 #self.atoms[self.rand_a].symbol = symb_a
                 #self.atoms[self.rand_b].symbol = symb_b
                 accept = False
+        """
+        move_accepted = self.accept( system_changes )
+        if ( move_accepted ):
+            self.current_energy = self.new_energy
+        else:
+            # Reset the sytem back to original
+            for change in system_changes:
+                indx = change[0]
+                old_symb = change[1]
+                self.atoms[indx].symbol = old_symb
 
         # TODO: Wrap this functionality into a cleaning object
         if ( hasattr(self.atoms._calc,"clear_history") and hasattr(self.atoms._calc,"undo_changes") ):
             # The calculator is a CE calculator which support clear_history and undo_changes
-            if ( accept ):
+            if ( move_accepted ):
                 self.atoms._calc.clear_history()
             else:
                 self.atoms._calc.undo_changes()
 
-        if ( accept ):
+        if ( move_accepted ):
             # Update the atom_indices
             self.update_tracker( system_changes )
         else:
@@ -732,4 +756,4 @@ class Montecarlo(object):
             if ( self.current_step%interval == 0 ):
                 obs = entry[1]
                 obs(system_changes)
-        return self.current_energy,accept
+        return self.current_energy,move_accepted

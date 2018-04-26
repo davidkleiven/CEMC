@@ -6,10 +6,7 @@ import copy
 import numpy as np
 from ase.io.trajectory import TrajectoryWriter
 from cemc.ce_updater import ce_updater
-from mpi4py import MPI
 from ase.data import atomic_numbers
-
-comm = MPI.COMM_WORLD
 
 class MCObserver( object ):
     def __init__( self ):
@@ -232,7 +229,7 @@ class Snapshot( MCObserver ):
         self.traj.write(self.atoms)
 
 class NetworkObserver( MCObserver ):
-    def __init__( self, calc=None, cluster_name=None, element=None, nbins=30 ):
+    def __init__( self, calc=None, cluster_name=None, element=None, nbins=30, mpicomm=None ):
         if ( calc is None ):
             raise ValueError( "No calculator given. Has to be a CE calculator (with C++ support)" )
         if ( cluster_name is None ):
@@ -253,6 +250,7 @@ class NetworkObserver( MCObserver ):
         self.atoms_max_cluster = None
         self.n_calls = 0
         self.n_atoms_in_cluster = 0
+        self.mpicomm = mpicomm
 
         # Count the number of atoms of the element type being tracked
         n_atoms = 0
@@ -338,18 +336,18 @@ class NetworkObserver( MCObserver ):
         """
         Collects the statistics from MPI
         """
-        if ( comm.Get_size() == 1 ):
+        if ( self.mpicomm is None ):
             return
         recv_buf = np.zeros_like(self.size_histogram)
-        comm.Allreduce( self.size_histogram, recv_buf, op=MPI.SUM )
+        self.mpicomm.Allreduce( self.size_histogram, recv_buf, op=MPI.SUM )
         self.size_histogram[:] = recv_buf[:]
 
         # Find the maximum cluster
-        max_size = comm.gather(self.max_size,root=0)
-        rank = comm.Get_rank()
+        max_size = self.mpicomm.gather(self.max_size,root=0)
+        rank = self.mpicomm.Get_rank()
         if ( rank == 0 ):
             self.max_size = np.max(max_size)
-        self.max_size = comm.bcast(self.max_size,root=0)
+        self.max_size = self.mpicomm.bcast(self.max_size,root=0)
 
         if ( rank == 0 ):
             msg = "Waring! The MPI collection of results for the NetworkObserver is incomplete."
@@ -363,11 +361,18 @@ class NetworkObserver( MCObserver ):
         """
         self.collect_stat_MPI()
         stat = {}
-        stat["avg_size"] = self.res["avg_size"]/self.res["number_of_clusters"]
-        avg_sq = self.res["avg_size_sq"]/self.res["number_of_clusters"]
+        if ( self.res["number_of_clusters"] == 0 ):
+            stat["avg_size"] = 0
+            avg_sq =  0
+        else:
+            stat["avg_size"] = self.res["avg_size"]/self.res["number_of_clusters"]
+            avg_sq = self.res["avg_size_sq"]/self.res["number_of_clusters"]
         stat["std"] = np.sqrt( avg_sq - stat["avg_size"]**2 )
         stat["max_size"] = self.max_size
-        stat["frac_atoms_in_cluster"] = float(self.n_atoms_in_cluster)/(self.n_calls*self.max_size_hist)
+        if ( self.max_size_hist == 0 ):
+            stat["frac_atoms_in_cluster"] = 0.0
+        else:
+            stat["frac_atoms_in_cluster"] = float(self.n_atoms_in_cluster)/(self.n_calls*self.max_size_hist)
         return stat
 
     def get_size_histogram(self):
@@ -376,3 +381,15 @@ class NetworkObserver( MCObserver ):
         """
         x = np.linspace(3,self.max_size_hist,self.nbins)
         return x,self.size_histogram
+
+    def grow_cluster(self,size):
+        """
+        Grow a cluster of the given size
+        """
+        self.fast_cluster_tracker.grow_cluster(size)
+
+    def surface(self):
+        """
+        Computes the surface of a cluster
+        """
+        return self.fast_cluster_tracker.surface_python()
