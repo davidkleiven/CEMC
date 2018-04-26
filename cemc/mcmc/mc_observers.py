@@ -387,3 +387,9 @@ class NetworkObserver( MCObserver ):
         Grow a cluster of the given size
         """
         self.fast_cluster_tracker.grow_cluster(size)
+
+    def surface(self):
+        """
+        Computes the surface of a cluster
+        """
+        return self.fast_cluster_tracker.surface_python()

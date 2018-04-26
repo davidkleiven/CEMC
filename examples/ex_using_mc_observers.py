@@ -88,3 +88,6 @@ mc_obj.runMC( mode="fixed", steps=30, equil=False )
 
 # Get statistice from the Network Observer
 cluster_stat = network_obs.get_statistics()
+
+# Compute the surface of the clusters
+surf = network_obs.surface()
