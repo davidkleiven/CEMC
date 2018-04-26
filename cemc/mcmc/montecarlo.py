@@ -12,6 +12,7 @@ import logging
 from matplotlib import pyplot as plt
 from ase.units import kJ,mol
 from mpi4py import MPI
+import time
 #from ase.io.trajectory import Trajectory
 
 class DidNotReachEquillibriumError(Exception):
