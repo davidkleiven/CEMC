@@ -8,6 +8,7 @@ from ase.io.trajectory import TrajectoryWriter
 from cemc.ce_updater import ce_updater
 from ase.data import atomic_numbers
 
+highlight_elements = ["Li","Be","B","C","N","O","F","Ne","Na","Mg","Al","Si","P","S","Cl","Ar"]
 class MCObserver( object ):
     def __init__( self ):
         self.name = "GenericObserver"
@@ -223,10 +224,12 @@ class Snapshot( MCObserver ):
             raise ValueError( "No atoms object given!" )
         self.atoms = atoms
         self.traj = TrajectoryWriter( trajfile, mode="a" )
+        self.fname = trajfile
 
 
     def __call__( self, system_changes ):
         self.traj.write(self.atoms)
+
 
 class NetworkObserver( MCObserver ):
     def __init__( self, calc=None, cluster_name=None, element=None, nbins=30, mpicomm=None ):
@@ -299,14 +302,14 @@ class NetworkObserver( MCObserver ):
         self.n_calls = 0
         self.n_atoms_in_cluster = 0
 
-    def get_atoms_with_largest_cluster( self ):
+    def get_atoms_with_largest_cluster( self, prohibited_symbols=[] ):
         """
         Returns the atoms object which had the largest cluster and change the element
         of the atoms in the cluster to *highlight_element*
         """
         if ( self.atoms_max_cluster is None ):
             print ("No clusters was detected!")
-            return
+            return None
         explored_grp_indices = []
         largest_cluster = []
         group_indx_count = {}
@@ -321,16 +324,37 @@ class NetworkObserver( MCObserver ):
             if ( atom.symbol not in elems_in_atoms_obj ):
                 elems_in_atoms_obj.append( atom.symbol )
 
-        highlight_element = atomic_numbers.keys()
         current_highlight_element = 0
+        high_elms = self.generate_highlight_elements_from_size(group_indx_count,prohibited_symbols)
         for key,value in group_indx_count.iteritems():
             if ( value <= 3 ):
                 continue
             for i,indx in enumerate(self.indx_max_cluster):
                 if ( indx == key ):
-                    self.atoms_max_cluster[i].symbol = highlight_element[current_highlight_element]
+                    self.atoms_max_cluster[i].symbol = high_elms[key]
             current_highlight_element += 1
         return self.atoms_max_cluster
+
+    def generate_highlight_elements_from_size( self, group_indx_count, prohibited_symbols ):
+        """
+        Create list of highlight elements based on the group index count
+        """
+        tup = []
+        for key,value in group_indx_count.iteritems():
+            if ( value <= 3 ):
+                continue
+            tup.append( (value,key) )
+
+        tup.sort()
+        tup = tup[::-1]
+        highlist = {clst[1]:highlight_elements[i] for i,clst in enumerate(tup)}
+        highlist = {}
+        counter = 0
+        for clst in tup:
+            while ( highlight_elements[counter] in prohibited_symbols ):
+                counter += 1
+            highlist[clst[1]] = highlight_elements[counter]
+        return highlist
 
     def collect_stat_MPI( self ):
         """
