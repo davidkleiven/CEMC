@@ -202,16 +202,23 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
     return;
   }
   PyObject *trans_mat =  PyArray_FROM_OTF( trans_mat_orig, NPY_INT32, NPY_ARRAY_IN_ARRAY );
-
+  unsigned int max_indx = get_max_indx_of_zero_site(); // Compute the max index that is ever going to be checked
 
   npy_intp *size = PyArray_DIMS( trans_mat );
+  trans_matrix.set_size( size[0],max_indx+1 );
+  for ( unsigned int i=0;i<size[0];i++ )
+  for ( unsigned int j=0;j<max_indx+1;j++ )
+  {
+    trans_matrix(i,j) = *static_cast<int*>(PyArray_GETPTR2(trans_mat,i,j) );
+  }
 
+  /**
   trans_matrix.set_size( size[0], size[1] );
   for ( unsigned int i=0;i<size[0];i++ )
   for ( unsigned int j=0;j<size[1];j++ )
   {
     trans_matrix(i,j) = *static_cast<int*>(PyArray_GETPTR2(trans_mat,i,j) );
-  }
+  }*/
 
   // Read the ECIs
   Py_ssize_t pos = 0;
@@ -754,13 +761,30 @@ bool CEUpdater::all_eci_corresponds_to_cf()
 {
     cf& corrfunc = history->get_current();
     return ecis.names_are_equal(corrfunc);
-    /*
-    for ( auto iter=ecis.begin(); iter != ecis.end(); ++iter )
+}
+
+unsigned int CEUpdater::get_max_indx_of_zero_site() const
+{
+  unsigned int max_indx = 0;
+  // Loop over cluster sizes
+  for ( auto iter=clusters.begin(); iter != clusters.end(); ++iter )
+  {
+    for ( auto subiter=iter->begin(); subiter != iter->end(); ++subiter )
     {
-      if ( corrfunc.find(iter->first) == corrfunc.end() )
+      const vector <vector<int> >& mems = subiter->second.get();
+      // Loop over clusters
+      for ( unsigned int i=0;i<mems.size();i++ )
       {
-        return false;
+        // Loop over members in subcluster
+        for ( unsigned int j=0;j<mems[i].size();j++ )
+        {
+          if ( mems[i][j] > max_indx )
+          {
+            max_indx = mems[i][j];
+          }
+        }
       }
     }
-    return true;*/
+  }
+  return max_indx;
 }

@@ -118,6 +118,9 @@ private:
   void create_ctype_lookup();
   void create_permutations( PyObject *pypermutations );
 
+  /** Returns the maximum index occuring in the cluster indices */
+  unsigned int get_max_indx_of_zero_site() const;
+
   std::vector<std::string> symbols;
   name_list cluster_names;
   cluster_list cluster_indx;
