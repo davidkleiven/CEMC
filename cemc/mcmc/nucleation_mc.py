@@ -10,6 +10,7 @@ from ase.io.trajectory import TrajectoryWriter
 import time
 import json
 import copy
+from matplotlib import pyplot as plt
 
 class Mode(object):
     bring_system_into_window = 0
@@ -232,7 +233,8 @@ class NucleationMC( SGCMonteCarlo ):
             self.current_window = i
             self.reset()
             self.bring_system_into_window()
-
+            self._mc_step()
+            
             self.mode = Mode.equillibriate
             self.estimate_correlation_time()
             self.equillibriate()
@@ -303,7 +305,7 @@ class NucleationMC( SGCMonteCarlo ):
         Overrides the parents method
         """
         super(NucleationMC,self).reset()
-        self.current_energy = np.inf
+        self.current_energy = 1E10
         self.network.reset()
 
     def read_list_of_lists(self,fname,dtype="str"):
@@ -382,6 +384,36 @@ class NucleationMC( SGCMonteCarlo ):
         """
         self.atoms._calc.set_symbols(symbols)
 
+    def show_statistics(self,path):
+        """
+        Show a plot indicating if the path is long enough
+        """
+        product_indicator = []
+        reactant_indicator = []
+        for state in path:
+            self.network.reset()
+            self.set_state(state)
+            self.network(None)
+            if ( self.is_product() ):
+                product_indicator.append(1)
+            else:
+                product_indicator.append(0)
+
+            if ( self.is_reactant() ):
+                reactant_indicator.append(1)
+            else:
+                reactant_indicator.append(0)
+        hB = np.cumsum(product_indicator)
+        hA = np.cumsum(reactant_indicator)
+
+        fig = plt.figure()
+        ax = fig.add_subplot(1,1,1)
+        ax.plot( hB, label="Product indicator" )
+        ax.plot( hA, label="Reactant indicator" )
+        ax.set_xlabel( "MC sweeps" )
+        ax.legend()
+        return fig
+
     def find_transition_path( self, initial_cluster_size=None, max_size_reactant=None, min_size_product=None, path_length=1000, max_attempts=100, folder="." ):
         """
         Find one transition path
@@ -420,7 +452,7 @@ class NucleationMC( SGCMonteCarlo ):
             self.reset()
             self.atoms._calc.set_symbols(init_symbols)
             try:
-                res = self.find_one_transition_path( path_length=path_length, trajfile=default_trajfile, target=target )
+                res = self.find_one_transition_path( path_length=path_length/2, trajfile=default_trajfile, target=target )
             except DidNotReachProductOrReactantError as exc:
                 self.log( str(exc) )
                 self.log ( "Trying one more time" )
@@ -451,6 +483,7 @@ class NucleationMC( SGCMonteCarlo ):
                 self.log( "Found a path to the product region and a path to the reactant region" )
                 self.log( "They are stored in {} and {}".format(product_file,reactant_file))
                 self.log( "The reference path is stored in {}".format(reference_path_file) )
+                self.show_statistics(combined_path["symbols"])
                 return
             self.log( "Attempt: {} of {} ended in {} region".format(attempt,max_attempts,res["type"]) )
         msg = "Did not manage to find both a configuration in the product region and the reactant region\n"
