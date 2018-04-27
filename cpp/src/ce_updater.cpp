@@ -206,6 +206,14 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
 
   npy_intp *size = PyArray_DIMS( trans_mat );
   trans_matrix.set_size( size[0],max_indx+1 );
+  if ( max_indx+1 > size[1] )
+  {
+    stringstream ss;
+    ss << "Something is wrong with the translation matrix passed.\n";
+    ss << "Shape of translation matrix (" << size[0] << "," << size[1] << ")\n";
+    ss << "Maximum index encountered in the cluster lists: " << max_indx << endl;
+    throw invalid_argument(ss.str());
+  }
   for ( unsigned int i=0;i<size[0];i++ )
   for ( unsigned int j=0;j<max_indx+1;j++ )
   {
