@@ -149,6 +149,7 @@ PyObject* ClusterTracker::get_cluster_statistics_python() const
     Py_DECREF(value);
   }
   PyDict_SetItemString( dict, "cluster_sizes", size_list );
+  Py_DECREF(size_list);
 
   return dict;
 }
