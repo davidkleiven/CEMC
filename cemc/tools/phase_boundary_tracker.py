@@ -18,7 +18,7 @@ import os
 import gc
 from matplotlib import pyplot as plt
 plt.switch_backend("Agg") # With this backend one does not need a screen (useful for clusters)
-import Image
+#import Image
 
 comm = MPI.COMM_WORLD
 
