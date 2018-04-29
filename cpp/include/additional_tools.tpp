@@ -43,3 +43,13 @@ void keys( std::map<std::string,T> &dict, std::vector<std::string> &names )
     names.push_back(iter->first);
   }
 }
+
+template<class T>
+void set2vector( const std::set<T> &s, std::vector<T> &vec )
+{
+  vec.clear();
+  for ( auto iter = s.begin(); iter != s.end(); ++iter )
+  {
+    vec.push_back(*iter);
+  }
+}

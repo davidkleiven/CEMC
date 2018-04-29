@@ -2,13 +2,15 @@
 #include "additional_tools.hpp"
 #include <stdexcept>
 #include <sstream>
+#include <iostream>
+#include <algorithm>
 
 using namespace std;
 
 void RowSparseStructMatrix::set_size( unsigned int n_rows, unsigned int n_non_zero_per_row, unsigned int max_lut_value )
 {
-  lookup.resize(max_lut_value);
-  for ( unsigned int i=0;i<max_lut_value;i++ )
+  lookup.resize(max_lut_value+1);
+  for ( unsigned int i=0;i<lookup.size();i++ )
   {
     lookup[i] = -1;
   }
@@ -20,6 +22,11 @@ void RowSparseStructMatrix::set_size( unsigned int n_rows, unsigned int n_non_ze
   }
 }
 
+void RowSparseStructMatrix::set_size( unsigned int n_rows, unsigned int n_non_zero_per_row )
+{
+  set_size( n_rows, n_non_zero_per_row, n_rows );
+}
+
 void RowSparseStructMatrix::set_lookup_values( const vector<int> &lut_values )
 {
   if ( allowed_lookup_values.size() > 0 )
@@ -27,6 +34,18 @@ void RowSparseStructMatrix::set_lookup_values( const vector<int> &lut_values )
     throw logic_error( "Cannot modify the allowed lookup values. This has already been done, and they can't be modified!" );
   }
   allowed_lookup_values = lut_values;
+
+  int max_value = *max_element(lut_values.begin(), lut_values.end() );
+  if ( max_value > lookup.size() )
+  {
+    throw invalid_argument( "The maximum lookup value exceeds the number given when the size was specified!" );
+  }
+
+  if ( lut_values.size() > values[0].size() )
+  {
+    throw invalid_argument( "The number of lookup values exceeds the number of entries stored!" );
+  }
+
   for ( unsigned int i=0;i<allowed_lookup_values.size();i++ )
   {
     lookup[allowed_lookup_values[i]] = i;
@@ -49,7 +68,9 @@ void RowSparseStructMatrix::insert( unsigned int row, unsigned int col, int valu
 {
   if ( !is_allowed_lut(col) )
   {
-    throw invalid_argument( "The provided column index is not among the allowed values!" );
+    string msg;
+    invalid_col_msg(col,msg);
+    throw invalid_argument( msg );
   }
 
   values[row][lookup[col]] = value;
@@ -57,14 +78,10 @@ void RowSparseStructMatrix::insert( unsigned int row, unsigned int col, int valu
 
 int& RowSparseStructMatrix::operator()( unsigned int row, unsigned int col )
 {
-  if ( !is_allowed_lut(col) )
-  {
-    throw invalid_argument( "The provided column index is not among the allowed values!" );
-  }
   return values[row][lookup[col]];
 }
 
-int RowSparseStructMatrix::operator()( unsigned int row, unsigned int col ) const
+const int& RowSparseStructMatrix::operator()( unsigned int row, unsigned int col ) const
 {
   return values[row][lookup[col]];
 }
@@ -81,12 +98,19 @@ int RowSparseStructMatrix::get_with_validity_check( unsigned int row, unsigned i
 
   if ( !is_allowed_lut(col) )
   {
-    stringstream ss;
-    ss << "The column requested is not a valid column!\n";
-    ss << "Given: " << col << endl;
-    ss << "Allowed lookup values:\n";
-    ss << allowed_lookup_values << endl;
-    throw invalid_argument( ss.str() );
+    string msg;
+    invalid_col_msg(col,msg);
+    throw invalid_argument( msg );
   }
   return values[row][lookup[col]];
+}
+
+void RowSparseStructMatrix::invalid_col_msg( unsigned int col_provided, string &msg ) const
+{
+  stringstream ss;
+  ss << "The column requested is not a valid column!\n";
+  ss << "Given: " << col_provided << endl;
+  ss << "Allowed lookup values:\n";
+  ss << allowed_lookup_values << endl;
+  msg = ss.str();
 }

@@ -203,9 +203,16 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   }
   PyObject *trans_mat =  PyArray_FROM_OTF( trans_mat_orig, NPY_INT32, NPY_ARRAY_IN_ARRAY );
   unsigned int max_indx = get_max_indx_of_zero_site(); // Compute the max index that is ever going to be checked
+  set<int> unique_indx;
+  get_unique_indx_in_clusters(unique_indx);
+  vector<int> unique_indx_vec;
+  set2vector( unique_indx, unique_indx_vec );
+
 
   npy_intp *size = PyArray_DIMS( trans_mat );
-  trans_matrix.set_size( size[0],max_indx+1 );
+  //trans_matrix.set_size( size[0],max_indx+1 );
+  trans_matrix.set_size( size[0], unique_indx_vec.size(), max_indx );
+  trans_matrix.set_lookup_values(unique_indx_vec);
   cout << "Dimension of translation matrix stored: " << size[0] << " " << max_indx << endl;
   if ( max_indx+1 > size[1] )
   {
@@ -216,9 +223,10 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
     throw invalid_argument(ss.str());
   }
   for ( unsigned int i=0;i<size[0];i++ )
-  for ( unsigned int j=0;j<max_indx+1;j++ )
+  for ( unsigned int j=0;j<unique_indx_vec.size();j++ )
   {
-    trans_matrix(i,j) = *static_cast<int*>(PyArray_GETPTR2(trans_mat,i,j) );
+    int col = unique_indx_vec[j];
+    trans_matrix(i,col) = *static_cast<int*>(PyArray_GETPTR2(trans_mat,i,col) );
   }
 
   /**
@@ -329,7 +337,7 @@ double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const vector< ve
     unsigned int n_memb = indx_list[i].size();
     for ( unsigned int j=0;j<n_memb;j++ )
     {
-      unsigned int trans_indx = trans_matrix( ref_indx,indx_list[i][j] );
+      const int& trans_indx = trans_matrix( ref_indx,indx_list[i][j] );
       sp_temp *= basis_functions[dec[j+1]][symbs[trans_indx]];
     }
     sp += sp_temp;
@@ -796,4 +804,24 @@ unsigned int CEUpdater::get_max_indx_of_zero_site() const
     }
   }
   return max_indx;
+}
+
+void CEUpdater::get_unique_indx_in_clusters( set<int> &unique_indx )
+{
+  for ( auto iter=clusters.begin(); iter != clusters.end(); ++iter )
+  {
+    for ( auto subiter=iter->begin(); subiter != iter->end(); ++subiter )
+    {
+      const vector <vector<int> >& mems = subiter->second.get();
+      // Loop over clusters
+      for ( unsigned int i=0;i<mems.size();i++ )
+      {
+        // Loop over members in subcluster
+        for ( unsigned int j=0;j<mems[i].size();j++ )
+        {
+          unique_indx.insert(mems[i][j]);
+        }
+      }
+    }
+  }
 }

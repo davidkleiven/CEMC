@@ -3,8 +3,10 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <set>
 #include <unordered_map>
 #include "matrix.hpp"
+#include "row_sparse_struct_matrix.hpp"
 #include "cf_history_tracker.hpp"
 #include "mc_observers.hpp"
 #include <array>
@@ -101,7 +103,8 @@ public:
   const std::vector< std::map<std::string,Cluster> >& get_clusters() const {return clusters;};
 
   /** Returns the translation matrix */
-  const Matrix<int>& get_trans_matrix() const {return trans_matrix;};
+  //const Matrix<int>& get_trans_matrix() const {return trans_matrix;};
+  const RowSparseStructMatrix& get_trans_matrix() const {return trans_matrix;};
 
   /** Sets the symbols */
   void set_symbols( const std::vector<std::string> &new_symbs );
@@ -117,6 +120,7 @@ public:
 private:
   void create_ctype_lookup();
   void create_permutations( PyObject *pypermutations );
+  void get_unique_indx_in_clusters( std::set<int> &unique_indx );
 
   /** Returns the maximum index occuring in the cluster indices */
   unsigned int get_max_indx_of_zero_site() const;
@@ -130,7 +134,8 @@ private:
   std::map<std::string,int> cluster_symm_group_count;
   bf_list basis_functions;
   Status_t status{Status_t::NOT_INITIALIZED};
-  Matrix<int> trans_matrix;
+  //Matrix<int> trans_matrix;
+  RowSparseStructMatrix trans_matrix;
   std::map<std::string,int> ctype_lookup;
   //std::map<std::string,double> ecis;
   NamedArray ecis;

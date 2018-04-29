@@ -1,6 +1,7 @@
 #ifndef ROW_SPARSE_STRUCT_MATRIX_H
 #define ROW_SPARSE_STRUCT_MATRIX_H
 #include <vector>
+#include <string>
 
 /**
 A Row Sparse Structured Matrix (RSSM) is a matrix that has non-zero entries in all
@@ -28,6 +29,7 @@ public:
 
   /** Initialize the size arrays */
   void set_size( unsigned int n_rows, unsigned int n_non_zero_per_row, unsigned int max_lut_value );
+  void set_size( unsigned int n_rows, unsigned int n_non_zero_per_row );
 
   /** Set the allowed lookup values */
   void set_lookup_values( const std::vector<int> &lut_values );
@@ -39,7 +41,7 @@ public:
   bool is_allowed_lut( unsigned int col ) const;
 
   /** Matrix-like access operator. NOTE: For max performance this function does not perform any validity checks */
-  int operator()( unsigned int row, unsigned int col ) const;
+  const int& operator()( unsigned int row, unsigned int col ) const;
 
   /** Matrix-like write operator */
   int& operator()( unsigned int row, unsigned int col );
@@ -50,5 +52,6 @@ private:
   std::vector<int> allowed_lookup_values;
   std::vector<int> lookup;
   std::vector< std::vector<int> > values;
+  void invalid_col_msg( unsigned int col_provided, std::string& msg ) const;
 };
 #endif

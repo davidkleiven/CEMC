@@ -22,7 +22,7 @@ void ClusterTracker::find_clusters()
     atomic_clusters[i] = -1; // All atoms are initially a root site
   }
   const vector< map<string,Cluster> >& clusters = updater->get_clusters();
-  const Matrix<int>& trans_mat = updater->get_trans_matrix();
+  const auto& trans_mat = updater->get_trans_matrix();
 
   for ( unsigned int i=0;i<symbs.size();i++ )
   {
@@ -279,7 +279,7 @@ void ClusterTracker::grow_cluster( unsigned int size )
 
   unsigned int num_inserted = 0;
   const vector< map<string,Cluster> >& clusters = updater->get_clusters();
-  const Matrix<int>& trans_mat = updater->get_trans_matrix();
+  const auto& trans_mat = updater->get_trans_matrix();
   unsigned int start_indx = 0;
   unsigned int max_attempts = 200000;
   unsigned int number_of_attempts = 0;
@@ -330,7 +330,7 @@ void ClusterTracker::surface( map<int,int> &surf ) const
 {
   const vector<string>& symbs = updater->get_symbols();
   const vector< map<string,Cluster> >& clusters = updater->get_clusters();
-  const Matrix<int>& trans_mat = updater->get_trans_matrix();
+  const auto& trans_mat = updater->get_trans_matrix();
 
   for ( unsigned int i=0;i<atomic_clusters.size();i++ )
   {
