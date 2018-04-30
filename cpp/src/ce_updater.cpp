@@ -206,6 +206,7 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
 
   npy_intp *size = PyArray_DIMS( trans_mat );
   trans_matrix.set_size( size[0],max_indx+1 );
+  cout << "Dimension of translation matrix stored: " << size[0] << " " << max_indx << endl;
   if ( max_indx+1 > size[1] )
   {
     stringstream ss;
