@@ -47,6 +47,7 @@ class Montecarlo(object):
                             # similar to the ones used in the optimization routines
 
         self.current_step = 0
+        self.num_accepted = 0
         self.status_every_sec = 60
         self.atoms_indx = {}
         self.symbols = []
@@ -116,6 +117,7 @@ class Montecarlo(object):
             obs.reset()
 
         self.current_step = 0
+        self.num_accepted = 0
         self.mean_energy = 0.0
         self.energy_squared = 0.0
         #self.correlation_info = None
@@ -604,7 +606,9 @@ class Montecarlo(object):
             self.energy_squared += self.current_energy_without_vib()**2
 
             if ( time.time()-start > self.status_every_sec ):
-                self.log("%d of %d steps. %.2f ms per step"%(self.current_step,steps,1000.0*self.status_every_sec/float(self.current_step-prev)))
+                ms_per_step = 1000.0*self.status_every_sec/float(self.current_step-prev)
+                accept_rate = self.num_accepted/float(self.current_step)
+                self.log("%d of %d steps. %.2f ms per step. Acceptance rate: %.2f"%(self.current_step,steps,ms_per_step,accept_rate))
                 prev = self.current_step
                 start = time.time()
             if ( mode == "prec" and self.current_step > next_convergence_check ):
@@ -725,6 +729,7 @@ class Montecarlo(object):
         move_accepted = self.accept( system_changes )
         if ( move_accepted ):
             self.current_energy = self.new_energy
+            self.num_accepted += 1
         else:
             # Reset the sytem back to original
             for change in system_changes:
