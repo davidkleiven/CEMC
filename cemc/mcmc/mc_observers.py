@@ -261,6 +261,7 @@ class NetworkObserver( MCObserver ):
             if ( atom.symbol == element ):
                 n_atoms += 1
         self.max_size_hist = n_atoms
+        self.num_clusters = 0
         self.nbins = nbins
         self.size_histogram = np.zeros( self.nbins )
 
@@ -278,6 +279,7 @@ class NetworkObserver( MCObserver ):
             self.atoms_max_cluster = self.calc.atoms.copy()
             clust_indx = self.fast_cluster_tracker.atomic_clusters2group_indx_python()
             self.indx_max_cluster = clust_indx
+            self.num_clusters = len(new_res["cluster_sizes"])
 
     def update_histogram( self, sizes ):
         """
@@ -301,6 +303,7 @@ class NetworkObserver( MCObserver ):
         self.atoms_max_cluster = None
         self.n_calls = 0
         self.n_atoms_in_cluster = 0
+        self.num_clusters = 0
 
     def get_atoms_with_largest_cluster( self, prohibited_symbols=[] ):
         """
@@ -393,6 +396,8 @@ class NetworkObserver( MCObserver ):
             avg_sq = self.res["avg_size_sq"]/self.res["number_of_clusters"]
         stat["std"] = np.sqrt( avg_sq - stat["avg_size"]**2 )
         stat["max_size"] = self.max_size
+        stat["n_atoms_in_cluster"] = self.n_atoms_in_cluster
+        stat["num_clusters"] = self.num_clusters
         if ( self.max_size_hist == 0 ):
             stat["frac_atoms_in_cluster"] = 0.0
         else:
