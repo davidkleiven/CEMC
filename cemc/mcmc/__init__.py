@@ -6,3 +6,6 @@ from mc_observers import MCObserver, CorrelationFunctionTracker, PairCorrelation
 LowestEnergyStructure, SGCObserver, Snapshot, NetworkObserver
 from sa_canonical import SimulatedAnnealingCanonical
 from nucleation_mc import NucleationMC
+from multidim_comp_dos import CompositionDOS
+from dos_sampler import SGCCompositionFreeEnergy
+from dos_mu_temp import FreeEnergyMuTempArray

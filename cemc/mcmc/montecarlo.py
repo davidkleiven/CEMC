@@ -84,6 +84,7 @@ class Montecarlo(object):
         self.plot_debug = plot_debug
         self.pyplot_block = True # Set to false if pyplot should not block when plt.show() is called
         self._linear_vib_correction = None
+        self.is_first = True
 
     @property
     def linear_vib_correction(self):
@@ -122,6 +123,7 @@ class Montecarlo(object):
         self.energy_squared = 0.0
         #self.correlation_info = None
         self.corrtime_energies = []
+        self.is_first = True
 
     def include_vib( self ):
         """
@@ -727,6 +729,10 @@ class Montecarlo(object):
                 accept = False
         """
         move_accepted = self.accept( system_changes )
+        if ( self.is_first ):
+            move_accepted = True
+            self.is_first = False
+            
         if ( move_accepted ):
             self.current_energy = self.new_energy
             self.num_accepted += 1
