@@ -6,6 +6,7 @@ import numpy as np
 from ase.visualize import view
 from scipy.stats import linregress
 import os
+from ase.units import kB
 
 class Mode(object):
     bring_system_into_window = 0
@@ -43,11 +44,15 @@ class NucleationMC( SGCMonteCarlo ):
         self.n_bins = self.size_window_width
         self.n_windows = int(self.max_cluster_size/self.size_window_width)
         self.histograms = []
+        self.singlets = []
+        n_singlets = len(chem_pot.keys())
         for i in range(self.n_windows):
             if ( i==0 ):
                 self.histograms.append( np.ones(self.n_bins) )
+                self.singlets.append( np.zeros((self.n_bins,n_singlets)) )
             else:
                 self.histograms.append( np.ones(self.n_bins+1) )
+                self.singlets.append( np.zeros((self.n_bins+1,n_singlets)) )
         self.current_window = 0
         self.mode = Mode.bring_system_into_window
         self.set_seeds( self.nucleation_mpicomm )
@@ -116,6 +121,9 @@ class NucleationMC( SGCMonteCarlo ):
             lower,upper = self.get_window_boundaries(self.current_window)
             raise ValueError( "Given size: {}. Boundaries: [{},{})".format(stat["max_size"],lower,upper))
         self.histograms[self.current_window][indx] += 1
+        new_singlets = np.zeros(len(self.chemical_potential.keys()))
+        self.atoms._calc.get_singlets(  new_singlets )
+        self.singlets[self.current_window][indx,:] += new_singlets
 
     def collect_results(self):
         """
@@ -130,6 +138,24 @@ class NucleationMC( SGCMonteCarlo ):
             self.nucleation_mpicomm.Allreduce( send_buf, recv_buf )
             self.histograms[i][:] = recv_buf[:]
 
+            recv_buf = np.zeros_like(self.singlets[i])
+            send_buf = self.singlets[i]
+            self.nucleation_mpicomm.Allreduce( send_buf, recv_buf )
+            self.singlets[i][:,:] = recv_buf[:,:]
+
+    def helmholtz_free_energy(self,singlets,hist):
+        """
+        Compute the Helmholtz Free Energy barrier
+        """
+        N = len(self.atoms)
+        beta_gibbs = -np.log(hist)
+        beta_helmholtz = beta_gibbs
+        beta = 1.0/(kB*self.T)
+        for i in range(len(self.chem_pots)):
+            beta_helmholtz += self.chem_pots[i]*singlets[:,i]
+        beta_helmholtz -= beta_helmholtz[0]
+        return beta_helmholtz
+
     def save( self, fname="nucleation_track.h5" ):
         """
         Saves data to the file
@@ -141,20 +167,29 @@ class NucleationMC( SGCMonteCarlo ):
 
         if ( rank == 0 ):
             all_data = [np.zeros_like(self.histograms[i]) for i in range(len(self.histograms))]
+            singlets = [np.zeros_like(self.singlets[i]) for i in range(len(self.singlets))]
             try:
                 with h5.File(fname,'r') as hfile:
                     for i in range(len(self.histograms)):
-                        name = "hist{}".format(i)
+                        name = "window{}/hist".format(i)
                         if ( name in hfile ):
                             all_data[i] = np.array( hfile[name] )
+                        singlet_name = "window{}/singlets".format(i)
+                        if ( name in hfile ):
+                            singlets[i] = np.array(hfile[singlet_name])
             except Exception as exc:
                 print (str(exc))
                 print ("Creating new file")
 
             for i in range(len(self.histograms)):
                 all_data[i] += self.histograms[i]
+                singlets[i] += self.singlets[i]
             self.histograms = all_data
             overall_hist = self.merge_histogram(strategy=self.merge_strategy)
+            overall_singlets = self.merge_singlets( singlets, all_data )
+            beta_helm = self.helmholtz_free_energy( overall_singlets, overall_hist )
+            beta_gibbs = -np.log(overall_hist)
+            beta_gibbs -= beta_gibbs[0]
 
             if ( os.path.exists(fname) ):
                 flag = "r+"
@@ -163,18 +198,44 @@ class NucleationMC( SGCMonteCarlo ):
 
             with h5.File(fname,flag) as hfile:
                 for i in range(len(self.histograms)):
-                    name = "hist{}".format(i)
+                    name = "window{}/hist".format(i)
                     if ( name in hfile ):
                         data = hfile[name]
                         data[...] = all_data[i]
                     else:
                         dset = hfile.create_dataset( name, data=all_data[i] )
+                    singlet_name = "window{}/singlets".format(i)
+                    if ( singlet_name in hfile ):
+                        data = hfile[singlet_name]
+                        data[...] = self.singlets[i]
+                    else:
+                        dset = hfile.create_dataset( singlet_name, data=self.singlets[i] )
 
                 if ( "overall_hist" in hfile ):
                     data = hfile["overall_hist"]
                     data[...] = overall_hist
                 else:
                     dset = hfile.create_dataset( "overall_hist", data=overall_hist )
+
+                if ( "overall_singlets" in hfile ):
+                    data = hfile["overall_singlets"]
+                    data[...] = overall_singlets
+                else:
+                    dset = hfile.create_dataset( "overall_singlets", data=overall_singlets )
+
+                if ( not "chem_pot" in hfile ):
+                    dset = hfile.create_dataset( "chemical_potentials", data=self.chem_pots )
+
+                if ( "beta_helm" in hfile ):
+                    data = hfile["beta_helm"]
+                    data[...] = beta_helm
+                else:
+                    dset = hfile.create_dataset( "beta_helm", data=beta_helm )
+                if ( "beta_gibbs" in hfile ):
+                    data = hfile["beta_gibbs"]
+                    data[...] = beta_gibbs
+                else:
+                    dset = hfile.create_dataset( "beta_gibbs", data=beta_gibbs )
             self.log( "Data saved to {}".format(fname) )
 
     def merge_histogram(self,strategy="normalize_overlap"):
@@ -201,6 +262,22 @@ class NucleationMC( SGCMonteCarlo ):
                 normalized_hist = self.histograms[i]*ratio
                 overall_hist += normalized_hist[1:].tolist()
         return np.array( overall_hist )
+
+    def merge_singlets( self, singlets, histograms ):
+        """
+        Merge all the singlets and normalize by the histogram
+        """
+        normalized_singlets = []
+        for i in range(len(singlets)):
+            norm_singl = np.zeros_like(singlets[i])
+            for j in range(singlets[i].shape[0]):
+                norm_singl[j,:] = singlets[i][j,:]/histograms[i][j]
+            normalized_singlets.append(norm_singl)
+
+        all_singlets = normalized_singlets[0]
+        for i in range(1,len(normalized_singlets)):
+            all_singlets = np.vstack((all_singlets,normalized_singlets[i][1:,:]))
+        return all_singlets
 
     def run( self, nsteps=10000 ):
         """
