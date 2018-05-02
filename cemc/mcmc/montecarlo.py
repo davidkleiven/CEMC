@@ -685,6 +685,10 @@ class Montecarlo(object):
         Returns True if the trial step is accepted
         """
         self.new_energy = self.atoms._calc.calculate( self.atoms, ["energy"], system_changes )
+        if ( self.is_first ):
+            self.is_first = False
+            return True
+        
         if ( self.new_energy < self.current_energy ):
             return True
         kT = kT = self.T*units.kB
@@ -729,10 +733,7 @@ class Montecarlo(object):
                 accept = False
         """
         move_accepted = self.accept( system_changes )
-        if ( self.is_first ):
-            move_accepted = True
-            self.is_first = False
-            
+
         if ( move_accepted ):
             self.current_energy = self.new_energy
             self.num_accepted += 1
