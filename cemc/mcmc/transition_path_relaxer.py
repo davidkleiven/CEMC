@@ -104,6 +104,7 @@ class TransitionPathRelaxer(object):
             self.log( "Move {} of {}".format(move,n_shooting_moves) )
             timeslice = np.random.randint(low=min_slice,high=max_slice )
             self.shooting_move(timeslice,direction=direct)
+            min_slice, max_slice = self.refine_path_length(verbose=True)
 
         ofname = initial_path.rpartition(".")[0]
         ofname += "_relaxed.json"
@@ -128,6 +129,43 @@ class TransitionPathRelaxer(object):
             else:
                 traj.write(atoms)
         self.log( "Trajectory written to {}".format(fname))
+
+    def refine_path_length( self, verbose=False ):
+        """
+        Refine the path length such that the time spent in the reactant basin
+        is equal to the time spent in the product basin
+        """
+        reactant_indicator, product_indicator = self.get_basin_indicators(self.init_path)
+        n_react = np.sum(reactant_indicator)
+        n_prod = np.sum(product_indicator)
+        diff = np.abs(n_react-n_prod)
+        if ( n_react > n_prod ):
+            # Remove the first slices from the reactant side
+            self.init_path = self.init_path[diff:]
+            reactant_indicator = reactant_indicator[diff:]
+            product_indicator = product_indicator[diff:]
+        elif ( n_prod > n_react ):
+            # Remove the last slices from the product side
+            self.init_path = self.init_path[:-diff]
+            reactant_indicator = reactant_indicator[:-diff]
+            product_indicator = product_indicator[:-diff]
+
+        if ( verbose ):
+            length_in_basins = min([n_react,n_prod])
+            length_in_transition_region = len(reactant_indicator-n_react-n_prod)
+            self.log( "Length in basis: {}. Length in transition region: {}".format(length_in_basins,length_in_transition_region) )
+
+        min_trans_indx = 1
+        max_trans_indx = len(reactant_indicator)
+        # Find the new start and end of the transition reagion
+        for i,indicator in enumerate(reactant_indicator):
+            if ( indicator == 0 ):
+                min_trans_indx = i
+                break
+        for i,indicator in enumerate(product_indicator):
+            if ( indicator == 1 ):
+                max_trans_indx = i-1
+        return min_trans_indx,max_trans_indx
 
     def find_timeslices_in_transition_region(self):
         """
@@ -184,6 +222,25 @@ class TransitionPathRelaxer(object):
             json.dump(data,outfile)
         self.log( "TSE saved to {}".format(fname) )
 
+    def get_basin_indicators(self,path):
+        """
+        Compute the basin indicators of the state
+        """
+        for state in path["symbols"]:
+            self.nuc_mc.network.reset()
+            self.nuc_mc.set_state( state )
+            self.nuc_mc.network(None)
+            if ( self.nuc_mc.is_reactant() ):
+                reactant_indicator.append(1)
+            else:
+                reactant_indicator.append(0)
+
+            if ( self.nuc_mc.is_product() ):
+                product_indicator.append(1)
+            else:
+                product_indicator.append(0)
+        return reactant_indicator, product_indicator
+
     def plot_path_statistics( self, path_file="tse_ensemble.json" ):
         """
         Create a plot to asses convergence of all the paths in the Transition Path Ensemble
@@ -198,19 +255,8 @@ class TransitionPathRelaxer(object):
         for path in paths:
             product_indicator = []
             reactant_indicator = []
-            for state in path["symbols"]:
-                self.nuc_mc.network.reset()
-                self.nuc_mc.set_state( state )
-                self.nuc_mc.network(None)
-                if ( self.nuc_mc.is_reactant() ):
-                    reactant_indicator.append(1)
-                else:
-                    reactant_indicator.append(0)
+            reactant_indicator, product_indicator = self.get_basin_indicators(path)
 
-                if ( self.nuc_mc.is_product() ):
-                    product_indicator.append(1)
-                else:
-                    product_indicator.append(0)
             total_product_indicator += np.cumsum(product_indicator)/float( len(product_indicator) )
             total_reactant_indicator += np.cumsum(reactant_indicator)/float( len(reactant_indicator) )
 
