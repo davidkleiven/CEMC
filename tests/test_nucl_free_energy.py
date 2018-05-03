@@ -1,6 +1,6 @@
 import unittest
 try:
-    from cemc.mcmc import NucleationMC
+    from cemc.mcmc import NucleationSampler,SGCNucleation
     from ase.ce import BulkCrystal
     from cemc.wanglandau.ce_calculator import get_ce_calc
     available = True
@@ -34,10 +34,15 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             ceBulk.atoms.set_calculator( calc )
 
             chem_pot = {"c1_0":-1.0651526881167124}
-            mc = NucleationMC( ceBulk.atoms, 300, size_window_width=5, network_name="c2_1414_1", network_element="Mg", symbols=["Al","Mg"], \
-            chemical_potential=chem_pot, max_cluster_size=10, merge_strategy="normalize_overlap" )
+            sampler = NucleationSampler( size_window_width=10, \
+            chemical_potential=chem_pot, max_cluster_size=20, \
+            merge_strategy="normalize_overlap" )
+
+            mc = SGCNucleation( ceBulk.atoms, 300, nucleation_sampler=sampler, \
+            network_name="c2_1414_1",  network_element="Mg", symbols=["Al","Mg"], \
+            chem_pot=chem_pot )
             mc.run(nsteps=2)
-            mc.save(fname="test_nucl.h5")
+            sampler.save(fname="test_nucl.h5")
         except Exception as exc:
             msg = str(exc)
             no_throw = False

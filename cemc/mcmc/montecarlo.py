@@ -12,6 +12,7 @@ import logging
 from matplotlib import pyplot as plt
 from ase.units import kJ,mol
 from mpi4py import MPI
+import mpi_tools
 #from ase.io.trajectory import Trajectory
 
 class DidNotReachEquillibriumError(Exception):
@@ -167,40 +168,6 @@ class Montecarlo(object):
             self.observers.append( (interval,obs) )
         else:
             raise ValueError( "The observer has to be a callable class!" )
-
-    def set_seeds(self,comm):
-        """
-        This function guaranties different seeds on different processors
-        """
-        if ( comm is None ):
-            return
-
-        rank = comm.Get_rank()
-        size = comm.Get_size()
-        maxint = np.iinfo(np.int32).max
-        if ( rank == 0 ):
-            seed = []
-            for i in range(size):
-                new_seed = np.random.randint(0,high=maxint)
-                while( new_seed in seed ):
-                    new_seed = np.random.randint(0,high=maxint)
-                seed.append( new_seed )
-        else:
-            seed = None
-
-        # Scatter the seeds to the other processes
-        seed = comm.scatter(seed, root=0)
-
-        # Update the seed
-        np.random.seed(seed)
-
-        if ( size > 1 ):
-            # Verify that numpy rand produces different result on the processors
-            random_test = np.random.randint( low=0, high=100, size=100 )
-            sum_all = np.zeros_like(random_test)
-            comm.Allreduce( random_test, sum_all )
-            if ( np.allclose(sum_all,size*random_test) ):
-                raise RuntimeError( "The seeding does not appear to have any effect on Numpy's rand functions!" )
 
     def get_var_average_energy( self ):
         """
@@ -546,7 +513,7 @@ class Montecarlo(object):
         self._mc_step()
         #self.current_energy = self.atoms.get_potential_energy() # Get starting energy
 
-        self.set_seeds(self.mpicomm)
+        mpi_tools.set_seeds(self.mpicomm)
         totalenergies = []
         totalenergies.append(self.current_energy)
         start = time.time()
@@ -688,7 +655,7 @@ class Montecarlo(object):
         if ( self.is_first ):
             self.is_first = False
             return True
-        
+
         if ( self.new_energy < self.current_energy ):
             return True
         kT = kT = self.T*units.kB
