@@ -13,8 +13,8 @@ class Mode(object):
     sample_in_window = 1
     equillibriate = 2
 
-class NucleationMC( SGCMonteCarlo ):
-    def __init__( self, atoms, temp, **kwargs ):
+class NucleationSampler( object ):
+    def __init__( self, **kwargs ):
         self.size_window_width = kwargs.pop("size_window_width")
         self.network_name = kwargs.pop("network_name")
         self.network_element = kwargs.pop("network_element")
