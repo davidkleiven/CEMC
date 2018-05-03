@@ -9,15 +9,32 @@ class SGCNucleation( SGCMonteCarlo ):
         self.network_name = kwargs.pop("network_name")
         self.network_element = kwargs.pop("network_element")
         chem_pot = kwargs.pop("chem_pot")
+        self.allow_solutes = True
+        if ( "allow_solutes" in kwargs.keys() ):
+            self.allow_solutes = kwargs.pop("allow_solutes")
         super( SGCNucleation, self ).__init__( atoms, temp, **kwargs)
         self.chemical_potential = chem_pot
 
         self.network = NetworkObserver( calc=self.atoms._calc, cluster_name=self.network_name, element=self.network_element )
         self.attach( self.network )
 
+
+        if ( self.allow_solutes ):
+            self.log( "Solute atoms in cluster and outside is allowed" )
+        else:
+            self.log( "Solute atoms are only allowed in the cluster" )
+
     def accept( self, system_changes ):
         move_accepted = SGCMonteCarlo.accept( self, system_changes )
-        return move_accepted and self.nuc_sampler.is_in_window(self.network)
+        in_window,stat = self.nuc_sampler.is_in_window(self.network,retstat=True)
+        if ( not self.allow_solutes ):
+            new_size = stat["max_size"]
+            cur_size = self.nuc_sampler.current_cluster_size
+            if ( new_size != cur_size+1 and new_size != cur_size-1 ):
+                in_window = False
+            else:
+                self.nuc_sampler.current_cluster_size = new_size
+        return move_accepted and in_window
 
     def get_trial_move(self):
         """

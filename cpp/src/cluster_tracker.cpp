@@ -111,15 +111,17 @@ void ClusterTracker::get_cluster_statistics( map<string,double> &res, vector<int
 
   for ( auto iter=num_members_in_cluster.begin(); iter != num_members_in_cluster.end(); ++iter )
   {
+    int size = 0;
     if ( iter->second >= 1 )
     {
-      cluster_sizes.push_back(iter->second+1);
+      size = iter->second+1;
+      cluster_sizes.push_back(size);
     }
-    average_size += iter->second;
-    avg_size_sq += iter->second*iter->second;
-    if ( iter->second > max_size )
+    average_size += size;
+    avg_size_sq += size*size;
+    if ( size > max_size )
     {
-      max_size = iter->second;
+      max_size = size;
     }
   }
   res["avg_size"] = average_size;

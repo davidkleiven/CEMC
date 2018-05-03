@@ -137,6 +137,7 @@ class Montecarlo(object):
         Creates a dictionary of the indices of each atom which is used to
         make sure that two equal atoms cannot be swapped
         """
+        self.atoms_indx = {}
         for atom in self.atoms:
             if ( not atom.symbol in self.atoms_indx.keys() ):
                 self.atoms_indx[atom.symbol] = [atom.index]

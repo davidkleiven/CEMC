@@ -309,12 +309,7 @@ class NetworkObserver( MCObserver ):
             return
         explored_grp_indices = []
         largest_cluster = []
-        group_indx_count = {}
-        for indx in self.indx_max_cluster:
-            if ( indx in group_indx_count.keys() ):
-                group_indx_count[indx] += 1
-            else:
-                group_indx_count[indx] = 1
+        group_indx_count = self.get_cluster_count()
 
         elems_in_atoms_obj = []
         for atom in self.atoms_max_cluster:
@@ -331,6 +326,28 @@ class NetworkObserver( MCObserver ):
                     self.atoms_max_cluster[i].symbol = highlight_element[current_highlight_element]
             current_highlight_element += 1
         return self.atoms_max_cluster
+
+    def get_cluster_count(self):
+        group_indx_count = {}
+        for indx in self.indx_max_cluster:
+            if ( indx in group_indx_count.keys() ):
+                group_indx_count[indx] += 1
+            else:
+                group_indx_count[indx] = 1
+        return group_indx_count
+
+    def get_indices_of_largest_cluster(self):
+        """
+        Return the indices of the largest cluster
+        """
+        group_indx_count = self.get_cluster_count()
+        max_id = 0
+        max_size = 0
+        for key,value in group_indx_count.iteritems():
+            if ( value > max_size ):
+                max_size = value
+                max_id = key
+        return [i for i,indx in enumerate(self.indx_max_cluster) if ( indx==max_id)]
 
     def collect_stat_MPI( self ):
         """
@@ -369,6 +386,7 @@ class NetworkObserver( MCObserver ):
             avg_sq = self.res["avg_size_sq"]/self.res["number_of_clusters"]
         stat["std"] = np.sqrt( avg_sq - stat["avg_size"]**2 )
         stat["max_size"] = self.max_size
+        stat["number_of_clusters"] = int(self.res["number_of_clusters"])
         if ( self.max_size_hist == 0 ):
             stat["frac_atoms_in_cluster"] = 0.0
         else:

@@ -10,3 +10,5 @@ from dos_sampler import SGCCompositionFreeEnergy
 from dos_mu_temp import FreeEnergyMuTempArray
 from nucleation_sampler import NucleationSampler
 from sgc_nucleation_mc import SGCNucleation
+from canonical_nucleation_mc import CanonicalNucleationMC
+from fixed_nucleation_size_sampler import FixedNucleusMC
