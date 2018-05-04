@@ -39,7 +39,8 @@ class FixedNucleusMC( Montecarlo ):
             self.rand_b = self.bc.trans_matrix[self.rand_a,clust_indx]
             symb_b = self.atoms[self.rand_b].symbol
 
-        self.selected_b = self.atoms_indx[symb_b].index(self.rand_b)
+        #self.selected_b = self.atoms_indx[symb_b].index(self.rand_b)
+        self.selected_b = 0 # Breaks the cluster tracker but it is not needed here
         symb_a = self.atoms[self.rand_a].symbol
         symb_b = self.atoms[self.rand_b].symbol
         system_changes = [(self.rand_a,symb_a,symb_b),(self.rand_b,symb_b,symb_a)]
