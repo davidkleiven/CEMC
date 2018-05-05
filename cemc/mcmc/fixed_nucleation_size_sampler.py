@@ -13,6 +13,7 @@ class FixedNucleusMC( Montecarlo ):
         self.bc = self.atoms._calc.BC
         self.network_clust_indx = None
         self.find_cluster_indx()
+        print (self.network_clust_indx)
 
     def find_cluster_indx( self ):
         """
@@ -34,9 +35,11 @@ class FixedNucleusMC( Montecarlo ):
             self.selected_a = np.random.randint(low=0,high=Na)
             self.rand_a = self.atoms_indx[self.network_element][self.selected_a]
 
+            temp_rand_num_b = np.random.randint(low=0,high=Na)
+            temp_b = self.atoms_indx[self.network_element][temp_rand_num_b]
             indx = np.random.randint(low=0,high=max_rand)
             clust_indx = self.network_clust_indx[indx][0]
-            self.rand_b = self.bc.trans_matrix[self.rand_a,clust_indx]
+            self.rand_b = self.bc.trans_matrix[temp_b,clust_indx]
             symb_b = self.atoms[self.rand_b].symbol
 
         #self.selected_b = self.atoms_indx[symb_b].index(self.rand_b)
@@ -51,6 +54,7 @@ class FixedNucleusMC( Montecarlo ):
         Accept trial move
         """
         move_accepted = Montecarlo.accept( self, system_changes )
+        self.network.reset()
         self.network(system_changes)
         stat = self.network.get_statistics()
         self.network.reset()
