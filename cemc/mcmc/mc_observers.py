@@ -104,7 +104,7 @@ class PairCorrelationObserver( MCObserver ):
         return std_cf
 
 class LowestEnergyStructure(MCObserver):
-    def __init__( self, ce_calc, mc_obj ):
+    def __init__( self, ce_calc, mc_obj, verbose=False ):
         self.ce_calc = ce_calc
         self.mc_obj = mc_obj
         self.lowest_energy = np.inf
@@ -112,6 +112,7 @@ class LowestEnergyStructure(MCObserver):
         self.lowest_energy_cf = None
         self.atoms = None
         self.name = "LowestEnergyStructure"
+        self.verbose = verbose
 
     def __call__( self, system_changes ):
         if ( self.lowest_energy_atoms is None or self.lowest_energy_cf is None ):
@@ -122,9 +123,12 @@ class LowestEnergyStructure(MCObserver):
             return
 
         if ( self.mc_obj.current_energy < self.lowest_energy ):
+            dE = self.mc_obj.current_energy - self.lowest_energy
             self.lowest_energy = self.mc_obj.current_energy
             self.lowest_energy_atoms = self.ce_calc.atoms.copy()
             self.lowest_energy_cf = self.ce_calc.get_cf()
+            if ( self.verbose ):
+                print ("Found new low energy structure. New energy: {} eV. Change: {} eV".format(self.lowest_energy,dE))
 
 class SGCObserver(MCObserver):
     def __init__( self, ce_calc, mc_obj, n_singlets ):
