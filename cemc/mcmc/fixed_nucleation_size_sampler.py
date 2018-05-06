@@ -31,10 +31,10 @@ class FixedNucleusMC( Montecarlo ):
 
         symb_b = self.network_element
         max_rand = len(self.network_clust_indx)
+        self.selected_a = np.random.randint(low=0,high=Na)
+        self.rand_a = self.atoms_indx[self.network_element][self.selected_a]
+        
         while ( symb_b == self.network_element ):
-            self.selected_a = np.random.randint(low=0,high=Na)
-            self.rand_a = self.atoms_indx[self.network_element][self.selected_a]
-
             temp_rand_num_b = np.random.randint(low=0,high=Na)
             temp_b = self.atoms_indx[self.network_element][temp_rand_num_b]
             indx = np.random.randint(low=0,high=max_rand)
