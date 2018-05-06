@@ -659,7 +659,7 @@ class Montecarlo(object):
 
         if ( self.new_energy < self.current_energy ):
             return True
-        kT = kT = self.T*units.kB
+        kT = self.T*units.kB
         energy_diff = self.new_energy-self.current_energy
         probability = np.exp(-energy_diff/kT)
         return np.random.rand() <= probability
@@ -710,15 +710,17 @@ class Montecarlo(object):
             for change in system_changes:
                 indx = change[0]
                 old_symb = change[1]
+                assert (self.atoms[indx].symbol == change[2])
                 self.atoms[indx].symbol = old_symb
 
         # TODO: Wrap this functionality into a cleaning object
         if ( hasattr(self.atoms._calc,"clear_history") and hasattr(self.atoms._calc,"undo_changes") ):
             # The calculator is a CE calculator which support clear_history and undo_changes
-            if ( move_accepted ):
-                self.atoms._calc.clear_history()
-            else:
-                self.atoms._calc.undo_changes()
+            pass
+        if ( move_accepted ):
+            self.atoms._calc.clear_history()
+        else:
+            self.atoms._calc.undo_changes()
 
         if ( move_accepted ):
             # Update the atom_indices
