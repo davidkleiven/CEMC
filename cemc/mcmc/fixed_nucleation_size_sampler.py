@@ -72,6 +72,7 @@ class FixedNucleusMC( Montecarlo ):
         else:
             symbs = [atom.symbol for atom in atoms]
             self.atoms._calc.set_symbols(symbs)
+            atoms = self.atoms
 
         self.network.reset()
         self.network(None)
