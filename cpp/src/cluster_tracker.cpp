@@ -32,11 +32,7 @@ void ClusterTracker::find_clusters()
       continue;
     }
 
-    int current_root_indx = i;
-    while( atomic_clusters[current_root_indx] != -1 )
-    {
-      current_root_indx = atomic_clusters[current_root_indx];
-    }
+    int current_root_indx = root_indx(i);
 
     if ( atomic_clusters[current_root_indx] != -1 )
     {
@@ -59,15 +55,10 @@ void ClusterTracker::find_clusters()
 
         if ( symbs[indx] == element )
         {
-          int root_indx = indx;
-          while( atomic_clusters[root_indx] != -1 )
+          int root = root_indx(indx);
+          if ( root != current_root_indx )
           {
-            root_indx = atomic_clusters[root_indx];
-          }
-
-          if ( root_indx != current_root_indx )
-          {
-            atomic_clusters[root_indx] = current_root_indx;
+            atomic_clusters[root] = current_root_indx;
           }
         }
       }
