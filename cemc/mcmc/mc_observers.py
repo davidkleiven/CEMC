@@ -7,6 +7,7 @@ import numpy as np
 from ase.io.trajectory import TrajectoryWriter
 from cemc.ce_updater import ce_updater
 from ase.data import atomic_numbers
+import time
 
 class MCObserver( object ):
     def __init__( self ):
@@ -108,16 +109,14 @@ class LowestEnergyStructure(MCObserver):
         self.ce_calc = ce_calc
         self.mc_obj = mc_obj
         self.lowest_energy = np.inf
-        self.lowest_energy_atoms = None
         self.lowest_energy_cf = None
         self.atoms = None
         self.name = "LowestEnergyStructure"
         self.verbose = verbose
 
     def __call__( self, system_changes ):
-        if ( self.lowest_energy_atoms is None or self.lowest_energy_cf is None ):
+        if ( self.atoms is None or self.lowest_energy_cf is None ):
             self.lowest_energy_cf = self.ce_calc.get_cf()
-            self.lowest_energy_atoms = self.ce_calc.atoms.copy()
             self.lowest_energy = self.mc_obj.current_energy
             self.atoms = self.mc_obj.atoms.copy()
             return
@@ -125,7 +124,7 @@ class LowestEnergyStructure(MCObserver):
         if ( self.mc_obj.current_energy < self.lowest_energy ):
             dE = self.mc_obj.current_energy - self.lowest_energy
             self.lowest_energy = self.mc_obj.current_energy
-            self.lowest_energy_atoms = self.ce_calc.atoms.copy()
+            self.atoms = self.mc_obj.atoms.copy()
             self.lowest_energy_cf = self.ce_calc.get_cf()
             if ( self.verbose ):
                 print ("Found new low energy structure. New energy: {} eV. Change: {} eV".format(self.lowest_energy,dE))
