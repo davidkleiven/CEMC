@@ -1,6 +1,7 @@
 from montecarlo import Montecarlo
 from mc_observers import NetworkObserver
 import numpy as np
+import random
 
 class FixedNucleusMC( Montecarlo ):
     def __init__( self, atoms, T, **kwargs ):
@@ -33,14 +34,16 @@ class FixedNucleusMC( Montecarlo ):
         max_rand = len(self.network_clust_indx)
         self.selected_a = np.random.randint(low=0,high=Na)
         self.rand_a = self.atoms_indx[self.network_element][self.selected_a]
-        
+
         while ( symb_b == self.network_element ):
             temp_rand_num_b = np.random.randint(low=0,high=Na)
             temp_b = self.atoms_indx[self.network_element][temp_rand_num_b]
-            indx = np.random.randint(low=0,high=max_rand)
-            clust_indx = self.network_clust_indx[indx][0]
-            self.rand_b = self.bc.trans_matrix[temp_b,clust_indx]
-            symb_b = self.atoms[self.rand_b].symbol
+            random.shuffle(self.network_clust_indx)
+            for clust_indx in self.network_clust_indx:
+                self.rand_b = self.bc.trans_matrix[temp_b,clust_indx]
+                symb_b = self.atoms[self.rand_b].symbol
+                if ( symb_b != self.network_element ):
+                    break
 
         #self.selected_b = self.atoms_indx[symb_b].index(self.rand_b)
         self.selected_b = 0 # Breaks the cluster tracker but it is not needed here
