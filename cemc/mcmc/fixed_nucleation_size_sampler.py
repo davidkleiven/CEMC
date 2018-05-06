@@ -35,12 +35,14 @@ class FixedNucleusMC( Montecarlo ):
         self.selected_a = np.random.randint(low=0,high=Na)
         self.rand_a = self.atoms_indx[self.network_element][self.selected_a]
 
+        # Shuffle the network indices
+        random.shuffle(self.network_clust_indx)
+
         while ( symb_b == self.network_element ):
             temp_rand_num_b = np.random.randint(low=0,high=Na)
             temp_b = self.atoms_indx[self.network_element][temp_rand_num_b]
-            random.shuffle(self.network_clust_indx)
             for clust_indx in self.network_clust_indx:
-                self.rand_b = self.bc.trans_matrix[temp_b,clust_indx]
+                self.rand_b = self.bc.trans_matrix[temp_b,clust_indx[0]]
                 symb_b = self.atoms[self.rand_b].symbol
                 if ( symb_b != self.network_element ):
                     break
