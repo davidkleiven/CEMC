@@ -17,8 +17,12 @@ class NucleationSampler( object ):
         self.size_window_width = kwargs.pop("size_window_width")
         self.max_cluster_size = kwargs.pop("max_cluster_size")
         self.merge_strategy = "normalize_overlap"
+        self.max_one_cluster = False
+        self.allow_solutes = True
         if ( "merge_strategy" in kwargs.keys() ):
             self.merge_strategy = kwargs.pop("merge_strategy")
+        if ( "max_one_cluster" in kwargs.keys() ):
+            self.max_one_cluster = kwargs.pop("max_one_cluster")
 
         # The Nucleation barrier algorithm requires a lot of communication if
         # parallelized in the same way as SGCMonteCarlo
@@ -48,6 +52,7 @@ class NucleationSampler( object ):
         self.current_window = 0
         self.mode = Mode.bring_system_into_window
         mpi_tools.set_seeds( self.nucleation_mpicomm )
+        self.current_cluster_size = 0
 
     def get_window_boundaries(self, num):
         """
@@ -64,23 +69,42 @@ class NucleationSampler( object ):
             upper = (num+1)*self.size_window_width
         return int(lower),int(upper)
 
-    def is_in_window(self,network):
+    def is_in_window(self,network,retstat=False):
+        network.reset()
         network(None) # Explicitly call the network observer
         stat = network.get_statistics()
         lower,upper = self.get_window_boundaries(self.current_window)
-
-        # During equillibiriation we have to reset the network statistics here
-        #if ( self.mode == Mode.equillibriate ):
+        max_size_ok = stat["max_size"] >= lower and stat["max_size"] < upper
         network.reset()
-        #print ("{} <= {} < {}".format(lower,stat["max_size"],upper))
-        return stat["max_size"] >= lower and stat["max_size"] < upper
+        if ( self.max_one_cluster ):
+            n_clusters = stat["number_of_clusters"]
+            if ( retstat ):
+                return max_size_ok and n_clusters == 1,stat
+            else:
+                return max_size_ok and n_clusters == 1
+        if ( retstat ):
+            return max_size_ok,stat
+        return max_size_ok
 
     def bring_system_into_window(self,network):
         """
         Brings the system into the current window
         """
         lower,upper = self.get_window_boundaries(self.current_window)
-        network.grow_cluster( int(0.5*(lower+upper)) )
+        size = int(0.5*(lower+upper)+1)
+        network.grow_cluster( size )
+        network(None)
+        stat = network.get_statistics()
+        network.reset()
+        if ( stat["max_size"] != size ):
+            msg = "The size of the cluster created does not match the one requested!\n"
+            msg += "Size of created: {}. Requested: {}".format(stat["max_size"],size)
+            raise RuntimeError( msg )
+        if ( stat["number_of_clusters"] != 1 ):
+            msg = "More than one cluster exists!\n"
+            msg += "Was supposed to create 1 cluster, created {}".format(stat["number_of_clusters"])
+            raise RuntimeError(msg)
+        self.current_cluster_size = stat["max_size"]
 
     def get_indx( self, size ):
         """

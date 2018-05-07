@@ -7,6 +7,7 @@ import numpy as np
 from ase.io.trajectory import TrajectoryWriter
 from cemc.ce_updater import ce_updater
 from ase.data import atomic_numbers
+import time
 
 class MCObserver( object ):
     def __init__( self ):
@@ -104,27 +105,32 @@ class PairCorrelationObserver( MCObserver ):
         return std_cf
 
 class LowestEnergyStructure(MCObserver):
-    def __init__( self, ce_calc, mc_obj ):
+    def __init__( self, ce_calc, mc_obj, verbose=False ):
         self.ce_calc = ce_calc
         self.mc_obj = mc_obj
         self.lowest_energy = np.inf
-        self.lowest_energy_atoms = None
         self.lowest_energy_cf = None
         self.atoms = None
+        self.lowest_energy_atoms = None # Always the same as atoms. Included for backward compatibility
         self.name = "LowestEnergyStructure"
+        self.verbose = verbose
 
     def __call__( self, system_changes ):
-        if ( self.lowest_energy_atoms is None or self.lowest_energy_cf is None ):
+        if ( self.atoms is None or self.lowest_energy_cf is None ):
             self.lowest_energy_cf = self.ce_calc.get_cf()
-            self.lowest_energy_atoms = self.ce_calc.atoms.copy()
             self.lowest_energy = self.mc_obj.current_energy
             self.atoms = self.mc_obj.atoms.copy()
+            self.lowest_energy_atoms = self.atoms
             return
 
         if ( self.mc_obj.current_energy < self.lowest_energy ):
+            dE = self.mc_obj.current_energy - self.lowest_energy
             self.lowest_energy = self.mc_obj.current_energy
-            self.lowest_energy_atoms = self.ce_calc.atoms.copy()
+            self.atoms = self.mc_obj.atoms.copy()
+            self.lowest_energy_atoms = self.atoms # For backward compatibility
             self.lowest_energy_cf = self.ce_calc.get_cf()
+            if ( self.verbose ):
+                print ("Found new low energy structure. New energy: {} eV. Change: {} eV".format(self.lowest_energy,dE))
 
 class SGCObserver(MCObserver):
     def __init__( self, ce_calc, mc_obj, n_singlets ):
@@ -309,12 +315,7 @@ class NetworkObserver( MCObserver ):
             return
         explored_grp_indices = []
         largest_cluster = []
-        group_indx_count = {}
-        for indx in self.indx_max_cluster:
-            if ( indx in group_indx_count.keys() ):
-                group_indx_count[indx] += 1
-            else:
-                group_indx_count[indx] = 1
+        group_indx_count = self.get_cluster_count()
 
         elems_in_atoms_obj = []
         for atom in self.atoms_max_cluster:
@@ -331,6 +332,28 @@ class NetworkObserver( MCObserver ):
                     self.atoms_max_cluster[i].symbol = highlight_element[current_highlight_element]
             current_highlight_element += 1
         return self.atoms_max_cluster
+
+    def get_cluster_count(self):
+        group_indx_count = {}
+        for indx in self.indx_max_cluster:
+            if ( indx in group_indx_count.keys() ):
+                group_indx_count[indx] += 1
+            else:
+                group_indx_count[indx] = 1
+        return group_indx_count
+
+    def get_indices_of_largest_cluster(self):
+        """
+        Return the indices of the largest cluster
+        """
+        group_indx_count = self.get_cluster_count()
+        max_id = 0
+        max_size = 0
+        for key,value in group_indx_count.iteritems():
+            if ( value > max_size ):
+                max_size = value
+                max_id = key
+        return [i for i,indx in enumerate(self.indx_max_cluster) if ( indx==max_id)]
 
     def collect_stat_MPI( self ):
         """
@@ -369,6 +392,7 @@ class NetworkObserver( MCObserver ):
             avg_sq = self.res["avg_size_sq"]/self.res["number_of_clusters"]
         stat["std"] = np.sqrt( avg_sq - stat["avg_size"]**2 )
         stat["max_size"] = self.max_size
+        stat["number_of_clusters"] = int(self.res["number_of_clusters"])
         if ( self.max_size_hist == 0 ):
             stat["frac_atoms_in_cluster"] = 0.0
         else:
