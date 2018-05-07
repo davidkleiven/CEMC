@@ -14,7 +14,11 @@ class FixedNucleusMC( Montecarlo ):
         self.bc = self.atoms._calc.BC
         self.network_clust_indx = None
         self.find_cluster_indx()
-        print (self.network_clust_indx)
+        if ( self.bc.trans_matrix is None ):
+            msg = "The ClusterExpansionSetting object has no attribue trans_matrix.\n"
+            msg += "If the Cluster Expansion calculator was constructed with free_unused_arrays_BC=True,\n"
+            msg += "set this to False. Otherwise the cause if the issue is unknown..."
+            raise ValueError(  msg )
 
     def find_cluster_indx( self ):
         """

@@ -1,6 +1,6 @@
 import unittest
 try:
-    from cemc.mcmc import NucleationSampler,SGCNucleation
+    from cemc.mcmc import NucleationSampler,SGCNucleation, CanonicalNucleationMC, FixedNucleusMC
     from ase.ce import BulkCrystal
     from cemc.wanglandau.ce_calculator import get_ce_calc
     available = True
@@ -29,7 +29,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             print (ceBulk.basis_functions)
 
             ecis = {"c1_0":-0.01,"c2_1414_1_00":-0.2}
-            calc = get_ce_calc( ceBulk, kwargs, ecis, size=[5,5,5], free_unused_arrays_BC=True )
+            calc = get_ce_calc( ceBulk, kwargs, ecis, size=[5,5,5], free_unused_arrays_BC=False )
             ceBulk = calc.BC
             ceBulk.atoms.set_calculator( calc )
 
@@ -43,6 +43,15 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             chem_pot=chem_pot )
             mc.run(nsteps=2)
             sampler.save(fname="test_nucl.h5")
+
+            mc = CanonicalNucleationMC( ceBulk.atoms, 300, nucleation_sampler=sampler, \
+            network_name="c2_1414_1",  network_element="Mg", \
+            concentration={"Al":0.8,"Mg":0.2} )
+            mc.run(nsteps=2)
+            sampler.save(fname="test_nucl_canonical.h5")
+
+            mc = FixedNucleusMC( ceBulk.atoms, 300, size=6, network_name="c2_1414_1", network_element="Mg" )
+            mc.run(nsteps=2)
         except Exception as exc:
             msg = str(exc)
             no_throw = False
