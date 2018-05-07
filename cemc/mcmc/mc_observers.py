@@ -111,6 +111,7 @@ class LowestEnergyStructure(MCObserver):
         self.lowest_energy = np.inf
         self.lowest_energy_cf = None
         self.atoms = None
+        self.lowest_energy_atoms = None # Always the same as atoms. Included for backward compatibility
         self.name = "LowestEnergyStructure"
         self.verbose = verbose
 
@@ -119,12 +120,14 @@ class LowestEnergyStructure(MCObserver):
             self.lowest_energy_cf = self.ce_calc.get_cf()
             self.lowest_energy = self.mc_obj.current_energy
             self.atoms = self.mc_obj.atoms.copy()
+            self.lowest_energy_atoms = self.atoms
             return
 
         if ( self.mc_obj.current_energy < self.lowest_energy ):
             dE = self.mc_obj.current_energy - self.lowest_energy
             self.lowest_energy = self.mc_obj.current_energy
             self.atoms = self.mc_obj.atoms.copy()
+            self.lowest_energy_atoms = self.atoms # For backward compatibility
             self.lowest_energy_cf = self.ce_calc.get_cf()
             if ( self.verbose ):
                 print ("Found new low energy structure. New energy: {} eV. Change: {} eV".format(self.lowest_energy,dE))
