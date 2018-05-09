@@ -240,14 +240,14 @@ class TestCE( unittest.TestCase ):
                 }
                 a = 4.05
                 ceBulk = BulkCrystal( crystalstructure="fcc", a=a, size=[5,5,5], basis_elements=[basis_elems], conc_args=conc_args, \
-                db_name=db_name, max_cluster_size=4,max_cluster_dia=0.7*a)
+                db_name=db_name, max_cluster_size=2,max_cluster_dia=a)
                 ceBulk.reconfigure_settings()
                 cf = CorrFunction(ceBulk)
                 corrfuncs = cf.get_cf(ceBulk.atoms)
                 eci = {name:1.0 for name in corrfuncs.keys()}
                 calc = CE( ceBulk,eci )
                 for _ in range(n_concs):
-                    conc = np.random.rand(len(basis_elems))
+                    conc = np.random.rand(len(basis_elems))*0.97
                     conc /= np.sum(conc)
                     conc_dict = {}
                     for i in range(len(basis_elems)):
@@ -263,6 +263,7 @@ class TestCE( unittest.TestCase ):
                     dict_comp = "Ref {}. Computed {}".format(conc_dict,comp)
                     for key in comp.keys():
                         self.assertAlmostEqual( comp[key], conc_dict[key], msg=dict_comp, places=1 )
+                calc.set_singlets(singlets)
         except Exception as exc:
             msg = str(exc)
             no_throw = False
