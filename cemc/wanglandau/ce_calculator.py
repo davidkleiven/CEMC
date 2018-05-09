@@ -414,7 +414,7 @@ class CE( Calculator ):
         for key,conc in comp.iteritems():
             tot_conc += conc
 
-        if ( tot_conc != 1.0 ):
+        if ( np.abs(tot_conc-1.0) > 1E-6 ):
             raise ValueError( "The specified concentration does not sum to 1!" )
         # Change all atoms to the first one
         init_elm = comp.keys()[0]
