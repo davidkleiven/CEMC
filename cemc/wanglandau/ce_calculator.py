@@ -442,6 +442,67 @@ class CE( Calculator ):
             self.update_cf( (i,self.atoms[i].symbol,symb) )
         self.clear_history()
 
+    def singlet2comp( self, singlets ):
+        """
+        Convert singlet to compositions
+        """
+        bfs = self.BC.basis_functions
+
+        if ( len(singlets.keys()) != len(bfs) ):
+            msg = "The number singlet terms specified is different from the number of basis functions\n"
+            msg += "Given singlet terms: {}\n".format(singlets)
+            msg += "Basis functions: {}\n".format(bfs)
+            raise ValueError( msg )
+
+        # Generate system of equations
+        rhs = np.zeros(len(bfs))
+        spec_element = bfs[0].keys()[0] # Concentration of this element is implicitly determined via the others
+        for key,value in singlets.iteritems():
+            dec = int(key[-1])
+            rhs[dec] = value - bfs[dec][spec_element]
+
+        matrix = np.zeros((len(bfs),len(bfs)))
+        for key in singlets.keys():
+            row = int(key[-1])
+            col = 0
+            for element in bfs[0].keys():
+                if ( element == spec_element ):
+                    continue
+                matrix[row,col] = bfs[row][element]-bfs[row][spec_element]
+                col += 1
+        concs = np.linalg.solve( matrix, rhs )
+        conc_spec_element = 1.0 - np.sum(concs)
+
+        # Some trivial checks
+        if ( conc_spec_element > 1.0 or conc_spec_element < 0.0 ):
+            msg = "Something strange happened when converting singlets to composition\n"
+            msg += "Concentration of one of the implicitly determined element is {}".format(conc_spec_element)
+            raise RuntimeError(msg)
+
+        if ( np.any(concs>1.0) or np.any(concs<0.0) ):
+            msg = "Something went wrong when the linear system of equations were solved.\n"
+            msg += "Final concentration is {}".format(concs)
+            raise RuntimeError(msg)
+
+        conc_dict = {}
+        #conc_dict[spec_element] = conc_spec_element
+        counter = 0
+        for element in bfs[0].keys():
+            if ( element == spec_element ):
+                conc_dict[element] = conc_spec_element
+            else:
+                conc_dict[element] = concs[counter]
+                counter += 1
+        return conc_dict
+
+    def set_singlets( self, singlets ):
+        """
+        Brings the system into a certain configuration such that the singlet terms
+        has a certain value
+        """
+        conc = self.singlet2comp(singlets)
+        self.set_composition(conc)
+
     def write( self, fname ):
         """
         Stores all nessecary information required to restart the calculation

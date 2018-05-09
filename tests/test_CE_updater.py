@@ -221,6 +221,56 @@ class TestCE( unittest.TestCase ):
             for key,value in brute_force.iteritems():
                 self.assertAlmostEqual( value, updated_cf[key] )
 
+    def test_set_singlets( self ):
+        if ( not has_ase_with_ce ):
+            self.skipTest( "ASE version does not have CE" )
+            return
+
+        system_types = [["Al","Mg"],["Al","Mg","Si"],["Al","Mg","Si","Cu"],["Al","Mg","Si","Cu","Zn"]]
+
+        db_name = "test_singlets.db"
+        n_concs = 4
+        no_throw = True
+        msg = ""
+        try:
+            for basis_elems in system_types:
+                conc_args = {
+                    "conc_ratio_min_1":[[1,0]],
+                    "conc_ratio_max_1":[[0,1]],
+                }
+                a = 4.05
+                ceBulk = BulkCrystal( crystalstructure="fcc", a=a, size=[5,5,5], basis_elements=[basis_elems], conc_args=conc_args, \
+                db_name=db_name, max_cluster_size=4,max_cluster_dia=0.7*a)
+                ceBulk.reconfigure_settings()
+                cf = CorrFunction(ceBulk)
+                corrfuncs = cf.get_cf(ceBulk.atoms)
+                eci = {name:1.0 for name in corrfuncs.keys()}
+                calc = CE( ceBulk,eci )
+                for _ in range(n_concs):
+                    conc = np.random.rand(len(basis_elems))
+                    conc /= np.sum(conc)
+                    conc_dict = {}
+                    for i in range(len(basis_elems)):
+                        conc_dict[basis_elems[i]] = conc[i]
+                    calc.set_composition(conc_dict)
+                    ref_cf = calc.get_cf()
+
+                    singlets = {}
+                    for key,value in ref_cf.iteritems():
+                        if ( key.startswith("c1") ):
+                            singlets[key] = value
+                    comp = calc.singlet2comp(singlets)
+                    dict_comp = "Ref {}. Computed {}".format(conc_dict,comp)
+                    for key in comp.keys():
+                        self.assertAlmostEqual( comp[key], conc_dict[key], msg=dict_comp, places=1 )
+        except Exception as exc:
+            msg = str(exc)
+            no_throw = False
+        self.assertTrue( no_throw, msg=msg )
+
+
+
+
 
 if __name__ == "__main__":
     unittest.main()
