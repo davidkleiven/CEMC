@@ -411,13 +411,19 @@ class CE( Calculator ):
         """
         # Verify that the sum of the compositions is one
         tot_conc = 0.0
+        max_element = None
+        max_conc = 0.0
         for key,conc in comp.iteritems():
             tot_conc += conc
+            if ( conc > max_conc ):
+                max_element = key
+                max_conc = conc
 
         if ( np.abs(tot_conc-1.0) > 1E-6 ):
             raise ValueError( "The specified concentration does not sum to 1!" )
-        # Change all atoms to the first one
-        init_elm = comp.keys()[0]
+
+        # Change all atoms to the one with the highest concentration
+        init_elm = max_element
         for i in range( len(self.atoms) ):
             #self.update_cf( (i,self.atoms[i].symbol,init_elm) ) # Set all atoms to init element
             self.calculate( self.atoms, ["energy"], [(i,self.atoms[i].symbol,init_elm)] )
