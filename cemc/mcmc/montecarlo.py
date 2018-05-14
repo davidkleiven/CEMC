@@ -50,7 +50,7 @@ class Montecarlo(object):
 
         self.current_step = 0
         self.num_accepted = 0
-        self.status_every_sec = 60
+        self.status_every_sec = 30
         self.atoms_indx = {}
         self.symbols = []
         self.build_atoms_list()
@@ -88,6 +88,7 @@ class Montecarlo(object):
         self._linear_vib_correction = None
         self.is_first = True
         self.filter = ExponentialFilter( min_time=0.2*len(self.atoms), max_time=20*len(self.atoms), n_subfilters=10 )
+        self.accept_first_trial_move_after_reset = True
 
     @property
     def linear_vib_correction(self):
@@ -127,7 +128,8 @@ class Montecarlo(object):
         self.energy_squared = 0.0
         #self.correlation_info = None
         self.corrtime_energies = []
-        self.is_first = True
+        if ( self.accept_first_trial_move_after_reset ):
+            self.is_first = True
 
     def include_vib( self ):
         """
@@ -411,7 +413,7 @@ class Montecarlo(object):
 
         raise DidNotReachEquillibriumError( "Did not manage to reach equillibrium!" )
 
-    def has_converged_prec_mode( self, prec=0.01, confidence_level=0.05 ):
+    def has_converged_prec_mode( self, prec=0.01, confidence_level=0.05, log_status=False ):
         """
         Returns True if the simulation has converged in the precission mode
         """
@@ -419,10 +421,10 @@ class Montecarlo(object):
         var_E = self.get_var_average_energy()
         converged = ( var_E < (prec*len(self.atoms)/percentile)**2 )
 
-        # Log information abount progress
-        std_E = np.sqrt(var_E)
-        criteria = prec*len(self.atoms)/percentile
-        self.log( "Current energy std: {}. Convergence criteria: {}".format(std_E,criteria))
+        if ( log_status ):
+            std_E = np.sqrt(var_E)
+            criteria = prec*len(self.atoms)/percentile
+            self.log( "Current energy std: {}. Convergence criteria: {}".format(std_E,criteria))
 
         if ( self.mpicomm is not None ):
             # Make sure that all processors has the same converged flag
@@ -521,9 +523,7 @@ class Montecarlo(object):
 
         # Atoms object should have attached calculator
         # Add check that this is show
-        self.current_energy = 1E8
         self._mc_step()
-        #self.current_energy = self.atoms.get_potential_energy() # Get starting energy
 
         mpi_tools.set_seeds(self.mpicomm)
         totalenergies = []
@@ -580,6 +580,7 @@ class Montecarlo(object):
 
         #print ( "Proc: {} - {}".format(self.rank,check_convergence_every) )
         # self.current_step gets updated in the _mc_step function
+        log_status_conv = True
         self.reset()
         while( self.current_step < steps ):
             en, accept = self._mc_step( verbose=verbose )
@@ -589,6 +590,7 @@ class Montecarlo(object):
             if ( time.time()-start > self.status_every_sec ):
                 ms_per_step = 1000.0*self.status_every_sec/float(self.current_step-prev)
                 accept_rate = self.num_accepted/float(self.current_step)
+                log_status_conv = True
                 self.log("%d of %d steps. %.2f ms per step. Acceptance rate: %.2f"%(self.current_step,steps,ms_per_step,accept_rate))
                 prev = self.current_step
                 start = time.time()
@@ -598,7 +600,8 @@ class Montecarlo(object):
                 #print ("Proc check_conv: {}".format(self.rank))
                 if ( self.mpicomm is not None ):
                     self.mpicomm.barrier()
-                converged = self.has_converged_prec_mode( prec=prec, confidence_level=prec_confidence )
+                converged = self.has_converged_prec_mode( prec=prec, confidence_level=prec_confidence, log_status=log_status_conv )
+                log_status_conv=False
                 if ( converged ):
                     self.on_converged_log()
                     break
