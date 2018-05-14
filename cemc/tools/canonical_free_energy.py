@@ -1,5 +1,6 @@
 import numpy as np
 from ase.units import kB
+from scipy.integrate import cumtrapz
 
 class CanonicalFreeEnergy( object ):
     def __init__( self, composition ):
@@ -33,8 +34,8 @@ class CanonicalFreeEnergy( object ):
         temperature, internal_energy = self.sort( temperature, internal_energy )
         betas = 1.0/(kB*temperature)
         ref_energy = self.reference_energy( temperature[0], internal_energy[0] )
-        free_energy = [np.trapz(internal_energy[:i],x=betas[:i]) for i in range(1,len(betas))]
-        free_energy.append( np.trapz(internal_energy,x=betas) )
+        free_energy = np.zeros(len(temperature))
+        free_energy[1:] = cumtrapz(internal_energy,x=betas)
         free_energy += ref_energy
         free_energy *= kB*temperature
         return temperature, internal_energy, free_energy
