@@ -419,6 +419,11 @@ class Montecarlo(object):
         var_E = self.get_var_average_energy()
         converged = ( var_E < (prec*len(self.atoms)/percentile)**2 )
 
+        # Log information abount progress
+        std_E = np.sqrt(var_E)
+        criteria = prec*len(self.atoms)/percentile
+        self.log( "Current energy std: {}. Convergence criteria: {}".format(std_E,criteria))
+
         if ( self.mpicomm is not None ):
             # Make sure that all processors has the same converged flag
             send_buf = np.zeros(1)
