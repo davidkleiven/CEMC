@@ -269,9 +269,13 @@ class CE( Calculator ):
         Returns the energy of the system
         """
         energy = 0.0
-        for key,value in self.eci.iteritems():
-            energy += value*self.cf[key]
-        return energy*len(self.atoms)
+        if ( self.updater is None ):
+            for key,value in self.eci.iteritems():
+                energy += value*self.cf[key]
+            energy *= len(self.atoms)
+        else:
+            energy = self.updater.get_energy()
+        return energy
 
     def create_ctype_lookup( self ):
         """

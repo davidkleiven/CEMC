@@ -3,7 +3,9 @@ try:
     from ase.ce.settings_bulk import BulkCrystal
     from ase.calculators.cluster_expansion.cluster_expansion import ClusterExpansion
     from cemc.mfa.mean_field_approx import MeanFieldApprox
+    from cemc.mfa import CanonicalMeanField
     from ase.units import kB
+    from cemc.wanglandau.ce_calculator import CE
     has_ase_with_ce = True
 except Exception as exc:
     print ( str(exc) )
@@ -57,6 +59,15 @@ class TestMFA( unittest.TestCase ):
             U = mf.internal_energy( betas )
             Cv = mf.heat_capacity( betas, chem_pot=chem_pot )
             Cv = mf.heat_capacity( betas )
+
+            ceBulk.atoms[0].symbol = "Mg"
+            ceBulk.atoms[1].symbol = "Mg"
+            calc = CE( ceBulk, eci=ecis )
+            ceBulk.atoms.set_calculator(calc)
+            # Test the Canonical MFA
+            T = [500,400,300,200,100]
+            canonical_mfa = CanonicalMeanField( atoms=ceBulk.atoms, T=T )
+            res = canonical_mfa.calculate()
         except Exception as exc:
             no_throw = False
             msg = str(exc)

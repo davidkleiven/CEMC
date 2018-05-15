@@ -78,11 +78,11 @@ class SGCMonteCarlo( mc.Montecarlo ):
             tau = 1.0
         return 2.0*var_n*tau/(N*nproc)
 
-    def has_converged_prec_mode( self, prec=0.01, confidence_level=0.05 ):
+    def has_converged_prec_mode( self, prec=0.01, confidence_level=0.05, log_status=False ):
         """
         Checks that the averages have converged to the desired precission
         """
-        energy_converged = super( SGCMonteCarlo, self ).has_converged_prec_mode( prec=prec, confidence_level=confidence_level )
+        energy_converged = super( SGCMonteCarlo, self ).has_converged_prec_mode( prec=prec, confidence_level=confidence_level, log_status=log_status )
         percentile = stats.norm.ppf(1.0-confidence_level)
         var_n = self.get_var_average_singlets()
         if ( self.mpicomm is not None ):
