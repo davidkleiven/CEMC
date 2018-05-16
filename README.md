@@ -26,6 +26,11 @@ Install the package
 pip install .
 ```
 
+Run the all tests
+```bash
+python -m unittest discover tests/
+```
+
 # Examples
 Examples of application of the package are listed below
 
