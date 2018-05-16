@@ -46,7 +46,7 @@ class TestInitWLSim( unittest.TestCase ):
             if ( runID == -1 ):
                 raise ValueError( "No new Wang Landau simulation in the database!" )
             simulator = WangLandau( atoms, wl_db_name, runID, fmin=1.8 )
-            simulator.run_fast_sampler( mode="adaptive_windows" )
+            simulator.run_fast_sampler( mode="adaptive_windows", maxsteps=100 )
         except Exception as exc:
             msg = str(exc)
             no_throw = False
