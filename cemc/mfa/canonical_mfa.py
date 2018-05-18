@@ -113,6 +113,19 @@ class CanonicalMeanField(object):
         """
         print (msg)
 
+    def get_concentration(self):
+        """
+        Compute the concentration
+        """
+        atoms_count = {}
+        for atom in self.atoms:
+            if ( atom.symbol in atoms_count.keys() ):
+                atoms_count[atom.symbol] += 1
+            else:
+                atoms_count[atom.symbol] = 1
+        conc = {key:float(value)/len(self.atoms) for key,value in atoms_count.iteritems()}
+        return conc
+
     def calculate( self ):
         self.reset()
         self.log( "Computing partition function in the Mean Field Approximation" )
@@ -133,4 +146,6 @@ class CanonicalMeanField(object):
         result["internal_energy"] = (self.E0 + self.mean_energy).tolist()
         result["free_energy"] = (self.E0 - kB*self.T*np.log(self.Z)).tolist()
         result["natoms"] = len(self.atoms)
+        result["conc"] = self.get_concentration()
+        result["temperature"] = self.T.tolist()
         return result
