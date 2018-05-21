@@ -156,8 +156,8 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
         """
         Stores the results to a JSON file
         """
+        self.get_merged_records()
         if ( self.rank == 0 ):
-            self.get_merged_records()
             self.result["temperature"] = self.T
             self.result["chemical_potential"] = self.chemical_potential
             x = np.linspace(self.min_singlet,self.max_singlet,len(self.result["free_energy"]))
