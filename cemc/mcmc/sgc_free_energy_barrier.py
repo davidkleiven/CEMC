@@ -34,13 +34,14 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
             max_singlet = kwargs.pop("max_singlet")
         if ( "mpicomm" in kwargs.keys() ):
             self.free_eng_mpi = kwargs.pop("mpicomm")
-        if ( self.free_eng_mpi is not None ):
-            self.rank = self.free_eng_mpi.Get_rank()
         self.n_windows = n_windows
         self.n_bins = n_bins
         self.min_singlet = min_singlet
         self.max_singlet = max_singlet
         super( SGCFreeEnergyBarrier, self ).__init__( atoms, T, **kwargs)
+
+        if ( self.free_eng_mpi is not None ):
+            self.rank = self.free_eng_mpi.Get_rank()
 
         # Set up whats needed
         self.window_singletrange = (self.max_singlet - self.min_singlet)/self.n_windows
