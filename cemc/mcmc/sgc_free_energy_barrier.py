@@ -212,15 +212,15 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
         """
         with open(fname,'r') as infile:
             result = json.load(infile)
-        print ("Temperature: {}K".format(result["Temperature"]))
-        print ("Chemical potential: {}K".format(result["chem_pot"]) )
+        print ("Temperature: {}K".format(result["temperature"]))
+        print ("Chemical potential: {}K".format(result["chemical_potential"]) )
 
         figs = []
         figs.append( plt.figure() )
         ax = figs[-1].add_subplot(1,1,1)
         ax.plot( result["xaxis"], result["free_energy"], ls="steps" )
         ax.set_xlabel( "Singlets" )
-        ax.set_ylabel( "Free energy (eV)" )
+        ax.set_ylabel( "$\\beta \Delta G$" )
 
         figs.append( plt.figure() )
         ax = figs[-1].add_subplot(1,1,1)
