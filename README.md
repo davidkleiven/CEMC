@@ -1,4 +1,4 @@
-![Build status](https://travis-ci.org/davidkleiven/WangLandau.svg?branch=master)
+![Build status](https://travis-ci.org/davidkleiven/CEMC.svg?branch=master)
 # WangLandau
 
 # Dependencies
