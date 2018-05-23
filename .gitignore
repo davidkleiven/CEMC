@@ -13,3 +13,4 @@ cemc.egg-info/*
 *.pkl
 subbin.csv
 demo.traj
+free_energy_barrier.json
