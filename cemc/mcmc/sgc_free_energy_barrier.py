@@ -38,7 +38,9 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
         self.n_bins = n_bins
         self.min_singlet = min_singlet
         self.max_singlet = max_singlet
+        self.kwargs_parent = kwargs
         super( SGCFreeEnergyBarrier, self ).__init__( atoms, T, **kwargs)
+        self.chem_potential_restart_file = None
 
         if ( self.free_eng_mpi is not None ):
             self.rank = self.free_eng_mpi.Get_rank()
@@ -96,12 +98,14 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
             return
         temp_data = []
         temp_energy = []
+        size = self.free_eng_mpi.Get_size()
         for i in range(len(self.data)):
             recv_buf = np.zeros_like(self.data[i])
             self.free_eng_mpi.Allreduce( self.data[i], recv_buf )
-            temp_data.append(np.copy(recv_buf))
+            recv_buf = recv_buf.astype(np.float64)
+            temp_data.append(np.copy(recv_buf/size))
             self.free_eng_mpi.Allreduce( self.energydata[i], recv_buf )
-            temp_energy.append( np.copy(recv_buf) )
+            temp_energy.append( np.copy(recv_buf/size) )
         self.data = temp_data
         self.energydata = temp_energy
 
@@ -162,13 +166,48 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
             self.result["chemical_potential"] = self.chemical_potential
             x = np.linspace(self.min_singlet,self.max_singlet,len(self.result["free_energy"]))
             self.result["xaxis"] = x.tolist()
+            self.result["min_singlet"] = self.min_singlet
+            self.result["max_singlet"] = self.max_singlet
+            self.result["kwargs_parent"] = self.kwargs_parent
 
             # Store also the raw histgramgs
             self.result["raw_histograms"] = [hist.tolist() for hist in self.data]
+            self.result["raw_energydata"] = [value.tolist() for value in self.energydata]
+            self.result["num_procs"] = 1
+            if ( self.free_eng_mpi is not None ):
+                self.result["num_procs"] = self.free_eng_mpi.Get_size()
 
             with open( fname, 'w' ) as outfile:
                 json.dump( self.result, outfile, indent=2, separators=(",",":") )
             self.log( "Results written to: {}".format(fname) )
+
+    @staticmethod
+    def load( atoms, fname, mpicomm=None ):
+        """
+        Loads the results from a file such the calculations can be restarted
+        Returns an instance of the object in the same state as it was left
+        """
+        with open( fname, 'r' ) as infile:
+            params = json.load(infile)
+        T = params["temperature"]
+        chem_potential_restart_file = params["chemical_potential"]
+        data = [np.array(hist) for hist in params["raw_histograms"]]
+        energydata = params["raw_energydata"]
+        n_windows = len(data)
+        n_bins = len(data[0])
+        min_singlet = params["min_singlet"]
+        max_singlet = params["max_singlet"]
+        kwargs_parent = params["kwargs_parent"]
+        obj = SGCFreeEnergyBarrier( atoms, T, n_windows=n_windows, n_bins=n_bins, \
+                min_singlet=min_singlet, max_singlet=max_singlet, mpicomm=mpicomm, **kwargs_parent )
+
+        obj.chem_potential_restart_file = chem_potential_restart_file
+
+        # Insert the data into the data array
+        for i in range(len(data)):
+            obj.data[i][:] = np.array(data[i])
+            obj.energydata[i][:] = np.array(energydata[i])
+        return obj
 
     def bring_system_into_window(self):
         """
@@ -179,9 +218,17 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
         self.atoms._calc.set_singlets({"c1_0":newsinglet})
 
     def run( self, nsteps = 10000, chem_pot = None ):
-        # For all windows
-        self.chemical_potential = chem_pot
+        """
+        Run MC simulation in all windows
+        """
+        if ( self.chem_potential_restart_file is not None ):
+            self.log( "Chemical potential was read from the restart file." )
+            self.chemical_potential = self.chem_potential_restart_file
+        else:
+            self.chemical_potential = chem_pot
+
         output_every = 30
+        # For all windows
         for i in range(self.n_windows):
             self.current_window = i
             # We are inside a new window, update to start with concentration in the middle of this window
