@@ -2,6 +2,7 @@ from montecarlo import Montecarlo
 from itertools import combinations
 from mc_observers import MCObserver
 from ase.units import kB
+import numpy as np
 
 class TrialEnergyObserver( MCObserver ):
     def __init__( self, activity_sampler ):
@@ -12,7 +13,7 @@ class TrialEnergyObserver( MCObserver ):
         if ( self.activity_sampler.current_move_type == "insert_move" ):
             key = self.activity_sampler.current_move
             dE = self.activity_sampler.new_energy - self.activity_sampler.current_energy
-            interaction_energy = dE - self.activity_sampler.eci_singlets.dot(self.singlet_changes[key])
+            interaction_energy = dE - self.activity_sampler.eci_singlets.dot(self.activity_sampler.singlet_changes[key])
             beta = 1.0/(kB*self.activity_sampler.T)
             self.activity_sampler.averager_track[key] += np.exp(-beta*interaction_energy)
             self.activity_sampler.num_computed_moves[key] += 1
@@ -25,8 +26,10 @@ class ActivitySampler( Montecarlo ):
         if ( "prob_insert_move" in kwargs.keys() ):
             self.prob_insert_move = kwargs.pop("prob_insert_move")
 
-        super(ActivitySampler,self).__init__(**kwargs)
-        self.insertion_moves = combinations(self.symbols,2)
+        super(ActivitySampler,self).__init__( atoms, temp, **kwargs)
+        self.insertion_moves = list(combinations(self.symbols,2))
+        self.insertion_moves = [("Al","Mg")]
+        print (self.insertion_moves)
         self.averager_track = {}
         self.num_possible_moves = {}
         self.num_computed_moves = {}
@@ -40,24 +43,27 @@ class ActivitySampler( Montecarlo ):
             self.num_possible_moves[key] = at_count[move[0]]
             self.num_computed_moves[key] = 0
             self.singlet_changes[key] = []
+
+        self.eci_singlets = np.zeros(len(self.symbols)-1)
+        self.find_singlet_changes()
+
+        # Observer that tracks the energy of the trial move
         self.trial_energy_obs = TrialEnergyObserver(self)
         self.attach( self.trial_energy_obs )
-        self.find_singlet_changes()
-        self.eci_singlets = np.zeros(len(self.symbols)-1)
 
     def find_singlet_changes(self):
         """
         Try all possible insertion moves and find out how much the singlets changes
         """
-        bfs = self.atoms._calc.BC.basis_funcitons
+        bfs = self.atoms._calc.BC.basis_functions
         for move in self.insertion_moves:
             key = self.get_key( move[0], move[1] )
             for bf in bfs:
-                singlet_changes[key].append( bf[move[1]] - bf[move[0]] )
+                self.singlet_changes[key].append( bf[move[1]] - bf[move[0]] )
             self.singlet_changes[key] = np.array(self.singlet_changes[key])
 
         # Update the corresponding ECIs
-        for name, value in self.atoms._calc.ecis.iteritems():
+        for name, value in self.atoms._calc.eci.iteritems():
             if ( name.startswith("c1") ):
                 self.eci_singlets[int(name[-1])] = value
 
@@ -96,7 +102,7 @@ class ActivitySampler( Montecarlo ):
             self.current_move_type = "insert_move"
             # Try to introduce another atom
             move = self.insertion_moves[np.random.randint(low=0,high=len(self.insertion_moves))]
-            indices = self.atom_indx[move[0]]
+            indices = self.atoms_indx[move[0]]
             indx = indices[np.random.randint(low=0,high=len(indices))]
             system_changes = [(indx,move[0],move[1])]
             self.current_move = self.get_key( move[0], move[1] )
@@ -109,13 +115,14 @@ class ActivitySampler( Montecarlo ):
         """
         Override parents accept function
         """
+        move_accepted = super(ActivitySampler,self).accept(system_changes)
         if ( self.current_move_type == "insert_move" ):
             # Always reject such that the composition is conserved.
             # The new_energy will however be updated so we can use this
             return False
-        return super(ActivitySampler,self).accept(system_changes)
+        return move_accepted
 
-    def collect_result(self):
+    def collect_results(self):
         """
         Collect results from all processors
         """
@@ -157,12 +164,14 @@ class ActivitySampler( Montecarlo ):
         at_count = self.count_atoms()
         concs = {key:0.0 for key in self.symbols}
         for key,value in at_count.iteritems():
-            concs[key] = float(at_count)/len(self.atoms)
+            concs[key] = float(value)/len(self.atoms)
 
         beta = 1.0/(kB*self.T)
         for move in self.insertion_moves:
             key = self.get_key( move[0], move[1] )
-            res["energy_changes"][key] = self.num_possible_moves[key]*self.averager_track[key]/self.num_computed_moves[key]
+            res["energy_changes"][key] = (self.num_possible_moves[key]*self.averager_track[key]/self.num_computed_moves[key])/len(self.atoms)
+            res["energy_changes"][key] = res["energy_changes"][key]**(1.0/self.singlet_changes[key])
             res["activity"][key] = res["energy_changes"][key]
             res["activity_coefficient"][key] = res["activity"][key]/concs[move[1]]
+        res["conc"] = concs
         return res
