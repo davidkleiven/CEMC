@@ -4,6 +4,7 @@ from mc_observers import MCObserver
 from ase.units import kB
 import numpy as np
 import json
+import dataset
 
 class TrialEnergyObserver( MCObserver ):
     def __init__( self, activity_sampler ):
@@ -117,7 +118,7 @@ class ActivitySampler( Montecarlo ):
         """
         Returns the key to the dictionary
         """
-        return "{}->{}".format(move_from,move_to)
+        return "{}to{}".format(move_from,move_to)
 
     def count_atoms(self):
         """
@@ -232,65 +233,103 @@ class ActivitySampler( Montecarlo ):
         res["conc"] = concs
         return res
 
-    def save( self, fname="default.json" ):
+    def save( self, fname="default.db" ):
         """
         Store the results into an ASE database
         """
         res = self.get_thermodynamic()
 
         if ( self.rank == 0 ):
-            data = {}
+            db = dataset.connect(self.db_url(fname))
             nproc = 1
             if ( self.mpicomm is not None ):
                 nproc = self.mpicomm.Get_size()
-            try:
-                with open(fname,'r') as infile:
-                    data = json.load(infile)
-            except:
-                pass
             name = "{}K_{}".format(int(self.T),self.atoms.get_chemical_formula())
-            if ( name in data.keys() ):
-                entry = data[name]
+            systems = db["systems"]
+            entry = systems.find_one(name=name)
+            if ( entry is not None ):
+                # Entry already exists
                 N_prev = entry["n_mc_steps"]
                 nsteps = self.current_step*nproc
-                for key in entry["activity"].keys():
-                    entry["activity"][key] = (entry["activity"][key]*N_prev + res["activity"][key]*nsteps)/(N_prev+nsteps)
-                    entry["activity_coefficient"][key] = (entry["activity_coefficient"][key]*N_prev + res["activity_coefficient"][key]*nsteps)/(N_prev+nsteps)
-                for key in entry["effective_conc"].keys():
-                    entry["effective_conc"][key] = (entry["effective_conc"][key]*N_prev + nsteps*res["effective_conc"][key])/(N_prev+nsteps)
+                sysID = entry["id"]
+                activity_table = db["activity"]
+                activity = activity_table.find_one(sysID=sysID)
+                for key in res["activity"].keys():
+                    activity[key] = (activity[key]*N_prev + res["activity"][key]*nsteps)/(N_prev+nsteps)
+                activity_table.update( activity, ["sysID"] )
+
+                act_coeff_table = db["activity_coefficient"]
+                act_coeff = act_coeff_table.find_one(sysID=sysID)
+                for key in res["activity_coefficient"].keys():
+                    act_coeff[key] = (act_coeff[key]*N_prev + res["activity_coefficient"][key]*nsteps)/(N_prev+nsteps)
+                act_coeff_table.update( act_coeff, ["sysID"])
+
+                eff_conc_tab = db["effective_conc"]
+                eff_conc = eff_conc_tab.find_one(sysID=sysID)
+                for key in res["effective_conc"].keys():
+                    eff_conc[key] = (eff_conc[key]*N_prev + nsteps*res["effective_conc"][key])/(N_prev+nsteps)
                 entry["n_mc_steps"] = N_prev+nsteps
-                entry["temperature"] = res["temperature"]
+                systems.update( energy, ["sysID"])
             else:
-                data[name] = {}
-                data[name] = res
-                data[name]["n_mc_steps"] = self.current_step*nproc
-            with open(fname,'w') as outfile:
-                json.dump( data, outfile ,indent=2, separators=(",",":"))
-        self.log( "File written to {}".format(fname) )
+                at_count = self.count_atoms()
+                conc = {}
+                for key in at_count.keys():
+                    conc[key] = float(at_count[key])/len(self.atoms)
+                uid = systems.insert(dict(temperature=int(self.T),n_mc_steps=self.current_step*nproc,\
+                formula=self.atoms.get_chemical_formula()))
+
+                activity_tab = db["activity"]
+                res["activity"].update({"sysID":uid})
+                activity_tab.insert( res["activity"] )
+
+                activity_coefficient = db["activity_coefficient"]
+                res["activity_coefficient"].update({"sysID":uid})
+                activity_coefficient.insert( res["activity_coefficient"])
+
+                eff_conc = db["effective_conc"]
+                res["effective_conc"].update({"sysID":uid})
+                eff_conc.insert( res["effective_conc"] )
+                conc = db["concentration"]
+                res["conc"].update({"sysID":uid})
+                conc.insert( res["conc"] )
+        self.log( "Results written to {}".format(fname) )
 
     @staticmethod
-    def effective_composition(fname):
+    def db_url( fname ):
+        return "sqlite:///"+fname
+
+    @staticmethod
+    def effective_composition(db_name,temperature):
         """
         Function included for convenience to get datastructures that can
         easily be plotted
         """
-        with open(fname,'r') as infile:
-            data = json.load(infile)
-        res = {}
-        for key,entry in data.iteritems():
-            T = int(entry["temperature"])
-            if ( T not in res.keys() ):
-                res[T] = {}
-                res[T]["conc"] = {key:[] for key in entry["conc"].keys()}
-                res[T]["eff_conc"] = {key:[] for key in entry["conc"].keys()}
+        db = dataset.connect( ActivitySampler.db_url(db_name) )
 
-            for key in entry["conc"].keys():
-                res[T]["conc"][key].append( entry["conc"][key] )
-                res[T]["eff_conc"][key].append( entry["effective_conc"][key] )
+        res = {"conc":{},"eff_conc":{}}
+        systems = db["systems"]
+        fetched = systems.find(temperature=temperature)
+        if ( fetched is None ):
+            raise ValueError("No entries in the data base with temperature {}K".format(temperature))
 
-            # Sort according to the concentration
-            for key in res[T]["conc"].keys():
-                srt_indx = np.argsort(res[T]["conc"][key])
-                res[T]["conc"][key] = [res[T]["conc"][key][indx] for indx in srt_indx]
-                res[T]["eff_conc"][key] = [res[T]["eff_conc"][key][indx] for indx in srt_indx]
+        for entry in fetched:
+            sysID = entry["id"]
+            conc = db["concentration"].find_one(sysID=sysID)
+            eff_conc = db["effective_conc"].find_one(sysID=sysID)
+            conc.pop("sysID")
+            eff_conc.pop("sysID")
+            conc.pop("id")
+            eff_conc.pop("id")
+            for key in conc.keys():
+                if ( key not in res["conc"].keys()):
+                    res["conc"][key] = []
+                    res["eff_conc"][key] = []
+                res["conc"][key].append( conc[key] )
+                res["eff_conc"][key].append( eff_conc[key] )
+
+        # Sort the data
+        for key in res["conc"].keys():
+            srt_indx = np.argsort(res["conc"][key])
+            res["conc"][key] = [res["conc"][key][indx] for indx in srt_indx]
+            res["eff_conc"][key] = [res["eff_conc"][key][indx] for indx in srt_indx]
         return res
