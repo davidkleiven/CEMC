@@ -13,3 +13,4 @@ from sgc_nucleation_mc import SGCNucleation
 from canonical_nucleation_mc import CanonicalNucleationMC
 from fixed_nucleation_size_sampler import FixedNucleusMC
 from sgc_free_energy_barrier import SGCFreeEnergyBarrier
+from activity_sampler import ActivitySampler
