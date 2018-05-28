@@ -512,13 +512,27 @@ double CEUpdater::calculate( PyObject *system_changes )
     py_tuple_to_symbol_change( PyList_GetItem(system_changes,1), changes[1] );
     return calculate(changes);
   }
+  else if ( size%2 == 0 )
+  {
+    // The size is larger than 2 and an even number.
+    // Assume that this is a sequence of swap moves
+    vector<swap_move> sequence;
+    for ( unsigned int i=0;i<size/2;i++ )
+    {
+      swap_move changes;
+      py_tuple_to_symbol_change( PyList_GetItem(system_changes,2*i), changes[0] );
+      py_tuple_to_symbol_change( PyList_GetItem(system_changes,2*i+1), changes[1] );
+      sequence.push_back(changes);
+    }
+    return calculate(sequence);
+  }
   else
   {
     throw runtime_error( "Swaps of more than 2 atoms is not supported!" );
   }
 }
 
-double CEUpdater::calculate( array<SymbolChange,2> &system_changes )
+double CEUpdater::calculate( swap_move &system_changes )
 {
   if ( symbols[system_changes[0].indx] == symbols[system_changes[1].indx] )
   {
@@ -526,7 +540,7 @@ double CEUpdater::calculate( array<SymbolChange,2> &system_changes )
     cout << system_changes[1] << endl;
     throw runtime_error( "This version of the calculate function assumes that the provided update is swapping two atoms\n");
   }
-
+  
   if ( symbols[system_changes[0].indx] != system_changes[0].old_symb )
   {
     throw runtime_error( "The atom position tracker does not match the current state\n" );
@@ -796,4 +810,18 @@ unsigned int CEUpdater::get_max_indx_of_zero_site() const
     }
   }
   return max_indx;
+}
+
+double CEUpdater::calculate( vector<swap_move> &sequence )
+{
+  if ( sequence.size() >= history->max_history/2 )
+  {
+    throw invalid_argument("The length of sequence of swap move exceeds the buffer size for the history tracker");
+  }
+
+  for ( unsigned int i=0;i<sequence.size();i++ )
+  {
+    calculate(sequence[i]);
+  }
+  return get_energy();
 }

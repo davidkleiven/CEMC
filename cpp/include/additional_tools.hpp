@@ -3,13 +3,17 @@
 #include <vector>
 #include <iostream>
 #include <map>
+#include <array>
+#include "cf_history_tracker.hpp"
 
-class SymbolChange;
+//class SymbolChange;
 
 template<class key,class value>
 std::ostream& operator <<(std::ostream &out, const std::map<key,value> &map );
 
 std::ostream& operator << (std::ostream &out, const SymbolChange &symb );
+
+std::ostream& operator <<(std::ostream &out, const std::array<SymbolChange,2> &move );
 
 template<class T>
 std::ostream& operator <<( std::ostream &out, const std::vector<T> &vec );

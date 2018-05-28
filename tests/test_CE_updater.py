@@ -269,6 +269,30 @@ class TestCE( unittest.TestCase ):
             no_throw = False
         self.assertTrue( no_throw, msg=msg )
 
+    def test_sequence_of_swap_moves(self):
+        calc,ceBulk,eci = self.get_calc("fcc")
+        corr_func = CorrFunction(ceBulk)
+        cf = corr_func.get_cf(ceBulk.atoms)
+        n_tests = 10
+
+        # Insert 10 Mg atoms
+        for i in range(n_tests):
+            calc.calculate( ceBulk.atoms, ["energy"], [(i,"Al","Mg")] )
+
+        # Swap Al and Mg atoms
+        changes = []
+        for i in range(n_tests):
+            indx1 = i
+            indx2 = len(ceBulk.atoms)-i-1
+            symb1 = "Mg"
+            symb2 = "Al"
+            changes += [(indx1,symb1,symb2),(indx2,symb2,symb1)]
+
+        calc.calculate( ceBulk.atoms, ["energy"], changes )
+        updated_cf = calc.get_cf()
+        brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, updated_cf.keys() )
+        for key,value in brute_force.iteritems():
+            self.assertAlmostEqual( value, updated_cf[key] )
 
 
 
