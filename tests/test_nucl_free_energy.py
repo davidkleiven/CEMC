@@ -2,6 +2,7 @@ import unittest
 try:
     from cemc.mcmc import NucleationSampler,SGCNucleation, CanonicalNucleationMC, FixedNucleusMC
     from ase.ce import BulkCrystal
+    from ase.ce import CorrFunction
     from cemc.wanglandau.ce_calculator import get_ce_calc
     available = True
 except Exception as exc:
@@ -26,9 +27,10 @@ class TestNuclFreeEnergy( unittest.TestCase ):
                 "max_cluster_size":4
             }
             ceBulk = BulkCrystal( **kwargs )
-            print (ceBulk.basis_functions)
+            cf = CorrFunction(ceBulk)
+            cf = cf.get_cf(ceBulk.atoms)
 
-            ecis = {"c1_0":-0.01,"c2_1414_1_00":-0.2}
+            ecis = {key:0.001 for key in cf.keys()}
             calc = get_ce_calc( ceBulk, kwargs, ecis, size=[5,5,5], free_unused_arrays_BC=False )
             ceBulk = calc.BC
             ceBulk.atoms.set_calculator( calc )

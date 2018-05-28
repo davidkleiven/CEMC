@@ -483,6 +483,9 @@ class CE( Calculator ):
         concs = np.linalg.solve( matrix, rhs )
         conc_spec_element = 1.0 - np.sum(concs)
 
+        if ( conc_spec_element < 0.0 and conc_spec_element > -1E-6 ):
+            conc_spec_element = 0.0
+
         # Some trivial checks
         if ( conc_spec_element > 1.0 or conc_spec_element < 0.0 ):
             msg = "Something strange happened when converting singlets to composition\n"

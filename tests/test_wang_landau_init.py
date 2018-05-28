@@ -2,6 +2,7 @@ import unittest
 from ase.build import bulk
 try:
     from ase.ce import BulkCrystal
+    from ase.ce import CorrFunction
     from cemc.wanglandau import WangLandauInit, WangLandau, WangLandauDBManager, AtomExistsError
     has_CE = True
 except Exception as exc:
@@ -22,7 +23,6 @@ bc_kwargs = {
 
 eci = {
     "c1_0":1.0,
-    "c2_1000_1_00":1.0
 }
 class TestInitWLSim( unittest.TestCase ):
     def test_no_throw( self ):

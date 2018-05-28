@@ -2,6 +2,7 @@ import unittest
 try:
     from cemc.tools import GSFinder
     from ase.ce import BulkCrystal
+    from ase.ce import CorrFunction
     has_CE = True
 except ImportError:
     has_CE = False
@@ -23,11 +24,9 @@ class TestGSFinder( unittest.TestCase ):
             a = 4.05
             ceBulk = BulkCrystal( crystalstructure="fcc", a=a, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, \
             db_name=db_name, max_cluster_size=4)
-
-            eci = {
-                "c1_0":0.01,
-                "c2_1000_1_00":-0.05
-            }
+            cf = CorrFunction(ceBulk)
+            cf = cf.get_cf(ceBulk.atoms)
+            eci = {key:1.0 for key in cf.keys()}
             gsfinder = GSFinder()
             comp = {"Al":0.5,"Mg":0.5}
             gsfinder.get_gs( ceBulk, eci, composition=comp )
