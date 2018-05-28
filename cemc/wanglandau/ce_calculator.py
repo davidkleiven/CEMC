@@ -481,9 +481,15 @@ class CE( Calculator ):
                 matrix[row,col] = bfs[row][element]-bfs[row][spec_element]
                 col += 1
         concs = np.linalg.solve( matrix, rhs )
+
+        eps = 1E-6
+        # Allow some uncertainty in the solution
+        for i in range(len(concs)):
+            if ( concs[i] < 0.0 and concs[i] > -eps ):
+                concs[i] = 0.0
         conc_spec_element = 1.0 - np.sum(concs)
 
-        if ( conc_spec_element < 0.0 and conc_spec_element > -1E-6 ):
+        if ( conc_spec_element < 0.0 and conc_spec_element > -eps ):
             conc_spec_element = 0.0
 
         # Some trivial checks
