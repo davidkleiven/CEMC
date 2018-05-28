@@ -127,7 +127,7 @@ class CollectiveJumpMove(object):
                 change = (indx,self.mc_cell[indices[num]],self.mc_cell[indices[num-1]])
             syst_changes.append(change)
         return syst_changes
-    
+
     def view_columns(self):
         """
         View all columns
