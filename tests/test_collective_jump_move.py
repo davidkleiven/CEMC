@@ -2,10 +2,19 @@ import unittest
 from ase.build import bulk
 from ase import Atoms
 from ase.spacegroup import get_spacegroup
-from cemc.mcmc import CollectiveJumpMove
+try:
+    from cemc.mcmc import CollectiveJumpMove
+    available = True
+except Exception as exc:
+    print (exc)
+    reason = str(exc)
+    available = False
 
 class TestCollectiveJump( unittest.TestCase ):
     def test_no_throw(self):
+        if (not available):
+            self.skipTest(reason)
+            return
         no_throw = True
         msg = ""
         try:
