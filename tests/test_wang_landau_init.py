@@ -9,20 +9,21 @@ except Exception as exc:
     print (exc)
     has_CE = False
 
-db_name = "temp_db.db"
+db_name = "temp_db_wanglandau.db"
 wl_db_name = "wanglandau_test_init.db"
 bc_kwargs = {
     "crystalstructure":"fcc",
-    "size":[3,3,3],
+    "size":[4,4,4],
     "basis_elements":[["Al","Mg"]],
     "db_name":db_name,
     "conc_args":{"conc_ratio_min_1":[[1,0]],"conc_ratio_max_1":[[0,1]]},
-    "max_cluster_dia":4,
+    "max_cluster_size":4,
     "a":4.05
 }
 
 eci = {
     "c1_0":1.0,
+    "c3_2000_3_000":1.0
 }
 class TestInitWLSim( unittest.TestCase ):
     def test_no_throw( self ):

@@ -3,8 +3,10 @@
 #include <vector>
 #include <iostream>
 #include <map>
+#include <set>
 #include <array>
 #include "cf_history_tracker.hpp"
+
 
 //class SymbolChange;
 
@@ -24,4 +26,7 @@ std::vector<T>& cyclic_permute( std::vector<T> &vec );
 template<class T>
 void keys( std::map<std::string,T> &, std::vector<std::string> &keys );
 #include "additional_tools.tpp"
+
+template<class T>
+void set2vector( const std::set<T> &s, std::vector<T> &v );
 #endif
