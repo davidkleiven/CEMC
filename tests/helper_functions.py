@@ -33,3 +33,10 @@ def get_max_cluster_dia_name():
     if "max_cluster_dia" in argspec:
         return "max_cluster_dia"
     return "max_cluster_dist"
+
+def flatten_cluster_names(cnames):
+    flattened = []
+    for sub in cnames:
+        for sub2 in sub:
+            flattened += sub2
+    return flattened
