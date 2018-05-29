@@ -7,6 +7,7 @@ try:
     from ase.ce.settings_bulk import BulkCrystal
     from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
     from cemc.wanglandau.ce_calculator import CE
+    from helper_functions import get_max_cluster_dia_name
     has_ase_with_ce = True
 except Exception as exc:
     print (str(exc))
@@ -24,8 +25,10 @@ class TestSGCMC( unittest.TestCase ):
             "conc_ratio_min_1":[[2,1,1]],
             "conc_ratio_max_1":[[0,2,2]],
         }
+        max_dia_name = get_max_cluster_dia_name()
+        size_arg = {max_dia_name:4.05}
         ceBulk = BulkCrystal( crystalstructure="fcc", a=4.05, size=[3,3,3], basis_elements=[["Al","Mg","Si"]], conc_args=conc_args, db_name=db_name, \
-        max_cluster_size=4, max_cluster_dia=4.05)
+        max_cluster_size=4, **size_arg)
         ceBulk._get_cluster_information()
         calc = CE( ceBulk, ecis )
         ceBulk.atoms.set_calculator(calc)

@@ -1,4 +1,3 @@
-from ase.neighborlist import NeighborList
 import numpy as np
 from ase.gui.gui import GUI
 from ase.gui.images import Images
