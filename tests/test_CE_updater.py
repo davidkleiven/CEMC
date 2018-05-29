@@ -270,6 +270,9 @@ class TestCE( unittest.TestCase ):
         self.assertTrue( no_throw, msg=msg )
 
     def test_sequence_of_swap_moves(self):
+        if (not has_ase_with_ce):
+            self.skipTest("ASE does not have CE")
+            return
         calc,ceBulk,eci = self.get_calc("fcc")
         corr_func = CorrFunction(ceBulk)
         cf = corr_func.get_cf(ceBulk.atoms)
