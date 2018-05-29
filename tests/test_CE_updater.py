@@ -221,6 +221,84 @@ class TestCE( unittest.TestCase ):
             for key,value in brute_force.iteritems():
                 self.assertAlmostEqual( value, updated_cf[key] )
 
+    def test_set_singlets( self ):
+        if ( not has_ase_with_ce ):
+            self.skipTest( "ASE version does not have CE" )
+            return
+
+        system_types = [["Al","Mg"],["Al","Mg","Si"],["Al","Mg","Si","Cu"],["Al","Mg","Si","Cu","Zn"]]
+
+        db_name = "test_singlets.db"
+        n_concs = 4
+        no_throw = True
+        msg = ""
+        try:
+            for basis_elems in system_types:
+                conc_args = {
+                    "conc_ratio_min_1":[[1,0]],
+                    "conc_ratio_max_1":[[0,1]],
+                }
+                a = 4.05
+                ceBulk = BulkCrystal( crystalstructure="fcc", a=a, size=[5,5,5], basis_elements=[basis_elems], conc_args=conc_args, \
+                db_name=db_name, max_cluster_size=2,max_cluster_dia=a)
+                ceBulk.reconfigure_settings()
+                cf = CorrFunction(ceBulk)
+                corrfuncs = cf.get_cf(ceBulk.atoms)
+                eci = {name:1.0 for name in corrfuncs.keys()}
+                calc = CE( ceBulk,eci )
+                for _ in range(n_concs):
+                    conc = np.random.rand(len(basis_elems))*0.97
+                    conc /= np.sum(conc)
+                    conc_dict = {}
+                    for i in range(len(basis_elems)):
+                        conc_dict[basis_elems[i]] = conc[i]
+                    calc.set_composition(conc_dict)
+                    ref_cf = calc.get_cf()
+
+                    singlets = {}
+                    for key,value in ref_cf.iteritems():
+                        if ( key.startswith("c1") ):
+                            singlets[key] = value
+                    comp = calc.singlet2comp(singlets)
+                    dict_comp = "Ref {}. Computed {}".format(conc_dict,comp)
+                    for key in comp.keys():
+                        self.assertAlmostEqual( comp[key], conc_dict[key], msg=dict_comp, places=1 )
+                calc.set_singlets(singlets)
+        except Exception as exc:
+            msg = str(exc)
+            no_throw = False
+        self.assertTrue( no_throw, msg=msg )
+
+    def test_sequence_of_swap_moves(self):
+        if (not has_ase_with_ce):
+            self.skipTest("ASE does not have CE")
+            return
+        calc,ceBulk,eci = self.get_calc("fcc")
+        corr_func = CorrFunction(ceBulk)
+        cf = corr_func.get_cf(ceBulk.atoms)
+        n_tests = 10
+
+        # Insert 10 Mg atoms
+        for i in range(n_tests):
+            calc.calculate( ceBulk.atoms, ["energy"], [(i,"Al","Mg")] )
+
+        # Swap Al and Mg atoms
+        changes = []
+        for i in range(n_tests):
+            indx1 = i
+            indx2 = len(ceBulk.atoms)-i-1
+            symb1 = "Mg"
+            symb2 = "Al"
+            changes += [(indx1,symb1,symb2),(indx2,symb2,symb1)]
+
+        calc.calculate( ceBulk.atoms, ["energy"], changes )
+        updated_cf = calc.get_cf()
+        brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, updated_cf.keys() )
+        for key,value in brute_force.iteritems():
+            self.assertAlmostEqual( value, updated_cf[key] )
+
+
+
 
 if __name__ == "__main__":
     unittest.main()

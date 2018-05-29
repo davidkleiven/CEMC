@@ -4,6 +4,7 @@ import numpy as np
 from ase.units import kB
 import copy
 from scipy import stats
+import mpi_tools
 
 class SGCMonteCarlo( mc.Montecarlo ):
     def __init__( self, atoms, temp, indeces=None, symbols=None, mpicomm=None, logfile="", plot_debug=False ):
@@ -77,11 +78,11 @@ class SGCMonteCarlo( mc.Montecarlo ):
             tau = 1.0
         return 2.0*var_n*tau/(N*nproc)
 
-    def has_converged_prec_mode( self, prec=0.01, confidence_level=0.05 ):
+    def has_converged_prec_mode( self, prec=0.01, confidence_level=0.05, log_status=False ):
         """
         Checks that the averages have converged to the desired precission
         """
-        energy_converged = super( SGCMonteCarlo, self ).has_converged_prec_mode( prec=prec, confidence_level=confidence_level )
+        energy_converged = super( SGCMonteCarlo, self ).has_converged_prec_mode( prec=prec, confidence_level=confidence_level, log_status=log_status )
         percentile = stats.norm.ppf(1.0-confidence_level)
         var_n = self.get_var_average_singlets()
         if ( self.mpicomm is not None ):
@@ -261,7 +262,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         self.log( "{}".format(self.composition_correlation_time) )
 
     def runMC( self, mode="fixed", steps = 10, verbose = False, chem_potential=None, equil=True, equil_params=None, prec_confidence=0.05, prec=0.01 ):
-        self.set_seeds(self.mpicomm)
+        mpi_tools.set_seeds(self.mpicomm)
         self.reset()
         if ( self.mpicomm is not None ):
             self.mpicomm.barrier()

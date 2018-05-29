@@ -1,4 +1,4 @@
-![Build status](https://travis-ci.org/davidkleiven/WangLandau.svg?branch=master)
+![Build status](https://travis-ci.org/davidkleiven/CEMC.svg?branch=master)
 # WangLandau
 
 # Dependencies
@@ -24,6 +24,11 @@ pip install -r requirements.txt
 Install the package
 ```bash
 pip install .
+```
+
+Run the all tests
+```bash
+python -m unittest discover tests/
 ```
 
 # Examples

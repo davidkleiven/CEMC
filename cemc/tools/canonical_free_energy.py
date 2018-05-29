@@ -1,5 +1,8 @@
 import numpy as np
 from ase.units import kB
+from scipy.integrate import cumtrapz
+from scipy.interpolate import UnivariateSpline
+from scipy.optimize import minimize
 
 class CanonicalFreeEnergy( object ):
     def __init__( self, composition ):
@@ -9,11 +12,18 @@ class CanonicalFreeEnergy( object ):
         """
         Computes the reference energy
         """
-        concs = np.array( [value for key,value in self.comp.iteritems()] )
-        infinite_temp_value = np.sum( concs*np.log(concs) )
+        infinite_temp_value = -self.inf_temperature_entropy()
         beta = 1.0/(kB*T)
         ref_energy = infinite_temp_value + energy*beta
         return ref_energy
+
+    def inf_temperature_entropy(self):
+        """
+        Return the entropy at infinite Temperature
+        """
+        concs = np.array( [value for key,value in self.comp.iteritems()] )
+        infinite_temp_value = np.sum( concs*np.log(concs) )
+        return -infinite_temp_value
 
     def sort( self, temperature, internal_energy ):
         """
@@ -33,8 +43,8 @@ class CanonicalFreeEnergy( object ):
         temperature, internal_energy = self.sort( temperature, internal_energy )
         betas = 1.0/(kB*temperature)
         ref_energy = self.reference_energy( temperature[0], internal_energy[0] )
-        free_energy = [np.trapz(internal_energy[:i],x=betas[:i]) for i in range(1,len(betas))]
-        free_energy.append( np.trapz(internal_energy,x=betas) )
+        free_energy = np.zeros(len(temperature))
+        free_energy = cumtrapz(internal_energy,x=betas,initial=0.0)
         free_energy += ref_energy
         free_energy *= kB*temperature
         return temperature, internal_energy, free_energy

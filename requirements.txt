@@ -6,3 +6,4 @@ jupyter
 pytest-ipynb
 ase
 h5py
+dataset

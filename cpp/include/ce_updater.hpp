@@ -23,6 +23,7 @@ typedef std::vector< std::vector< std::vector<std::string> > > name_list;
 // cluster_list[symm_group][cluster_size][indx] = vector of indices belonging to the cluster #indx.
 typedef std::vector< std::vector< std::vector< std::vector<std::vector<int> > > > > cluster_list;
 typedef std::vector< std::map<std::string,double> > bf_list;
+typedef std::array<SymbolChange,2> swap_move;
 //typedef std::unordered_map<std::string,double> cf;
 typedef NamedArray cf;
 
@@ -79,7 +80,8 @@ public:
   [(indx1,old_symb1,new_symb1),(indx2,old_symb2,new_symb2)...]
   */
   double calculate( PyObject *system_changes );
-  double calculate( std::array<SymbolChange,2> &system_changes );
+  double calculate( swap_move &system_changes );
+  double calculate( std::vector<swap_move> &sequence );
 
   /** Resets all changes */
   void undo_changes();

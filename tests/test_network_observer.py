@@ -3,6 +3,7 @@ try:
     from cemc.mcmc import NetworkObserver
     from cemc.wanglandau.ce_calculator import CE
     from ase.ce import BulkCrystal
+    from ase.ce import CorrFunction
     from ase.io import read
     from ase.visualize import view
     available = True
@@ -51,11 +52,9 @@ class TestNetworkObs( unittest.TestCase ):
             a = 4.05
             ceBulk = BulkCrystal( crystalstructure="fcc", a=a, size=[4,4,4], basis_elements=[["Al","Mg"]], conc_args=conc_args, \
             db_name=db_name, max_cluster_size=4)
-
-            eci = {
-                "c1_0":0.01,
-                "c2_1000_1_00":-0.05
-            }
+            cf = CorrFunction(ceBulk)
+            cf = cf.get_cf(ceBulk.atoms)
+            eci = {key:0.001 for key in cf.keys()}
             calc = CE( ceBulk, eci=eci )
             ceBulk.atoms.set_calculator(calc)
             obs = NetworkObserver( calc=calc, cluster_name="c2_1000_1", element="Mg" )

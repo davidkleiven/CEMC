@@ -12,6 +12,8 @@ import logging
 from matplotlib import pyplot as plt
 from ase.units import kJ,mol
 from mpi4py import MPI
+import mpi_tools
+from exponential_filter import ExponentialFilter
 #from ase.io.trajectory import Trajectory
 
 class DidNotReachEquillibriumError(Exception):
@@ -47,7 +49,8 @@ class Montecarlo(object):
                             # similar to the ones used in the optimization routines
 
         self.current_step = 0
-        self.status_every_sec = 60
+        self.num_accepted = 0
+        self.status_every_sec = 30
         self.atoms_indx = {}
         self.symbols = []
         self.build_atoms_list()
@@ -83,6 +86,9 @@ class Montecarlo(object):
         self.plot_debug = plot_debug
         self.pyplot_block = True # Set to false if pyplot should not block when plt.show() is called
         self._linear_vib_correction = None
+        self.is_first = True
+        self.filter = ExponentialFilter( min_time=0.2*len(self.atoms), max_time=20*len(self.atoms), n_subfilters=10 )
+        self.accept_first_trial_move_after_reset = True
 
     @property
     def linear_vib_correction(self):
@@ -115,11 +121,15 @@ class Montecarlo(object):
         for interval,obs in self.observers:
             obs.reset()
 
+        self.filter.reset()
         self.current_step = 0
+        self.num_accepted = 0
         self.mean_energy = 0.0
         self.energy_squared = 0.0
         #self.correlation_info = None
         self.corrtime_energies = []
+        if ( self.accept_first_trial_move_after_reset ):
+            self.is_first = True
 
     def include_vib( self ):
         """
@@ -132,6 +142,7 @@ class Montecarlo(object):
         Creates a dictionary of the indices of each atom which is used to
         make sure that two equal atoms cannot be swapped
         """
+        self.atoms_indx = {}
         for atom in self.atoms:
             if ( not atom.symbol in self.atoms_indx.keys() ):
                 self.atoms_indx[atom.symbol] = [atom.index]
@@ -163,40 +174,6 @@ class Montecarlo(object):
             self.observers.append( (interval,obs) )
         else:
             raise ValueError( "The observer has to be a callable class!" )
-
-    def set_seeds(self,comm):
-        """
-        This function guaranties different seeds on different processors
-        """
-        if ( comm is None ):
-            return
-
-        rank = comm.Get_rank()
-        size = comm.Get_size()
-        maxint = np.iinfo(np.int32).max
-        if ( rank == 0 ):
-            seed = []
-            for i in range(size):
-                new_seed = np.random.randint(0,high=maxint)
-                while( new_seed in seed ):
-                    new_seed = np.random.randint(0,high=maxint)
-                seed.append( new_seed )
-        else:
-            seed = None
-
-        # Scatter the seeds to the other processes
-        seed = comm.scatter(seed, root=0)
-
-        # Update the seed
-        np.random.seed(seed)
-
-        if ( size > 1 ):
-            # Verify that numpy rand produces different result on the processors
-            random_test = np.random.randint( low=0, high=100, size=100 )
-            sum_all = np.zeros_like(random_test)
-            comm.Allreduce( random_test, sum_all )
-            if ( np.allclose(sum_all,size*random_test) ):
-                raise RuntimeError( "The seeding does not appear to have any effect on Numpy's rand functions!" )
 
     def get_var_average_energy( self ):
         """
@@ -315,34 +292,34 @@ class Montecarlo(object):
         Arguments
         ----------
         window_length    - the length of the window used to compare averages
-                           if window_lenth='auto' then the length of window is set to
-                           10*len(self.atoms)
+                     if window_lenth='auto' then the length of window is set to
+                     10*len(self.atoms)
         confidence_level - Confidence level used in hypothesis testing
-                           The question asked in the hypothesis testing is:
-                           Given that the two windows have the same average
-                           and the variance observed (null hypothesis is correct),
-                           what is the probability of observering an even larger
-                           difference between the average values in the to windows?
-                           If the probability of observing an even larger difference
-                           is considerable, then we conclude that the system
-                           has reaced equillibrium.
-                           confidence_level=0.05 means that the algorithm will
-                           terminate if the probability of observering an even
-                           larger difference is larger than 5 percent.
+                     The question asked in the hypothesis testing is:
+                     Given that the two windows have the same average
+                     and the variance observed (null hypothesis is correct),
+                     what is the probability of observering an even larger
+                     difference between the average values in the to windows?
+                     If the probability of observing an even larger difference
+                     is considerable, then we conclude that the system
+                     has reaced equillibrium.
+                     confidence_level=0.05 means that the algorithm will
+                     terminate if the probability of observering an even
+                     larger difference is larger than 5 percent.
 
-                           NOTE: Since a Markiv Chain has large correlation
-                           the variance is underestimated. Hence, one can
-                           safely use a lower confidence level.
+                     NOTE: Since a Markiv Chain has large correlation
+                     the variance is underestimated. Hence, one can
+                     safely use a lower confidence level.
 
         maxiter - The maximum number of windows it will try to sample.
-                  If it reaches this number of iteration the algorithm will
-                  raise an error
+            If it reaches this number of iteration the algorithm will
+            raise an error
         """
         if ( window_length == "auto" ):
-            window_length = 10*len(self.atoms)
+          window_length = 10*len(self.atoms)
         nproc = 1
         if ( self.mpicomm is not None ):
-            nproc = self.mpicomm.Get_size()
+          nproc = self.mpicomm.Get_size()
         E_prev = None
         var_E_prev = None
         min_percentile = stats.norm.ppf(confidence_level)
@@ -358,91 +335,96 @@ class Montecarlo(object):
         var_comp = []
         energy_conv = False
         for i in range(maxiter):
-            number_of_iterations += 1
-            self.reset()
-            for i in range(window_length):
-                self._mc_step()
-                self.mean_energy += self.current_energy_without_vib()
-                self.energy_squared += self.current_energy_without_vib()**2
-                if ( self.plot_debug ):
-                    all_energies.append( self.current_energy_without_vib()/len(self.atoms) )
-            self.collect_energy()
-            E_new = self.mean_energy/window_length
-            means.append( E_new )
-            var_E_new = self.get_var_average_energy()
-            comp_conv, composition, var_comp = self.composition_reached_equillibrium( composition, var_comp, confidence_level=confidence_level )
-            if ( E_prev is None ):
-                E_prev = E_new
-                var_E_prev = var_E_new
-                continue
+          number_of_iterations += 1
+          self.reset()
+          for i in range(window_length):
+              self._mc_step()
+              self.mean_energy += self.current_energy_without_vib()
+              self.energy_squared += self.current_energy_without_vib()**2
+              if ( self.plot_debug ):
+                  all_energies.append( self.current_energy_without_vib()/len(self.atoms) )
+          self.collect_energy()
+          E_new = self.mean_energy/window_length
+          means.append( E_new )
+          var_E_new = self.get_var_average_energy()
+          comp_conv, composition, var_comp = self.composition_reached_equillibrium( composition, var_comp, confidence_level=confidence_level )
+          if ( E_prev is None ):
+              E_prev = E_new
+              var_E_prev = var_E_new
+              continue
 
-            var_diff = var_E_new+var_E_prev
-            diff = E_new-E_prev
-            if ( var_diff < 1E-6 ):
-                self.log ( "Zero variance. System does not move." )
-                z_diff = 0.0
-                comp_conv = True
-            else:
-                z_diff = diff/np.sqrt(var_diff)
+          var_diff = var_E_new+var_E_prev
+          diff = E_new-E_prev
+          if ( var_diff < 1E-6 ):
+              self.log ( "Zero variance. System does not move." )
+              z_diff = 0.0
+              comp_conv = True
+          else:
+              z_diff = diff/np.sqrt(var_diff)
 
-            if ( len(composition) == 0 ):
-                self.log( "{:10.2f} {:10.6f} {:10.6f} {:10.2f}".format(E_new,var_E_new,diff, z_diff) )
-            else:
-                self.log( "{:10.2f} {:10.6f} {:10.6f} {:10.2f} {}".format(E_new,var_E_new,diff, z_diff, composition) )
-            #self.logger.handlers[0].flush()
-            #self.flush_log()
-            #print ("{:10.2f} {:10.6f} {:10.6f} {:10.2f}".format(E_new,var_E_new,diff, z_diff))
-            if( (z_diff < max_percentile) and (z_diff > min_percentile) ):
-                energy_conv = True
+          if ( len(composition) == 0 ):
+              self.log( "{:10.2f} {:10.6f} {:10.6f} {:10.2f}".format(E_new,var_E_new,diff, z_diff) )
+          else:
+              self.log( "{:10.2f} {:10.6f} {:10.6f} {:10.2f} {}".format(E_new,var_E_new,diff, z_diff, composition) )
+          #self.logger.handlers[0].flush()
+          #self.flush_log()
+          #print ("{:10.2f} {:10.6f} {:10.6f} {:10.2f}".format(E_new,var_E_new,diff, z_diff))
+          if( (z_diff < max_percentile) and (z_diff > min_percentile) ):
+              energy_conv = True
 
-            # Allreduce use the max value which should yield True if any is True
-            if ( self.mpicomm is not None ):
-                eng_conv = np.array(energy_conv,dtype=np.uint8)
-                eng_conv_recv = np.zeros(1,dtype=np.uint8)
-                self.mpicomm.Allreduce( eng_conv, eng_conv_recv, op=MPI.MAX)
-                energy_conv = eng_conv_recv[0]
+          # Allreduce use the max value which should yield True if any is True
+          if ( self.mpicomm is not None ):
+              eng_conv = np.array(energy_conv,dtype=np.uint8)
+              eng_conv_recv = np.zeros(1,dtype=np.uint8)
+              self.mpicomm.Allreduce( eng_conv, eng_conv_recv, op=MPI.MAX)
+              energy_conv = eng_conv_recv[0]
 
-                comp_conv_arr = np.array( comp_conv, dtype=np.uint8 )
-                comp_conv_recv = np.zeros(1,dtype=np.uint8)
-                self.mpicomm.Allreduce( comp_conv_arr, comp_conv_recv, op=MPI.MAX )
-                comp_conv = comp_conv_recv[0]
+              comp_conv_arr = np.array( comp_conv, dtype=np.uint8 )
+              comp_conv_recv = np.zeros(1,dtype=np.uint8)
+              self.mpicomm.Allreduce( comp_conv_arr, comp_conv_recv, op=MPI.MAX )
+              comp_conv = comp_conv_recv[0]
 
-            if ( energy_conv and comp_conv ):
-                self.log( "System reached equillibrium in {} mc steps".format(number_of_iterations*window_length))
-                self.mean_energy = 0.0
-                self.energy_squared = 0.0
-                self.current_step = 0
+          if ( energy_conv and comp_conv ):
+              self.log( "System reached equillibrium in {} mc steps".format(number_of_iterations*window_length))
+              self.mean_energy = 0.0
+              self.energy_squared = 0.0
+              self.current_step = 0
 
-                if ( len(composition) > 0 ):
-                    self.log( "Singlet values at equillibrium: {}".format(composition) )
+              if ( len(composition) > 0 ):
+                  self.log( "Singlet values at equillibrium: {}".format(composition) )
 
-                if ( self.plot_debug ):
-                    fig = plt.figure()
-                    ax = fig.add_subplot(1,1,1)
-                    ax.plot( np.array( all_energies )*mol/kJ )
-                    start=0
-                    for i in range(len(means)):
-                        ax.plot( [start,start+window_length], [means[i],means[i]], color="#fc8d62" )
-                        ax.plot( start,means[i], "o", color="#fc8d62" )
-                        ax.axvline( x=start+window_length, color="#a6d854", ls="--")
-                        start += window_length
-                    ax.set_xlabel( "Number of MC steps" )
-                    ax.set_ylabel( "Energy (kJ/mol)" )
-                    plt.show( block=self.pyplot_block )
-                return
+              if ( self.plot_debug ):
+                  fig = plt.figure()
+                  ax = fig.add_subplot(1,1,1)
+                  ax.plot( np.array( all_energies )*mol/kJ )
+                  start=0
+                  for i in range(len(means)):
+                      ax.plot( [start,start+window_length], [means[i],means[i]], color="#fc8d62" )
+                      ax.plot( start,means[i], "o", color="#fc8d62" )
+                      ax.axvline( x=start+window_length, color="#a6d854", ls="--")
+                      start += window_length
+                  ax.set_xlabel( "Number of MC steps" )
+                  ax.set_ylabel( "Energy (kJ/mol)" )
+                  plt.show( block=self.pyplot_block )
+              return
 
-            E_prev = E_new
-            var_E_prev = var_E_new
+          E_prev = E_new
+          var_E_prev = var_E_new
 
         raise DidNotReachEquillibriumError( "Did not manage to reach equillibrium!" )
 
-    def has_converged_prec_mode( self, prec=0.01, confidence_level=0.05 ):
+    def has_converged_prec_mode( self, prec=0.01, confidence_level=0.05, log_status=False ):
         """
         Returns True if the simulation has converged in the precission mode
         """
         percentile = stats.norm.ppf(1.0-confidence_level)
         var_E = self.get_var_average_energy()
         converged = ( var_E < (prec*len(self.atoms)/percentile)**2 )
+
+        if ( log_status ):
+            std_E = np.sqrt(var_E)
+            criteria = prec*len(self.atoms)/percentile
+            self.log( "Current energy std: {}. Convergence criteria: {}".format(std_E,criteria))
 
         if ( self.mpicomm is not None ):
             # Make sure that all processors has the same converged flag
@@ -461,6 +443,9 @@ class Montecarlo(object):
         var_E = self.get_var_average_energy()
         self.log( "Total number of MC steps: {}".format(self.current_step) )
         self.log( "Final mean energy: {} +- {}%".format(U,np.sqrt(var_E)/np.abs(U) ) )
+        self.log( self.filter.status_msg(std_value=np.sqrt(var_E*len(self.atoms))) )
+        exp_extrapolate = self.filter.exponential_extrapolation()
+        self.log ( "Exponential extrapolation: {}".format(exp_extrapolate))
 
     def distribute_correlation_time( self ):
         """
@@ -538,11 +523,9 @@ class Montecarlo(object):
 
         # Atoms object should have attached calculator
         # Add check that this is show
-        self.current_energy = 1E8
         self._mc_step()
-        #self.current_energy = self.atoms.get_potential_energy() # Get starting energy
 
-        self.set_seeds(self.mpicomm)
+        mpi_tools.set_seeds(self.mpicomm)
         totalenergies = []
         totalenergies.append(self.current_energy)
         start = time.time()
@@ -583,7 +566,7 @@ class Montecarlo(object):
                 raise DidNotReachEquillibriumError()
 
         check_convergence_every = 1
-        next_convergence_check = 1000
+        next_convergence_check = len(self.atoms)
         if ( mode == "prec" ):
             # Estimate correlation length
             res = self.estimate_correlation_time( restart=True )
@@ -597,6 +580,7 @@ class Montecarlo(object):
 
         #print ( "Proc: {} - {}".format(self.rank,check_convergence_every) )
         # self.current_step gets updated in the _mc_step function
+        log_status_conv = True
         self.reset()
         while( self.current_step < steps ):
             en, accept = self._mc_step( verbose=verbose )
@@ -604,7 +588,10 @@ class Montecarlo(object):
             self.energy_squared += self.current_energy_without_vib()**2
 
             if ( time.time()-start > self.status_every_sec ):
-                self.log("%d of %d steps. %.2f ms per step"%(self.current_step,steps,1000.0*self.status_every_sec/float(self.current_step-prev)))
+                ms_per_step = 1000.0*self.status_every_sec/float(self.current_step-prev)
+                accept_rate = self.num_accepted/float(self.current_step)
+                log_status_conv = True
+                self.log("%d of %d steps. %.2f ms per step. Acceptance rate: %.2f"%(self.current_step,steps,ms_per_step,accept_rate))
                 prev = self.current_step
                 start = time.time()
             if ( mode == "prec" and self.current_step > next_convergence_check ):
@@ -613,7 +600,8 @@ class Montecarlo(object):
                 #print ("Proc check_conv: {}".format(self.rank))
                 if ( self.mpicomm is not None ):
                     self.mpicomm.barrier()
-                converged = self.has_converged_prec_mode( prec=prec, confidence_level=prec_confidence )
+                converged = self.has_converged_prec_mode( prec=prec, confidence_level=prec_confidence, log_status=log_status_conv )
+                log_status_conv=False
                 if ( converged ):
                     self.on_converged_log()
                     break
@@ -679,9 +667,13 @@ class Montecarlo(object):
         Returns True if the trial step is accepted
         """
         self.new_energy = self.atoms._calc.calculate( self.atoms, ["energy"], system_changes )
+        if ( self.is_first ):
+            self.is_first = False
+            return True
+
         if ( self.new_energy < self.current_energy ):
             return True
-        kT = kT = self.T*units.kB
+        kT = self.T*units.kB
         energy_diff = self.new_energy-self.current_energy
         probability = np.exp(-energy_diff/kT)
         return np.random.rand() <= probability
@@ -723,22 +715,26 @@ class Montecarlo(object):
                 accept = False
         """
         move_accepted = self.accept( system_changes )
+
         if ( move_accepted ):
             self.current_energy = self.new_energy
+            self.num_accepted += 1
         else:
             # Reset the sytem back to original
             for change in system_changes:
                 indx = change[0]
                 old_symb = change[1]
+                assert (self.atoms[indx].symbol == change[2])
                 self.atoms[indx].symbol = old_symb
 
         # TODO: Wrap this functionality into a cleaning object
         if ( hasattr(self.atoms._calc,"clear_history") and hasattr(self.atoms._calc,"undo_changes") ):
             # The calculator is a CE calculator which support clear_history and undo_changes
-            if ( move_accepted ):
-                self.atoms._calc.clear_history()
-            else:
-                self.atoms._calc.undo_changes()
+            pass
+        if ( move_accepted ):
+            self.atoms._calc.clear_history()
+        else:
+            self.atoms._calc.undo_changes()
 
         if ( move_accepted ):
             # Update the atom_indices
@@ -756,4 +752,5 @@ class Montecarlo(object):
             if ( self.current_step%interval == 0 ):
                 obs = entry[1]
                 obs(system_changes)
+        self.filter.add(self.current_energy)
         return self.current_energy,move_accepted
