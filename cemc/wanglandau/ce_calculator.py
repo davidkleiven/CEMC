@@ -29,7 +29,7 @@ def get_max_dia_name():
     In the past max_cluster_dist was named max_cluster_dia.
     We support both version here
     """
-    args = getargspec(BulkCrystal.__init__)
+    args = getargspec(BulkCrystal.__init__).args
     if "max_cluster_dia" in args:
         return "max_cluster_dia"
     return "max_cluster_dist"
