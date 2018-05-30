@@ -4,11 +4,7 @@ This example shows how one can use the Monte Carlo observers
 
 # First we import the BulkCrystal object from ASE
 from ase.ce import BulkCrystal
-
-# Hard-code the ECIs for simplicity
-eci = {"c3_2000_5_000": -0.000554493287657111,
-"c2_1000_1_00": 0.009635318249739103,
-"c4_1414_1_0000": 0.00034847251116721441}
+from util import get_example_ecis, get_example_network_name
 
 # Specify the concentration arguments (they really don't matter here)
 # They only have effect when generating structure of Cluster Expansion
@@ -30,6 +26,9 @@ kwargs = {
     "db_name":db_name,
     "conc_args":conc_args
 }
+
+# In this example, we just use some example ecis
+eci = get_example_ecis(bc_kwargs=kwargs)
 
 # Initialize a template BulkCrystal Object
 ceBulk = BulkCrystal( **kwargs )
@@ -74,7 +73,7 @@ snapshot = Snapshot( trajfile="demo.traj", atoms=ceBulk.atoms )
 low_en = LowestEnergyStructure( calc, mc_obj )
 
 # This observer tracks networks of a certain atom type
-network_obs = NetworkObserver( calc=calc, cluster_name="c2_1000_1", element="Mg" )
+network_obs = NetworkObserver( calc=calc, cluster_name=get_example_network_name(ceBulk), element="Mg" )
 
 # Now we can attach the observers to the mc_obj
 mc_obj.attach( corr_func_obs, interval=1 )

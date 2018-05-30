@@ -5,6 +5,7 @@ from cemc.mcmc import SimulatedAnnealingCanonical
 from ase.calculators.singlepoint import SinglePointCalculator
 import pickle as pck
 import wang_landau_db_manager as wldbm
+import copy
 
 class AtomExistsError(Exception):
     def __init__(self, msg):
@@ -34,6 +35,8 @@ class WangLandauInit(object):
         elif( ctype == "BulkSpacegroup" ):
             small_bc = BulkSpacegroup(**bc_kwargs)
 
+        self._check_eci(small_bc,eci)
+
         calc = get_ce_calc( small_bc, bc_kwargs, eci=eci, size=size )
         calc.set_composition( composition )
         bc = calc.BC
@@ -59,6 +62,23 @@ class WangLandauInit(object):
         data["bc_kwargs"] = bc_kwargs
         data["supercell_size"] = size
         db.write( calc.BC.atoms, key_value_pairs=kvp, data=data )
+
+    def _check_eci(self,bc,eci):
+        """
+        Verify that all ECIs corresponds to a cluster
+        """
+        cnames = copy.deepcopy(bc.cluster_names)
+        flattened = []
+        for sublist in cnames:
+            for subsub in sublist:
+                    flattened += subsub
+
+        for key in eci.keys():
+            if (key.startswith("c0") or key.startswith("c1")):
+                continue
+            name = key.rpartition("_")[0]
+            if name not in flattened:
+                raise ValueError("There are ECIs that does not fit a cluster. ECIs: {}, Cluster names: {}".format(eci,flattened))
 
     def _find_energy_range( self, atoms, T, nsteps_per_temp ):
         """

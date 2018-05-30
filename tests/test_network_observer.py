@@ -6,6 +6,7 @@ try:
     from ase.ce import CorrFunction
     from ase.io import read
     from ase.visualize import view
+    from helper_functions import get_example_network_name
     available = True
 except Exception as exc:
     print (str(exc))
@@ -39,7 +40,6 @@ class TestNetworkObs( unittest.TestCase ):
             self.skipTest( "ASE version does not have CE!" )
             return
 
-        print ("here")
         msg = ""
         no_throw = True
         try:
@@ -52,14 +52,15 @@ class TestNetworkObs( unittest.TestCase ):
             a = 4.05
             ceBulk = BulkCrystal( crystalstructure="fcc", a=a, size=[4,4,4], basis_elements=[["Al","Mg"]], conc_args=conc_args, \
             db_name=db_name, max_cluster_size=4)
+            net_name = str(get_example_network_name(ceBulk))
             cf = CorrFunction(ceBulk)
             cf = cf.get_cf(ceBulk.atoms)
             eci = {key:0.001 for key in cf.keys()}
             calc = CE( ceBulk, eci=eci )
             ceBulk.atoms.set_calculator(calc)
-            obs = NetworkObserver( calc=calc, cluster_name="c2_1000_1", element="Mg" )
+            obs = NetworkObserver( calc=calc, cluster_name=net_name, element="Mg" )
             trans_mat = ceBulk.trans_matrix
-            indx = ceBulk.cluster_names[0][2].index("c2_1000_1")
+            indx = ceBulk.cluster_names[0][2].index(net_name)
             clusters = ceBulk.cluster_indx[0][2][indx]
 
             # Several hard coded tests

@@ -1,4 +1,8 @@
 from ase.ce import BulkSpacegroup
+from ase.ce import BulkCrystal
+from inspect import getargspec
+from ase.ce import CorrFunction
+
 def get_bulkspacegroup_binary():
 # https://materials.springer.com/isp/crystallographic/docs/sd_0453869
     a = 10.553
@@ -20,3 +24,34 @@ def get_bulkspacegroup_binary():
     bs = BulkSpacegroup( basis_elements=basis_elements, basis=basis, spacegroup=217, cellpar=cellpar, conc_args=conc_args,
     max_cluster_size=4, db_name=db_name, size=[1,1,1], grouped_basis=[[0,1,2,3]] )
     return bs, db_name
+
+def get_max_cluster_dia_name():
+    """
+    In former versions max_cluster_dist was called max_cluster_dia
+    """
+    kwargs = {"max_cluster_dia":5.0}
+    argspec = getargspec(BulkCrystal.__init__).args
+    if "max_cluster_dia" in argspec:
+        return "max_cluster_dia"
+    return "max_cluster_dist"
+
+def flatten_cluster_names(cnames):
+    flattened = []
+    for sub in cnames:
+        for sub2 in sub:
+            flattened += sub2
+    return flattened
+
+def get_example_network_name(bc):
+    return bc.cluster_names[0][2][0]
+
+def get_example_ecis(bc=None):
+    cf = CorrFunction(bc)
+    cf = cf.get_cf(bc.atoms)
+    eci = {key:0.001 for key in cf.keys()}
+    return eci
+
+def get_example_cf(bc=None):
+    cf = CorrFunction(bc)
+    cf = cf.get_cf(bc.atoms)
+    return cf
