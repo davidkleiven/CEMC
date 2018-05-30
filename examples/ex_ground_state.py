@@ -12,6 +12,7 @@ Features
 
 # First we import the BulkCrystal object from ASE
 from ase.ce import BulkCrystal
+from util import get_example_ecis
 
 # Initialize the BulkCrystal object for a 4x4x4 expansion of a
 # primitive FCC unitcell
@@ -21,25 +22,8 @@ conc_args = {
 }
 bc = BulkCrystal( crystalstructure="fcc", a=4.05, conc_args=conc_args, db_name="test_gs_db.db", size=[4,4,4], basis_elements=[["Al","Mg"]] )
 
-# Get the Effective Cluster Interactions (here they are hard coded),
-# but these are typically read from a file
-eci = {"c3_2000_5_000": -0.000554493287657111,
-"c2_1000_1_00": 0.009635318249739103,
-"c3_2000_3_000": -0.0012517824048219194,
-"c3_1732_1_000": -0.0012946400900521093,
-"c2_1414_1_00": -0.017537890489630819,
-"c4_1000_1_0000": -1.1303654231631574e-05,
-"c3_2000_4_000": -0.00065595035208737659,
-"c2_1732_1_00": -0.0062866523139031511,
-"c4_2000_11_0000": 0.00073748615657533178,
-"c1_0": -1.0685540954294481,
-"c4_1732_8_0000": 6.2192225273001889e-05,
-"c3_1732_4_000": -0.00021105632231802613,
-"c2_2000_1_00": -0.0058771555942559303,
-"c4_2000_12_0000": 0.00026998290577185763,
-"c0": -2.6460470182744342,
-"c4_2000_14_0000": 0.00063004101881374334,
-"c4_1414_1_0000": 0.00034847251116721441}
+# Just use some example ECIs
+eci = get_example_ecis(bc=bc)
 
 # Initialize a Cluster Expansion calculator (C++ version is required)
 from cemc.wanglandau import CE

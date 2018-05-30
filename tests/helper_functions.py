@@ -1,6 +1,7 @@
 from ase.ce import BulkSpacegroup
 from ase.ce import BulkCrystal
 from inspect import getargspec
+from ase.ce import CorrFunction
 
 def get_bulkspacegroup_binary():
 # https://materials.springer.com/isp/crystallographic/docs/sd_0453869
@@ -40,3 +41,17 @@ def flatten_cluster_names(cnames):
         for sub2 in sub:
             flattened += sub2
     return flattened
+
+def get_example_network_name(bc):
+    return bc.cluster_names[0][2][0]
+
+def get_example_ecis(bc=None):
+    cf = CorrFunction(bc)
+    cf = cf.get_cf(bc.atoms)
+    eci = {key:0.001 for key in cf.keys()}
+    return eci
+
+def get_example_cf(bc=None):
+    cf = CorrFunction(bc)
+    cf = cf.get_cf(bc.atoms)
+    return cf

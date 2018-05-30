@@ -11,25 +11,7 @@ Features
 
 # First we import the BulkCrystal object from ASE
 from ase.ce import BulkCrystal
-
-# Hard-code the ECIs for simplicity
-eci = {"c3_2000_5_000": -0.000554493287657111,
-"c2_1000_1_00": 0.009635318249739103,
-"c3_2000_3_000": -0.0012517824048219194,
-"c3_1732_1_000": -0.0012946400900521093,
-"c2_1414_1_00": -0.017537890489630819,
-"c4_1000_1_0000": -1.1303654231631574e-05,
-"c3_2000_4_000": -0.00065595035208737659,
-"c2_1732_1_00": -0.0062866523139031511,
-"c4_2000_11_0000": 0.00073748615657533178,
-"c1_0": -1.0685540954294481,
-"c4_1732_8_0000": 6.2192225273001889e-05,
-"c3_1732_4_000": -0.00021105632231802613,
-"c2_2000_1_00": -0.0058771555942559303,
-"c4_2000_12_0000": 0.00026998290577185763,
-"c0": -2.6460470182744342,
-"c4_2000_14_0000": 0.00063004101881374334,
-"c4_1414_1_0000": 0.00034847251116721441}
+from util import get_example_ecis
 
 # Specify the concentration arguments (they really don't matter here)
 # They only have effect when generating structure of Cluster Expansion
@@ -51,6 +33,9 @@ kwargs = {
     "db_name":db_name,
     "conc_args":conc_args
 }
+
+# Use some example ecis
+eci = get_example_ecis(bc_kwargs=kwargs)
 
 # Initialize a template BulkCrystal Object
 ceBulk = BulkCrystal( **kwargs )
