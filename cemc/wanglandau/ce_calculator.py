@@ -397,17 +397,19 @@ class CE( Calculator ):
         if ( not self.updater is None ):
             self.updater.set_ecis(self.eci)
 
-    def get_singlets( self, array ):
+    def get_singlets( self, array=None ):
         if ( self.updater is None ):
             indx = 0
+            singlets = []
             for key,value in self.cf.iteritems():
                 if ( key.startswith("c1") ):
-                    singlets[indx] = value
-                    indx += 1
+                    singlets.append(value)
+            array = np.array(singlets)
             return array
         else:
-            self.updater.get_singlets( array )
-            return array
+            if array is None:
+                return self.updater.get_singlets()
+            return self.updater.get_singlets(array)
 
     def set_composition( self, comp ):
         """
@@ -440,7 +442,6 @@ class CE( Calculator ):
                 self.update_cf( (i,init_elm,elm) )
             start += n_at
         self.clear_history()
-        print ("Composition set")
 
     def set_symbols( self, symbs ):
         """
