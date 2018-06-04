@@ -117,7 +117,7 @@ class Montecarlo(object):
 
         # Verify that there is at two elements with more that two symbols
         if len(count.keys()) < 2:
-            raise TooFewElementsError("There are only one element in the given atoms object!")
+            raise TooFewElementsError("There is only one element in the given atoms object!")
         n_elems_more_than_2 = 0
         for key,value in count.items():
             if value >= 2:
@@ -175,7 +175,6 @@ class Montecarlo(object):
             else:
                 self.atoms_indx[atom.symbol].append(atom.index)
         self.symbols = self.atoms_indx.keys()
-        self.check_symbols()
 
     def update_tracker( self, system_changes ):
         """
@@ -539,6 +538,10 @@ class Montecarlo(object):
                           MC samples have been collected
         """
         #print ("Proc start MC: {}".format(self.rank))
+        # Check the number of different elements are correct to avoid
+        # infinite loops
+        self.check_symbols()
+
         if ( self.mpicomm is not None ):
             self.mpicomm.barrier()
         allowed_modes = ["fixed","prec"]

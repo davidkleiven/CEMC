@@ -39,6 +39,10 @@ class SGCMonteCarlo( mc.Montecarlo ):
         system_changes = [(indx,old_symb,new_symb)]
         return system_changes
 
+    def check_symbols(self):
+        """Override because there are no restriction on the symbols here"""
+        pass
+
     def update_tracker( self, system_changes ):
         """
         Override the update of the atom tracker. The atom tracker is irrelevant in the semi grand canonical ensemble
