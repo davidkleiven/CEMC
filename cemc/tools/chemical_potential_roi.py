@@ -100,9 +100,6 @@ class ChemicalPotentialROI(object):
         rhs = np.zeros(N)
         key_indx = {key:i for i,key in enumerate(singlets[self.symbols[0]].keys())}
         mu_roi = []
-        print(singlets)
-        print(lowest_energy_form["singlets"])
-        print(lowest_energy_form["conc"])
         for comb in combinations(self.symbols,len(self.symbols)-1):
             row = 0
             for symb in comb:
@@ -125,3 +122,37 @@ class ChemicalPotentialROI(object):
             mu_dict["pseudo_inv"] = used_pseudo_inverse
             mu_roi.append(mu_dict)
         return mu_roi
+
+    @staticmethod
+    def suggest_mu(mu_roi=None, N=10):
+        """
+        This function suggests mu that can be used for exploring the
+        parameter space based on the region of interest found by
+        the function chemical_potential_roi
+        """
+        extend_fraction = 0.05
+        suggested_sampling_lines = []
+        names = [key for key in mu_roi[0].keys() if key.startswith("c1")]
+        for phase_comb in combinations(mu_roi,2):
+            mu_array1 = np.array([phase_comb[0][key] for key in names])
+            mu_array2 = np.array([phase_comb[1][key] for key in names])
+            suggested_sampling_lines.append(ChemicalPotentialROI.linear_sampling(mu_array1, mu_array2, N, extend_fraction=extend_fraction))
+        return suggested_sampling_lines, names
+
+    @staticmethod
+    def linear_sampling(start,stop,N,extend_fraction=0.05):
+        """
+        Construct one array with linear sampling from start to stop
+        """
+        diff = stop-start
+        unit_vector = diff/np.sqrt(np.sum(diff**2))
+        mu = np.zeros((N,len(diff)))
+        start = start-extend_fraction*diff
+        stop = stop+extend_fraction*diff
+
+        # Update the difference
+        diff = start-stop
+        step = diff/(N-1)
+        for i in range(N):
+            mu[i,:] = start + step*i
+        return mu

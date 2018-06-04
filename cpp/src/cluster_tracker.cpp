@@ -190,7 +190,8 @@ void ClusterTracker::verify_cluster_name_exists() const
     }
   }
   stringstream ss;
-  ss << "There are now correlation functions corresponding to the cluster name given!\n";
+  ss << "There are no correlation functions corresponding to the cluster name given!\n";
+  ss << "Given: " << cname << "\n";
   ss << "Available names:\n";
   ss << all_names;
   throw invalid_argument( ss.str() );
