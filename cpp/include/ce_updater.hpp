@@ -63,6 +63,7 @@ public:
 
   /** Returns the value of the singlets */
   void get_singlets( PyObject *npy_array ) const;
+  PyObject* get_singlets() const;
 
   /** Extracts basis functions from the cluster name */
   void get_basis_functions( const std::string &cluster_name, std::vector<int> &bfs ) const;

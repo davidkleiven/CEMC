@@ -20,6 +20,10 @@ class DidNotReachEquillibriumError(Exception):
     def __init__(self, msg ):
         super(DidNotReachEquillibriumError,self).__init__(msg)
 
+class TooFewElementsError(Exception):
+    def __init__(self, msg):
+        super(TooFewElementsError,self).__init__(msg)
+
 class Montecarlo(object):
     """ Class for performing MonteCarlo sampling for atoms
 
@@ -98,6 +102,28 @@ class Montecarlo(object):
     def linear_vib_correction( self , linvib ):
         self._linear_vib_correction = linvib
         self.atoms._calc.linear_vib_correction = linvib
+
+    def check_symbols(self):
+        """
+        Checks that there is at least to different symbols
+        """
+        symbs = [atom.symbol for atom in self.atoms]
+        count = {}
+        for symb in symbs:
+            if symb not in count:
+                count[symb] = 1
+            else:
+                count[symb] += 1
+
+        # Verify that there is at two elements with more that two symbols
+        if len(count.keys()) < 2:
+            raise TooFewElementsError("There is only one element in the given atoms object!")
+        n_elems_more_than_2 = 0
+        for key,value in count.items():
+            if value >= 2:
+                n_elems_more_than_2 += 1
+        if n_elems_more_than_2 < 2:
+            raise TooFewElementsError("There is only one element that has more than one atom")
 
     def log( self, msg, mode="info" ):
         """
@@ -512,6 +538,10 @@ class Montecarlo(object):
                           MC samples have been collected
         """
         #print ("Proc start MC: {}".format(self.rank))
+        # Check the number of different elements are correct to avoid
+        # infinite loops
+        self.check_symbols()
+
         if ( self.mpicomm is not None ):
             self.mpicomm.barrier()
         allowed_modes = ["fixed","prec"]

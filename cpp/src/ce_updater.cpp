@@ -504,7 +504,11 @@ double CEUpdater::calculate( PyObject *system_changes )
 {
 
   int size = PyList_Size(system_changes);
-  if ( size == 1 )
+  if ( size == 0 )
+  {
+    return get_energy();
+  }
+  else if ( size == 1 )
   {
     for ( int i=0;i<size;i++ )
     {
@@ -694,6 +698,14 @@ void CEUpdater::get_singlets( PyObject *npy_obj ) const
     *ptr = cfs[singlets[i]];
   }
   Py_DECREF( npy_array );
+}
+
+PyObject* CEUpdater::get_singlets() const
+{
+  npy_intp dims[1] = {singlets.size()};
+  PyObject* npy_array = PyArray_SimpleNew( 1, dims, NPY_DOUBLE );
+  get_singlets(npy_array);
+  return npy_array;
 }
 
 void CEUpdater::add_linear_vib_correction( const map<string,double> &eci_per_kbT )
