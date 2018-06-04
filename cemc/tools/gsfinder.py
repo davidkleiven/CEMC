@@ -29,7 +29,7 @@ class GSFinder(object):
             thermo = mc_obj.get_thermodynamic()
 
         result = {
-            "atoms":minimum_energy.lowest_energy_atoms,
+            "atoms":minimum_energy.atoms,
             "energy":minimum_energy.lowest_energy,
             "cf":minimum_energy.lowest_energy_cf
         }
