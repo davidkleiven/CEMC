@@ -1,5 +1,8 @@
-from ase.ce import BulkSpacegroup, BulkCrystal
 from cemc.wanglandau.ce_calculator import CE, get_ce_calc
+from ase.ce import BulkSpacegroup
+from ase.ce import BulkCrystal
+from inspect import getargspec
+from ase.ce import CorrFunction
 
 def get_bulkspacegroup_binary():
 # https://materials.springer.com/isp/crystallographic/docs/sd_0453869
@@ -24,7 +27,6 @@ def get_bulkspacegroup_binary():
     return bs, db_name
 
 
-
 def get_small_BC_with_ce_calc(lat="fcc"):
     db_name = "test_db_{}.db".format(lat)
 
@@ -43,3 +45,34 @@ def get_small_BC_with_ce_calc(lat="fcc"):
     calc = CE( ceBulk, eci )
     ceBulk.atoms.set_calculator(calc)
     return ceBulk
+
+def get_max_cluster_dia_name():
+    """
+    In former versions max_cluster_dist was called max_cluster_dia
+    """
+    kwargs = {"max_cluster_dia":5.0}
+    argspec = getargspec(BulkCrystal.__init__).args
+    if "max_cluster_dia" in argspec:
+        return "max_cluster_dia"
+    return "max_cluster_dist"
+
+def flatten_cluster_names(cnames):
+    flattened = []
+    for sub in cnames:
+        for sub2 in sub:
+            flattened += sub2
+    return flattened
+
+def get_example_network_name(bc):
+    return bc.cluster_names[0][2][0]
+
+def get_example_ecis(bc=None):
+    cf = CorrFunction(bc)
+    cf = cf.get_cf(bc.atoms)
+    eci = {key:0.001 for key in cf.keys()}
+    return eci
+
+def get_example_cf(bc=None):
+    cf = CorrFunction(bc)
+    cf = cf.get_cf(bc.atoms)
+    return cf

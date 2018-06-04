@@ -22,7 +22,7 @@ class TestFreeEnergy( unittest.TestCase ):
                     }
             kwargs = {
                 "crystalstructure":"fcc", "a":4.05, "size":[4,4,4], "basis_elements":[["Al","Mg"]],
-                "conc_args":conc_args, "db_name":"data/temporary_bcnucleationdb.db",
+                "conc_args":conc_args, "db_name":"temporary_bcnucleationdb.db",
                 "max_cluster_size":4
             }
             ceBulk = BulkCrystal( **kwargs )

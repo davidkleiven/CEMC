@@ -4,10 +4,14 @@ try:
     from ase.ce import BulkCrystal
     from ase.ce import CorrFunction
     from cemc.wanglandau.ce_calculator import get_ce_calc
+    from helper_functions import flatten_cluster_names
     available = True
 except Exception as exc:
     print (str(exc))
     available = False
+
+def get_network_name(cnames):
+    return cnames[0][2][0]
 
 class TestNuclFreeEnergy( unittest.TestCase ):
     def test_no_throw(self):
@@ -23,7 +27,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             }
             kwargs = {
                 "crystalstructure":"fcc", "a":4.05, "size":[4,4,4], "basis_elements":[["Al","Mg"]],
-                "conc_args":conc_args, "db_name":"data/temporary_bcnucleationdb.db",
+                "conc_args":conc_args, "db_name":"temp_nuc_db.db",
                 "max_cluster_size":4
             }
             ceBulk = BulkCrystal( **kwargs )
@@ -39,20 +43,21 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             sampler = NucleationSampler( size_window_width=10, \
             chemical_potential=chem_pot, max_cluster_size=20, \
             merge_strategy="normalize_overlap" )
+            nn_name = get_network_name(ceBulk.cluster_names)
 
             mc = SGCNucleation( ceBulk.atoms, 300, nucleation_sampler=sampler, \
-            network_name="c2_1414_1",  network_element="Mg", symbols=["Al","Mg"], \
+            network_name=nn_name,  network_element="Mg", symbols=["Al","Mg"], \
             chem_pot=chem_pot )
             mc.run(nsteps=2)
             sampler.save(fname="test_nucl.h5")
 
             mc = CanonicalNucleationMC( ceBulk.atoms, 300, nucleation_sampler=sampler, \
-            network_name="c2_1414_1",  network_element="Mg", \
+            network_name=nn_name,  network_element="Mg", \
             concentration={"Al":0.8,"Mg":0.2} )
             mc.run(nsteps=2)
             sampler.save(fname="test_nucl_canonical.h5")
 
-            mc = FixedNucleusMC( ceBulk.atoms, 300, size=6, network_name="c2_1414_1", network_element="Mg" )
+            mc = FixedNucleusMC( ceBulk.atoms, 300, size=6, network_name=nn_name, network_element="Mg" )
             mc.run(nsteps=2)
         except Exception as exc:
             msg = str(exc)

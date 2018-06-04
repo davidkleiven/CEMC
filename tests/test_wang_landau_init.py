@@ -21,10 +21,14 @@ bc_kwargs = {
     "a":4.05
 }
 
-eci = {
-    "c1_0":1.0,
-    "c3_2000_3_000":1.0
-}
+
+def get_eci():
+    bc = BulkCrystal(**bc_kwargs)
+    cf = CorrFunction(bc)
+    cf = cf.get_cf(bc.atoms)
+    eci = {key:0.001 for key in cf.keys()}
+    return eci
+
 class TestInitWLSim( unittest.TestCase ):
     def test_no_throw( self ):
         no_throw = True
@@ -32,6 +36,7 @@ class TestInitWLSim( unittest.TestCase ):
             self.skipTest( "ASE version does not have CE" )
 
         msg = ""
+        eci = get_eci()
         try:
             initializer = WangLandauInit( wl_db_name )
             T = [1000,10]

@@ -13,6 +13,8 @@ mpl.rcParams["svg.fonttype"] = "none"
 from matplotlib import pyplot as plt
 from ase.visualize import view
 from cemc.mcmc import linear_vib_correction as lvc
+from inspect import getargspec
+
 from mpi4py import MPI
 try:
     from cemc.ce_updater import ce_updater as ce_updater
@@ -21,6 +23,16 @@ except Exception as exc:
     use_cpp = False
     print (str(exc))
     print ("Could not find C++ version, falling back to Python version")
+
+def get_max_dia_name():
+    """
+    In the past max_cluster_dist was named max_cluster_dia.
+    We support both version here
+    """
+    args = getargspec(BulkCrystal.__init__).args
+    if "max_cluster_dia" in args:
+        return "max_cluster_dia"
+    return "max_cluster_dist"
 
 def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays_BC=False ):
     """
@@ -45,7 +57,8 @@ def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays
         min_length = np.min(cell_lenghts)/2.0
 
         bc_kwargs["size"] = size
-        bc_kwargs["max_cluster_dia"] = min_length
+        size_name = get_max_dia_name()
+        bc_kwargs[size_name] = min_length
 
         db_name = "temporary_db.db"
         if ( os.path.exists(db_name) ):
