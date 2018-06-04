@@ -65,6 +65,10 @@ class ActivitySampler( Montecarlo ):
         # Observer that tracks the energy of the trial move
         self.trial_energy_obs = TrialEnergyObserver(self)
         self.attach( self.trial_energy_obs )
+        self.log("============================================================")
+        self.log("==   WARNING! THIS CODE IS NOT PROPERLY TESTED. ASK THE   ==")
+        self.log("==                DEVELOPERS BEFORE USE                   ==")
+        self.log("============================================================")
 
     def check_user_arguments( self ):
         """
@@ -214,7 +218,7 @@ class ActivitySampler( Montecarlo ):
         row = {move[1]:i for i,move in enumerate(self.insertion_moves)}
         for move in self.insertion_moves:
             key = self.get_key( move[0], move[1] )
-            normalization = float(at_count[move[1]]+1)/at_count[move[0]]
+            normalization = at_count[move[0]]/float(at_count[move[1]]+1)
             res["activity_coefficient"][key] = self.averager_track[key]/self.num_computed_moves[key]
             res["activity"][key] = res["activity_coefficient"][key]*normalization
 
@@ -223,7 +227,7 @@ class ActivitySampler( Montecarlo ):
             cur_row = row[move[1]]
             A[cur_row,:] = y
             A[cur_row,cur_row] = 1.0+y
-            rhs[cur_row] = y*len(self.atoms)-1
+            rhs[cur_row] = y-len(self.atoms)
 
         eff_conc = np.linalg.solve(A,rhs)/len(self.atoms)
         for i in range(len(eff_conc)):
