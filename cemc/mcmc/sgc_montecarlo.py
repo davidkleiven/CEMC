@@ -7,8 +7,9 @@ from scipy import stats
 import mpi_tools
 
 class SGCMonteCarlo( mc.Montecarlo ):
-    def __init__( self, atoms, temp, indeces=None, symbols=None, mpicomm=None, logfile="", plot_debug=False ):
-        mc.Montecarlo.__init__( self, atoms, temp, indeces=indeces, mpicomm=mpicomm, logfile=logfile, plot_debug=plot_debug )
+    def __init__( self, atoms, temp, indeces=None, symbols=None, mpicomm=None, logfile="", plot_debug=False, min_acc_rate=0.0 ):
+        mc.Montecarlo.__init__( self, atoms, temp, indeces=indeces, mpicomm=mpicomm, logfile=logfile, plot_debug=plot_debug, \
+        min_acc_rate=min_acc_rate )
         if ( not symbols is None ):
             # Override the symbols function in the main class
             self.symbols = symbols
@@ -265,7 +266,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         self.log( "Correlation time for the compositions:" )
         self.log( "{}".format(self.composition_correlation_time) )
 
-    def runMC( self, mode="fixed", steps = 10, verbose = False, chem_potential=None, equil=True, equil_params=None, prec_confidence=0.05, prec=0.01 ):
+    def runMC( self, mode="fixed", steps = 10, verbose = False, chem_potential=None, equil=True, equil_params={}, prec_confidence=0.05, prec=0.01 ):
         mpi_tools.set_seeds(self.mpicomm)
         self.reset()
         if ( self.mpicomm is not None ):
@@ -286,17 +287,6 @@ class SGCMonteCarlo( mc.Montecarlo ):
         self.include_vib()
 
         if ( equil ):
-            maxiter = 1000
-            confidence_level = 0.05
-            window_length = "auto"
-            if ( equil_params is not None ):
-                for key,value in equil_params.iteritems():
-                    if ( key == "maxiter" ):
-                        maxiter = value
-                    elif ( key == "confidence_level" ):
-                        confidence_level = value
-                    elif ( key == "window_length" ):
-                        window_length = value
             reached_equil = True
             res = self.estimate_correlation_time( restart=True )
             if ( not res["correlation_time_found"] ):
@@ -304,7 +294,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
                 res["correlation_time"] = 1000
             self.distribute_correlation_time()
             try:
-                self.equillibriate( window_length=window_length, confidence_level=confidence_level, maxiter=maxiter )
+                self.equillibriate(**equil_params)
             except mc.DidNotReachEquillibriumError:
                 reached_equil = False
             atleast_one_proc = self.atleast_one_reached_equillibrium(reached_equil)

@@ -29,7 +29,7 @@ class Montecarlo(object):
 
     """
 
-    def __init__(self, atoms, temp, indeces=None, mpicomm=None, logfile="", plot_debug=False ):
+    def __init__(self, atoms, temp, indeces=None, mpicomm=None, logfile="", plot_debug=False, min_acc_rate=0.0 ):
         """ Initiliaze Monte Carlo simulations object
 
         Arguments:
@@ -44,6 +44,7 @@ class Montecarlo(object):
         self.name = "MonteCarlo"
         self.atoms = atoms
         self.T = temp
+        self.min_acc_rate = min_acc_rate
         if indeces == None:
             self.indeces = range(len(self.atoms))
         else:
@@ -311,7 +312,7 @@ class Montecarlo(object):
         """
         return True, prev_composition, var_prev, 0.0
 
-    def equillibriate( self, window_length="auto", confidence_level=0.05, maxiter=1000 ):
+    def equillibriate( self, window_length="auto", confidence_level=0.05, maxiter=1000, mode="stat_equiv" ):
         """
         Runs the MC until equillibrium is reached
 
@@ -341,11 +342,23 @@ class Montecarlo(object):
             If it reaches this number of iteration the algorithm will
             raise an error
         """
+        allowed_modes = ["stat_equiv", "fixed"]
+        if mode not in allowed_modes:
+            raise ValueError("Equilibration mode has to be one of {}".format(allowed_modes))
+
         if ( window_length == "auto" ):
           window_length = 10*len(self.atoms)
         nproc = 1
         if ( self.mpicomm is not None ):
-          nproc = self.mpicomm.Get_size()
+            nproc = self.mpicomm.Get_size()
+
+
+        if mode == "fixed":
+            self.log("Equilibriating with {} MC steps".format(window_length))
+            for _ in range(window_length):
+                self._mc_step()
+            return
+
         E_prev = None
         var_E_prev = None
         min_percentile = stats.norm.ppf(confidence_level)
@@ -519,7 +532,7 @@ class Montecarlo(object):
         return at_least_one
 
 
-    def runMC(self, mode="fixed", steps=10, verbose = False, equil=True, equil_params=None, prec=0.01, prec_confidence=0.05  ):
+    def runMC(self, mode="fixed", steps=10, verbose = False, equil=True, equil_params={}, prec=0.01, prec_confidence=0.05):
         """ Run Monte Carlo simulation
 
         Arguments
@@ -569,18 +582,6 @@ class Montecarlo(object):
         self.current_step = 0
 
         if ( equil ):
-            # Extract parameters
-            maxiter = 1000
-            confidence_level = 0.05
-            window_length = 1000
-            if ( equil_params is not None ):
-                for key,value in equil_params.iteritems():
-                    if ( key == "maxiter" ):
-                        maxiter = value
-                    elif ( key == "confidence_level" ):
-                        confidence_level = value
-                    elif ( key == "window_length" ):
-                        window_length = value
             reached_equil = True
             res = self.estimate_correlation_time(restart=True)
             if ( not res["correlation_time_found"] ):
@@ -589,7 +590,7 @@ class Montecarlo(object):
             self.distribute_correlation_time()
 
             try:
-                self.equillibriate( window_length=window_length, confidence_level=confidence_level, maxiter=maxiter )
+                self.equillibriate(**equil_params)
             except DidNotReachEquillibriumError:
                 reached_equil = False
 
