@@ -673,6 +673,7 @@ class Montecarlo(object):
         quantities["energy"] = self.mean_energy/self.current_step
         mean_sq = self.energy_squared/self.current_step
         quantities["heat_capacity"] = (mean_sq-quantities["energy"]**2)/(units.kB*self.T**2)
+        quantities["energy_std"] = np.sqrt(self.get_var_average_energy())
         return quantities
 
     def get_trial_move( self ):
