@@ -640,6 +640,8 @@ class Montecarlo(object):
                     self.on_converged_log()
                     break
 
+        if self.current_step >= steps:
+            self.log("Reached maximum number of steps ({} mc steps)".format(steps))
 
         if ( self.mpicomm is not None ):
             self.mpicomm.barrier()
