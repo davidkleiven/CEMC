@@ -607,7 +607,6 @@ class Montecarlo(object):
             res = self.estimate_correlation_time( restart=True )
             while ( not res["correlation_time_found"] ):
                 res = self.estimate_correlation_time()
-            steps = 1E10 # Set the maximum number of steps to a very large number
             self.reset()
             self.distribute_correlation_time()
             check_convergence_every = 10*self.correlation_info["correlation_time"]
