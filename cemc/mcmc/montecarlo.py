@@ -309,7 +309,7 @@ class Montecarlo(object):
         Default the simulation runs at fixed composition so
         this function just returns True
         """
-        return True, prev_composition, var_prev
+        return True, prev_composition, var_prev, 0.0
 
     def equillibriate( self, window_length="auto", confidence_level=0.05, maxiter=1000 ):
         """
