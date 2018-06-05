@@ -29,8 +29,10 @@ class NucleationSampler( object ):
         # therefore we snap the mpicomm object passed,
         # and parallelize in a different way
         self.nucleation_mpicomm = None
+        self.rank = 0
         if ( "mpicomm" in kwargs.keys() ):
             self.nucleation_mpicomm = kwargs.pop("mpicomm")
+            self.rank = self.nucleation_mpicomm.Get_rank()
 
         allowed_merge_strategies = ["normalize_overlap","fit"]
         if ( self.merge_strategy not in allowed_merge_strategies ):
@@ -291,4 +293,5 @@ class NucleationSampler( object ):
         """
         Logging
         """
-        print(msg)
+        if self.rank == 0:
+            print(msg)
