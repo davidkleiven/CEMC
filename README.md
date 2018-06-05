@@ -1,5 +1,6 @@
 ![Build status](https://travis-ci.org/davidkleiven/CEMC.svg?branch=master)
-# WangLandau
+[![MIT License](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](LICENSE)
+# Cluster Expansion Monte Carlo
 
 # Dependencies
 * [SWIG](http://www.swig.org/) (newer than version 3.0)
