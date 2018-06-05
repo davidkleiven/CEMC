@@ -135,7 +135,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         if ( len(prev_composition) != len(singlets) ):
             # Prev composition is unknown so makes no sense
             # to check
-            return False, singlets, var_n
+            return False, singlets, var_n, 0.0
 
         # Just in case variance should be smaller than zero. Should never
         # happen but can happen due to numerical precission
@@ -145,7 +145,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         diff = singlets - prev_composition
         var_diff = var_n + var_prev
         if ( len(var_diff[var_diff>0.0]) == 0 ):
-            return True, singlets, var_n
+            return True, singlets, var_n, 0.0
         z = np.max( np.abs(diff[var_diff>0.0])/np.sqrt(var_diff[var_diff>0.0]) )
         converged = False
         if ( z > min_percentile and z < max_percentile ):
@@ -156,7 +156,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
             converged = self.mpicomm.bcast(converged,root=0)
             singlets = self.mpicomm.bcast(singlets,root=0)
             var_n = self.mpicomm.bcast(var_n,root=0)
-        return converged, singlets, var_n
+        return converged, singlets, var_n, z
 
 
 
