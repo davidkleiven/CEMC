@@ -354,7 +354,11 @@ class Montecarlo(object):
         self.log( "Equillibriating system" )
         self.log( "Confidence level: {}".format(confidence_level))
         self.log( "Percentiles: {}, {}".format(min_percentile,max_percentile) )
-        self.log( "{:10} {:10} {:10} {:10}".format("Energy", "std.dev", "delta E", "quantile") )
+
+        if self.name == "SGCMonteCarlo":
+            self.log( "{:10} {:10} {:10} {:10} {:10} {:10}".format("Energy", "std.dev", "delta E", "quantile", "Singlets", "Quantile (compositions)") )
+        else:
+            self.log( "{:10} {:10} {:10} {:10}".format("Energy", "std.dev", "delta E", "quantile") )
         all_energies = []
         means = []
         composition = []
@@ -373,7 +377,7 @@ class Montecarlo(object):
           E_new = self.mean_energy/window_length
           means.append( E_new )
           var_E_new = self.get_var_average_energy()
-          comp_conv, composition, var_comp = self.composition_reached_equillibrium( composition, var_comp, confidence_level=confidence_level )
+          comp_conv, composition, var_comp, comp_quant = self.composition_reached_equillibrium( composition, var_comp, confidence_level=confidence_level )
           if ( E_prev is None ):
               E_prev = E_new
               var_E_prev = var_E_new
@@ -391,7 +395,7 @@ class Montecarlo(object):
           if ( len(composition) == 0 ):
               self.log( "{:10.2f} {:10.6f} {:10.6f} {:10.2f}".format(E_new,var_E_new,diff, z_diff) )
           else:
-              self.log( "{:10.2f} {:10.6f} {:10.6f} {:10.2f} {}".format(E_new,var_E_new,diff, z_diff, composition) )
+              self.log( "{:10.2f} {:10.6f} {:10.6f} {:10.2f} {} {:10.2f}".format(E_new,var_E_new,diff, z_diff, composition, comp_quant) )
           #self.logger.handlers[0].flush()
           #self.flush_log()
           #print ("{:10.2f} {:10.6f} {:10.6f} {:10.2f}".format(E_new,var_E_new,diff, z_diff))
