@@ -1,5 +1,5 @@
-from montecarlo import Montecarlo
-from mc_observers import NetworkObserver
+from cemc.mcmc import Montecarlo
+from cemc.mcmc import NetworkObserver
 import numpy as np
 import random
 

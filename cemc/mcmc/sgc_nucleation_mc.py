@@ -1,6 +1,6 @@
-from nucleation_sampler import NucleationSampler, Mode
+from cemc.mcmc.nucleation_sampler import NucleationSampler, Mode
 from cemc.mcmc import SGCMonteCarlo
-from mc_observers import NetworkObserver
+from cemc.mcmc.mc_observers import NetworkObserver
 
 class SGCNucleation( SGCMonteCarlo ):
     def __init__( self, atoms, temp, **kwargs ):

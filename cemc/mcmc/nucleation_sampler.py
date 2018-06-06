@@ -5,7 +5,7 @@ from ase.visualize import view
 from scipy.stats import linregress
 import os
 from ase.units import kB
-import mpi_tools
+from cemc.mcmc import mpi_tools
 
 class Mode(object):
     bring_system_into_window = 0
