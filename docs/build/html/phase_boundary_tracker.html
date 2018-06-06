@@ -1,0 +1,436 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Phase Boundary Tracing &mdash; CEMC 1.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Free Energy Barrier in The Semi Grand Canonical Monte Carlo" href="sgc_free_energy_barrier.html" /> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> CEMC
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="montecarlo.html">Canonical Monte Carlo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sgc_montecarlo.html">Semi Grand Canonical Monte Carlo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sgc_free_energy_barrier.html">Free Energy Barrier in The Semi Grand Canonical Monte Carlo</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Phase Boundary Tracing</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">CEMC</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Phase Boundary Tracing</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/phase_boundary_tracker.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="phase-boundary-tracing">
+<h1>Phase Boundary Tracing<a class="headerlink" href="#phase-boundary-tracing" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="cemc.tools.PhaseBoundaryTracker">
+<em class="property">class </em><code class="descclassname">cemc.tools.</code><code class="descname">PhaseBoundaryTracker</code><span class="sig-paren">(</span><em>gs1</em>, <em>gs2</em>, <em>mu_name='c1_0'</em>, <em>logfile=''</em>, <em>chemical_potential=None</em>, <em>conf_same_phase=0.45</em>, <em>conf_substep_conv=0.05</em>, <em>max_singlet_change=0.05</em>, <em>backupfile='backup_phase_track.h5'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cemc/tools/phase_boundary_tracker.html#PhaseBoundaryTracker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cemc.tools.PhaseBoundaryTracker" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="cemc.tools.PhaseBoundaryTracker.backup">
+<code class="descname">backup</code><span class="sig-paren">(</span><em>data</em>, <em>dsetname='data'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cemc/tools/phase_boundary_tracker.html#PhaseBoundaryTracker.backup"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cemc.tools.PhaseBoundaryTracker.backup" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stores backup data to hdf5 file</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>data</strong> – Dictionary of data to be backed up</li>
+<li><strong>dsetname</strong> – Basename for all datasets in the h5 file</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="cemc.tools.PhaseBoundaryTracker.check_gs_argument">
+<code class="descname">check_gs_argument</code><span class="sig-paren">(</span><em>gs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cemc/tools/phase_boundary_tracker.html#PhaseBoundaryTracker.check_gs_argument"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cemc.tools.PhaseBoundaryTracker.check_gs_argument" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check that the gs arguments contain the correct fields</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>gs</strong> – Ground state structure</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="cemc.tools.PhaseBoundaryTracker.composition_first_larger_than_second">
+<code class="descname">composition_first_larger_than_second</code><span class="sig-paren">(</span><em>x1</em>, <em>x2</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cemc/tools/phase_boundary_tracker.html#PhaseBoundaryTracker.composition_first_larger_than_second"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cemc.tools.PhaseBoundaryTracker.composition_first_larger_than_second" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if the first arguments is larger than the second</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>x1</strong> – First value</li>
+<li><strong>x2</strong> – Second value</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="cemc.tools.PhaseBoundaryTracker.get_mean_field_phase_boundary">
+<code class="descname">get_mean_field_phase_boundary</code><span class="sig-paren">(</span><em>Tmin</em>, <em>Tmax</em>, <em>ntemps</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cemc/tools/phase_boundary_tracker.html#PhaseBoundaryTracker.get_mean_field_phase_boundary"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cemc.tools.PhaseBoundaryTracker.get_mean_field_phase_boundary" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the phase boundary in the Mean Field Approximation</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>Tmin</strong> – Minimum temperature</li>
+<li><strong>Tmax</strong> – Maximum temperature</li>
+<li><strong>ntemps</strong> – Number of temperatures between Tmin and Tmax</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="cemc.tools.PhaseBoundaryTracker.get_zero_temperature_mu_boundary">
+<code class="descname">get_zero_temperature_mu_boundary</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/cemc/tools/phase_boundary_tracker.html#PhaseBoundaryTracker.get_zero_temperature_mu_boundary"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cemc.tools.PhaseBoundaryTracker.get_zero_temperature_mu_boundary" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the chemical potential at which the two phases coexists
+at zero kelvin</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="cemc.tools.PhaseBoundaryTracker.is_equal">
+<code class="descname">is_equal</code><span class="sig-paren">(</span><em>x1</em>, <em>x2</em>, <em>std1</em>, <em>std2</em>, <em>confidence_level=0.05</em>, <em>stdtol=1e-06</em>, <em>eps_fallback=0.05</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cemc/tools/phase_boundary_tracker.html#PhaseBoundaryTracker.is_equal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cemc.tools.PhaseBoundaryTracker.is_equal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if two numbers are equal provided that their standard deviations
+are known</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>x1</strong> – First value</li>
+<li><strong>x2</strong> – Second value</li>
+<li><strong>std1</strong> – Standard deviation of the first value</li>
+<li><strong>std2</strong> – Standard deviation of the second value</li>
+<li><strong>confidence_level</strong> – Confidence level for hypothesis testing</li>
+<li><strong>stdtol</strong> – If the standard deviation of the difference between x1 and x2
+is smaller than this value. It will not perform hypothesis testing.</li>
+<li><strong>eps_fallback</strong> – If not hypothesis returns abs(x1-x1) &lt; eps_fallback</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="cemc.tools.PhaseBoundaryTracker.log">
+<code class="descname">log</code><span class="sig-paren">(</span><em>msg</em>, <em>mode='info'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cemc/tools/phase_boundary_tracker.html#PhaseBoundaryTracker.log"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cemc.tools.PhaseBoundaryTracker.log" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print message for logging</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="cemc.tools.PhaseBoundaryTracker.mean_field_common_tangent_construction">
+<code class="descname">mean_field_common_tangent_construction</code><span class="sig-paren">(</span><em>T</em>, <em>relative_width=0.1</em>, <em>n_points=100</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cemc/tools/phase_boundary_tracker.html#PhaseBoundaryTracker.mean_field_common_tangent_construction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cemc.tools.PhaseBoundaryTracker.mean_field_common_tangent_construction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Construction of a common tangent point (NOT USED)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="cemc.tools.PhaseBoundaryTracker.mean_field_separation_line">
+<code class="descname">mean_field_separation_line</code><span class="sig-paren">(</span><em>Tmax</em>, <em>nsteps=10</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cemc/tools/phase_boundary_tracker.html#PhaseBoundaryTracker.mean_field_separation_line"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cemc.tools.PhaseBoundaryTracker.mean_field_separation_line" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the separation line in the mean field approximation</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>Tmax</strong> – Maximum temperature</li>
+<li><strong>nsteps</strong> – Number of steps between T=1K and Tmax</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="cemc.tools.PhaseBoundaryTracker.predict_composition">
+<code class="descname">predict_composition</code><span class="sig-paren">(</span><em>comp</em>, <em>temperatures</em>, <em>target_temp</em>, <em>target_comp=0.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cemc/tools/phase_boundary_tracker.html#PhaseBoundaryTracker.predict_composition"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cemc.tools.PhaseBoundaryTracker.predict_composition" title="Permalink to this definition">¶</a></dt>
+<dd><p>Performs a prediction of the next composition value based on history</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>comp</strong> – History of compositions</li>
+<li><strong>temperatures</strong> – History of temperatures</li>
+<li><strong>target_temp</strong> – Temperature where the composition should be predicted</li>
+<li><strong>target_comp</strong> – Not used</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="cemc.tools.PhaseBoundaryTracker.reset_symbols">
+<code class="descname">reset_symbols</code><span class="sig-paren">(</span><em>calc</em>, <em>old_symbs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cemc/tools/phase_boundary_tracker.html#PhaseBoundaryTracker.reset_symbols"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cemc.tools.PhaseBoundaryTracker.reset_symbols" title="Permalink to this definition">¶</a></dt>
+<dd><p>Resetting symbol and print a log message of the new elements</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>calc</strong> – CE calculator object</li>
+<li><strong>old_symbs</strong> – Symbols of old state</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="cemc.tools.PhaseBoundaryTracker.separation_line_adaptive_euler">
+<code class="descname">separation_line_adaptive_euler</code><span class="sig-paren">(</span><em>T0=100</em>, <em>min_step=1</em>, <em>stepsize=100</em>, <em>mc_args={}</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cemc/tools/phase_boundary_tracker.html#PhaseBoundaryTracker.separation_line_adaptive_euler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cemc.tools.PhaseBoundaryTracker.separation_line_adaptive_euler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Solve the differential equation using adaptive euler</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>T0</strong> – Initial temperature</li>
+<li><strong>min_step</strong> – Minimum step size in kelvin</li>
+<li><strong>stepsize</strong> – Initial stepsize in kelving</li>
+<li><strong>mc_args</strong> – Dictionary of arguments for the MC samplers.
+See <code class="xref py py-meth docutils literal notranslate"><span class="pre">cemc.mcmc.SGCMonteCarlo.runMC()</span></code></li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="cemc.tools.PhaseBoundaryTracker.system_changed_phase">
+<code class="descname">system_changed_phase</code><span class="sig-paren">(</span><em>prev_comp</em>, <em>comp</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cemc/tools/phase_boundary_tracker.html#PhaseBoundaryTracker.system_changed_phase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cemc.tools.PhaseBoundaryTracker.system_changed_phase" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if composition changes too much from one step to another</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>prev_comp</strong> – Composition on the previous step</li>
+<li><strong>comp</strong> – Composition on the current step</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+      
+        <a href="sgc_free_energy_barrier.html" class="btn btn-neutral" title="Free Energy Barrier in The Semi Grand Canonical Monte Carlo" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018, David Kleiven.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'1.0',
+            LANGUAGE:'None',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,791 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>cemc.tools.phase_boundary_tracker &mdash; CEMC 1.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> CEMC
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../montecarlo.html">Canonical Monte Carlo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../sgc_montecarlo.html">Semi Grand Canonical Monte Carlo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../sgc_free_energy_barrier.html">Free Energy Barrier in The Semi Grand Canonical Monte Carlo</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../phase_boundary_tracker.html">Phase Boundary Tracing</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">CEMC</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>cemc.tools.phase_boundary_tracker</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for cemc.tools.phase_boundary_tracker</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">cemc.mfa.mean_field_approx</span> <span class="k">import</span> <span class="n">MeanFieldApprox</span>
+<span class="kn">from</span> <span class="nn">ase.calculators.cluster_expansion.cluster_expansion</span> <span class="k">import</span> <span class="n">ClusterExpansion</span>
+<span class="kn">from</span> <span class="nn">ase.units</span> <span class="k">import</span> <span class="n">kB</span>
+<span class="kn">from</span> <span class="nn">ase.visualize</span> <span class="k">import</span> <span class="n">view</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">cemc.mcmc.sgc_montecarlo</span> <span class="k">import</span> <span class="n">SGCMonteCarlo</span>
+<span class="kn">from</span> <span class="nn">cemc.wanglandau.ce_calculator</span> <span class="k">import</span> <span class="n">CE</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="k">import</span> <span class="n">stats</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">from</span> <span class="nn">cemc.tools.sequence_predicter</span> <span class="k">import</span> <span class="n">SequencePredicter</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">logging.handlers</span> <span class="k">import</span> <span class="n">RotatingFileHandler</span>
+<span class="kn">from</span> <span class="nn">mpi4py</span> <span class="k">import</span> <span class="n">MPI</span>
+<span class="kn">import</span> <span class="nn">h5py</span> <span class="k">as</span> <span class="nn">h5</span>
+<span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="k">import</span> <span class="n">UnivariateSpline</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">gc</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="k">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">switch_backend</span><span class="p">(</span><span class="s2">&quot;Agg&quot;</span><span class="p">)</span> <span class="c1"># With this backend one does not need a screen (useful for clusters)</span>
+<span class="c1">#import Image</span>
+
+<span class="n">comm</span> <span class="o">=</span> <span class="n">MPI</span><span class="o">.</span><span class="n">COMM_WORLD</span>
+
+<span class="k">class</span> <span class="nc">PhaseChangedOnFirstIterationError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">message</span> <span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span> <span class="n">PhaseChangedOnFirstIterationError</span><span class="p">,</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PhaseBoundaryTracker"><a class="viewcode-back" href="../../../phase_boundary_tracker.html#cemc.tools.PhaseBoundaryTracker">[docs]</a><span class="k">class</span> <span class="nc">PhaseBoundaryTracker</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">gs1</span><span class="p">,</span> <span class="n">gs2</span><span class="p">,</span> <span class="n">mu_name</span><span class="o">=</span><span class="s2">&quot;c1_0&quot;</span><span class="p">,</span> <span class="n">logfile</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">chemical_potential</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">conf_same_phase</span><span class="o">=</span><span class="mf">0.45</span><span class="p">,</span> <span class="n">conf_substep_conv</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">max_singlet_change</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">backupfile</span><span class="o">=</span><span class="s2">&quot;backup_phase_track.h5&quot;</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Class for tracking the phase boundary between two phases</span>
+<span class="sd">        NOTE: Has only been confirmed to work for binary systems!</span>
+
+<span class="sd">        :params gs1,gs2: Dictionaries containing the following fields</span>
+<span class="sd">                    * *bc* BulkCrystal object,</span>
+<span class="sd">                    * *cf* Correlation function of the state of the atoms object in BulkCrystal</span>
+<span class="sd">                    * *eci* Effective Cluster Interactions</span>
+<span class="sd">        :param mu_name: Name of the chemical potential to be altered.</span>
+<span class="sd">                        If the system is binary the default: c1_0 is the correct one</span>
+<span class="sd">        :param logfile: Filename where log messages should be written</span>
+<span class="sd">        :param conf_same_phase: Confidence level used for hypothesis testing when checking if the two systems</span>
+<span class="sd">                                have ended up in the same phase. Has to be in the range [0.0,0.5)</span>
+<span class="sd">        :param conf_substep_conv: Confidence level used for hypethesis testing when checking if the stepsize</span>
+<span class="sd">                            needs to be refined. Has to be in the range[0.0,0.5)</span>
+<span class="sd">        :param max_singlet_change: The maximum amount the singlet terms are allowed to change on each step</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gs1</span> <span class="o">=</span> <span class="n">gs1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gs2</span> <span class="o">=</span> <span class="n">gs2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_gs_argument</span><span class="p">(</span><span class="n">gs1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_gs_argument</span><span class="p">(</span><span class="n">gs2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mu_name</span> <span class="o">=</span> <span class="n">mu_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_conf_same_phase</span> <span class="o">=</span> <span class="n">conf_same_phase</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_conf_substep_conv</span> <span class="o">=</span> <span class="n">conf_substep_conv</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_singlet_change</span> <span class="o">=</span> <span class="n">max_singlet_change</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">backupfile</span> <span class="o">=</span> <span class="n">backupfile</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backupfile</span><span class="p">)</span> <span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backupfile</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="n">chemical_potential</span> <span class="ow">is</span> <span class="kc">None</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">chemical_potential</span> <span class="o">=</span> <span class="p">{</span><span class="n">mu_name</span><span class="p">:</span><span class="mf">0.0</span><span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">chemical_potential</span><span class="o">=</span><span class="n">chemical_potential</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_gs</span><span class="p">()</span>
+
+        <span class="c1"># Set the calculators of the atoms objects</span>
+        <span class="n">calc1</span> <span class="o">=</span> <span class="n">ClusterExpansion</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">gs1</span><span class="p">[</span><span class="s2">&quot;bc&quot;</span><span class="p">],</span> <span class="n">cluster_name_eci</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">gs1</span><span class="p">[</span><span class="s2">&quot;eci&quot;</span><span class="p">],</span> <span class="n">init_cf</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">gs1</span><span class="p">[</span><span class="s2">&quot;cf&quot;</span><span class="p">]</span> <span class="p">)</span>
+        <span class="n">calc2</span> <span class="o">=</span> <span class="n">ClusterExpansion</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">gs2</span><span class="p">[</span><span class="s2">&quot;bc&quot;</span><span class="p">],</span> <span class="n">cluster_name_eci</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">gs2</span><span class="p">[</span><span class="s2">&quot;eci&quot;</span><span class="p">],</span> <span class="n">init_cf</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">gs2</span><span class="p">[</span><span class="s2">&quot;cf&quot;</span><span class="p">]</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gs1</span><span class="p">[</span><span class="s2">&quot;bc&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">set_calculator</span><span class="p">(</span> <span class="n">calc1</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gs2</span><span class="p">[</span><span class="s2">&quot;bc&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">set_calculator</span><span class="p">(</span> <span class="n">calc2</span> <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">mfa1</span> <span class="o">=</span> <span class="n">MeanFieldApprox</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">gs1</span><span class="p">[</span><span class="s2">&quot;bc&quot;</span><span class="p">]</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mfa2</span> <span class="o">=</span> <span class="n">MeanFieldApprox</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">gs2</span><span class="p">[</span><span class="s2">&quot;bc&quot;</span><span class="p">]</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_backup_indx</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span> <span class="s2">&quot;PhaseBoundaryTracker&quot;</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span> <span class="n">logging</span><span class="o">.</span><span class="n">INFO</span> <span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="n">logfile</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span> <span class="p">):</span>
+            <span class="n">ch</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ch</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">FileHandler</span><span class="p">(</span> <span class="n">logfile</span> <span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">handlers</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">conf_same_phase</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_conf_same_phase</span>
+
+    <span class="nd">@conf_same_phase</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">conf_same_phase</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="n">value</span> <span class="o">&gt;=</span> <span class="mf">0.5</span> <span class="ow">or</span> <span class="n">value</span> <span class="o">&lt;</span> <span class="mf">0.0</span> <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span> <span class="s2">&quot;Confidence level has to be in the range [0.0,0.5). Given: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_conf_same_phase</span> <span class="o">=</span> <span class="n">value</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">conf_substep_conv</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_conf_substep_conv</span>
+
+    <span class="nd">@conf_substep_conv</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">conf_substep_conv</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="n">value</span> <span class="o">&gt;=</span> <span class="mf">0.5</span> <span class="ow">or</span> <span class="n">value</span> <span class="o">&lt;</span> <span class="mf">0.0</span> <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span> <span class="s2">&quot;Confidence level has to be in the range [0.0,0.5). Given: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_conf_substep_conv</span> <span class="o">=</span> <span class="n">value</span>
+
+<div class="viewcode-block" id="PhaseBoundaryTracker.check_gs_argument"><a class="viewcode-back" href="../../../phase_boundary_tracker.html#cemc.tools.PhaseBoundaryTracker.check_gs_argument">[docs]</a>    <span class="k">def</span> <span class="nf">check_gs_argument</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">gs</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check that the gs arguments contain the correct fields</span>
+
+<span class="sd">        :param gs: Ground state structure</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">required_fields</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;bc&quot;</span><span class="p">,</span><span class="s2">&quot;cf&quot;</span><span class="p">,</span><span class="s2">&quot;eci&quot;</span><span class="p">]</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="n">gs</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">required_fields</span> <span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span> <span class="s2">&quot;The GS argument has to contain </span><span class="si">{}</span><span class="s2"> keys. Given </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">required_fields</span><span class="p">,</span><span class="n">keys</span><span class="p">)</span> <span class="p">)</span></div>
+
+<div class="viewcode-block" id="PhaseBoundaryTracker.get_zero_temperature_mu_boundary"><a class="viewcode-back" href="../../../phase_boundary_tracker.html#cemc.tools.PhaseBoundaryTracker.get_zero_temperature_mu_boundary">[docs]</a>    <span class="k">def</span> <span class="nf">get_zero_temperature_mu_boundary</span><span class="p">(</span> <span class="bp">self</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Computes the chemical potential at which the two phases coexists</span>
+<span class="sd">        at zero kelvin</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Assuming that the chemical potential at this point is not included into the ECIs</span>
+        <span class="n">E1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gs1</span><span class="p">[</span><span class="s2">&quot;bc&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">get_potential_energy</span><span class="p">()</span>
+        <span class="n">E2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gs2</span><span class="p">[</span><span class="s2">&quot;bc&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">get_potential_energy</span><span class="p">()</span>
+        <span class="n">x1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gs1</span><span class="p">[</span><span class="s2">&quot;cf&quot;</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">mu_name</span><span class="p">]</span>
+        <span class="n">x2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gs2</span><span class="p">[</span><span class="s2">&quot;cf&quot;</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">mu_name</span><span class="p">]</span>
+        <span class="n">mu_boundary</span> <span class="o">=</span> <span class="p">(</span><span class="n">E2</span><span class="o">-</span><span class="n">E1</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">x2</span><span class="o">-</span><span class="n">x1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mu_boundary</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">gs1</span><span class="p">[</span><span class="s2">&quot;bc&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">atoms</span> <span class="p">)</span></div>
+
+<div class="viewcode-block" id="PhaseBoundaryTracker.log"><a class="viewcode-back" href="../../../phase_boundary_tracker.html#cemc.tools.PhaseBoundaryTracker.log">[docs]</a>    <span class="k">def</span> <span class="nf">log</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;info&quot;</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Print message for logging</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">rank</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">Get_rank</span><span class="p">()</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">):</span>
+            <span class="k">if</span> <span class="p">(</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;info&quot;</span> <span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span> <span class="n">msg</span> <span class="p">)</span>
+            <span class="k">elif</span> <span class="p">(</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;warning&quot;</span> <span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PhaseBoundaryTracker.backup"><a class="viewcode-back" href="../../../phase_boundary_tracker.html#cemc.tools.PhaseBoundaryTracker.backup">[docs]</a>    <span class="k">def</span> <span class="nf">backup</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">dsetname</span><span class="o">=</span><span class="s2">&quot;data&quot;</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Stores backup data to hdf5 file</span>
+
+<span class="sd">        :param data: Dictionary of data to be backed up</span>
+<span class="sd">        :param dsetname: Basename for all datasets in the h5 file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">rank</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">Get_rank</span><span class="p">()</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">):</span>
+            <span class="k">with</span> <span class="n">h5</span><span class="o">.</span><span class="n">File</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">backupfile</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span> <span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">grp</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">create_group</span><span class="p">(</span><span class="n">dsetname</span><span class="o">+</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_backup_indx</span><span class="p">))</span>
+                <span class="k">for</span> <span class="n">key</span><span class="p">,</span><span class="n">value</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="p">(</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span> <span class="p">):</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="p">(</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;img&quot;</span><span class="p">)</span> <span class="p">):</span>
+                        <span class="n">img</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">T</span>
+                        <span class="n">dset</span> <span class="o">=</span> <span class="n">grp</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span> <span class="n">key</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">img</span> <span class="p">)</span>
+                        <span class="n">dset</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;CLASS&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;IMAGE&quot;</span>
+                        <span class="n">dset</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;IMAGE_VERSION&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;1.2&#39;</span>
+                        <span class="n">dset</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;IMAGE_SUBCLASS&#39;</span><span class="p">]</span> <span class="o">=</span>  <span class="s1">&#39;IMAGE_INDEXED&#39;</span>
+                        <span class="n">dset</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;IMAGE_MINMAXRANGE&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="mi">255</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">grp</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span> <span class="n">key</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">value</span> <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">current_backup_indx</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">comm</span><span class="o">.</span><span class="n">barrier</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="PhaseBoundaryTracker.predict_composition"><a class="viewcode-back" href="../../../phase_boundary_tracker.html#cemc.tools.PhaseBoundaryTracker.predict_composition">[docs]</a>    <span class="k">def</span> <span class="nf">predict_composition</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">comp</span><span class="p">,</span> <span class="n">temperatures</span><span class="p">,</span> <span class="n">target_temp</span><span class="p">,</span> <span class="n">target_comp</span><span class="o">=</span><span class="mf">0.0</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Performs a prediction of the next composition value based on history</span>
+
+<span class="sd">        :param comp: History of compositions</span>
+<span class="sd">        :param temperatures: History of temperatures</span>
+<span class="sd">        :param target_temp: Temperature where the composition should be predicted</span>
+<span class="sd">        :param target_comp: Not used</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="nb">len</span><span class="p">(</span><span class="n">comp</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">2</span> <span class="p">):</span>
+            <span class="k">return</span> <span class="n">comp</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="nb">len</span><span class="p">(</span><span class="n">comp</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span> <span class="p">):</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="mi">3</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">temperatures</span><span class="p">))[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">2.0</span><span class="o">*</span><span class="n">x</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">temperatures</span><span class="p">)</span> <span class="p">)</span>
+
+        <span class="c1"># Ad hoc smoothing parameter</span>
+        <span class="c1"># This choice leads to the deviation from the last point being</span>
+        <span class="c1"># maximum 0.05</span>
+        <span class="n">smoothing</span> <span class="o">=</span> <span class="mf">0.05</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span>
+
+
+        <span class="c1"># Weight the data sich that the last point is more important than</span>
+        <span class="c1"># the first.</span>
+        <span class="c1"># Impact of the first point is exp(-2) relative to the impact of the</span>
+        <span class="c1"># last point</span>
+        <span class="n">spl</span> <span class="o">=</span> <span class="n">UnivariateSpline</span><span class="p">(</span> <span class="n">temperatures</span><span class="p">,</span> <span class="n">comp</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">,</span> <span class="n">w</span><span class="o">=</span><span class="n">weights</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">smoothing</span> <span class="p">)</span>
+        <span class="n">predicted_comp</span> <span class="o">=</span> <span class="n">spl</span><span class="p">(</span><span class="n">target_temp</span><span class="p">)</span>
+
+        <span class="n">rgbimage</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">rank</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">Get_rank</span><span class="p">()</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">):</span>
+            <span class="c1"># Create a plot of how the spline performs</span>
+            <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span> <span class="n">temperatures</span><span class="p">,</span> <span class="n">comp</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;^&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;black&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;History&quot;</span> <span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">temperatures</span><span class="p">),</span> <span class="n">target_temp</span><span class="o">+</span><span class="mi">40</span><span class="p">,</span> <span class="mi">100</span> <span class="p">)</span>
+            <span class="n">pred</span> <span class="o">=</span> <span class="n">spl</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span> <span class="n">x</span><span class="p">,</span> <span class="n">pred</span><span class="p">,</span> <span class="s2">&quot;--&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Spline&quot;</span> <span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span> <span class="p">[</span><span class="n">target_temp</span><span class="p">],</span> <span class="p">[</span><span class="n">target_comp</span><span class="p">],</span> <span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Computed&quot;</span> <span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span> <span class="s2">&quot;Singlets&quot;</span> <span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span> <span class="s2">&quot;Temperature (K)&quot;</span> <span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+            <span class="n">rgbimage</span> <span class="o">=</span> <span class="n">fig2rgb</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="s2">&quot;all&quot;</span><span class="p">)</span>
+        <span class="n">rgbimage</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">bcast</span><span class="p">(</span> <span class="n">rgbimage</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="mi">0</span> <span class="p">)</span>
+        <span class="k">return</span> <span class="n">predicted_comp</span><span class="p">,</span> <span class="n">rgbimage</span></div>
+
+<div class="viewcode-block" id="PhaseBoundaryTracker.is_equal"><a class="viewcode-back" href="../../../phase_boundary_tracker.html#cemc.tools.PhaseBoundaryTracker.is_equal">[docs]</a>    <span class="k">def</span> <span class="nf">is_equal</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">x1</span><span class="p">,</span> <span class="n">x2</span><span class="p">,</span> <span class="n">std1</span><span class="p">,</span> <span class="n">std2</span><span class="p">,</span> <span class="n">confidence_level</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">stdtol</span><span class="o">=</span><span class="mf">1E-6</span><span class="p">,</span> <span class="n">eps_fallback</span><span class="o">=</span><span class="mf">0.05</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check if two numbers are equal provided that their standard deviations</span>
+<span class="sd">        are known</span>
+
+<span class="sd">        :param x1: First value</span>
+<span class="sd">        :param x2: Second value</span>
+<span class="sd">        :param std1: Standard deviation of the first value</span>
+<span class="sd">        :param std2: Standard deviation of the second value</span>
+<span class="sd">        :param confidence_level: Confidence level for hypothesis testing</span>
+<span class="sd">        :param stdtol: If the standard deviation of the difference between x1 and x2</span>
+<span class="sd">            is smaller than this value. It will not perform hypothesis testing.</span>
+<span class="sd">        :param eps_fallback: If not hypothesis returns abs(x1-x1) &lt; eps_fallback</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="n">confidence_level</span> <span class="o">&gt;=</span> <span class="mf">0.5</span> <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span> <span class="s2">&quot;The confidence level has to be in the range [0,0.5)&quot;</span><span class="p">)</span>
+
+        <span class="n">diff</span> <span class="o">=</span> <span class="n">x2</span><span class="o">-</span><span class="n">x1</span>
+        <span class="n">std_diff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span> <span class="n">std1</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">std2</span><span class="o">**</span><span class="mi">2</span> <span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="n">std_diff</span> <span class="o">&lt;</span> <span class="n">stdtol</span> <span class="p">):</span>
+            <span class="c1"># Standard deviation is close to zero. Use the eps_fallback to judge</span>
+            <span class="c1"># if the two are equal</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">x2</span><span class="o">-</span><span class="n">x1</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">eps_fallback</span>
+
+        <span class="n">z_diff</span> <span class="o">=</span> <span class="n">diff</span><span class="o">/</span><span class="n">std_diff</span>
+        <span class="n">min_percentile</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">ppf</span><span class="p">(</span><span class="n">confidence_level</span><span class="p">)</span>
+        <span class="n">max_percentile</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">ppf</span><span class="p">(</span><span class="mf">1.0</span><span class="o">-</span><span class="n">confidence_level</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="p">(</span><span class="n">z_diff</span> <span class="o">&lt;</span> <span class="n">max_percentile</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">z_diff</span> <span class="o">&gt;</span> <span class="n">min_percentile</span><span class="p">)</span> <span class="p">):</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="PhaseBoundaryTracker.composition_first_larger_than_second"><a class="viewcode-back" href="../../../phase_boundary_tracker.html#cemc.tools.PhaseBoundaryTracker.composition_first_larger_than_second">[docs]</a>    <span class="k">def</span> <span class="nf">composition_first_larger_than_second</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">x1</span><span class="p">,</span> <span class="n">x2</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check if the first arguments is larger than the second</span>
+
+<span class="sd">        :param x1: First value</span>
+<span class="sd">        :param x2: Second value</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">x1</span> <span class="o">&gt;</span> <span class="n">x2</span></div>
+
+<div class="viewcode-block" id="PhaseBoundaryTracker.system_changed_phase"><a class="viewcode-back" href="../../../phase_boundary_tracker.html#cemc.tools.PhaseBoundaryTracker.system_changed_phase">[docs]</a>    <span class="k">def</span> <span class="nf">system_changed_phase</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">prev_comp</span><span class="p">,</span> <span class="n">comp</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check if composition changes too much from one step to another</span>
+
+<span class="sd">        :param prev_comp: Composition on the previous step</span>
+<span class="sd">        :param comp: Composition on the current step</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span> <span class="n">prev_comp</span><span class="o">-</span><span class="n">comp</span> <span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_singlet_change</span></div>
+
+<div class="viewcode-block" id="PhaseBoundaryTracker.reset_symbols"><a class="viewcode-back" href="../../../phase_boundary_tracker.html#cemc.tools.PhaseBoundaryTracker.reset_symbols">[docs]</a>    <span class="k">def</span> <span class="nf">reset_symbols</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">calc</span><span class="p">,</span> <span class="n">old_symbs</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Resetting symbol and print a log message of the new elements</span>
+
+<span class="sd">        :param calc: CE calculator object</span>
+<span class="sd">        :param old_symbs: Symbols of old state</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">calc</span><span class="o">.</span><span class="n">set_symbols</span><span class="p">(</span> <span class="n">old_symbs</span> <span class="p">)</span>
+        <span class="n">cf</span> <span class="o">=</span> <span class="n">calc</span><span class="o">.</span><span class="n">get_cf</span><span class="p">()</span>
+        <span class="n">singlets</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span><span class="n">value</span> <span class="ow">in</span> <span class="n">cf</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+            <span class="k">if</span> <span class="p">(</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;c1&quot;</span><span class="p">)</span> <span class="p">):</span>
+                <span class="n">singlets</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Singlets in system: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">singlets</span><span class="p">)</span> <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PhaseBoundaryTracker.separation_line_adaptive_euler"><a class="viewcode-back" href="../../../phase_boundary_tracker.html#cemc.tools.PhaseBoundaryTracker.separation_line_adaptive_euler">[docs]</a>    <span class="k">def</span> <span class="nf">separation_line_adaptive_euler</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">T0</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">min_step</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">stepsize</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">mc_args</span><span class="o">=</span><span class="p">{}</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Solve the differential equation using adaptive euler</span>
+
+<span class="sd">        :param T0: Initial temperature</span>
+<span class="sd">        :param min_step: Minimum step size in kelvin</span>
+<span class="sd">        :param stepsize: Initial stepsize in kelving</span>
+<span class="sd">        :param mc_args: Dictionary of arguments for the MC samplers.</span>
+<span class="sd">            See :py:meth:`cemc.mcmc.SGCMonteCarlo.runMC`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mu_prev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_zero_temperature_mu_boundary</span><span class="p">()</span>
+        <span class="n">calc1</span> <span class="o">=</span> <span class="n">CE</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">gs1</span><span class="p">[</span><span class="s2">&quot;bc&quot;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">gs1</span><span class="p">[</span><span class="s2">&quot;eci&quot;</span><span class="p">],</span> <span class="n">initial_cf</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">gs1</span><span class="p">[</span><span class="s2">&quot;cf&quot;</span><span class="p">]</span> <span class="p">)</span>
+        <span class="n">calc2</span> <span class="o">=</span> <span class="n">CE</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">gs2</span><span class="p">[</span><span class="s2">&quot;bc&quot;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">gs2</span><span class="p">[</span><span class="s2">&quot;eci&quot;</span><span class="p">],</span> <span class="n">initial_cf</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">gs2</span><span class="p">[</span><span class="s2">&quot;cf&quot;</span><span class="p">]</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gs1</span><span class="p">[</span><span class="s2">&quot;bc&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">set_calculator</span><span class="p">(</span><span class="n">calc1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gs2</span><span class="p">[</span><span class="s2">&quot;bc&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">set_calculator</span><span class="p">(</span><span class="n">calc2</span><span class="p">)</span>
+        <span class="n">reference_logical_phase_check</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">orig_stepsize</span> <span class="o">=</span> <span class="n">stepsize</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="s2">&quot;equil&quot;</span> <span class="ow">in</span> <span class="n">mc_args</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="p">):</span>
+            <span class="k">if</span> <span class="p">(</span> <span class="ow">not</span> <span class="n">mc_args</span><span class="p">[</span><span class="s2">&quot;equil&quot;</span><span class="p">]</span> <span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;This scheme requires that the system can equillibriate. Changing to equil=True&quot;</span> <span class="p">)</span>
+
+        <span class="n">mc_args</span><span class="p">[</span><span class="s2">&quot;equil&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="n">comm</span><span class="o">.</span><span class="n">Get_size</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="p">):</span>
+            <span class="n">mpicomm</span> <span class="o">=</span> <span class="n">comm</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mpicomm</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">sgc1</span> <span class="o">=</span> <span class="n">SGCMonteCarlo</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">gs1</span><span class="p">[</span><span class="s2">&quot;bc&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">atoms</span><span class="p">,</span> <span class="n">T0</span><span class="p">,</span> <span class="n">symbols</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Al&quot;</span><span class="p">,</span><span class="s2">&quot;Mg&quot;</span><span class="p">],</span> <span class="n">mpicomm</span><span class="o">=</span><span class="n">mpicomm</span> <span class="p">)</span>
+        <span class="n">sgc2</span> <span class="o">=</span> <span class="n">SGCMonteCarlo</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">gs2</span><span class="p">[</span><span class="s2">&quot;bc&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">atoms</span><span class="p">,</span> <span class="n">T0</span><span class="p">,</span> <span class="n">symbols</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Al&quot;</span><span class="p">,</span><span class="s2">&quot;Mg&quot;</span><span class="p">],</span> <span class="n">mpicomm</span><span class="o">=</span><span class="n">mpicomm</span> <span class="p">)</span>
+        <span class="n">comp1</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">comp2</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">mu_array</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">temp_array</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">dT</span> <span class="o">=</span> <span class="n">stepsize</span>
+        <span class="n">Tprev</span> <span class="o">=</span> <span class="n">T0</span>
+        <span class="n">target_comp1</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">target_comp2</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">target_temp</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">rhs_prev</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">is_first</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">mu_prev</span>
+        <span class="n">n_steps_required_to_reach_temp</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">substep_count</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">update_symbols1</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">update_symbols2</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">T</span> <span class="o">=</span> <span class="n">Tprev</span>
+        <span class="n">singl_name</span> <span class="o">=</span> <span class="s2">&quot;singlet_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mu_name</span><span class="p">)</span>
+        <span class="n">ref_compare</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">iteration</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">symbs1_old</span> <span class="o">=</span> <span class="p">[</span><span class="n">atom</span><span class="o">.</span><span class="n">symbol</span> <span class="k">for</span> <span class="n">atom</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">gs1</span><span class="p">[</span><span class="s2">&quot;bc&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">atoms</span><span class="p">]</span>
+        <span class="n">symbs2_old</span> <span class="o">=</span> <span class="p">[</span><span class="n">atom</span><span class="o">.</span><span class="n">symbol</span> <span class="k">for</span> <span class="n">atom</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">gs2</span><span class="p">[</span><span class="s2">&quot;bc&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">atoms</span><span class="p">]</span>
+        <span class="k">while</span><span class="p">(</span> <span class="n">stepsize</span> <span class="o">&gt;</span> <span class="n">min_step</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Current temperature </span><span class="si">{}</span><span class="s2">K. Current chemical_potential: </span><span class="si">{}</span><span class="s2"> eV/atom&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">T</span><span class="p">),</span><span class="n">mu</span><span class="p">)</span> <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">chemical_potential</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mu_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">mu</span>
+            <span class="n">mc_args</span><span class="p">[</span><span class="s2">&quot;chem_potential&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chemical_potential</span>
+            <span class="n">Tnext</span> <span class="o">=</span> <span class="n">T</span><span class="o">+</span><span class="n">dT</span>
+
+            <span class="n">beta</span> <span class="o">=</span> <span class="mf">1.0</span><span class="o">/</span><span class="p">(</span><span class="n">kB</span><span class="o">*</span><span class="n">T</span><span class="p">)</span>
+            <span class="n">sgc1</span><span class="o">.</span><span class="n">T</span> <span class="o">=</span> <span class="n">T</span>
+            <span class="n">sgc2</span><span class="o">.</span><span class="n">T</span> <span class="o">=</span> <span class="n">T</span>
+            <span class="n">comm</span><span class="o">.</span><span class="n">barrier</span><span class="p">()</span>
+            <span class="n">sgc1</span><span class="o">.</span><span class="n">runMC</span><span class="p">(</span> <span class="o">**</span><span class="n">mc_args</span> <span class="p">)</span>
+            <span class="n">thermo1</span> <span class="o">=</span> <span class="n">sgc1</span><span class="o">.</span><span class="n">get_thermodynamic</span><span class="p">()</span>
+            <span class="n">comm</span><span class="o">.</span><span class="n">barrier</span><span class="p">()</span>
+            <span class="n">sgc2</span><span class="o">.</span><span class="n">runMC</span><span class="p">(</span> <span class="o">**</span><span class="n">mc_args</span> <span class="p">)</span>
+            <span class="n">thermo2</span> <span class="o">=</span> <span class="n">sgc2</span><span class="o">.</span><span class="n">get_thermodynamic</span><span class="p">()</span>
+
+            <span class="n">x1</span> <span class="o">=</span> <span class="n">thermo1</span><span class="p">[</span><span class="n">singl_name</span><span class="p">]</span>
+            <span class="n">x2</span> <span class="o">=</span> <span class="n">thermo2</span><span class="p">[</span><span class="n">singl_name</span><span class="p">]</span>
+            <span class="n">E1</span> <span class="o">=</span> <span class="n">thermo1</span><span class="p">[</span><span class="s2">&quot;energy&quot;</span><span class="p">]</span>
+            <span class="n">E2</span> <span class="o">=</span> <span class="n">thermo2</span><span class="p">[</span><span class="s2">&quot;energy&quot;</span><span class="p">]</span>
+            <span class="n">rhs</span> <span class="o">=</span> <span class="p">(</span><span class="n">E2</span><span class="o">-</span><span class="n">E1</span><span class="p">)</span><span class="o">/</span><span class="p">(</span> <span class="n">beta</span><span class="o">*</span><span class="p">(</span><span class="n">x2</span><span class="o">-</span><span class="n">x1</span><span class="p">)</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">sgc1</span><span class="o">.</span><span class="n">atoms</span><span class="p">)</span> <span class="p">)</span> <span class="o">-</span> <span class="n">mu</span><span class="o">/</span><span class="n">beta</span>
+
+            <span class="k">if</span> <span class="p">(</span> <span class="n">is_first</span> <span class="p">):</span>
+                <span class="n">rhs_prev</span> <span class="o">=</span> <span class="n">rhs</span>
+                <span class="n">is_first</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">beta_prev</span> <span class="o">=</span> <span class="mf">1.0</span><span class="o">/</span><span class="p">(</span><span class="n">kB</span><span class="o">*</span><span class="n">T</span><span class="p">)</span>
+                <span class="n">mu_prev</span> <span class="o">=</span> <span class="n">mu</span>
+                <span class="n">Tprev</span> <span class="o">=</span> <span class="n">T</span>
+                <span class="n">comp1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x1</span><span class="p">)</span>
+                <span class="n">comp2</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x2</span><span class="p">)</span>
+                <span class="n">temp_array</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
+                <span class="n">mu_array</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mu</span><span class="p">)</span>
+                <span class="n">T</span> <span class="o">+=</span> <span class="n">dT</span>
+                <span class="n">beta_next</span> <span class="o">=</span> <span class="mf">1.0</span><span class="o">/</span><span class="p">(</span><span class="n">kB</span><span class="o">*</span><span class="n">T</span><span class="p">)</span>
+                <span class="n">dbeta</span> <span class="o">=</span> <span class="n">beta_next</span><span class="o">-</span><span class="n">beta_prev</span>
+                <span class="n">mu</span> <span class="o">+=</span> <span class="n">rhs</span><span class="o">*</span><span class="n">dbeta</span>
+                <span class="n">ref_compare</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">composition_first_larger_than_second</span><span class="p">(</span> <span class="n">x1</span><span class="p">,</span> <span class="n">x2</span> <span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="n">x1</span> <span class="o">=</span> <span class="n">thermo1</span><span class="p">[</span><span class="n">singl_name</span><span class="p">]</span>
+            <span class="n">x2</span> <span class="o">=</span> <span class="n">thermo2</span><span class="p">[</span><span class="n">singl_name</span><span class="p">]</span>
+
+            <span class="n">var_name</span> <span class="o">=</span> <span class="s2">&quot;var_singlet_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mu_name</span><span class="p">)</span>
+            <span class="n">std1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span> <span class="n">thermo1</span><span class="p">[</span><span class="n">var_name</span><span class="p">]</span> <span class="p">)</span>
+            <span class="n">std2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span> <span class="n">thermo2</span><span class="p">[</span><span class="n">var_name</span><span class="p">]</span> <span class="p">)</span>
+            <span class="n">eps</span> <span class="o">=</span> <span class="mf">0.01</span>
+
+            <span class="c1"># Check if the two phases ended up in the same phase</span>
+            <span class="n">x1_equal_to_x2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_equal</span><span class="p">(</span> <span class="n">x1</span><span class="p">,</span> <span class="n">x2</span><span class="p">,</span> <span class="n">std1</span><span class="p">,</span> <span class="n">std2</span><span class="p">,</span> <span class="n">confidence_level</span><span class="o">=</span><span class="mf">0.45</span> <span class="p">)</span>
+
+            <span class="n">compositions_swapped</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">composition_first_larger_than_second</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span><span class="n">x2</span><span class="p">)</span> <span class="o">!=</span> <span class="n">ref_compare</span>
+
+            <span class="c1"># Check if one of the systems changed phase</span>
+            <span class="k">if</span> <span class="p">(</span> <span class="nb">len</span><span class="p">(</span><span class="n">comp1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">comp2</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">):</span>
+                <span class="n">ref1</span> <span class="o">=</span> <span class="n">x1</span>
+                <span class="n">ref2</span> <span class="o">=</span> <span class="n">x2</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">ref1</span><span class="p">,</span> <span class="n">img1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">predict_composition</span><span class="p">(</span> <span class="n">comp1</span><span class="p">,</span> <span class="n">temp_array</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">target_comp</span><span class="o">=</span><span class="n">x1</span> <span class="p">)</span>
+                <span class="n">ref2</span><span class="p">,</span> <span class="n">img2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">predict_composition</span><span class="p">(</span> <span class="n">comp2</span><span class="p">,</span> <span class="n">temp_array</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">target_comp</span><span class="o">=</span><span class="n">x2</span> <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Temperatures used for prediction:&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">temp_array</span><span class="p">)</span> <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Compositions syst1:&quot;</span> <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">comp1</span><span class="p">)</span> <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Predicted composition for T=</span><span class="si">{}</span><span class="s2">K: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">T</span><span class="p">,</span><span class="n">ref1</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Compositions syst2:&quot;</span> <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">comp2</span><span class="p">)</span> <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Predicted composition for T=</span><span class="si">{}</span><span class="s2">K: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">T</span><span class="p">,</span><span class="n">ref2</span><span class="p">)</span> <span class="p">)</span>
+
+            <span class="n">one_system_changed_phase</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">system_changed_phase</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span><span class="n">ref1</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">system_changed_phase</span><span class="p">(</span><span class="n">x2</span><span class="p">,</span><span class="n">ref2</span><span class="p">)</span>
+            <span class="k">if</span> <span class="p">(</span> <span class="n">x1_equal_to_x2</span> <span class="ow">or</span> <span class="n">compositions_swapped</span> <span class="ow">or</span> <span class="n">one_system_changed_phase</span><span class="p">):</span>
+                <span class="k">if</span> <span class="p">(</span> <span class="n">compositions_swapped</span> <span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Composition swapped&quot;</span> <span class="p">)</span>
+                <span class="k">elif</span> <span class="p">(</span> <span class="n">one_system_changed_phase</span> <span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;One of the systems changed phase&quot;</span> <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Phase 1 and Phase 2 appears to be the same phase&quot;</span> <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Refine the step size and compute a new target temperature&quot;</span> <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Too reduce the chance of spurious phase change of this type happening again, the trial step size will also be reduced&quot;</span> <span class="p">)</span>
+                <span class="n">dT</span> <span class="o">/=</span> <span class="mf">2.0</span>
+                <span class="n">stepsize</span> <span class="o">=</span> <span class="n">dT</span> <span class="c1"># No point in trying larger steps than this</span>
+                <span class="n">T</span> <span class="o">=</span> <span class="n">Tprev</span>
+                <span class="n">mu</span> <span class="o">=</span> <span class="n">mu_prev</span>
+                <span class="n">rhs</span> <span class="o">=</span> <span class="n">rhs_prev</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">reset_symbols</span><span class="p">(</span> <span class="n">calc1</span><span class="p">,</span> <span class="n">symbs1_old</span> <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">reset_symbols</span><span class="p">(</span> <span class="n">calc2</span><span class="p">,</span> <span class="n">symbs2_old</span> <span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;New step size: </span><span class="si">{}</span><span class="s2">K&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dT</span><span class="p">)</span> <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;New trial step size (used when computing the first target temperature after convergence): </span><span class="si">{}</span><span class="s2">K&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">stepsize</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">target_comp1</span> <span class="o">=</span> <span class="n">ref1</span>
+                <span class="n">target_comp2</span> <span class="o">=</span> <span class="n">ref2</span>
+
+                <span class="c1"># Compare with the reference composition</span>
+                <span class="n">x1_is_equal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_equal</span><span class="p">(</span> <span class="n">target_comp1</span><span class="p">,</span> <span class="n">x1</span><span class="p">,</span> <span class="n">std1</span><span class="p">,</span> <span class="n">std1</span><span class="p">,</span> <span class="n">stdtol</span><span class="o">=</span><span class="mf">1E-6</span><span class="p">,</span> <span class="n">eps_fallback</span><span class="o">=</span><span class="n">eps</span> <span class="p">)</span>
+                <span class="n">x2_is_equal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_equal</span><span class="p">(</span> <span class="n">target_comp2</span><span class="p">,</span> <span class="n">x2</span><span class="p">,</span> <span class="n">std2</span><span class="p">,</span> <span class="n">std2</span><span class="p">,</span> <span class="n">stdtol</span><span class="o">=</span><span class="mf">1E-6</span><span class="p">,</span> <span class="n">eps_fallback</span><span class="o">=</span><span class="n">eps</span> <span class="p">)</span>
+
+                <span class="k">if</span> <span class="p">(</span> <span class="n">x1_is_equal</span> <span class="ow">and</span> <span class="n">x2_is_equal</span> <span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Converged. Proceeding to the next temperature interval&quot;</span> <span class="p">)</span>
+                    <span class="c1"># Converged</span>
+                    <span class="n">stepsize</span> <span class="o">=</span> <span class="n">orig_stepsize</span>
+                    <span class="n">dT</span> <span class="o">=</span> <span class="n">stepsize</span>
+                    <span class="n">Tprev</span> <span class="o">=</span> <span class="n">T</span>
+                    <span class="n">rhs_prev</span> <span class="o">=</span> <span class="n">rhs</span>
+                    <span class="n">mu_prev</span> <span class="o">=</span> <span class="n">mu</span>
+                    <span class="n">comp1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x1</span><span class="p">)</span>
+                    <span class="n">comp2</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x2</span><span class="p">)</span>
+                    <span class="n">temp_array</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
+                    <span class="n">mu_array</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mu</span><span class="p">)</span>
+                    <span class="n">backupdata</span> <span class="o">=</span> <span class="p">{</span>
+                        <span class="s2">&quot;comp1&quot;</span><span class="p">:</span><span class="n">comp1</span><span class="p">,</span>
+                        <span class="s2">&quot;comp2&quot;</span><span class="p">:</span><span class="n">comp2</span><span class="p">,</span>
+                        <span class="s2">&quot;temperature&quot;</span><span class="p">:</span><span class="n">temp_array</span><span class="p">,</span>
+                        <span class="s2">&quot;mu&quot;</span><span class="p">:</span><span class="n">mu_array</span><span class="p">,</span>
+                        <span class="s2">&quot;splineimg1&quot;</span><span class="p">:</span><span class="n">img1</span><span class="p">,</span>
+                        <span class="s2">&quot;splineimg2&quot;</span><span class="p">:</span><span class="n">img2</span>
+                    <span class="p">}</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">backup</span><span class="p">(</span> <span class="n">backupdata</span><span class="p">,</span> <span class="n">dsetname</span><span class="o">=</span><span class="s2">&quot;iter&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Did not converge reset and decrease the stepsize</span>
+                    <span class="n">T</span> <span class="o">=</span> <span class="n">Tprev</span>
+                    <span class="n">dT</span> <span class="o">/=</span> <span class="mf">2.0</span>
+                    <span class="n">mu</span> <span class="o">=</span> <span class="n">mu_prev</span>
+                    <span class="n">rhs</span> <span class="o">=</span> <span class="n">rhs_prev</span>
+
+                    <span class="c1"># Update the target compositions to the new ones</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Did not converge. Updating target compositions. Refining stepsize. New stepsize: </span><span class="si">{}</span><span class="s2">K&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dT</span><span class="p">)</span> <span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Resetting system&quot;</span> <span class="p">)</span>
+
+                    <span class="c1"># Reset the system to pure phases</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">reset_symbols</span><span class="p">(</span> <span class="n">calc1</span><span class="p">,</span> <span class="n">symbs1_old</span> <span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">reset_symbols</span><span class="p">(</span> <span class="n">calc2</span><span class="p">,</span> <span class="n">symbs2_old</span> <span class="p">)</span>
+
+            <span class="n">beta_prev</span> <span class="o">=</span> <span class="mf">1.0</span><span class="o">/</span><span class="p">(</span><span class="n">kB</span><span class="o">*</span><span class="n">T</span><span class="p">)</span>
+            <span class="n">T</span> <span class="o">+=</span> <span class="n">dT</span>
+            <span class="n">beta_next</span> <span class="o">=</span> <span class="mf">1.0</span><span class="o">/</span><span class="p">(</span><span class="n">kB</span><span class="o">*</span><span class="n">T</span><span class="p">)</span>
+            <span class="n">dbeta</span> <span class="o">=</span> <span class="n">beta_next</span> <span class="o">-</span> <span class="n">beta_prev</span>
+            <span class="n">mu</span> <span class="o">+=</span> <span class="n">rhs</span><span class="o">*</span><span class="n">dbeta</span>
+
+            <span class="c1"># Append the last step to the array</span>
+            <span class="k">if</span> <span class="p">(</span> <span class="n">stepsize</span> <span class="o">&lt;=</span> <span class="n">min_step</span> <span class="p">):</span>
+                <span class="n">temp_array</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
+                <span class="n">mu_array</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mu</span><span class="p">)</span>
+                <span class="n">comp1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x1</span><span class="p">)</span>
+                <span class="n">comp2</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x2</span><span class="p">)</span>
+
+        <span class="n">res</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">res</span><span class="p">[</span><span class="s2">&quot;temperature&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">temp_array</span>
+        <span class="n">res</span><span class="p">[</span><span class="s2">&quot;mu&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mu_array</span>
+        <span class="n">res</span><span class="p">[</span><span class="s2">&quot;singlet1&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">comp1</span>
+        <span class="n">res</span><span class="p">[</span><span class="s2">&quot;singlet2&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">comp2</span>
+        <span class="n">res</span><span class="p">[</span><span class="s2">&quot;msg&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Not able to make progress with the smalles stepsize </span><span class="si">{}</span><span class="s2">K&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">min_step</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">res</span></div>
+
+<div class="viewcode-block" id="PhaseBoundaryTracker.mean_field_separation_line"><a class="viewcode-back" href="../../../phase_boundary_tracker.html#cemc.tools.PhaseBoundaryTracker.mean_field_separation_line">[docs]</a>    <span class="k">def</span> <span class="nf">mean_field_separation_line</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">Tmax</span><span class="p">,</span> <span class="n">nsteps</span><span class="o">=</span><span class="mi">10</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Computes the separation line in the mean field approximation</span>
+
+<span class="sd">        :param Tmax: Maximum temperature</span>
+<span class="sd">        :param nsteps: Number of steps between T=1K and Tmax</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mu0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_zero_temperature_mu_boundary</span><span class="p">()</span>
+        <span class="n">Tmin</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="n">beta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">1.0</span><span class="o">/</span><span class="p">(</span><span class="n">kB</span><span class="o">*</span><span class="n">Tmin</span><span class="p">),</span> <span class="mf">1.0</span><span class="o">/</span><span class="p">(</span><span class="n">kB</span><span class="o">*</span><span class="n">Tmax</span><span class="p">),</span> <span class="n">nsteps</span> <span class="p">)</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">nsteps</span><span class="p">)</span>
+        <span class="n">mu</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">mu0</span>
+        <span class="n">conc1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span> <span class="n">nsteps</span> <span class="p">)</span>
+        <span class="n">conc2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">nsteps</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">nsteps</span><span class="p">):</span>
+            <span class="n">chem_pot</span> <span class="o">=</span> <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mu_name</span><span class="p">:</span><span class="n">mu</span><span class="p">[</span><span class="n">n</span><span class="o">-</span><span class="mi">1</span><span class="p">]}</span>
+            <span class="n">E2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mfa2</span><span class="o">.</span><span class="n">internal_energy</span><span class="p">(</span> <span class="p">[</span><span class="n">beta</span><span class="p">[</span><span class="n">n</span><span class="p">]],</span> <span class="n">chem_pot</span><span class="o">=</span><span class="n">chem_pot</span> <span class="p">)</span>
+            <span class="n">E1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mfa1</span><span class="o">.</span><span class="n">internal_energy</span><span class="p">(</span> <span class="p">[</span><span class="n">beta</span><span class="p">[</span><span class="n">n</span><span class="p">]],</span> <span class="n">chem_pot</span><span class="o">=</span><span class="n">chem_pot</span> <span class="p">)</span>
+            <span class="n">x2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mfa2</span><span class="o">.</span><span class="n">average_singlets</span><span class="p">(</span> <span class="p">[</span><span class="n">beta</span><span class="p">[</span><span class="n">n</span><span class="p">]],</span> <span class="n">chem_pot</span><span class="o">=</span><span class="n">chem_pot</span> <span class="p">)[</span><span class="bp">self</span><span class="o">.</span><span class="n">mu_name</span><span class="p">]</span>
+            <span class="n">x1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mfa1</span><span class="o">.</span><span class="n">average_singlets</span><span class="p">(</span> <span class="p">[</span><span class="n">beta</span><span class="p">[</span><span class="n">n</span><span class="p">]],</span> <span class="n">chem_pot</span><span class="o">=</span><span class="n">chem_pot</span> <span class="p">)[</span><span class="bp">self</span><span class="o">.</span><span class="n">mu_name</span><span class="p">]</span>
+            <span class="n">conc1</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="n">x1</span>
+            <span class="n">conc2</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="n">x2</span>
+            <span class="n">delta_b</span> <span class="o">=</span> <span class="n">beta</span><span class="p">[</span><span class="n">n</span><span class="p">]</span><span class="o">-</span><span class="n">beta</span><span class="p">[</span><span class="n">n</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">d_mu</span> <span class="o">=</span> <span class="p">(</span><span class="n">E2</span><span class="o">-</span><span class="n">E1</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">beta</span><span class="p">[</span><span class="n">n</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="p">(</span><span class="n">x2</span><span class="o">-</span><span class="n">x1</span><span class="p">))</span> <span class="o">-</span> <span class="n">mu</span><span class="p">[</span><span class="n">n</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="n">beta</span><span class="p">[</span><span class="n">n</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">mu</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="n">mu</span><span class="p">[</span><span class="n">n</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">d_mu</span><span class="o">*</span><span class="n">delta_b</span>
+            <span class="nb">print</span> <span class="p">(</span><span class="mf">1.0</span><span class="o">/</span><span class="p">(</span><span class="n">kB</span><span class="o">*</span><span class="n">beta</span><span class="p">[</span><span class="n">n</span><span class="p">]),</span> <span class="n">mu</span><span class="p">[</span><span class="n">n</span><span class="p">])</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;temperature&quot;</span><span class="p">:</span><span class="mf">1.0</span><span class="o">/</span><span class="p">(</span><span class="n">kB</span><span class="o">*</span><span class="n">beta</span><span class="p">),</span>
+            <span class="s2">&quot;chemical_potential&quot;</span><span class="p">:</span><span class="n">mu</span><span class="p">,</span>
+            <span class="s2">&quot;singlet_1&quot;</span><span class="p">:</span><span class="n">conc1</span><span class="p">,</span>
+            <span class="s2">&quot;singlet_2&quot;</span><span class="p">:</span><span class="n">conc2</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">res</span></div>
+
+<div class="viewcode-block" id="PhaseBoundaryTracker.mean_field_common_tangent_construction"><a class="viewcode-back" href="../../../phase_boundary_tracker.html#cemc.tools.PhaseBoundaryTracker.mean_field_common_tangent_construction">[docs]</a>    <span class="k">def</span> <span class="nf">mean_field_common_tangent_construction</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">relative_width</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">n_points</span><span class="o">=</span><span class="mi">100</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Construction of a common tangent point (NOT USED)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mu0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_zero_temperature_mu_boundary</span><span class="p">()</span>
+        <span class="n">mu_min</span> <span class="o">=</span> <span class="n">mu0</span> <span class="o">-</span> <span class="n">relative_width</span><span class="o">*</span><span class="n">mu0</span><span class="o">/</span><span class="mf">2.0</span>
+        <span class="n">mu_max</span> <span class="o">=</span> <span class="n">mu0</span> <span class="o">+</span> <span class="n">relative_width</span><span class="o">/</span><span class="mf">2.0</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span> <span class="n">mu_min</span><span class="p">,</span> <span class="n">mu_max</span><span class="p">,</span> <span class="n">n_points</span> <span class="p">)</span>
+        <span class="n">beta</span> <span class="o">=</span> <span class="mf">1.0</span><span class="o">/</span><span class="p">(</span><span class="n">kB</span><span class="o">*</span><span class="n">T</span><span class="p">)</span>
+        <span class="n">helmholtz_1</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">helmholtz_2</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">singlet_1</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">singlet_2</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">mu</span><span class="p">)):</span>
+            <span class="n">mu_dict</span> <span class="o">=</span> <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mu_name</span><span class="p">:</span><span class="n">mu</span><span class="p">[</span><span class="n">i</span><span class="p">]}</span>
+            <span class="n">singl_1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mfa1</span><span class="o">.</span><span class="n">average_singlets</span><span class="p">(</span> <span class="p">[</span><span class="n">beta</span><span class="p">],</span> <span class="n">chem_pot</span><span class="o">=</span><span class="n">mu_dict</span> <span class="p">)</span>
+            <span class="n">singl_2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mfa2</span><span class="o">.</span><span class="n">average_singlets</span><span class="p">(</span> <span class="p">[</span><span class="n">beta</span><span class="p">],</span> <span class="n">chem_pot</span><span class="o">=</span><span class="n">mu_dict</span> <span class="p">)</span>
+            <span class="n">F_1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mfa1</span><span class="o">.</span><span class="n">helmholtz_free_energy</span><span class="p">(</span> <span class="p">[</span><span class="n">beta</span><span class="p">],</span> <span class="n">chem_pot</span><span class="o">=</span><span class="n">mu_dict</span> <span class="p">)</span>
+            <span class="n">F_2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mfa2</span><span class="o">.</span><span class="n">helmholtz_free_energy</span><span class="p">(</span> <span class="p">[</span><span class="n">beta</span><span class="p">],</span> <span class="n">chem_pot</span><span class="o">=</span><span class="n">mu_dict</span> <span class="p">)</span>
+            <span class="n">singlet_1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">singl_1</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mu_name</span><span class="p">]</span> <span class="p">)</span>
+            <span class="n">singlet_2</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">singl_2</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mu_name</span><span class="p">]</span> <span class="p">)</span>
+            <span class="n">helmholtz_1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">F_1</span> <span class="p">)</span>
+            <span class="n">helmholtz_2</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">F_2</span> <span class="p">)</span>
+
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span> <span class="n">singlet_1</span><span class="p">,</span> <span class="n">helmholtz_1</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span> <span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span> <span class="n">singlet_2</span><span class="p">,</span> <span class="n">helmholtz_2</span><span class="p">,</span> <span class="s2">&quot;o&quot;</span><span class="p">,</span> <span class="n">mfc</span><span class="o">=</span><span class="s2">&quot;none&quot;</span> <span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="PhaseBoundaryTracker.get_mean_field_phase_boundary"><a class="viewcode-back" href="../../../phase_boundary_tracker.html#cemc.tools.PhaseBoundaryTracker.get_mean_field_phase_boundary">[docs]</a>    <span class="k">def</span> <span class="nf">get_mean_field_phase_boundary</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">Tmin</span><span class="p">,</span> <span class="n">Tmax</span><span class="p">,</span> <span class="n">ntemps</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Computes the phase boundary in the Mean Field Approximation</span>
+
+<span class="sd">        :param Tmin: Minimum temperature</span>
+<span class="sd">        :param Tmax: Maximum temperature</span>
+<span class="sd">        :param ntemps: Number of temperatures between Tmin and Tmax</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">betas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span> <span class="mf">1.0</span><span class="o">/</span><span class="p">(</span><span class="n">kB</span><span class="o">*</span><span class="n">Tmin</span><span class="p">),</span> <span class="mf">1.0</span><span class="o">/</span><span class="p">(</span><span class="n">kB</span><span class="o">*</span><span class="n">Tmax</span><span class="p">),</span> <span class="n">ntemps</span> <span class="p">)</span>
+        <span class="n">mu0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_zero_temperature_mu_boundary</span><span class="p">()</span>
+        <span class="n">db</span> <span class="o">=</span> <span class="n">betas</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">betas</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">delta_singlets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gs1</span><span class="p">[</span><span class="s2">&quot;cf&quot;</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">mu_name</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">gs2</span><span class="p">[</span><span class="s2">&quot;cf&quot;</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">mu_name</span><span class="p">]</span> <span class="c1"># Constant in MFA</span></div></div>
+
+<span class="k">def</span> <span class="nf">fig2rgb</span><span class="p">(</span> <span class="n">fig</span> <span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert matplotlib figure instance to a png</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
+
+    <span class="c1"># Get RGB values</span>
+    <span class="n">w</span><span class="p">,</span><span class="n">h</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">get_width_height</span><span class="p">()</span>
+    <span class="n">buf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span> <span class="n">fig</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">tostring_rgb</span><span class="p">(),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span> <span class="p">)</span>
+    <span class="n">buf</span><span class="o">.</span><span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">h</span><span class="p">,</span><span class="n">w</span><span class="p">,</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">greyscale</span> <span class="o">=</span> <span class="mf">0.2989</span> <span class="o">*</span> <span class="n">buf</span><span class="p">[:,:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.5870</span> <span class="o">*</span> <span class="n">buf</span><span class="p">[:,:,</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.1140</span> <span class="o">*</span> <span class="n">buf</span><span class="p">[:,:,</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">greyscale</span> <span class="o">=</span> <span class="n">greyscale</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">greyscale</span>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018, David Kleiven.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'1.0',
+            LANGUAGE:'None',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

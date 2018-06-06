@@ -1,0 +1,518 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>cemc.mcmc.sgc_free_energy_barrier &mdash; CEMC 1.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> CEMC
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../montecarlo.html">Canonical Monte Carlo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../sgc_montecarlo.html">Semi Grand Canonical Monte Carlo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../sgc_free_energy_barrier.html">Free Energy Barrier in The Semi Grand Canonical Monte Carlo</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../phase_boundary_tracker.html">Phase Boundary Tracing</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">CEMC</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>cemc.mcmc.sgc_free_energy_barrier</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for cemc.mcmc.sgc_free_energy_barrier</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">import montecarlo as mc</span>
+<span class="sd">from cemc.mcmc.mc_observers import SGCObserver</span>
+<span class="sd">from cemc.mcmc import SGCMonteCarlo</span>
+<span class="sd">import numpy as np</span>
+<span class="sd">from ase.units import kB</span>
+<span class="sd">import copy</span>
+<span class="sd">from scipy import stats</span>
+<span class="sd">import mpi_tools</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">cemc.mcmc</span> <span class="k">import</span> <span class="n">SGCMonteCarlo</span>
+<span class="kn">from</span> <span class="nn">cemc.mcmc.mc_observers</span> <span class="k">import</span> <span class="n">SGCObserver</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="k">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="kn">from</span> <span class="nn">ase.visualize</span> <span class="k">import</span> <span class="n">view</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<div class="viewcode-block" id="SGCFreeEnergyBarrier"><a class="viewcode-back" href="../../../sgc_free_energy_barrier.html#cemc.mcmc.SGCFreeEnergyBarrier">[docs]</a><span class="k">class</span> <span class="nc">SGCFreeEnergyBarrier</span><span class="p">(</span> <span class="n">SGCMonteCarlo</span> <span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for computing the free energy as a function of composition</span>
+<span class="sd">    It applies umbrella sampling to force the system to also visit</span>
+<span class="sd">    regions with low statistical weight</span>
+
+<span class="sd">    :Keyword Arguments:</span>
+<span class="sd">        * *n_windows* Maximum number of windows</span>
+<span class="sd">        * *n_bins* Number of bins per window</span>
+<span class="sd">        * *min_singlet* Minmum value of singlet term</span>
+<span class="sd">        * *max_singlet* Maximum value of singlet term</span>
+<span class="sd">        * mpicomm* MPI communicator object</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">atoms</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">n_windows</span> <span class="o">=</span> <span class="mi">60</span>
+        <span class="n">n_bins</span> <span class="o">=</span> <span class="mi">5</span>
+        <span class="n">min_singlet</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.0</span>
+        <span class="n">max_singlet</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.4</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">free_eng_mpi</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rank</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="s2">&quot;n_windows&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="p">):</span>
+            <span class="n">n_windows</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;n_windows&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="s2">&quot;n_bins&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="p">):</span>
+            <span class="n">n_bins</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;n_bins&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="s2">&quot;min_singlet&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="p">):</span>
+            <span class="n">min_singlet</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;min_singlet&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="s2">&quot;max_singlet&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="p">):</span>
+            <span class="n">max_singlet</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;max_singlet&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="s2">&quot;mpicomm&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">free_eng_mpi</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;mpicomm&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_windows</span> <span class="o">=</span> <span class="n">n_windows</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span> <span class="o">=</span> <span class="n">n_bins</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_singlet</span> <span class="o">=</span> <span class="n">min_singlet</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_singlet</span> <span class="o">=</span> <span class="n">max_singlet</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs_parent</span> <span class="o">=</span> <span class="n">kwargs</span>
+        <span class="nb">super</span><span class="p">(</span> <span class="n">SGCFreeEnergyBarrier</span><span class="p">,</span> <span class="bp">self</span> <span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span> <span class="n">atoms</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chem_potential_restart_file</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">free_eng_mpi</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rank</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">free_eng_mpi</span><span class="o">.</span><span class="n">Get_rank</span><span class="p">()</span>
+
+        <span class="c1"># Set up whats needed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">window_singletrange</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_singlet</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_singlet</span><span class="p">)</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">n_windows</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bin_singletrange</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">window_singletrange</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">energydata</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_window</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_windows</span><span class="p">):</span>
+            <span class="k">if</span> <span class="p">(</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">)</span> <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">energydata</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">)</span> <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">energydata</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="p">)</span>
+
+<div class="viewcode-block" id="SGCFreeEnergyBarrier.get_window_limits"><a class="viewcode-back" href="../../../sgc_free_energy_barrier.html#cemc.mcmc.SGCFreeEnergyBarrier.get_window_limits">[docs]</a>    <span class="k">def</span> <span class="nf">get_window_limits</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">window</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the upper and lower bound for window</span>
+
+<span class="sd">        :param window: Index of window</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="n">window</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">):</span>
+            <span class="n">min_limit</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">min_limit</span> <span class="o">=</span> <span class="n">window</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">window_singletrange</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">bin_singletrange</span>
+
+        <span class="n">max_limit</span> <span class="o">=</span> <span class="p">(</span><span class="n">window</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">window_singletrange</span>
+        <span class="k">return</span> <span class="n">min_limit</span><span class="p">,</span> <span class="n">max_limit</span></div>
+
+<div class="viewcode-block" id="SGCFreeEnergyBarrier.get_window_indx"><a class="viewcode-back" href="../../../sgc_free_energy_barrier.html#cemc.mcmc.SGCFreeEnergyBarrier.get_window_indx">[docs]</a>    <span class="k">def</span> <span class="nf">get_window_indx</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">window</span><span class="p">,</span> <span class="n">value</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the bin index of value in the current window</span>
+
+<span class="sd">        :param window: Index of current window</span>
+<span class="sd">        :param value: Value to be added in a histogram</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">min_lim</span><span class="p">,</span> <span class="n">max_lim</span><span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_window_limits</span><span class="p">(</span><span class="n">window</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="n">value</span> <span class="o">&lt;</span> <span class="n">min_lim</span> <span class="ow">or</span> <span class="n">value</span> <span class="o">&gt;=</span> <span class="n">max_lim</span> <span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Value out of range for window</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="n">msg</span> <span class="o">+=</span> <span class="s2">&quot;Value has to be in range [</span><span class="si">{}</span><span class="s2">,</span><span class="si">{}</span><span class="s2">)</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">min_lim</span><span class="p">,</span><span class="n">max_lim</span><span class="p">)</span>
+            <span class="n">msg</span> <span class="o">+=</span> <span class="s2">&quot;Got value: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="n">window</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">):</span>
+            <span class="n">N</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">N</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="o">+</span><span class="mi">1</span>
+        <span class="n">indx</span> <span class="o">=</span> <span class="p">(</span><span class="n">value</span><span class="o">-</span><span class="n">min_lim</span><span class="p">)</span><span class="o">*</span><span class="n">N</span><span class="o">/</span><span class="p">(</span><span class="n">max_lim</span><span class="o">-</span><span class="n">min_lim</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">indx</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SGCFreeEnergyBarrier.collect_results"><a class="viewcode-back" href="../../../sgc_free_energy_barrier.html#cemc.mcmc.SGCFreeEnergyBarrier.collect_results">[docs]</a>    <span class="k">def</span> <span class="nf">collect_results</span><span class="p">(</span> <span class="bp">self</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Collects the results from all processors</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">free_eng_mpi</span> <span class="ow">is</span> <span class="kc">None</span> <span class="p">):</span>
+            <span class="k">return</span>
+        <span class="n">temp_data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">temp_energy</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">free_eng_mpi</span><span class="o">.</span><span class="n">Get_size</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)):</span>
+            <span class="n">recv_buf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">free_eng_mpi</span><span class="o">.</span><span class="n">Allreduce</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">recv_buf</span> <span class="p">)</span>
+            <span class="n">recv_buf</span> <span class="o">=</span> <span class="n">recv_buf</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+            <span class="n">temp_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">recv_buf</span><span class="o">/</span><span class="n">size</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">free_eng_mpi</span><span class="o">.</span><span class="n">Allreduce</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">energydata</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">recv_buf</span> <span class="p">)</span>
+            <span class="n">temp_energy</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">recv_buf</span><span class="o">/</span><span class="n">size</span><span class="p">)</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">temp_data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">energydata</span> <span class="o">=</span> <span class="n">temp_energy</span></div>
+
+<div class="viewcode-block" id="SGCFreeEnergyBarrier.update_records"><a class="viewcode-back" href="../../../sgc_free_energy_barrier.html#cemc.mcmc.SGCFreeEnergyBarrier.update_records">[docs]</a>    <span class="k">def</span> <span class="nf">update_records</span><span class="p">(</span> <span class="bp">self</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update the data arrays</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">singlet</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">averager</span><span class="o">.</span><span class="n">singlets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">indx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_window_indx</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_window</span><span class="p">,</span> <span class="n">singlet</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">current_window</span><span class="p">][</span><span class="n">indx</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">energydata</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">current_window</span><span class="p">][</span><span class="n">indx</span><span class="p">]</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_energy</span></div>
+
+<div class="viewcode-block" id="SGCFreeEnergyBarrier.accept"><a class="viewcode-back" href="../../../sgc_free_energy_barrier.html#cemc.mcmc.SGCFreeEnergyBarrier.accept">[docs]</a>    <span class="k">def</span> <span class="nf">accept</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">system_changes</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return True if the trial move was accepted, False otherwise</span>
+
+<span class="sd">        :param system_changes: List of system changes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Check if move accepted by SGCMonteCarlo</span>
+        <span class="n">move_accepted</span> <span class="o">=</span> <span class="n">SGCMonteCarlo</span><span class="o">.</span><span class="n">accept</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">system_changes</span><span class="p">)</span>
+        <span class="c1"># Now check if the move keeps us in same window</span>
+        <span class="n">new_singlets</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">averager</span><span class="o">.</span><span class="n">singlets</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">_calc</span><span class="o">.</span><span class="n">get_singlets</span><span class="p">(</span> <span class="n">new_singlets</span> <span class="p">)</span>
+        <span class="n">singlet</span> <span class="o">=</span> <span class="n">new_singlets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="c1"># Set in_window to True and check if it should be False instead</span>
+        <span class="n">in_window</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">min_allowed</span><span class="p">,</span><span class="n">max_allowed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_window_limits</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_window</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="n">singlet</span> <span class="o">&lt;</span> <span class="n">min_allowed</span> <span class="ow">or</span> <span class="n">singlet</span> <span class="o">&gt;</span> <span class="n">max_allowed</span><span class="p">):</span>
+            <span class="n">in_window</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="c1"># Now system will return to previous state if not inside window</span>
+        <span class="k">return</span> <span class="n">move_accepted</span> <span class="ow">and</span> <span class="n">in_window</span></div>
+
+<div class="viewcode-block" id="SGCFreeEnergyBarrier.get_merged_records"><a class="viewcode-back" href="../../../sgc_free_energy_barrier.html#cemc.mcmc.SGCFreeEnergyBarrier.get_merged_records">[docs]</a>    <span class="k">def</span> <span class="nf">get_merged_records</span><span class="p">(</span> <span class="bp">self</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Merge the records into a one array</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">collect_results</span><span class="p">()</span>
+        <span class="n">all_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="n">energy</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">energydata</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)):</span>
+            <span class="n">ratio</span> <span class="o">=</span> <span class="n">all_data</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*=</span> <span class="n">ratio</span>
+            <span class="n">all_data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">:]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+            <span class="n">energy</span> <span class="o">+=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">energydata</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">])[</span><span class="mi">1</span><span class="p">:]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+
+        <span class="n">all_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">all_data</span><span class="p">)</span>
+        <span class="n">all_data</span> <span class="o">/=</span> <span class="n">all_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">G</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">all_data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;histogram&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">all_data</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;free_energy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">G</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;energy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">energy</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">result</span></div>
+
+<div class="viewcode-block" id="SGCFreeEnergyBarrier.save"><a class="viewcode-back" href="../../../sgc_free_energy_barrier.html#cemc.mcmc.SGCFreeEnergyBarrier.save">[docs]</a>    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">fname</span><span class="o">=</span><span class="s2">&quot;sgc_free_energy.json&quot;</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Stores the results to a JSON file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_merged_records</span><span class="p">()</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;temperature&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">T</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;chemical_potential&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chemical_potential</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">min_singlet</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">max_singlet</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;free_energy&quot;</span><span class="p">]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;xaxis&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;min_singlet&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_singlet</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;max_singlet&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_singlet</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;kwargs_parent&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs_parent</span>
+
+            <span class="c1"># Store also the raw histgramgs</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;raw_histograms&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">hist</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span> <span class="k">for</span> <span class="n">hist</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;raw_energydata&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">value</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">energydata</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;num_procs&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">free_eng_mpi</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;num_procs&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">free_eng_mpi</span><span class="o">.</span><span class="n">Get_size</span><span class="p">()</span>
+
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span> <span class="n">fname</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span> <span class="p">)</span> <span class="k">as</span> <span class="n">outfile</span><span class="p">:</span>
+                <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">,</span> <span class="n">outfile</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">,</span><span class="s2">&quot;:&quot;</span><span class="p">)</span> <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Results written to: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span> <span class="p">)</span></div>
+
+<div class="viewcode-block" id="SGCFreeEnergyBarrier.load"><a class="viewcode-back" href="../../../sgc_free_energy_barrier.html#cemc.mcmc.SGCFreeEnergyBarrier.load">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span> <span class="n">atoms</span><span class="p">,</span> <span class="n">fname</span><span class="p">,</span> <span class="n">mpicomm</span><span class="o">=</span><span class="kc">None</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Loads the results from a file such the calculations can be restarted</span>
+<span class="sd">        Returns an instance of the object in the same state as it was left</span>
+
+<span class="sd">        :param fname: Filename to data file</span>
+<span class="sd">        :param mpicomm: MPI communicator object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span> <span class="n">fname</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span> <span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">infile</span><span class="p">)</span>
+        <span class="n">T</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;temperature&quot;</span><span class="p">]</span>
+        <span class="n">chem_potential_restart_file</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;chemical_potential&quot;</span><span class="p">]</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">hist</span><span class="p">)</span> <span class="k">for</span> <span class="n">hist</span> <span class="ow">in</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;raw_histograms&quot;</span><span class="p">]]</span>
+        <span class="n">energydata</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;raw_energydata&quot;</span><span class="p">]</span>
+        <span class="n">n_windows</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">n_bins</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">min_singlet</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;min_singlet&quot;</span><span class="p">]</span>
+        <span class="n">max_singlet</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;max_singlet&quot;</span><span class="p">]</span>
+        <span class="n">kwargs_parent</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;kwargs_parent&quot;</span><span class="p">]</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">SGCFreeEnergyBarrier</span><span class="p">(</span> <span class="n">atoms</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">n_windows</span><span class="o">=</span><span class="n">n_windows</span><span class="p">,</span> <span class="n">n_bins</span><span class="o">=</span><span class="n">n_bins</span><span class="p">,</span> \
+                <span class="n">min_singlet</span><span class="o">=</span><span class="n">min_singlet</span><span class="p">,</span> <span class="n">max_singlet</span><span class="o">=</span><span class="n">max_singlet</span><span class="p">,</span> <span class="n">mpicomm</span><span class="o">=</span><span class="n">mpicomm</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs_parent</span> <span class="p">)</span>
+
+        <span class="n">obj</span><span class="o">.</span><span class="n">chem_potential_restart_file</span> <span class="o">=</span> <span class="n">chem_potential_restart_file</span>
+
+        <span class="c1"># Insert the data into the data array</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)):</span>
+            <span class="n">obj</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">][:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+            <span class="n">obj</span><span class="o">.</span><span class="n">energydata</span><span class="p">[</span><span class="n">i</span><span class="p">][:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">energydata</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">obj</span></div>
+
+<div class="viewcode-block" id="SGCFreeEnergyBarrier.bring_system_into_window"><a class="viewcode-back" href="../../../sgc_free_energy_barrier.html#cemc.mcmc.SGCFreeEnergyBarrier.bring_system_into_window">[docs]</a>    <span class="k">def</span> <span class="nf">bring_system_into_window</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Brings the system into the current window</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">min_lim</span><span class="p">,</span> <span class="n">max_lim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_window_limits</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_window</span><span class="p">)</span>
+        <span class="n">newsinglet</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">min_lim</span><span class="o">+</span><span class="n">max_lim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">_calc</span><span class="o">.</span><span class="n">set_singlets</span><span class="p">({</span><span class="s2">&quot;c1_0&quot;</span><span class="p">:</span><span class="n">newsinglet</span><span class="p">})</span></div>
+
+<div class="viewcode-block" id="SGCFreeEnergyBarrier.run"><a class="viewcode-back" href="../../../sgc_free_energy_barrier.html#cemc.mcmc.SGCFreeEnergyBarrier.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">nsteps</span> <span class="o">=</span> <span class="mi">10000</span><span class="p">,</span> <span class="n">chem_pot</span> <span class="o">=</span> <span class="kc">None</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run MC simulation in all windows</span>
+
+<span class="sd">        :param nsteps: Number of Monte Carlo step per window</span>
+<span class="sd">        :param chem_pot: Chemical potential. See :py:meth:`cemc.mcmc.SGCMonteCarlo.runMC`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">chem_potential_restart_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Chemical potential was read from the restart file.&quot;</span> <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">chemical_potential</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chem_potential_restart_file</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">chemical_potential</span> <span class="o">=</span> <span class="n">chem_pot</span>
+
+        <span class="n">output_every</span> <span class="o">=</span> <span class="mi">30</span>
+        <span class="c1"># For all windows</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_windows</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">current_window</span> <span class="o">=</span> <span class="n">i</span>
+            <span class="c1"># We are inside a new window, update to start with concentration in the middle of this window</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bring_system_into_window</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">is_first</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="c1">#Now we are in the middle of the current window, start MC</span>
+            <span class="n">current_step</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">now</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="k">while</span> <span class="p">(</span><span class="n">current_step</span> <span class="o">&lt;</span> <span class="n">nsteps</span><span class="p">):</span>
+                <span class="n">current_step</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="p">(</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="o">-</span><span class="n">now</span> <span class="o">&gt;</span> <span class="n">output_every</span> <span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Running MC step </span><span class="si">{}</span><span class="s2"> of </span><span class="si">{}</span><span class="s2"> in window </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">current_step</span><span class="p">,</span><span class="n">nsteps</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">current_window</span><span class="p">))</span>
+                    <span class="n">now</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+                <span class="c1"># Run MC step</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_mc_step</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_records</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">averager</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Acceptance rate in window </span><span class="si">{}</span><span class="s2">: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_window</span><span class="p">,</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_accepted</span><span class="p">)</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">current_step</span><span class="p">)</span> <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_merged_records</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="SGCFreeEnergyBarrier.plot"><a class="viewcode-back" href="../../../sgc_free_energy_barrier.html#cemc.mcmc.SGCFreeEnergyBarrier.plot">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span> <span class="n">fname</span><span class="o">=</span><span class="s2">&quot;sgc_data.json&quot;</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create some standard plots of the results file produced</span>
+
+<span class="sd">        :param fname: Filename of the data file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span><span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">infile</span><span class="p">)</span>
+        <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Temperature: </span><span class="si">{}</span><span class="s2">K&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;temperature&quot;</span><span class="p">]))</span>
+        <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Chemical potential: </span><span class="si">{}</span><span class="s2">K&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;chemical_potential&quot;</span><span class="p">])</span> <span class="p">)</span>
+
+        <span class="n">figs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">figs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span> <span class="p">)</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">figs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;xaxis&quot;</span><span class="p">],</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;free_energy&quot;</span><span class="p">],</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;steps&quot;</span> <span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span> <span class="s2">&quot;Singlets&quot;</span> <span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span> <span class="s2">&quot;$</span><span class="se">\\</span><span class="s2">beta \Delta G$&quot;</span> <span class="p">)</span>
+
+        <span class="n">figs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span> <span class="p">)</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">figs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;xaxis&quot;</span><span class="p">],</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;energy&quot;</span><span class="p">],</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;steps&quot;</span> <span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span> <span class="s2">&quot;Singlets&quot;</span> <span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span> <span class="s2">&quot;Energy (eV)&quot;</span> <span class="p">)</span>
+        <span class="k">return</span> <span class="n">figs</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018, David Kleiven.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'1.0',
+            LANGUAGE:'None',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
