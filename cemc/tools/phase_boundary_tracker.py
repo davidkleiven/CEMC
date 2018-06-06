@@ -63,7 +63,6 @@ class PhaseBoundaryTracker(object):
             self.chemical_potential = {mu_name:0.0}
         else:
             self.chemical_potential=chemical_potential
-        self.check_gs()
 
         # Set the calculators of the atoms objects
         calc1 = ClusterExpansion( self.gs1["bc"], cluster_name_eci=self.gs1["eci"], init_cf=self.gs1["cf"] )
