@@ -1,5 +1,5 @@
 Semi Grand Canonical Monte Carlo
 ==================================
 
-.. autoclass:: cemc.mcmc.SGCMontecarlo
+.. autoclass:: cemc.mcmc.SGCMonteCarlo
     :members:
