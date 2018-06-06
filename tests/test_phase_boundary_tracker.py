@@ -27,41 +27,6 @@ class TestPhaseBoundaryMC( unittest.TestCase ):
             atom.symbol = "Mg"
         return ceBulk1, ceBulk2
 
-    def test_no_throw( self ):
-        """
-        No throw
-        """
-        if ( not has_ase_with_ce ):
-            msg = "ASE version does not have CE"
-            self.skipTest( msg )
-            return
-        no_throw = True
-        msg = ""
-        try:
-            b1, b2 = self.init_bulk_crystal()
-            gs1 = {
-                "bc":b1,
-                "eci":get_example_ecis(bc=b1),
-                "cf":get_example_cf(bc=b1)
-            }
-
-            gs2 = {
-                "bc":b2,
-                "eci":get_example_ecis(bc=b2),
-                "cf":get_example_cf(bc=b2)
-            }
-
-            boundary = PhaseBoundaryTracker( gs1, gs2 )
-            T = [10,20]
-            res = boundary.separation_line( np.array(T) )
-        except PhaseChangedOnFirstIterationError as exc:
-            pass
-        except Exception as exc:
-            no_throw = False
-            msg = str(exc)
-
-        self.assertTrue( no_throw, msg=msg )
-
     def test_adaptive_euler(self):
         if ( not has_ase_with_ce ):
             msg = "ASE version does not have CE"
