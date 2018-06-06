@@ -17,6 +17,18 @@ import json
 import time
 
 class SGCFreeEnergyBarrier( SGCMonteCarlo ):
+    """
+    Class for computing the free energy as a function of composition
+    It applies umbrella sampling to force the system to also visit
+    regions with low statistical weight
+
+    :Keyword Arguments:
+        * *n_windows* Maximum number of windows
+        * *n_bins* Number of bins per window
+        * *min_singlet* Minmum value of singlet term
+        * *max_singlet* Maximum value of singlet term
+        * mpicomm* MPI communicator object
+    """
     def __init__( self, atoms, T, **kwargs):
         n_windows = 60
         n_bins = 5
@@ -63,6 +75,8 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
     def get_window_limits( self, window ):
         """
         Returns the upper and lower bound for window
+
+        :param window: Index of window
         """
         if ( window == 0 ):
             min_limit = 0
@@ -74,7 +88,10 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
 
     def get_window_indx( self, window, value ):
         """
-        Returns the index of value in the current window
+        Returns the bin index of value in the current window
+
+        :param window: Index of current window
+        :param value: Value to be added in a histogram
         """
         min_lim, max_lim= self.get_window_limits(window)
         if ( value < min_lim or value >= max_lim ):
@@ -119,6 +136,11 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
         self.energydata[self.current_window][indx] += self.current_energy
 
     def accept( self, system_changes ):
+        """
+        Return True if the trial move was accepted, False otherwise
+
+        :param system_changes: List of system changes
+        """
 
         # Check if move accepted by SGCMonteCarlo
         move_accepted = SGCMonteCarlo.accept(self, system_changes)
@@ -186,6 +208,9 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
         """
         Loads the results from a file such the calculations can be restarted
         Returns an instance of the object in the same state as it was left
+
+        :param fname: Filename to data file
+        :param mpicomm: MPI communicator object
         """
         with open( fname, 'r' ) as infile:
             params = json.load(infile)
@@ -220,6 +245,9 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
     def run( self, nsteps = 10000, chem_pot = None ):
         """
         Run MC simulation in all windows
+
+        :param nsteps: Number of Monte Carlo step per window
+        :param chem_pot: Chemical potential. See :py:meth:`cemc.mcmc.SGCMonteCarlo.runMC`
         """
         if ( self.chem_potential_restart_file is not None ):
             self.log( "Chemical potential was read from the restart file." )
@@ -256,6 +284,8 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
     def plot( fname="sgc_data.json" ):
         """
         Create some standard plots of the results file produced
+
+        :param fname: Filename of the data file
         """
         with open(fname,'r') as infile:
             result = json.load(infile)
