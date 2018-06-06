@@ -2,6 +2,8 @@
 [![MIT License](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](LICENSE)
 # Cluster Expansion Monte Carlo
 
+[Documentation page](https://davidkleiven.github.io/CEMC/build/html/index.html)
+
 # Dependencies
 * [SWIG](http://www.swig.org/) (newer than version 3.0)
 * [GCC](https://gcc.gnu.org/) (has to support multithreading)
