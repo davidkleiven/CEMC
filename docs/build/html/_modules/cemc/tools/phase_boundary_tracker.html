@@ -212,7 +212,6 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">chemical_potential</span> <span class="o">=</span> <span class="p">{</span><span class="n">mu_name</span><span class="p">:</span><span class="mf">0.0</span><span class="p">}</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">chemical_potential</span><span class="o">=</span><span class="n">chemical_potential</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">check_gs</span><span class="p">()</span>
 
         <span class="c1"># Set the calculators of the atoms objects</span>
         <span class="n">calc1</span> <span class="o">=</span> <span class="n">ClusterExpansion</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">gs1</span><span class="p">[</span><span class="s2">&quot;bc&quot;</span><span class="p">],</span> <span class="n">cluster_name_eci</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">gs1</span><span class="p">[</span><span class="s2">&quot;eci&quot;</span><span class="p">],</span> <span class="n">init_cf</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">gs1</span><span class="p">[</span><span class="s2">&quot;cf&quot;</span><span class="p">]</span> <span class="p">)</span>
