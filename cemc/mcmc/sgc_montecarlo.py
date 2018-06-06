@@ -1,12 +1,18 @@
-import montecarlo as mc
+from cemc.mcmc import montecarlo as mc
 from cemc.mcmc.mc_observers import SGCObserver
 import numpy as np
 from ase.units import kB
 import copy
 from scipy import stats
-import mpi_tools
+from cemc.mcmc import mpi_tools
 
 class SGCMonteCarlo( mc.Montecarlo ):
+    """
+    Class for running Monte Carlo in the Semi-Grand Canonical Ensebmle
+    (i.e. fixed number of atoms, but varying composition)
+
+    See docstring of :py:class:`cemc.mcmc.Montecarlo`
+    """
     def __init__( self, atoms, temp, indeces=None, symbols=None, mpicomm=None, logfile="", plot_debug=False, min_acc_rate=0.0 ):
         mc.Montecarlo.__init__( self, atoms, temp, indeces=indeces, mpicomm=mpicomm, logfile=logfile, plot_debug=plot_debug, \
         min_acc_rate=min_acc_rate )
@@ -32,6 +38,9 @@ class SGCMonteCarlo( mc.Montecarlo ):
             self.attach( self.averager )
 
     def get_trial_move( self ):
+        """
+        Generate a trial move by flipping the symbol of one atom
+        """
         indx = np.random.randint( low=0, high=len(self.atoms) )
         old_symb = self.atoms[indx].symbol
         new_symb = old_symb
@@ -41,7 +50,9 @@ class SGCMonteCarlo( mc.Montecarlo ):
         return system_changes
 
     def check_symbols(self):
-        """Override because there are no restriction on the symbols here"""
+        """
+        Override because there are no restriction on the symbols here
+        """
         pass
 
     def update_tracker( self, system_changes ):
@@ -86,6 +97,10 @@ class SGCMonteCarlo( mc.Montecarlo ):
     def has_converged_prec_mode( self, prec=0.01, confidence_level=0.05, log_status=False ):
         """
         Checks that the averages have converged to the desired precission
+
+        :param prec: Precision level
+        :param confidence_level: Confidence level for hypothesis testing
+        :param log_status: If True it will print a message showing the variances and convergence criteria
         """
         energy_converged = super( SGCMonteCarlo, self ).has_converged_prec_mode( prec=prec, confidence_level=confidence_level, log_status=log_status )
         percentile = stats.norm.ppf(1.0-confidence_level)
@@ -119,6 +134,8 @@ class SGCMonteCarlo( mc.Montecarlo ):
     def composition_reached_equillibrium(self, prev_composition, var_prev, confidence_level=0.05):
         """
         Returns True if the composition reached equillibrium
+
+        See :py:meth:`cemc.mcmc.Montecarlo.composition_reached_equillibrium`
         """
         min_percentile = stats.norm.ppf(confidence_level)
         max_percentile = stats.norm.ppf(1.0-confidence_level)
@@ -207,6 +224,9 @@ class SGCMonteCarlo( mc.Montecarlo ):
         return eci_with_chem_pot
 
     def reset_ecis( self ):
+        """
+        Return the ECIs
+        """
         return self.reset_eci_to_original( self.atoms.bc._calc.eci )
 
     def estimate_correlation_time_composition( self, window_length=1000, restart=False ):
@@ -267,6 +287,15 @@ class SGCMonteCarlo( mc.Montecarlo ):
         self.log( "{}".format(self.composition_correlation_time) )
 
     def runMC( self, mode="fixed", steps = 10, verbose = False, chem_potential=None, equil=True, equil_params={}, prec_confidence=0.05, prec=0.01 ):
+        """
+        Run Monte Carlo simulation.
+        See :py:meth:`cemc.mcmc.Montecarlo.runMC`
+
+        :param chem_potential: Dictionary containing the chemical potentials
+            The keys should correspond to one of the singlet terms.
+            A typical form of this is
+            {"c1_0":-1.0,c1_1_1.0}
+        """
         mpi_tools.set_seeds(self.mpicomm)
         self.reset()
         if ( self.mpicomm is not None ):
@@ -332,7 +361,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
 
         par_works = True
         if ( self.rank == 0 ):
-            par_works = self.parallelization_works( all_res )
+            par_works = self._parallelization_works( all_res )
         par_works = self.mpicomm.bcast( par_works, root=0 )
         if ( not par_works ):
             # This can happen either because the seed on all processors are the same
@@ -365,6 +394,9 @@ class SGCMonteCarlo( mc.Montecarlo ):
         self.averager.quantities = self.mpicomm.bcast( self.averager.quantities, root=0 )
 
     def get_thermodynamic( self, reset_ecis=True ):
+        """
+        Compute thermodynamic quantities
+        """
         self.collect_averager_results()
         N = self.averager.counter
         quantities = {}
@@ -389,7 +421,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
             self.reset_eci_to_original( self.atoms._calc.eci )
         return quantities
 
-    def parallelization_works( self, all_res ):
+    def _parallelization_works( self, all_res ):
         """
         Checks that the entries in all_res are different.
         If not it seems like the same process is running on

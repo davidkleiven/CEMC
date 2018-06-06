@@ -12,8 +12,8 @@ import logging
 from matplotlib import pyplot as plt
 from ase.units import kJ,mol
 from mpi4py import MPI
-import mpi_tools
-from exponential_filter import ExponentialFilter
+from cemc.mcmc import mpi_tools
+from cemc.mcmc.exponential_filter import ExponentialFilter
 #from ase.io.trajectory import Trajectory
 
 class DidNotReachEquillibriumError(Exception):
@@ -25,22 +25,17 @@ class TooFewElementsError(Exception):
         super(TooFewElementsError,self).__init__(msg)
 
 class Montecarlo(object):
-    """ Class for performing MonteCarlo sampling for atoms
-
     """
+    Class for running Monte Carlo at fixed composition
 
+    :param atoms: ASE atoms object (with CE calculator attached!)
+    :param temp: Temperature of Monte Carlo simulation in Kelvin
+    :param indeces: List of atoms involved Monte Carlo swaps. default is all atoms (currently this has no effect!).
+    :param mpicomm: MPI communicator object
+    :param logfile: Filename for logging (default is logging to console)
+    :param plot_debug: If True it will create some diagnositc plots during equilibration
+    """
     def __init__(self, atoms, temp, indeces=None, mpicomm=None, logfile="", plot_debug=False, min_acc_rate=0.0 ):
-        """ Initiliaze Monte Carlo simulations object
-
-        Arguments:
-        atoms : ASE atoms object
-        temp  : Temperature of Monte Carlo simulation in Kelvin
-        indeces: List of atoms involved Monte Carlo swaps. default is all atoms.
-        mpicomm: MPI communicator object
-        logfile: Filename for logging
-        plot_debug: Boolean if true plots will be generated to visualize
-                    evolution of the system. Useful for debugging.
-        """
         self.name = "MonteCarlo"
         self.atoms = atoms
         self.T = temp
@@ -192,10 +187,8 @@ class Montecarlo(object):
         Attach observers that is called on each MC step
         and receives information of which atoms get swapped
 
-        Arguments
-        ----------
-        obs - Instance of the MCObserver class
-        interval - the obs.__call__ method is called at mc steps separated by interval
+        :param obs: Instance of the MCObserver class
+        :param interval: the obs.__call__ method is called at mc steps separated by interval
         """
         if ( callable(obs) ):
             self.observers.append( (interval,obs) )
@@ -309,6 +302,10 @@ class Montecarlo(object):
         Returns True if the composition reached equillibrium.
         Default the simulation runs at fixed composition so
         this function just returns True
+
+        :param prev_composition: Previous composition
+        :param var_prev: Variance of the composition
+        :param confidence_level: Confidence level used for testing
         """
         return True, prev_composition, var_prev, 0.0
 
@@ -316,12 +313,10 @@ class Montecarlo(object):
         """
         Runs the MC until equillibrium is reached
 
-        Arguments
-        ----------
-        window_length    - the length of the window used to compare averages
+        :param window_length: the length of the window used to compare averages
                      if window_lenth='auto' then the length of window is set to
                      10*len(self.atoms)
-        confidence_level - Confidence level used in hypothesis testing
+        :param confidence_level: Confidence level used in hypothesis testing
                      The question asked in the hypothesis testing is:
                      Given that the two windows have the same average
                      and the variance observed (null hypothesis is correct),
@@ -338,7 +333,7 @@ class Montecarlo(object):
                      the variance is underestimated. Hence, one can
                      safely use a lower confidence level.
 
-        maxiter - The maximum number of windows it will try to sample.
+        :param maxiter: The maximum number of windows it will try to sample.
             If it reaches this number of iteration the algorithm will
             raise an error
         """
@@ -518,6 +513,8 @@ class Montecarlo(object):
         Handles the case when a few processors did not reach equillibrium
         The behavior is that if one processor reached equillibrium the
         simulation can continue
+
+        :param reached_equil: Flag True if equillibrium was reached. False otherwise
         """
         if ( self.mpicomm is None ):
             return reached_equil
@@ -533,25 +530,17 @@ class Montecarlo(object):
 
 
     def runMC(self, mode="fixed", steps=10, verbose = False, equil=True, equil_params={}, prec=0.01, prec_confidence=0.05):
-        """ Run Monte Carlo simulation
+        """Run Monte Carlo simulation
 
-        Arguments
-        ----------
-        steps - Number of steps in the MC simulation
-        verbose - If True information is printed on each step
-        equil - If the True the MC steps will be performed until equillibrium is reached
-        equil_params - Dictionary of parameters used in the equillibriation routine
-                       Default values
-                       {
-                        "maxiter":1000,
-                        "confidence_level":0.05,
-                        "window_length":1000
-                       }
-                       See the doc-string of the equillibriate function for more
-                       information
-        prec - Precission of the run. The simulation terminates when
+        :param steps: Number of steps in the MC simulation
+        :param verbose: If True information is printed on each step
+        :param equil: If the True the MC steps will be performed until equillibrium is reached
+        :param equil_params: Dictionary of parameters used in the equillibriation routine
+                             See the doc-string of :py:meth:`cemc.mcmc.Montecarlo.equillibriate` for more
+                             information
+        :param prec: Precission of the run. The simulation terminates when
             <E>/std(E) < prec with a confidence given prec_confidence
-        prec_confidence - Confidence level used when determining if enough
+        :param prec_confidence: Confidence level used when determining if enough
                           MC samples have been collected
         """
         #print ("Proc start MC: {}".format(self.rank))
@@ -677,6 +666,9 @@ class Montecarlo(object):
         return quantities
 
     def get_trial_move( self ):
+        """
+        Perform a trial move by swapping two atoms
+        """
         self.rand_a = self.indeces[np.random.randint(0,len(self.indeces))]
         self.rand_b = self.indeces[np.random.randint(0,len(self.indeces))]
         symb_a = self.symbols[np.random.randint(0,len(self.symbols))]
