@@ -1,5 +1,5 @@
 Canonical Monte Carlo
 ======================
 
-..autoclass: cemc.mcmc.Montecarlo
-    :methods:
+.. autoclass:: cemc.mcmc.Montecarlo
+    :members:

@@ -1,0 +1,996 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>cemc.mcmc.montecarlo &mdash; CEMC 1.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> CEMC
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../montecarlo.html">Canonical Monte Carlo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../sgc_montecarlo.html">Semi Grand Canonical Monte Carlo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../sgc_free_energy_barrier.html">Free Energy Barrier in The Semi Grand Canonical Monte Carlo</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../phase_boundary_tracker.html">Phase Boundary Tracing</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">CEMC</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>cemc.mcmc.montecarlo</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for cemc.mcmc.montecarlo</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;Monte Carlo method for ase.&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">ase.units</span> <span class="k">as</span> <span class="nn">units</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">mpi4py</span> <span class="k">import</span> <span class="n">MPI</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="k">import</span> <span class="n">stats</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="k">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="kn">from</span> <span class="nn">ase.units</span> <span class="k">import</span> <span class="n">kJ</span><span class="p">,</span><span class="n">mol</span>
+<span class="kn">from</span> <span class="nn">mpi4py</span> <span class="k">import</span> <span class="n">MPI</span>
+<span class="kn">from</span> <span class="nn">cemc.mcmc</span> <span class="k">import</span> <span class="n">mpi_tools</span>
+<span class="kn">from</span> <span class="nn">cemc.mcmc.exponential_filter</span> <span class="k">import</span> <span class="n">ExponentialFilter</span>
+<span class="c1">#from ase.io.trajectory import Trajectory</span>
+
+<span class="k">class</span> <span class="nc">DidNotReachEquillibriumError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span> <span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">DidNotReachEquillibriumError</span><span class="p">,</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">TooFewElementsError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TooFewElementsError</span><span class="p">,</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Montecarlo"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo">[docs]</a><span class="k">class</span> <span class="nc">Montecarlo</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for running Monte Carlo at fixed composition</span>
+
+<span class="sd">    :param atoms: ASE atoms object (with CE calculator attached!)</span>
+<span class="sd">    :param temp: Temperature of Monte Carlo simulation in Kelvin</span>
+<span class="sd">    :param indeces: List of atoms involved Monte Carlo swaps. default is all atoms (currently this has no effect!).</span>
+<span class="sd">    :param mpicomm: MPI communicator object</span>
+<span class="sd">    :param logfile: Filename for logging (default is logging to console)</span>
+<span class="sd">    :param plot_debug: If True it will create some diagnositc plots during equilibration</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">atoms</span><span class="p">,</span> <span class="n">temp</span><span class="p">,</span> <span class="n">indeces</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mpicomm</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logfile</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">plot_debug</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">min_acc_rate</span><span class="o">=</span><span class="mf">0.0</span> <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;MonteCarlo&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span> <span class="o">=</span> <span class="n">atoms</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">T</span> <span class="o">=</span> <span class="n">temp</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_acc_rate</span> <span class="o">=</span> <span class="n">min_acc_rate</span>
+        <span class="k">if</span> <span class="n">indeces</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">indeces</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">indeces</span> <span class="o">=</span> <span class="n">indeces</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">observers</span> <span class="o">=</span> <span class="p">[]</span> <span class="c1"># List of observers that will be called every n-th step</span>
+                            <span class="c1"># similar to the ones used in the optimization routines</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_step</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_accepted</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">status_every_sec</span> <span class="o">=</span> <span class="mi">30</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">atoms_indx</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">symbols</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">build_atoms_list</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_energy</span> <span class="o">=</span> <span class="mf">1E100</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">new_energy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_energy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mean_energy</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">energy_squared</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span> <span class="o">=</span> <span class="n">mpicomm</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rank</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rank</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span><span class="o">.</span><span class="n">Get_rank</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span> <span class="s2">&quot;MonteCarlo&quot;</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span> <span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span> <span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="n">logfile</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span> <span class="p">):</span>
+            <span class="n">ch</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">()</span>
+            <span class="n">ch</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span> <span class="n">logging</span><span class="o">.</span><span class="n">INFO</span> <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">flush_log</span> <span class="o">=</span> <span class="n">ch</span><span class="o">.</span><span class="n">flush</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ch</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">FileHandler</span><span class="p">(</span> <span class="n">logfile</span> <span class="p">)</span>
+            <span class="n">ch</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span> <span class="n">logging</span><span class="o">.</span><span class="n">INFO</span> <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">flush_log</span> <span class="o">=</span> <span class="n">ch</span><span class="o">.</span><span class="n">emit</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">handlers</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span>
+
+        <span class="c1"># Some member variables used to update the atom tracker, only relevant for canonical MC</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rand_a</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rand_b</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">selected_a</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">selected_b</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">corrtime_energies</span> <span class="o">=</span> <span class="p">[]</span> <span class="c1"># Array of energies used to estimate the correlation time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">plot_debug</span> <span class="o">=</span> <span class="n">plot_debug</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pyplot_block</span> <span class="o">=</span> <span class="kc">True</span> <span class="c1"># Set to false if pyplot should not block when plt.show() is called</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_linear_vib_correction</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_first</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filter</span> <span class="o">=</span> <span class="n">ExponentialFilter</span><span class="p">(</span> <span class="n">min_time</span><span class="o">=</span><span class="mf">0.2</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">),</span> <span class="n">max_time</span><span class="o">=</span><span class="mi">20</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">),</span> <span class="n">n_subfilters</span><span class="o">=</span><span class="mi">10</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">accept_first_trial_move_after_reset</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">linear_vib_correction</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_linear_vib_correction</span>
+
+    <span class="nd">@linear_vib_correction</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">linear_vib_correction</span><span class="p">(</span> <span class="bp">self</span> <span class="p">,</span> <span class="n">linvib</span> <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_linear_vib_correction</span> <span class="o">=</span> <span class="n">linvib</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">_calc</span><span class="o">.</span><span class="n">linear_vib_correction</span> <span class="o">=</span> <span class="n">linvib</span>
+
+<div class="viewcode-block" id="Montecarlo.check_symbols"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.check_symbols">[docs]</a>    <span class="k">def</span> <span class="nf">check_symbols</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Checks that there is at least to different symbols</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">symbs</span> <span class="o">=</span> <span class="p">[</span><span class="n">atom</span><span class="o">.</span><span class="n">symbol</span> <span class="k">for</span> <span class="n">atom</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">]</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">symb</span> <span class="ow">in</span> <span class="n">symbs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">symb</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">count</span><span class="p">:</span>
+                <span class="n">count</span><span class="p">[</span><span class="n">symb</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">count</span><span class="p">[</span><span class="n">symb</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="c1"># Verify that there is at two elements with more that two symbols</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">count</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">TooFewElementsError</span><span class="p">(</span><span class="s2">&quot;There is only one element in the given atoms object!&quot;</span><span class="p">)</span>
+        <span class="n">n_elems_more_than_2</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span><span class="n">value</span> <span class="ow">in</span> <span class="n">count</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">n_elems_more_than_2</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">n_elems_more_than_2</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">TooFewElementsError</span><span class="p">(</span><span class="s2">&quot;There is only one element that has more than one atom&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Montecarlo.log"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.log">[docs]</a>    <span class="k">def</span> <span class="nf">log</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;info&quot;</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Logs the message as info</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">allowed_modes</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;info&quot;</span><span class="p">,</span><span class="s2">&quot;warning&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">allowed_modes</span> <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span> <span class="s2">&quot;Mode has to be one of </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">allowed_modes</span><span class="p">)</span> <span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">rank</span> <span class="o">!=</span> <span class="mi">0</span> <span class="p">):</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;info&quot;</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="p">(</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;warning&quot;</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Montecarlo.reset"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.reset">[docs]</a>    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Reset all member variables to their original values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">interval</span><span class="p">,</span><span class="n">obs</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">observers</span><span class="p">:</span>
+            <span class="n">obs</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_step</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_accepted</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mean_energy</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">energy_squared</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="c1">#self.correlation_info = None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">corrtime_energies</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">accept_first_trial_move_after_reset</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">is_first</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="Montecarlo.include_vib"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.include_vib">[docs]</a>    <span class="k">def</span> <span class="nf">include_vib</span><span class="p">(</span> <span class="bp">self</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Includes the vibrational ECIs in the CE ECIs</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">_calc</span><span class="o">.</span><span class="n">include_linvib_in_ecis</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">T</span> <span class="p">)</span></div>
+
+<div class="viewcode-block" id="Montecarlo.build_atoms_list"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.build_atoms_list">[docs]</a>    <span class="k">def</span> <span class="nf">build_atoms_list</span><span class="p">(</span> <span class="bp">self</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates a dictionary of the indices of each atom which is used to</span>
+<span class="sd">        make sure that two equal atoms cannot be swapped</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">atoms_indx</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">atom</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span> <span class="ow">not</span> <span class="n">atom</span><span class="o">.</span><span class="n">symbol</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms_indx</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">atoms_indx</span><span class="p">[</span><span class="n">atom</span><span class="o">.</span><span class="n">symbol</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">atom</span><span class="o">.</span><span class="n">index</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">atoms_indx</span><span class="p">[</span><span class="n">atom</span><span class="o">.</span><span class="n">symbol</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">atom</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">symbols</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms_indx</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Montecarlo.update_tracker"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.update_tracker">[docs]</a>    <span class="k">def</span> <span class="nf">update_tracker</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">system_changes</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update the atom tracker</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">symb_a</span> <span class="o">=</span> <span class="n">system_changes</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">symb_b</span> <span class="o">=</span> <span class="n">system_changes</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">atoms_indx</span><span class="p">[</span><span class="n">symb_a</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">selected_a</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rand_b</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">atoms_indx</span><span class="p">[</span><span class="n">symb_b</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">selected_b</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rand_a</span></div>
+
+
+<div class="viewcode-block" id="Montecarlo.attach"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.attach">[docs]</a>    <span class="k">def</span> <span class="nf">attach</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">obs</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mi">1</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Attach observers that is called on each MC step</span>
+<span class="sd">        and receives information of which atoms get swapped</span>
+
+<span class="sd">        :param obs: Instance of the MCObserver class</span>
+<span class="sd">        :param interval: the obs.__call__ method is called at mc steps separated by interval</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="n">callable</span><span class="p">(</span><span class="n">obs</span><span class="p">)</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">observers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="p">(</span><span class="n">interval</span><span class="p">,</span><span class="n">obs</span><span class="p">)</span> <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span> <span class="s2">&quot;The observer has to be a callable class!&quot;</span> <span class="p">)</span></div>
+
+<div class="viewcode-block" id="Montecarlo.get_var_average_energy"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.get_var_average_energy">[docs]</a>    <span class="k">def</span> <span class="nf">get_var_average_energy</span><span class="p">(</span> <span class="bp">self</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the variance of the average energy, taking into account</span>
+<span class="sd">        the auto correlation time</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># First collect the energies from all processors</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">collect_energy</span><span class="p">()</span>
+        <span class="n">U</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean_energy</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">current_step</span>
+        <span class="n">E_sq</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">energy_squared</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">current_step</span>
+        <span class="n">var</span> <span class="o">=</span> <span class="p">(</span><span class="n">E_sq</span> <span class="o">-</span> <span class="n">U</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">nproc</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="p">):</span>
+            <span class="n">nproc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span><span class="o">.</span><span class="n">Get_size</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="n">var</span> <span class="o">&lt;</span> <span class="mf">0.0</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Variance of energy is smaller than zero. (Probably due to numerical precission)&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;warning&quot;</span> <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Variance of energy : </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">var</span><span class="p">)</span> <span class="p">)</span>
+            <span class="n">var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">var</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span><span class="p">[</span><span class="s2">&quot;correlation_time_found&quot;</span><span class="p">]</span> <span class="p">):</span>
+            <span class="k">return</span> <span class="n">var</span><span class="o">/</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_step</span><span class="o">*</span><span class="n">nproc</span><span class="p">)</span>
+
+        <span class="n">tau</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span><span class="p">[</span><span class="s2">&quot;correlation_time&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="n">tau</span> <span class="o">&lt;</span> <span class="mf">1.0</span> <span class="p">):</span>
+            <span class="n">tau</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="k">return</span> <span class="mf">2.0</span><span class="o">*</span><span class="n">var</span><span class="o">*</span><span class="n">tau</span><span class="o">/</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_step</span><span class="o">*</span><span class="n">nproc</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Montecarlo.current_energy_without_vib"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.current_energy_without_vib">[docs]</a>    <span class="k">def</span> <span class="nf">current_energy_without_vib</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the current energy without the contribution from vibrations</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_energy</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">_calc</span><span class="o">.</span><span class="n">vib_energy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Montecarlo.estimate_correlation_time"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.estimate_correlation_time">[docs]</a>    <span class="k">def</span> <span class="nf">estimate_correlation_time</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">window_length</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">restart</span><span class="o">=</span><span class="kc">False</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Estimates the correlation time</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;*********** Estimating correlation time ***************&quot;</span> <span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="n">restart</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">corrtime_energies</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span> <span class="n">window_length</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mc_step</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">corrtime_energies</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_energy_without_vib</span><span class="p">()</span> <span class="p">)</span>
+
+        <span class="n">mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">corrtime_energies</span> <span class="p">)</span>
+        <span class="n">energy_dev</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">corrtime_energies</span> <span class="p">)</span> <span class="o">-</span> <span class="n">mean</span>
+        <span class="n">var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span> <span class="n">energy_dev</span> <span class="p">)</span>
+        <span class="n">auto_corr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">correlate</span><span class="p">(</span> <span class="n">energy_dev</span><span class="p">,</span> <span class="n">energy_dev</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;full&quot;</span> <span class="p">)</span>
+        <span class="n">auto_corr</span> <span class="o">=</span> <span class="n">auto_corr</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">auto_corr</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">):]</span>
+
+        <span class="c1"># Find the point where the ratio between var and auto_corr is 1/2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;correlation_time_found&quot;</span><span class="p">:</span><span class="kc">False</span><span class="p">,</span>
+            <span class="s2">&quot;correlation_time&quot;</span><span class="p">:</span><span class="mf">0.0</span><span class="p">,</span>
+            <span class="s2">&quot;msg&quot;</span><span class="p">:</span><span class="s2">&quot;&quot;</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="n">var</span> <span class="o">==</span> <span class="mf">0.0</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span><span class="p">[</span><span class="s2">&quot;msg&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Zero variance leads to infinite correlation time&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span><span class="p">[</span><span class="s2">&quot;msg&quot;</span><span class="p">]</span> <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span><span class="p">[</span><span class="s2">&quot;correlation_time_found&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span><span class="p">[</span><span class="s2">&quot;correlation_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">window_length</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span>
+
+        <span class="n">auto_corr</span> <span class="o">/=</span> <span class="p">(</span><span class="n">window_length</span><span class="o">*</span><span class="n">var</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">auto_corr</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.5</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span><span class="p">[</span><span class="s2">&quot;msg&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Window is too short. Add more samples&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span><span class="p">[</span><span class="s2">&quot;msg&quot;</span><span class="p">]</span> <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span><span class="p">[</span><span class="s2">&quot;correlation_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">window_length</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span>
+
+        <span class="c1"># See:</span>
+        <span class="c1"># Van de Walle, A. &amp; Asta, M.</span>
+        <span class="c1"># Self-driven lattice-model Monte Carlo simulations of alloy thermodynamic properties and</span>
+        <span class="c1"># phase diagrams Modelling and Simulation</span>
+        <span class="c1"># in Materials Science and Engineering, IOP Publishing, 2002, 10, 521</span>
+        <span class="c1"># for details on  the notation</span>
+        <span class="n">indx</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">auto_corr</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="p">(</span> <span class="n">auto_corr</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.5</span> <span class="p">):</span>
+                <span class="n">indx</span> <span class="o">=</span> <span class="n">i</span>
+                <span class="k">break</span>
+        <span class="n">rho</span> <span class="o">=</span> <span class="mf">2.0</span><span class="o">**</span><span class="p">(</span><span class="o">-</span><span class="mf">1.0</span><span class="o">/</span><span class="n">indx</span><span class="p">)</span>
+        <span class="n">tau</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.0</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">rho</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span><span class="p">[</span><span class="s2">&quot;correlation_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tau</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span><span class="p">[</span><span class="s2">&quot;correlation_time_found&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Estimated correlation time: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tau</span><span class="p">)</span> <span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">plot_debug</span> <span class="p">):</span>
+            <span class="n">gr_spec</span><span class="o">=</span> <span class="p">{</span><span class="s2">&quot;hspace&quot;</span><span class="p">:</span><span class="mf">0.0</span><span class="p">}</span>
+            <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span><span class="n">gridspec_kw</span><span class="o">=</span><span class="n">gr_spec</span><span class="p">,</span><span class="n">sharex</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">corrtime_energies</span><span class="p">)</span> <span class="p">)</span>
+            <span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span> <span class="n">x</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">corrtime_energies</span> <span class="p">)</span><span class="o">*</span><span class="n">mol</span><span class="o">/</span><span class="n">kJ</span> <span class="p">)</span>
+            <span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span> <span class="s2">&quot;Energy (kJ/mol)&quot;</span> <span class="p">)</span>
+            <span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span> <span class="n">x</span><span class="p">,</span> <span class="n">auto_corr</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">3</span> <span class="p">)</span>
+            <span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span> <span class="n">x</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">x</span><span class="o">/</span><span class="n">tau</span><span class="p">)</span> <span class="p">)</span>
+            <span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span> <span class="s2">&quot;Number of MC steps&quot;</span> <span class="p">)</span>
+            <span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span> <span class="s2">&quot;ACF&quot;</span> <span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">(</span> <span class="n">block</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pyplot_block</span> <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span></div>
+
+<div class="viewcode-block" id="Montecarlo.composition_reached_equillibrium"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.composition_reached_equillibrium">[docs]</a>    <span class="k">def</span> <span class="nf">composition_reached_equillibrium</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prev_composition</span><span class="p">,</span> <span class="n">var_prev</span><span class="p">,</span> <span class="n">confidence_level</span><span class="o">=</span><span class="mf">0.05</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns True if the composition reached equillibrium.</span>
+<span class="sd">        Default the simulation runs at fixed composition so</span>
+<span class="sd">        this function just returns True</span>
+
+<span class="sd">        :param prev_composition: Previous composition</span>
+<span class="sd">        :param var_prev: Variance of the composition</span>
+<span class="sd">        :param confidence_level: Confidence level used for testing</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="kc">True</span><span class="p">,</span> <span class="n">prev_composition</span><span class="p">,</span> <span class="n">var_prev</span><span class="p">,</span> <span class="mf">0.0</span></div>
+
+<div class="viewcode-block" id="Montecarlo.equillibriate"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.equillibriate">[docs]</a>    <span class="k">def</span> <span class="nf">equillibriate</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">window_length</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span> <span class="n">confidence_level</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">maxiter</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;stat_equiv&quot;</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Runs the MC until equillibrium is reached</span>
+
+<span class="sd">        :param window_length: the length of the window used to compare averages</span>
+<span class="sd">                     if window_lenth=&#39;auto&#39; then the length of window is set to</span>
+<span class="sd">                     10*len(self.atoms)</span>
+<span class="sd">        :param confidence_level: Confidence level used in hypothesis testing</span>
+<span class="sd">                     The question asked in the hypothesis testing is:</span>
+<span class="sd">                     Given that the two windows have the same average</span>
+<span class="sd">                     and the variance observed (null hypothesis is correct),</span>
+<span class="sd">                     what is the probability of observering an even larger</span>
+<span class="sd">                     difference between the average values in the to windows?</span>
+<span class="sd">                     If the probability of observing an even larger difference</span>
+<span class="sd">                     is considerable, then we conclude that the system</span>
+<span class="sd">                     has reaced equillibrium.</span>
+<span class="sd">                     confidence_level=0.05 means that the algorithm will</span>
+<span class="sd">                     terminate if the probability of observering an even</span>
+<span class="sd">                     larger difference is larger than 5 percent.</span>
+
+<span class="sd">                     NOTE: Since a Markiv Chain has large correlation</span>
+<span class="sd">                     the variance is underestimated. Hence, one can</span>
+<span class="sd">                     safely use a lower confidence level.</span>
+
+<span class="sd">        :param maxiter: The maximum number of windows it will try to sample.</span>
+<span class="sd">            If it reaches this number of iteration the algorithm will</span>
+<span class="sd">            raise an error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">allowed_modes</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;stat_equiv&quot;</span><span class="p">,</span> <span class="s2">&quot;fixed&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">allowed_modes</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Equilibration mode has to be one of </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">allowed_modes</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="n">window_length</span> <span class="o">==</span> <span class="s2">&quot;auto&quot;</span> <span class="p">):</span>
+          <span class="n">window_length</span> <span class="o">=</span> <span class="mi">10</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">)</span>
+        <span class="n">nproc</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="p">):</span>
+            <span class="n">nproc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span><span class="o">.</span><span class="n">Get_size</span><span class="p">()</span>
+
+
+        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;fixed&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">&quot;Equilibriating with </span><span class="si">{}</span><span class="s2"> MC steps&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">window_length</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">window_length</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_mc_step</span><span class="p">()</span>
+            <span class="k">return</span>
+
+        <span class="n">E_prev</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">var_E_prev</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">min_percentile</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">ppf</span><span class="p">(</span><span class="n">confidence_level</span><span class="p">)</span>
+        <span class="n">max_percentile</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">ppf</span><span class="p">(</span><span class="mf">1.0</span><span class="o">-</span><span class="n">confidence_level</span><span class="p">)</span>
+        <span class="n">number_of_iterations</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Equillibriating system&quot;</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Confidence level: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">confidence_level</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Percentiles: </span><span class="si">{}</span><span class="s2">, </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">min_percentile</span><span class="p">,</span><span class="n">max_percentile</span><span class="p">)</span> <span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;SGCMonteCarlo&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;</span><span class="si">{:10}</span><span class="s2"> </span><span class="si">{:10}</span><span class="s2"> </span><span class="si">{:10}</span><span class="s2"> </span><span class="si">{:10}</span><span class="s2"> </span><span class="si">{:10}</span><span class="s2"> </span><span class="si">{:10}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s2">&quot;Energy&quot;</span><span class="p">,</span> <span class="s2">&quot;std.dev&quot;</span><span class="p">,</span> <span class="s2">&quot;delta E&quot;</span><span class="p">,</span> <span class="s2">&quot;quantile&quot;</span><span class="p">,</span> <span class="s2">&quot;Singlets&quot;</span><span class="p">,</span> <span class="s2">&quot;Quantile (compositions)&quot;</span><span class="p">)</span> <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;</span><span class="si">{:10}</span><span class="s2"> </span><span class="si">{:10}</span><span class="s2"> </span><span class="si">{:10}</span><span class="s2"> </span><span class="si">{:10}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s2">&quot;Energy&quot;</span><span class="p">,</span> <span class="s2">&quot;std.dev&quot;</span><span class="p">,</span> <span class="s2">&quot;delta E&quot;</span><span class="p">,</span> <span class="s2">&quot;quantile&quot;</span><span class="p">)</span> <span class="p">)</span>
+        <span class="n">all_energies</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">means</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">composition</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">var_comp</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">energy_conv</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">maxiter</span><span class="p">):</span>
+          <span class="n">number_of_iterations</span> <span class="o">+=</span> <span class="mi">1</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+          <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">window_length</span><span class="p">):</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">_mc_step</span><span class="p">()</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">mean_energy</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_energy_without_vib</span><span class="p">()</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">energy_squared</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_energy_without_vib</span><span class="p">()</span><span class="o">**</span><span class="mi">2</span>
+              <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">plot_debug</span> <span class="p">):</span>
+                  <span class="n">all_energies</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_energy_without_vib</span><span class="p">()</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">)</span> <span class="p">)</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">collect_energy</span><span class="p">()</span>
+          <span class="n">E_new</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean_energy</span><span class="o">/</span><span class="n">window_length</span>
+          <span class="n">means</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">E_new</span> <span class="p">)</span>
+          <span class="n">var_E_new</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_var_average_energy</span><span class="p">()</span>
+          <span class="n">comp_conv</span><span class="p">,</span> <span class="n">composition</span><span class="p">,</span> <span class="n">var_comp</span><span class="p">,</span> <span class="n">comp_quant</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">composition_reached_equillibrium</span><span class="p">(</span> <span class="n">composition</span><span class="p">,</span> <span class="n">var_comp</span><span class="p">,</span> <span class="n">confidence_level</span><span class="o">=</span><span class="n">confidence_level</span> <span class="p">)</span>
+          <span class="k">if</span> <span class="p">(</span> <span class="n">E_prev</span> <span class="ow">is</span> <span class="kc">None</span> <span class="p">):</span>
+              <span class="n">E_prev</span> <span class="o">=</span> <span class="n">E_new</span>
+              <span class="n">var_E_prev</span> <span class="o">=</span> <span class="n">var_E_new</span>
+              <span class="k">continue</span>
+
+          <span class="n">var_diff</span> <span class="o">=</span> <span class="n">var_E_new</span><span class="o">+</span><span class="n">var_E_prev</span>
+          <span class="n">diff</span> <span class="o">=</span> <span class="n">E_new</span><span class="o">-</span><span class="n">E_prev</span>
+          <span class="k">if</span> <span class="p">(</span> <span class="n">var_diff</span> <span class="o">&lt;</span> <span class="mf">1E-6</span> <span class="p">):</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="p">(</span> <span class="s2">&quot;Zero variance. System does not move.&quot;</span> <span class="p">)</span>
+              <span class="n">z_diff</span> <span class="o">=</span> <span class="mf">0.0</span>
+              <span class="n">comp_conv</span> <span class="o">=</span> <span class="kc">True</span>
+          <span class="k">else</span><span class="p">:</span>
+              <span class="n">z_diff</span> <span class="o">=</span> <span class="n">diff</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">var_diff</span><span class="p">)</span>
+
+          <span class="k">if</span> <span class="p">(</span> <span class="nb">len</span><span class="p">(</span><span class="n">composition</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">):</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;</span><span class="si">{:10.2f}</span><span class="s2"> </span><span class="si">{:10.6f}</span><span class="s2"> </span><span class="si">{:10.6f}</span><span class="s2"> </span><span class="si">{:10.2f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">E_new</span><span class="p">,</span><span class="n">var_E_new</span><span class="p">,</span><span class="n">diff</span><span class="p">,</span> <span class="n">z_diff</span><span class="p">)</span> <span class="p">)</span>
+          <span class="k">else</span><span class="p">:</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;</span><span class="si">{:10.2f}</span><span class="s2"> </span><span class="si">{:10.6f}</span><span class="s2"> </span><span class="si">{:10.6f}</span><span class="s2"> </span><span class="si">{:10.2f}</span><span class="s2"> </span><span class="si">{}</span><span class="s2"> </span><span class="si">{:10.2f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">E_new</span><span class="p">,</span><span class="n">var_E_new</span><span class="p">,</span><span class="n">diff</span><span class="p">,</span> <span class="n">z_diff</span><span class="p">,</span> <span class="n">composition</span><span class="p">,</span> <span class="n">comp_quant</span><span class="p">)</span> <span class="p">)</span>
+          <span class="c1">#self.logger.handlers[0].flush()</span>
+          <span class="c1">#self.flush_log()</span>
+          <span class="c1">#print (&quot;{:10.2f} {:10.6f} {:10.6f} {:10.2f}&quot;.format(E_new,var_E_new,diff, z_diff))</span>
+          <span class="k">if</span><span class="p">(</span> <span class="p">(</span><span class="n">z_diff</span> <span class="o">&lt;</span> <span class="n">max_percentile</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">z_diff</span> <span class="o">&gt;</span> <span class="n">min_percentile</span><span class="p">)</span> <span class="p">):</span>
+              <span class="n">energy_conv</span> <span class="o">=</span> <span class="kc">True</span>
+
+          <span class="c1"># Allreduce use the max value which should yield True if any is True</span>
+          <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="p">):</span>
+              <span class="n">eng_conv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">energy_conv</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+              <span class="n">eng_conv_recv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span><span class="o">.</span><span class="n">Allreduce</span><span class="p">(</span> <span class="n">eng_conv</span><span class="p">,</span> <span class="n">eng_conv_recv</span><span class="p">,</span> <span class="n">op</span><span class="o">=</span><span class="n">MPI</span><span class="o">.</span><span class="n">MAX</span><span class="p">)</span>
+              <span class="n">energy_conv</span> <span class="o">=</span> <span class="n">eng_conv_recv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+              <span class="n">comp_conv_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span> <span class="n">comp_conv</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span> <span class="p">)</span>
+              <span class="n">comp_conv_recv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span><span class="o">.</span><span class="n">Allreduce</span><span class="p">(</span> <span class="n">comp_conv_arr</span><span class="p">,</span> <span class="n">comp_conv_recv</span><span class="p">,</span> <span class="n">op</span><span class="o">=</span><span class="n">MPI</span><span class="o">.</span><span class="n">MAX</span> <span class="p">)</span>
+              <span class="n">comp_conv</span> <span class="o">=</span> <span class="n">comp_conv_recv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+          <span class="k">if</span> <span class="p">(</span> <span class="n">energy_conv</span> <span class="ow">and</span> <span class="n">comp_conv</span> <span class="p">):</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;System reached equillibrium in </span><span class="si">{}</span><span class="s2"> mc steps&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number_of_iterations</span><span class="o">*</span><span class="n">window_length</span><span class="p">))</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">mean_energy</span> <span class="o">=</span> <span class="mf">0.0</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">energy_squared</span> <span class="o">=</span> <span class="mf">0.0</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">current_step</span> <span class="o">=</span> <span class="mi">0</span>
+
+              <span class="k">if</span> <span class="p">(</span> <span class="nb">len</span><span class="p">(</span><span class="n">composition</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="p">):</span>
+                  <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Singlet values at equillibrium: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">composition</span><span class="p">)</span> <span class="p">)</span>
+
+              <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">plot_debug</span> <span class="p">):</span>
+                  <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+                  <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+                  <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span> <span class="n">all_energies</span> <span class="p">)</span><span class="o">*</span><span class="n">mol</span><span class="o">/</span><span class="n">kJ</span> <span class="p">)</span>
+                  <span class="n">start</span><span class="o">=</span><span class="mi">0</span>
+                  <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">means</span><span class="p">)):</span>
+                      <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span> <span class="p">[</span><span class="n">start</span><span class="p">,</span><span class="n">start</span><span class="o">+</span><span class="n">window_length</span><span class="p">],</span> <span class="p">[</span><span class="n">means</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">means</span><span class="p">[</span><span class="n">i</span><span class="p">]],</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;#fc8d62&quot;</span> <span class="p">)</span>
+                      <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span> <span class="n">start</span><span class="p">,</span><span class="n">means</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="s2">&quot;o&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;#fc8d62&quot;</span> <span class="p">)</span>
+                      <span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span> <span class="n">x</span><span class="o">=</span><span class="n">start</span><span class="o">+</span><span class="n">window_length</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;#a6d854&quot;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">)</span>
+                      <span class="n">start</span> <span class="o">+=</span> <span class="n">window_length</span>
+                  <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span> <span class="s2">&quot;Number of MC steps&quot;</span> <span class="p">)</span>
+                  <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span> <span class="s2">&quot;Energy (kJ/mol)&quot;</span> <span class="p">)</span>
+                  <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">(</span> <span class="n">block</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pyplot_block</span> <span class="p">)</span>
+              <span class="k">return</span>
+
+          <span class="n">E_prev</span> <span class="o">=</span> <span class="n">E_new</span>
+          <span class="n">var_E_prev</span> <span class="o">=</span> <span class="n">var_E_new</span>
+
+        <span class="k">raise</span> <span class="n">DidNotReachEquillibriumError</span><span class="p">(</span> <span class="s2">&quot;Did not manage to reach equillibrium!&quot;</span> <span class="p">)</span></div>
+
+<div class="viewcode-block" id="Montecarlo.has_converged_prec_mode"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.has_converged_prec_mode">[docs]</a>    <span class="k">def</span> <span class="nf">has_converged_prec_mode</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">prec</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">confidence_level</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">log_status</span><span class="o">=</span><span class="kc">False</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns True if the simulation has converged in the precission mode</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">percentile</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">ppf</span><span class="p">(</span><span class="mf">1.0</span><span class="o">-</span><span class="n">confidence_level</span><span class="p">)</span>
+        <span class="n">var_E</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_var_average_energy</span><span class="p">()</span>
+        <span class="n">converged</span> <span class="o">=</span> <span class="p">(</span> <span class="n">var_E</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">prec</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">)</span><span class="o">/</span><span class="n">percentile</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="n">log_status</span> <span class="p">):</span>
+            <span class="n">std_E</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">var_E</span><span class="p">)</span>
+            <span class="n">criteria</span> <span class="o">=</span> <span class="n">prec</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">)</span><span class="o">/</span><span class="n">percentile</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Current energy std: </span><span class="si">{}</span><span class="s2">. Convergence criteria: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">std_E</span><span class="p">,</span><span class="n">criteria</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="p">):</span>
+            <span class="c1"># Make sure that all processors has the same converged flag</span>
+            <span class="n">send_buf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">recv_buf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">send_buf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">converged</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span><span class="o">.</span><span class="n">Allreduce</span><span class="p">(</span> <span class="n">send_buf</span><span class="p">,</span> <span class="n">recv_buf</span> <span class="p">)</span>
+            <span class="n">converged</span> <span class="o">=</span> <span class="p">(</span><span class="n">recv_buf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span><span class="o">.</span><span class="n">Get_size</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">converged</span></div>
+
+<div class="viewcode-block" id="Montecarlo.on_converged_log"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.on_converged_log">[docs]</a>    <span class="k">def</span> <span class="nf">on_converged_log</span><span class="p">(</span> <span class="bp">self</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns message that is printed to the logger after the run</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">U</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean_energy</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">current_step</span>
+        <span class="n">var_E</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_var_average_energy</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Total number of MC steps: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_step</span><span class="p">)</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Final mean energy: </span><span class="si">{}</span><span class="s2"> +- </span><span class="si">{}</span><span class="s2">%&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">U</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">var_E</span><span class="p">)</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">U</span><span class="p">)</span> <span class="p">)</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">status_msg</span><span class="p">(</span><span class="n">std_value</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">var_E</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">)))</span> <span class="p">)</span>
+        <span class="n">exp_extrapolate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">exponential_extrapolation</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="p">(</span> <span class="s2">&quot;Exponential extrapolation: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">exp_extrapolate</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="Montecarlo.distribute_correlation_time"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.distribute_correlation_time">[docs]</a>    <span class="k">def</span> <span class="nf">distribute_correlation_time</span><span class="p">(</span> <span class="bp">self</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Distrubutes the correlation time to all the processes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span> <span class="ow">is</span> <span class="kc">None</span> <span class="p">):</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Check if any processor has found an equillibriation time</span>
+        <span class="n">corr_time_found</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span><span class="p">[</span><span class="s2">&quot;correlation_time_found&quot;</span><span class="p">],</span> <span class="n">root</span><span class="o">=</span><span class="mi">0</span> <span class="p">)</span>
+        <span class="n">all_corr_times</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span><span class="p">[</span><span class="s2">&quot;correlation_time&quot;</span><span class="p">],</span> <span class="n">root</span><span class="o">=</span><span class="mi">0</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Correlation time on all processors: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">all_corr_times</span><span class="p">)</span> <span class="p">)</span>
+        <span class="n">corr_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span><span class="p">[</span><span class="s2">&quot;correlation_time&quot;</span><span class="p">]</span>
+        <span class="n">found</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">):</span>
+            <span class="n">found</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">corr_time_found</span><span class="p">)</span>
+            <span class="n">corr_time</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">all_corr_times</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span> <span class="s2">&quot;Using correlation time: </span><span class="si">{}</span><span class="s2"> on all processors&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">corr_time</span><span class="p">)</span> <span class="p">)</span>
+        <span class="n">corr_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span><span class="o">.</span><span class="n">bcast</span><span class="p">(</span> <span class="n">corr_time</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="mi">0</span> <span class="p">)</span>
+        <span class="n">corrtime_found</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span><span class="o">.</span><span class="n">bcast</span><span class="p">(</span> <span class="n">found</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="mi">0</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span><span class="p">[</span><span class="s2">&quot;correlation_time_found&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">found</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span><span class="p">[</span><span class="s2">&quot;correlation_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">corr_time</span></div>
+
+
+<div class="viewcode-block" id="Montecarlo.atleast_one_reached_equillibrium"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.atleast_one_reached_equillibrium">[docs]</a>    <span class="k">def</span> <span class="nf">atleast_one_reached_equillibrium</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">reached_equil</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Handles the case when a few processors did not reach equillibrium</span>
+<span class="sd">        The behavior is that if one processor reached equillibrium the</span>
+<span class="sd">        simulation can continue</span>
+
+<span class="sd">        :param reached_equil: Flag True if equillibrium was reached. False otherwise</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span> <span class="ow">is</span> <span class="kc">None</span> <span class="p">):</span>
+            <span class="k">return</span> <span class="n">reached_equil</span>
+
+        <span class="n">all_equils</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span> <span class="n">reached_equil</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="mi">0</span> <span class="p">)</span>
+        <span class="n">at_least_one</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">):</span>
+            <span class="k">if</span> <span class="p">(</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">all_equils</span><span class="p">)</span> <span class="p">):</span>
+                <span class="n">at_least_one</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="c1"># Send the result to the other processors</span>
+        <span class="n">at_least_one</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span><span class="o">.</span><span class="n">bcast</span><span class="p">(</span> <span class="n">at_least_one</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="mi">0</span> <span class="p">)</span>
+        <span class="k">return</span> <span class="n">at_least_one</span></div>
+
+
+<div class="viewcode-block" id="Montecarlo.runMC"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.runMC">[docs]</a>    <span class="k">def</span> <span class="nf">runMC</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;fixed&quot;</span><span class="p">,</span> <span class="n">steps</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">equil</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">equil_params</span><span class="o">=</span><span class="p">{},</span> <span class="n">prec</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">prec_confidence</span><span class="o">=</span><span class="mf">0.05</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Run Monte Carlo simulation</span>
+
+<span class="sd">        :param steps: Number of steps in the MC simulation</span>
+<span class="sd">        :param verbose: If True information is printed on each step</span>
+<span class="sd">        :param equil: If the True the MC steps will be performed until equillibrium is reached</span>
+<span class="sd">        :param equil_params: Dictionary of parameters used in the equillibriation routine</span>
+<span class="sd">                             See the doc-string of :py:meth:`cemc.mcmc.Montecarlo.equillibriate` for more</span>
+<span class="sd">                             information</span>
+<span class="sd">        :param prec: Precission of the run. The simulation terminates when</span>
+<span class="sd">            &lt;E&gt;/std(E) &lt; prec with a confidence given prec_confidence</span>
+<span class="sd">        :param prec_confidence: Confidence level used when determining if enough</span>
+<span class="sd">                          MC samples have been collected</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1">#print (&quot;Proc start MC: {}&quot;.format(self.rank))</span>
+        <span class="c1"># Check the number of different elements are correct to avoid</span>
+        <span class="c1"># infinite loops</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_symbols</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span><span class="o">.</span><span class="n">barrier</span><span class="p">()</span>
+        <span class="n">allowed_modes</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;fixed&quot;</span><span class="p">,</span><span class="s2">&quot;prec&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="ow">not</span> <span class="n">mode</span> <span class="ow">in</span> <span class="n">allowed_modes</span> <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span> <span class="s2">&quot;Mode has to be one of </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">allowed_modes</span><span class="p">)</span> <span class="p">)</span>
+
+        <span class="c1"># Include vibrations in the ECIS, does nothing if no vibration ECIs are set</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">include_vib</span><span class="p">()</span>
+
+        <span class="c1"># Atoms object should have attached calculator</span>
+        <span class="c1"># Add check that this is show</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mc_step</span><span class="p">()</span>
+
+        <span class="n">mpi_tools</span><span class="o">.</span><span class="n">set_seeds</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span><span class="p">)</span>
+        <span class="n">totalenergies</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">totalenergies</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_energy</span><span class="p">)</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">prev</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mean_energy</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">energy_squared</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_step</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="n">equil</span> <span class="p">):</span>
+            <span class="n">reached_equil</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">estimate_correlation_time</span><span class="p">(</span><span class="n">restart</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="p">(</span> <span class="ow">not</span> <span class="n">res</span><span class="p">[</span><span class="s2">&quot;correlation_time_found&quot;</span><span class="p">]</span> <span class="p">):</span>
+                <span class="n">res</span><span class="p">[</span><span class="s2">&quot;correlation_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1000</span>
+                <span class="n">res</span><span class="p">[</span><span class="s2">&quot;correlation_time_found&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">distribute_correlation_time</span><span class="p">()</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">equillibriate</span><span class="p">(</span><span class="o">**</span><span class="n">equil_params</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">DidNotReachEquillibriumError</span><span class="p">:</span>
+                <span class="n">reached_equil</span> <span class="o">=</span> <span class="kc">False</span>
+
+            <span class="n">at_lest_one_proc_reached_equil</span> <span class="o">=</span>  <span class="bp">self</span><span class="o">.</span><span class="n">atleast_one_reached_equillibrium</span><span class="p">(</span><span class="n">reached_equil</span><span class="p">)</span>
+            <span class="c1"># This exception is MPI safe, as the function atleast_one_reached_equillibrium broadcasts</span>
+            <span class="c1"># the result to all the other processors</span>
+            <span class="k">if</span> <span class="p">(</span> <span class="ow">not</span> <span class="n">at_lest_one_proc_reached_equil</span> <span class="p">):</span>
+                <span class="k">raise</span> <span class="n">DidNotReachEquillibriumError</span><span class="p">()</span>
+
+        <span class="n">check_convergence_every</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">next_convergence_check</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;prec&quot;</span> <span class="p">):</span>
+            <span class="c1"># Estimate correlation length</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">estimate_correlation_time</span><span class="p">(</span> <span class="n">restart</span><span class="o">=</span><span class="kc">True</span> <span class="p">)</span>
+            <span class="k">while</span> <span class="p">(</span> <span class="ow">not</span> <span class="n">res</span><span class="p">[</span><span class="s2">&quot;correlation_time_found&quot;</span><span class="p">]</span> <span class="p">):</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">estimate_correlation_time</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">distribute_correlation_time</span><span class="p">()</span>
+            <span class="n">check_convergence_every</span> <span class="o">=</span> <span class="mi">10</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">correlation_info</span><span class="p">[</span><span class="s2">&quot;correlation_time&quot;</span><span class="p">]</span>
+            <span class="n">next_convergence_check</span> <span class="o">=</span> <span class="n">check_convergence_every</span>
+
+        <span class="c1">#print ( &quot;Proc: {} - {}&quot;.format(self.rank,check_convergence_every) )</span>
+        <span class="c1"># self.current_step gets updated in the _mc_step function</span>
+        <span class="n">log_status_conv</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+        <span class="k">while</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_step</span> <span class="o">&lt;</span> <span class="n">steps</span> <span class="p">):</span>
+            <span class="n">en</span><span class="p">,</span> <span class="n">accept</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mc_step</span><span class="p">(</span> <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span> <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mean_energy</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_energy_without_vib</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">energy_squared</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_energy_without_vib</span><span class="p">()</span><span class="o">**</span><span class="mi">2</span>
+
+            <span class="k">if</span> <span class="p">(</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="o">-</span><span class="n">start</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">status_every_sec</span> <span class="p">):</span>
+                <span class="n">ms_per_step</span> <span class="o">=</span> <span class="mf">1000.0</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">status_every_sec</span><span class="o">/</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_step</span><span class="o">-</span><span class="n">prev</span><span class="p">)</span>
+                <span class="n">accept_rate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_accepted</span><span class="o">/</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_step</span><span class="p">)</span>
+                <span class="n">log_status_conv</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%d</span><span class="s2"> of </span><span class="si">%d</span><span class="s2"> steps. </span><span class="si">%.2f</span><span class="s2"> ms per step. Acceptance rate: </span><span class="si">%.2f</span><span class="s2">&quot;</span><span class="o">%</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_step</span><span class="p">,</span><span class="n">steps</span><span class="p">,</span><span class="n">ms_per_step</span><span class="p">,</span><span class="n">accept_rate</span><span class="p">))</span>
+                <span class="n">prev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_step</span>
+                <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="k">if</span> <span class="p">(</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;prec&quot;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_step</span> <span class="o">&gt;</span> <span class="n">next_convergence_check</span> <span class="p">):</span>
+                <span class="n">next_convergence_check</span> <span class="o">+=</span> <span class="n">check_convergence_every</span>
+                <span class="c1"># TODO: Is this barrier nessecary, or does it impact performance?</span>
+                <span class="c1">#print (&quot;Proc check_conv: {}&quot;.format(self.rank))</span>
+                <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span><span class="o">.</span><span class="n">barrier</span><span class="p">()</span>
+                <span class="n">converged</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_converged_prec_mode</span><span class="p">(</span> <span class="n">prec</span><span class="o">=</span><span class="n">prec</span><span class="p">,</span> <span class="n">confidence_level</span><span class="o">=</span><span class="n">prec_confidence</span><span class="p">,</span> <span class="n">log_status</span><span class="o">=</span><span class="n">log_status_conv</span> <span class="p">)</span>
+                <span class="n">log_status_conv</span><span class="o">=</span><span class="kc">False</span>
+                <span class="k">if</span> <span class="p">(</span> <span class="n">converged</span> <span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">on_converged_log</span><span class="p">()</span>
+                    <span class="k">break</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_step</span> <span class="o">&gt;=</span> <span class="n">steps</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">&quot;Reached maximum number of steps (</span><span class="si">{}</span><span class="s2"> mc steps)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">steps</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span><span class="o">.</span><span class="n">barrier</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">totalenergies</span></div>
+
+<div class="viewcode-block" id="Montecarlo.collect_energy"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.collect_energy">[docs]</a>    <span class="k">def</span> <span class="nf">collect_energy</span><span class="p">(</span> <span class="bp">self</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sums the energy from each processor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span> <span class="ow">is</span> <span class="kc">None</span> <span class="p">):</span>
+            <span class="k">return</span>
+
+        <span class="n">size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span><span class="o">.</span><span class="n">Get_size</span><span class="p">()</span>
+        <span class="n">recv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">energy_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mean_energy</span><span class="p">)</span>
+        <span class="n">energy_sq_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">energy_squared</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span><span class="o">.</span><span class="n">Allreduce</span><span class="p">(</span> <span class="n">energy_arr</span><span class="p">,</span> <span class="n">recv</span><span class="p">,</span> <span class="n">op</span><span class="o">=</span><span class="n">MPI</span><span class="o">.</span><span class="n">SUM</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mean_energy</span> <span class="o">=</span> <span class="n">recv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="n">size</span>
+        <span class="n">recv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mpicomm</span><span class="o">.</span><span class="n">Allreduce</span><span class="p">(</span> <span class="n">energy_sq_arr</span><span class="p">,</span> <span class="n">recv</span><span class="p">,</span> <span class="n">op</span><span class="o">=</span><span class="n">MPI</span><span class="o">.</span><span class="n">SUM</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">energy_squared</span> <span class="o">=</span> <span class="n">recv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="n">size</span></div>
+
+<div class="viewcode-block" id="Montecarlo.get_thermodynamic"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.get_thermodynamic">[docs]</a>    <span class="k">def</span> <span class="nf">get_thermodynamic</span><span class="p">(</span> <span class="bp">self</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compute thermodynamic quantities</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">collect_energy</span><span class="p">()</span>
+        <span class="n">quantities</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">quantities</span><span class="p">[</span><span class="s2">&quot;energy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean_energy</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">current_step</span>
+        <span class="n">mean_sq</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">energy_squared</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">current_step</span>
+        <span class="n">quantities</span><span class="p">[</span><span class="s2">&quot;heat_capacity&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">mean_sq</span><span class="o">-</span><span class="n">quantities</span><span class="p">[</span><span class="s2">&quot;energy&quot;</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">kB</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">quantities</span><span class="p">[</span><span class="s2">&quot;energy_std&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_var_average_energy</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">quantities</span></div>
+
+<div class="viewcode-block" id="Montecarlo.get_trial_move"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.get_trial_move">[docs]</a>    <span class="k">def</span> <span class="nf">get_trial_move</span><span class="p">(</span> <span class="bp">self</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform a trial move by swapping two atoms</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rand_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">indeces</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">indeces</span><span class="p">))]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rand_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">indeces</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">indeces</span><span class="p">))]</span>
+        <span class="n">symb_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">symbols</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">symbols</span><span class="p">))]</span>
+        <span class="n">symb_b</span> <span class="o">=</span> <span class="n">symb_a</span>
+        <span class="k">while</span> <span class="p">(</span> <span class="n">symb_b</span> <span class="o">==</span> <span class="n">symb_a</span> <span class="p">):</span>
+            <span class="n">symb_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">symbols</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">symbols</span><span class="p">))]</span>
+
+        <span class="n">Na</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms_indx</span><span class="p">[</span><span class="n">symb_a</span><span class="p">])</span>
+        <span class="n">Nb</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms_indx</span><span class="p">[</span><span class="n">symb_b</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">selected_a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">Na</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">selected_b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">Nb</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rand_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms_indx</span><span class="p">[</span><span class="n">symb_a</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">selected_a</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rand_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms_indx</span><span class="p">[</span><span class="n">symb_b</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">selected_b</span><span class="p">]</span>
+
+        <span class="c1"># TODO: The MC calculator should be able to have constraints on which</span>
+        <span class="c1"># moves are allowed. CE requires this some elements are only allowed to</span>
+        <span class="c1"># occupy some sites</span>
+        <span class="n">symb_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">rand_a</span><span class="p">]</span><span class="o">.</span><span class="n">symbol</span>
+        <span class="n">symb_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">rand_b</span><span class="p">]</span><span class="o">.</span><span class="n">symbol</span>
+        <span class="n">system_changes</span> <span class="o">=</span> <span class="p">[(</span><span class="bp">self</span><span class="o">.</span><span class="n">rand_a</span><span class="p">,</span><span class="n">symb_a</span><span class="p">,</span><span class="n">symb_b</span><span class="p">),(</span><span class="bp">self</span><span class="o">.</span><span class="n">rand_b</span><span class="p">,</span><span class="n">symb_b</span><span class="p">,</span><span class="n">symb_a</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">system_changes</span></div>
+
+<div class="viewcode-block" id="Montecarlo.accept"><a class="viewcode-back" href="../../../montecarlo.html#cemc.mcmc.Montecarlo.accept">[docs]</a>    <span class="k">def</span> <span class="nf">accept</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">system_changes</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns True if the trial step is accepted</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">new_energy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">_calc</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;energy&quot;</span><span class="p">],</span> <span class="n">system_changes</span> <span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_first</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">is_first</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">new_energy</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_energy</span> <span class="p">):</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="n">kT</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="o">*</span><span class="n">units</span><span class="o">.</span><span class="n">kB</span>
+        <span class="n">energy_diff</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">new_energy</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">current_energy</span>
+        <span class="n">probability</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">energy_diff</span><span class="o">/</span><span class="n">kT</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="n">probability</span></div>
+
+    <span class="k">def</span> <span class="nf">_mc_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose</span> <span class="o">=</span> <span class="kc">False</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Make one Monte Carlo step by swithing two atoms</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_step</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">number_of_atoms</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">)</span>
+
+
+        <span class="n">system_changes</span><span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_trial_move</span><span class="p">()</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        new_energy = self.atoms._calc.calculate( self.atoms, [&quot;energy&quot;], system_changes )</span>
+
+<span class="sd">        if ( verbose ):</span>
+<span class="sd">            print(new_energy,self.current_energy,new_energy-self.current_energy)</span>
+
+<span class="sd">        accept = False</span>
+<span class="sd">        if (new_energy &lt; self.current_energy):</span>
+<span class="sd">            self.current_energy = new_energy</span>
+<span class="sd">            accept = True</span>
+<span class="sd">        else:</span>
+<span class="sd">            kT = self.T*units.kB</span>
+<span class="sd">            energy_diff = new_energy-self.current_energy</span>
+<span class="sd">            probability = np.exp(-energy_diff/kT)</span>
+<span class="sd">            if ( np.random.rand() &lt;= probability ):</span>
+<span class="sd">                self.current_energy = new_energy</span>
+<span class="sd">                accept = True</span>
+<span class="sd">            else:</span>
+<span class="sd">                # Reset the sytem back to original</span>
+<span class="sd">                for change in system_changes:</span>
+<span class="sd">                    indx = change[0]</span>
+<span class="sd">                    old_symb = change[1]</span>
+<span class="sd">                    self.atoms[indx].symbol = old_symb</span>
+<span class="sd">                #self.atoms[self.rand_a].symbol = symb_a</span>
+<span class="sd">                #self.atoms[self.rand_b].symbol = symb_b</span>
+<span class="sd">                accept = False</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">move_accepted</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">accept</span><span class="p">(</span> <span class="n">system_changes</span> <span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="n">move_accepted</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">current_energy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">new_energy</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">num_accepted</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Reset the sytem back to original</span>
+            <span class="k">for</span> <span class="n">change</span> <span class="ow">in</span> <span class="n">system_changes</span><span class="p">:</span>
+                <span class="n">indx</span> <span class="o">=</span> <span class="n">change</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">old_symb</span> <span class="o">=</span> <span class="n">change</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">assert</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">[</span><span class="n">indx</span><span class="p">]</span><span class="o">.</span><span class="n">symbol</span> <span class="o">==</span> <span class="n">change</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">[</span><span class="n">indx</span><span class="p">]</span><span class="o">.</span><span class="n">symbol</span> <span class="o">=</span> <span class="n">old_symb</span>
+
+        <span class="c1"># TODO: Wrap this functionality into a cleaning object</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">_calc</span><span class="p">,</span><span class="s2">&quot;clear_history&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">_calc</span><span class="p">,</span><span class="s2">&quot;undo_changes&quot;</span><span class="p">)</span> <span class="p">):</span>
+            <span class="c1"># The calculator is a CE calculator which support clear_history and undo_changes</span>
+            <span class="k">pass</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="n">move_accepted</span> <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">_calc</span><span class="o">.</span><span class="n">clear_history</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">_calc</span><span class="o">.</span><span class="n">undo_changes</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="n">move_accepted</span> <span class="p">):</span>
+            <span class="c1"># Update the atom_indices</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_tracker</span><span class="p">(</span> <span class="n">system_changes</span> <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">new_symb_changes</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">change</span> <span class="ow">in</span> <span class="n">system_changes</span><span class="p">:</span>
+                <span class="n">new_symb_changes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="p">(</span><span class="n">change</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">change</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">change</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="p">)</span>
+            <span class="n">system_changes</span> <span class="o">=</span> <span class="n">new_symb_changes</span>
+            <span class="c1">#system_changes = [(self.rand_a,symb_a,symb_a),(self.rand_b,symb_b,symb_b)] # No changes to the system</span>
+
+        <span class="c1"># Execute all observers</span>
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">observers</span><span class="p">:</span>
+            <span class="n">interval</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_step</span><span class="o">%</span><span class="n">interval</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">):</span>
+                <span class="n">obs</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">obs</span><span class="p">(</span><span class="n">system_changes</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filter</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_energy</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_energy</span><span class="p">,</span><span class="n">move_accepted</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018, David Kleiven.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'1.0',
+            LANGUAGE:'None',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
