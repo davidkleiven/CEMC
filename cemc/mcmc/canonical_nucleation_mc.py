@@ -1,5 +1,5 @@
 from cemc.mcmc import NucleationSampler
-from cemc.mcmc.nucleation_mc import Mode
+from cemc.mcmc.nucleation_sampler import Mode
 from cemc.mcmc import Montecarlo
 from cemc.mcmc import NetworkObserver
 import numpy as np
