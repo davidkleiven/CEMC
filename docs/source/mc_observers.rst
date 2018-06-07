@@ -6,7 +6,7 @@ Monte Carlo sampler via :py:meth:`cemc.mcmc.Montecarlo.attach`.
 The *__call__* method of the attached classes gets executed
 on even intervals specied by the *interval* argument in the *attach* function.
 To create your own observers, you can simply derive a new class
-from the :py:cla..`cemc.mcmc.mc_observers.MCObserver` and attach it to
+from the :py:class:`cemc.mcmc.mc_observers.MCObserver` and attach it to
 the Monte Carlo sampler!
 
 .. autoclass:: cemc.mcmc.mc_observers.MCObserver

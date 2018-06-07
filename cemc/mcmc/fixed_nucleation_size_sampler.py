@@ -4,6 +4,19 @@ import numpy as np
 import random
 
 class FixedNucleusMC( Montecarlo ):
+    """
+    Class that performs Monte Carlo where one element type is constrained
+    to be in a certain network of atoms. This can be useful if one for instance
+    would like to study the energetics of different shapes of the network
+
+    See :py:class:`cemc.mcmc.Montecarlo`
+
+    :Keyword arguments:
+        * *size* Network size
+        * *network_element* Element in the network see :py:class:`cemc.mcmc.mc_observers.NetworkObserver`
+        * *cluster_name* Name of clusters see :py:class:`cemc.mcmc.mc_observers.NetworkObserver`
+        * In addition all keyword arguments of :py:class:`cemc.mcmc.Montecarlo` can be given
+    """
     def __init__( self, atoms, T, **kwargs ):
         self.size = kwargs.pop("size")
         self.network_element = kwargs.pop("network_element")
@@ -101,6 +114,11 @@ class FixedNucleusMC( Montecarlo ):
     def run( self, nsteps=100000, init_cluster=True ):
         """
         Run Monte Carlo for fixed nucleus size
+
+        :param nsteps: Number of Monte Carlo steps
+        :param init_cluster: If True initialize a cluster, If False it is
+            assumed that a cluster of the correct size already exists in the
+            system
         """
         if ( init_cluster ):
             self.network.grow_cluster(self.size)
