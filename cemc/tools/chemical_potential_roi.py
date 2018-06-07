@@ -140,7 +140,7 @@ class ChemicalPotentialROI(object):
         return suggested_sampling_lines, names
 
     @staticmethod
-    def linear_sampling(start,stop,N,extend_fraction=0.05):
+    def linear_sampling(start, stop, N, extend_fraction=0.1):
         """
         Construct one array with linear sampling from start to stop
         """
@@ -151,7 +151,7 @@ class ChemicalPotentialROI(object):
         stop = stop+extend_fraction*diff
 
         # Update the difference
-        diff = start-stop
+        diff = stop-start
         step = diff/(N-1)
         for i in range(N):
             mu[i,:] = start + step*i
