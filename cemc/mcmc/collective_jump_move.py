@@ -1,6 +1,4 @@
 import numpy as np
-from ase.gui.gui import GUI
-from ase.gui.images import Images
 from ase.spacegroup import get_spacegroup
 
 
@@ -131,6 +129,8 @@ class CollectiveJumpMove(object):
         """
         View all columns
         """
+        from ase.gui.gui import GUI
+        from ase.gui.images import Images
         all_columns = []
         for (key,indices) in self.columns.items():
             col = self.mc_cell[indices]
