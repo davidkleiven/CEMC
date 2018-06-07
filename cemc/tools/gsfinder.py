@@ -10,6 +10,12 @@ class GSFinder(object):
     def get_gs( self, BC, ecis, composition=None, temps=None, n_steps_per_temp=1000 ):
         """
         Computes the ground states
+
+        :param BC: Instance of *BulkCrystal* or *BulkSpacegroup* from ASE
+        :param ecis: Dictionary with the Effecitve Cluster Interactions
+        :param composition: Dictionary with compositions (i.e. {"Mg":0.2,"Al":0.8})
+        :param temps: List of cooling temperatures
+        :param n_steps_per_temp: Number of MC steps per temperature
         """
         calc = CE( BC, ecis )
         BC.atoms.set_calculator( calc )

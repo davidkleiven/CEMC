@@ -5,12 +5,21 @@ from scipy.interpolate import UnivariateSpline
 from scipy.optimize import minimize
 
 class CanonicalFreeEnergy( object ):
+    """
+    Compute the Free Enery in the Canonical Ensemble (fixed composition)
+    by thermodynamic integration
+
+    :param composition: Dictionary with compositions
+    """
     def __init__( self, composition ):
         self.comp = composition
 
     def reference_energy( self, T, energy ):
         """
         Computes the reference energy
+
+        :param T: Temperature in kelvin
+        :param energy: Internal energies (per atom)
         """
         infinite_temp_value = -self.inf_temperature_entropy()
         beta = 1.0/(kB*T)
@@ -19,7 +28,7 @@ class CanonicalFreeEnergy( object ):
 
     def inf_temperature_entropy(self):
         """
-        Return the entropy at infinite Temperature
+        Return the entropy at infinite temperature
         """
         concs = np.array( [value for key,value in self.comp.iteritems()] )
         infinite_temp_value = np.sum( concs*np.log(concs) )
@@ -28,6 +37,9 @@ class CanonicalFreeEnergy( object ):
     def sort( self, temperature, internal_energy ):
         """
         Sort the value such that the largerst temperature goes first
+
+        :param temperature: Temperature in kelvin
+        :param internal_energy: Internal energy (per atom)
         """
         srt_indx = np.argsort(temperature)[::-1]
         temp_srt = [temperature[indx] for indx in srt_indx]
@@ -39,6 +51,9 @@ class CanonicalFreeEnergy( object ):
     def get( self, temperature, internal_energy ):
         """
         Compute the Helholtz Free Energy
+
+        :param temperature: Temperature in kelvin
+        :param internal_energy: Internal energy (per atom)
         """
         temperature, internal_energy = self.sort( temperature, internal_energy )
         betas = 1.0/(kB*temperature)

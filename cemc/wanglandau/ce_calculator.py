@@ -36,15 +36,15 @@ def get_max_dia_name():
 
 def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays_BC=False ):
     """
-    Constructs a CE calculator by first computing the correlation function
+    Constructs a CE calculator for a supercell by first computing the correlation function
     from a small cell
 
-    Arguments
-    -----------
-    small_bc - Instance of BulkCrystal or BulkSpacegroup with a relatively small unitcell
-    bc_kwargs - dictionary of the keyword arguments used to construct small_bc
-    eci - Effective Cluster Interactions
-    size - The atoms in small_bc will be extended by this amount
+    :param small_bc: Instance of BulkCrystal or BulkSpacegroup with a relatively small unitcell
+    :param bc_kwargs: dictionary of the keyword arguments used to construct small_bc
+    :param eci: Effective Cluster Interactions
+    :param size: The atoms in small_bc will be extended by this amount
+    :param free_unused_arrays_BC: If True it will delete the *clunster_indx*,
+        *trans_matrix* and *dist_matrix* of BC to save memory
     """
     rank = MPI.COMM_WORLD.Get_rank()
     unknown_type = False
@@ -83,6 +83,13 @@ def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays
 class CE( Calculator ):
     """
     Class for updating the CE when symbols change
+
+    :param BC: Instance of BulkCrystal or BulkSpacegroup from ASE
+    :param eci: Dictionary with the effective cluster interactions
+    :param initial_cf: Dictionary with the correlation function of the atoms
+        object in BC
+    :param free_unused_arrays_BC: If True it will delete the *clunster_indx*,
+        *trans_matrix* and *dist_matrix* of BC to save memory
     """
 
     implemented_properties = ["energy"]
@@ -151,6 +158,8 @@ class CE( Calculator ):
     def get_full_cluster_names( self, cnames ):
         """
         Returns the full cluster names with decoration info in the end
+
+        :param cnames: List of the current cluster names
         """
         full_names = self.cf.keys()
         print (full_names)
@@ -189,6 +198,8 @@ class CE( Calculator ):
     def include_linvib_in_ecis( self, T ):
         """
         Includes the effect of linear vibration correction in the ECIs
+
+        :param T: Temperature in Kelvin
         """
         if ( self.linear_vib_correction is None ):
             return
@@ -202,6 +213,8 @@ class CE( Calculator ):
     def vib_energy( self, T ):
         """
         Returns the vibration energy per atom
+
+        :param T: Temperature in kelving
         """
         if ( self.updater is not None ):
             return self.updater.vib_energy(T)
@@ -346,7 +359,11 @@ class CE( Calculator ):
 
     def spin_product_one_atom( self, ref_indx, indx_list, dec ):
         """
-        Spin product for a single atom
+        Spin product for a single atom. Note that it is recommended to use the
+        C++ version
+
+        :param ref_indx: Reference index
+        :param indx_list: List of indices
         """
         num_indx = len(indx_list)
         bf = self.BC.basis_functions
@@ -381,6 +398,13 @@ class CE( Calculator ):
         """
         Calculates the energy. The system_changes is assumed to be a list
         of tuples of the form (indx,old_symb,new_symb)
+
+        :param atoms: Atoms object. Note that this is purely a cosmetic argument
+            to fit the signature of this function in ASE. The energy returned,
+            is the one of the internal atoms object *after* system_changes is applied
+        :param properties: Has to be ["energy"]
+        :param system_changes: Updates to the system. Same signature as
+            :py:meth:`cemc.mcmc.MCObserver.__call__`
         """
         if ( use_cpp ):
             energy = self.updater.calculate(system_changes)
@@ -405,12 +429,17 @@ class CE( Calculator ):
     def update_ecis( self, new_ecis ):
         """
         Updates the ecis
+
+        :param new_ecis: New ECI values
         """
         self.eci = new_ecis
         if ( not self.updater is None ):
             self.updater.set_ecis(self.eci)
 
     def get_singlets( self, array=None ):
+        """
+        Return the singlets
+        """
         if ( self.updater is None ):
             indx = 0
             singlets = []
@@ -427,6 +456,10 @@ class CE( Calculator ):
     def set_composition( self, comp ):
         """
         Change composition of an object.
+
+        :param comp: Dictionary with the new composition. If you want
+            to set the composition to for instance 20%% Mg and 80 %% Al, this
+            argument should be {"Mg":0.2, "Al":0.8}
         """
         # Verify that the sum of the compositions is one
         tot_conc = 0.0
@@ -459,6 +492,8 @@ class CE( Calculator ):
     def set_symbols( self, symbs ):
         """
         Change the symbols of the entire atoms object
+
+        :param symbs: List of new symbols
         """
         if ( len(symbs) != len(self.atoms ) ):
             raise ValueError( "Length of the symbols array has to match the length of the atoms object.!" )
@@ -469,6 +504,8 @@ class CE( Calculator ):
     def singlet2comp( self, singlets ):
         """
         Convert singlet to compositions
+
+        :param singlets: Singlet values
         """
         bfs = self.BC.basis_functions
 
@@ -531,7 +568,11 @@ class CE( Calculator ):
     def set_singlets( self, singlets ):
         """
         Brings the system into a certain configuration such that the singlet terms
-        has a certain value
+        has a certain value. Note that depending on the size of the atoms object,
+        it is not all singlet value that are possible. So the composition
+        obtained in the end, may differ slightly from the intended value.
+
+        :param singlets: Singlet values
         """
         conc = self.singlet2comp(singlets)
         self.set_composition(conc)

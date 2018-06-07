@@ -17,6 +17,13 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`search`
 
+C++ CE calculator
+==================
+.. toctree::
+  :maxdepth: 4
+
+  cpp_CE_calc
+
 MCMC
 ===========
 .. toctree::
@@ -35,3 +42,5 @@ Tools
   :maxdepth: 4
 
   phase_boundary_tracker
+  gs_finder
+  free_energy_canonical
