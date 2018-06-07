@@ -3,6 +3,19 @@ from cemc.mcmc import SGCMonteCarlo
 from cemc.mcmc.mc_observers import NetworkObserver
 
 class SGCNucleation( SGCMonteCarlo ):
+    """
+    Class to perform Monte Carlo simulations where the main objective is to
+    compute the free energy for different network sizes
+
+    See py:class:`cemc.mcmc.SGCMonteCarlo` for parameter explination
+
+    :Keyword arguments:
+        * *nucleation_sampler* Instance of :py:class:`cemc.mcmc.NucleationSampler`
+        * *network_name* Name of the network to sutdy see `cemc.mcmc.NetworkObserver`
+        * *network_element* Element in the network see `cemc.mcmc.NetworkObserver`
+        * *chem_pot* The chemical potential at which to perform the simulations see :py:meth:`cemc.mcmc.SGCMonteCarlo.runMC`
+        * *allow_solutes* Allow solute atoms outside the network (i.e. dispersed in the matrix). Default is *True*
+    """
     def __init__( self, atoms, temp, **kwargs ):
         self.nuc_sampler = kwargs.pop("nucleation_sampler")
         kwargs["mpicomm"] = None
@@ -25,6 +38,11 @@ class SGCNucleation( SGCMonteCarlo ):
             self.log( "Solute atoms are only allowed in the cluster" )
 
     def accept( self, system_changes ):
+        """
+        Accept the trial move
+
+        :param system_changes: See :py:meth:`cemc.mcmc.Montecarlo.accept`
+        """
         move_accepted = SGCMonteCarlo.accept( self, system_changes )
         in_window,stat = self.nuc_sampler.is_in_window(self.network,retstat=True)
         if ( not self.allow_solutes ):
@@ -47,6 +65,8 @@ class SGCNucleation( SGCMonteCarlo ):
     def run( self, nsteps=10000 ):
         """
         Run samples in each window until a desired precission is found
+
+        :param nsteps: Number of MC steps in each window
         """
         if ( self.nuc_sampler.nucleation_mpicomm is not None ):
             self.nuc_sampler.nucleation_mpicomm.barrier()

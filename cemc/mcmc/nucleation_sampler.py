@@ -13,6 +13,17 @@ class Mode(object):
     equillibriate = 2
 
 class NucleationSampler( object ):
+    """
+    Class that do the book-keeping needed for free energy calculations of nucleation
+
+    :Keyword arguments:
+        * *size_window_width* Size range in each window
+        * *max_cluster_size* Maximmum cluster size
+        * *merge_strategy* How to perform the actual merging (Recommended to use the default)
+        * *max_one_cluster* Ensure that there is only *one* cluster present in the system
+            For larger cluster sizes this should not matter
+        * *mpicomm* MPI communicator object
+    """
     def __init__( self, **kwargs ):
         self.size_window_width = kwargs.pop("size_window_width")
         self.max_cluster_size = kwargs.pop("max_cluster_size")
@@ -59,6 +70,8 @@ class NucleationSampler( object ):
     def get_window_boundaries(self, num):
         """
         Return the upper and lower boundary of the windows
+
+        :param num: Window index
         """
         if ( num == 0 ):
             lower = 0
@@ -72,6 +85,12 @@ class NucleationSampler( object ):
         return int(lower),int(upper)
 
     def is_in_window(self,network,retstat=False):
+        """
+        Check if the current network state belongs to the current window
+
+        :param network: Instance of :py:class:`cemc.mcmc.NetworkObserver`
+        :param retstat: If true it will also return the network statistics
+        """
         network.reset()
         network(None) # Explicitly call the network observer
         stat = network.get_statistics()
@@ -91,6 +110,8 @@ class NucleationSampler( object ):
     def bring_system_into_window(self,network):
         """
         Brings the system into the current window
+
+        :param network: Instance of :py:class:`cemc.mcmc.NetworkObserver`
         """
         lower,upper = self.get_window_boundaries(self.current_window)
         size = int(0.5*(lower+upper)+1)
@@ -111,6 +132,8 @@ class NucleationSampler( object ):
     def get_indx( self, size ):
         """
         Get the corresponding bin
+
+        :param size: The size of which its corresponding bin number should be computed
         """
         lower,upper = self.get_window_boundaries(self.current_window)
         #indx = int( (size-lower)/float(upper-lower) )
@@ -120,6 +143,8 @@ class NucleationSampler( object ):
     def update_histogram(self,mc_obj):
         """
         Update the histogram
+
+        :param mc_obj: Instance of the sampler (typically `cemc.mcmc.SGCNucleation`)
         """
         stat = mc_obj.network.get_statistics()
         indx = self.get_indx( stat["max_size"] )
@@ -151,9 +176,12 @@ class NucleationSampler( object ):
             self.nucleation_mpicomm.Allreduce( send_buf, recv_buf )
             self.singlets[i][:,:] = recv_buf[:,:]
 
-    def helmholtz_free_energy(self,singlets,hist):
+    def helmholtz_free_energy(self, singlets, hist):
         """
         Compute the Helmholtz Free Energy barrier
+
+        :param singlets: Thermal average singlet terms
+        :param hist: Histogram of visits
         """
         #N = len(self.atoms)
         # TODO: Fix this
@@ -169,6 +197,8 @@ class NucleationSampler( object ):
     def save( self, fname="nucleation_track.h5" ):
         """
         Saves data to the file
+
+        :param fname: Filename should be a HDF5 file
         """
         self.collect_results()
         rank = 0
@@ -248,9 +278,15 @@ class NucleationSampler( object ):
                     dset = hfile.create_dataset( "beta_gibbs", data=beta_gibbs )
             self.log( "Data saved to {}".format(fname) )
 
-    def merge_histogram(self,strategy="normalize_overlap"):
+    def merge_histogram(self, strategy="normalize_overlap"):
         """
         Merge the histograms
+
+        :param strategy: Which strategy to use when merging
+            * *normalize_overlap* Use the last and the first bin of successive windows
+            and normalize them such that they are continuous
+            * *fit* Perform a linear fit to the last and the first part of two successive windows
+            and make them continuous
         """
         overall_hist = self.histograms[0].tolist()
 
@@ -276,6 +312,9 @@ class NucleationSampler( object ):
     def merge_singlets( self, singlets, histograms ):
         """
         Merge all the singlets and normalize by the histogram
+
+        :param singlets: Sampled singlets values
+        :param histograms: The histograms of *all* windows
         """
         normalized_singlets = []
         for i in range(len(singlets)):
@@ -289,9 +328,11 @@ class NucleationSampler( object ):
             all_singlets = np.vstack((all_singlets,normalized_singlets[i][1:,:]))
         return all_singlets
 
-    def log(self,msg):
+    def log(self, msg):
         """
         Logging
+
+        :param msg: Message to be logged
         """
         if self.rank == 0:
             print(msg)

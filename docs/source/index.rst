@@ -27,6 +27,7 @@ MCMC
   mc_observers
   sgc_free_energy_barrier
   fixednuc_mc
+  nucleation_barrier
 
 Tools
 =======
