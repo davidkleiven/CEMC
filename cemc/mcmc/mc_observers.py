@@ -10,12 +10,22 @@ from ase.data import atomic_numbers
 import time
 
 class MCObserver( object ):
+    """
+    Base class for all MC observers
+    """
     def __init__( self ):
         self.name = "GenericObserver"
 
     def __call__( self, system_changes ):
         """
         Gets information about the system changes and can perform some action
+
+        :param system_changes: List of system changes if indx 23 changed
+            from Mg to Al this argument would be
+            [(23, Mg, Al)]
+            If site 26 with an Mg atom is swapped with site 12 with an Al atom
+            this would be
+            [(26, Mg, Al), (12, Al, Mg)]
         """
         pass
 
@@ -29,6 +39,8 @@ class CorrelationFunctionTracker( MCObserver ):
     """
     Class that tracks the history of the Correlation function
     Only relevant if the calculator is a CE calculator
+
+    :param ce_calc: Instance of the CE calculator attached to the atoms object
     """
     def __init__( self, ce_calc ):
         self.cf = []
@@ -105,6 +117,13 @@ class PairCorrelationObserver( MCObserver ):
         return std_cf
 
 class LowestEnergyStructure(MCObserver):
+    """
+    Observer that tracks the lowest energy state visited
+    during an MC run
+
+    :param ce_calc: Instance of the CE calculator
+    :param mc_obj: Monte Carlo object
+    """
     def __init__( self, ce_calc, mc_obj, verbose=False ):
         self.ce_calc = ce_calc
         self.mc_obj = mc_obj
@@ -116,6 +135,10 @@ class LowestEnergyStructure(MCObserver):
         self.verbose = verbose
 
     def __call__( self, system_changes ):
+        """
+        Checks if the current state has lower energy.
+        If it has lower energy, the new state will be stored
+        """
         if ( self.atoms is None or self.lowest_energy_cf is None ):
             self.lowest_energy_cf = self.ce_calc.get_cf()
             self.lowest_energy = self.mc_obj.current_energy
@@ -133,6 +156,13 @@ class LowestEnergyStructure(MCObserver):
                 print ("Found new low energy structure. New energy: {} eV. Change: {} eV".format(self.lowest_energy,dE))
 
 class SGCObserver(MCObserver):
+    """
+    Observer mainly intended to track additional quantities needed when
+    running SGC Monte Carlo
+
+    :param ce_calc: CE calculator
+    :param mc_obj: Instance of the Monte Carlo object
+    """
     def __init__( self, ce_calc, mc_obj, n_singlets ):
         super(SGCObserver,self).__init__()
         self.name = "SGCObersver"
@@ -182,6 +212,9 @@ class SGCObserver(MCObserver):
         """
 
     def __call__( self, system_changes ):
+        """
+        Updates all SGC parameters
+        """
         self.quantities["counter"] += 1
         new_singlets = np.zeros_like( self.singlets )
         self.ce_calc.get_singlets(  new_singlets )
@@ -220,6 +253,12 @@ class SGCObserver(MCObserver):
         return self.quantities["counter"]
 
 class Snapshot( MCObserver ):
+    """
+    Class that stores a snapshot in a trajectory file
+
+    :param trajfile: Filename of the trajectory file
+    :param atoms: Instance of the atoms objected modofied by the MC object
+    """
     def __init__(self, trajfile="default.traj", atoms=None ):
         super(Snapshot,self).__init__()
         self.name = "Snapshot"
@@ -235,6 +274,18 @@ class Snapshot( MCObserver ):
         self.traj.write(self.atoms)
 
 class NetworkObserver( MCObserver ):
+    """
+    Tracks networks of atoms being connected by one of the pair interactions
+
+    :param calc: Instance of the CE calculator
+    :param cluster_name: Name of the cluster (has to be a pair interaction)
+        Example c2_5p72
+    :param element: Element tracked. If a network is defined by Mg atoms connected
+        via some pair cluster this is Mg
+    :param nbins: Number of bins used to produce statistics over the distribution
+        of cluster sizes
+    :param mpicomm: MPI communicator
+    """
     def __init__( self, calc=None, cluster_name=None, element=None, nbins=30, mpicomm=None ):
         if ( calc is None ):
             raise ValueError( "No calculator given. Has to be a CE calculator (with C++ support)" )
@@ -285,6 +336,8 @@ class NetworkObserver( MCObserver ):
     def update_histogram( self, sizes ):
         """
         Updates the histogram
+
+        :param sizes: Cluster sizes
         """
         for size in sizes:
             if ( size >= self.max_size_hist ):
@@ -334,6 +387,9 @@ class NetworkObserver( MCObserver ):
         return self.atoms_max_cluster
 
     def get_cluster_count(self):
+        """
+        Counts the number of atoms in each clusters
+        """
         group_indx_count = {}
         for indx in self.indx_max_cluster:
             if ( indx in group_indx_count.keys() ):
@@ -409,6 +465,8 @@ class NetworkObserver( MCObserver ):
     def grow_cluster(self,size):
         """
         Grow a cluster of the given size
+
+        :param size: Target size
         """
         self.fast_cluster_tracker.grow_cluster(size)
 

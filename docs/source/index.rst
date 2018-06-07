@@ -25,10 +25,11 @@ MCMC
   montecarlo
   sgc_montecarlo
   sgc_free_energy_barrier
+  mc_observers
 
 Tools
 =======
 .. toctree::
   :maxdepth: 4
-  
+
   phase_boundary_tracker
