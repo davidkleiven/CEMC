@@ -105,9 +105,18 @@ public:
   /** Returns the cluster members */
   const std::vector< std::map<std::string,Cluster> >& get_clusters() const {return clusters;};
 
+  /** Return the cluster with the given name
+  * The key in the map is the symmetry group
+  */
+  void get_clusters( const std::string& cname, std::map<unsigned int,const Cluster*> &clusters ) const;
+  void get_clusters( const char* cname, std::map<unsigned int,const Cluster*> &clusters ) const;
+
   /** Returns the translation matrix */
   //const Matrix<int>& get_trans_matrix() const {return trans_matrix;};
   const RowSparseStructMatrix& get_trans_matrix() const {return trans_matrix;};
+
+  /** Get the translation symmetry group of a site */
+  unsigned int get_trans_symm_group(unsigned int indx) const {return trans_symm_group[indx];};
 
   /** Sets the symbols */
   void set_symbols( const std::vector<std::string> &new_symbs );
@@ -117,6 +126,10 @@ public:
 
   /** Adds a term that tracks the contribution from lattice vibrations */
   void add_linear_vib_correction( const std::map<std::string,double> &eci_per_kbT );
+
+  /** Converts a system change encoded as a python tuple to a SymbolChange object */
+  static SymbolChange& py_tuple_to_symbol_change( PyObject *single_change, SymbolChange &symb_change );
+  static void py_changes2_symb_changes( PyObject* all_changes, std::vector<SymbolChange> &symb_changes );
 
   /** Computes the vibrational energy at the given temperature */
   double vib_energy( double T ) const;
@@ -154,9 +167,6 @@ private:
   /** Undos the latest changes keeping the tracker CE tracker updated */
   void undo_changes_tracker();
 
-  /** Converts a system change encoded as a python tuple to a SymbolChange object */
-  SymbolChange& py_tuple_to_symbol_change( PyObject *single_change, SymbolChange &symb_change );
-
   /** Extracts the decoration number from cluster names */
   int get_decoration_number( const std::string &cluster_name ) const;
 
@@ -171,5 +181,8 @@ private:
 
   /** Verifies that each ECI has a correlation function otherwise it throws an exception */
   bool all_eci_corresponds_to_cf();
+
+  /** Verifies that each cluster name exists only in one symmetry group*/
+  void verify_clusters_only_exits_in_one_symm_group();
 };
 #endif

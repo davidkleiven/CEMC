@@ -24,6 +24,10 @@ class TooFewElementsError(Exception):
     def __init__(self, msg):
         super(TooFewElementsError,self).__init__(msg)
 
+class CanNotFindLegalMoveError(Exception):
+    def __init__(self, msg):
+        super(CanNotFindLegalMoveError,self).__init__(msg)
+
 class Montecarlo(object):
     """
     Class for running Monte Carlo at fixed composition
@@ -47,6 +51,9 @@ class Montecarlo(object):
 
         self.observers = [] # List of observers that will be called every n-th step
                             # similar to the ones used in the optimization routines
+
+        self.constraints = []
+        self.max_allowed_constraint_pass_attempts = 10000
 
         self.current_step = 0
         self.num_accepted = 0
@@ -136,6 +143,18 @@ class Montecarlo(object):
         elif ( mode == "warning" ):
             self.logger.warning(msg)
 
+    def no_constraint_violations(self, system_changes):
+        """
+        Checks if the proposed moves violates any of the constraints
+
+        :param system_changes: Changes of the proposed move
+            see :py:class:`cemc.mcmc.mc_observers.MCObserver`
+        """
+        for constraint in self.constraints:
+            if not constraint(system_changes):
+                return False
+        return True
+
     def reset(self):
         """
         Reset all member variables to their original values
@@ -181,6 +200,13 @@ class Montecarlo(object):
         self.atoms_indx[symb_a][self.selected_a] = self.rand_b
         self.atoms_indx[symb_b][self.selected_b] = self.rand_a
 
+    def add_constraint(self, constraint):
+        """
+        Add a new constraint to the sampler
+
+        :param constraint: Instance of :py:class:`cemc.mcmc.mc_constraints.MCConstraint`
+        """
+        self.constraints.append(constraint)
 
     def attach( self, obs, interval=1 ):
         """
@@ -716,6 +742,15 @@ class Montecarlo(object):
 
 
         system_changes= self.get_trial_move()
+        counter = 0
+        while not self.no_constraint_violations(system_changes) and \
+            counter<self.max_allowed_constraint_pass_attempts:
+            system_changes = self.get_trial_move()
+
+        if counter == self.max_allowed_constraint_pass_attempts:
+            msg = "Did not manage to produce a trial move that does not "
+            msg += "violate any of the constraints"
+            raise CanNotFindLegalMoveError(msg)
         """
         new_energy = self.atoms._calc.calculate( self.atoms, ["energy"], system_changes )
 

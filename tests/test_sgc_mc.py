@@ -7,7 +7,8 @@ try:
     from ase.ce.settings_bulk import BulkCrystal
     from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
     from cemc.wanglandau.ce_calculator import CE
-    from helper_functions import get_max_cluster_dia_name
+    from cemc.mcmc import PairConstraint
+    from helper_functions import get_max_cluster_dia_name, get_example_network_name
     has_ase_with_ce = True
 except Exception as exc:
     print (str(exc))
@@ -97,6 +98,29 @@ class TestSGCMC( unittest.TestCase ):
             mc.linear_vib_correction = vib_corr
             mc.runMC( chem_potential=chem_pots, mode="prec", prec_confidence=0.05, prec=10.0 )
             thermo = mc.get_thermodynamic()
+        except Exception as exc:
+            msg = str(exc)
+            no_throw = False
+        self.assertTrue( no_throw, msg=msg )
+
+    def test_pair_constraint(self):
+        if ( not has_ase_with_ce ):
+            self.skipTest( "ASE version does not have CE" )
+            return
+        no_throw = True
+        msg = ""
+        try:
+            ceBulk = self.init_bulk_crystal()
+            chem_pots = {
+                "c1_0":0.02,
+                "c1_1":-0.03
+            }
+            name = get_example_network_name(ceBulk)
+            constraint = PairConstraint(calc=ceBulk.atoms._calc, cluster_name=name, elements=["Al","Si"])
+            T = 600.0
+            mc = SGCMonteCarlo( ceBulk.atoms, T, symbols=["Al","Mg","Si"], plot_debug=False )
+            mc.add_constraint(constraint)
+            mc.runMC( chem_potential=chem_pots, mode="fixed", steps=10 )
         except Exception as exc:
             msg = str(exc)
             no_throw = False

@@ -19,6 +19,7 @@
 #include "wang_landau_sampler.hpp"
 #include "adaptive_windows.hpp"
 #include "cluster_tracker.hpp"
+#include "pair_constraint.hpp"
 %}
 %include "numpy.i"
 
@@ -40,3 +41,4 @@
 %include "additional_tools.tpp"
 %include "mc_observers.hpp"
 %include "cluster_tracker.hpp"
+%include "pair_constraint.hpp"
