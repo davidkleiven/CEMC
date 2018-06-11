@@ -5,7 +5,15 @@ import numpy as np
 
 class GSFinder(object):
     def __init__( self ):
-        pass
+        self.constraints = []
+
+    def add_constraint(self, constraint):
+        """
+        Adds a constraint
+
+        :param constrain: Instance of :py:class:`cemc.mcmc.MCConstraint`
+        """
+        self.constraints.append(constraint)
 
     def get_gs( self, BC, ecis, composition=None, temps=None, n_steps_per_temp=1000 ):
         """
@@ -29,6 +37,7 @@ class GSFinder(object):
         for T in temps:
             print ("Temperature {}".format(T) )
             mc_obj = Montecarlo( BC.atoms, T )
+            mc_obj.constraints = self.constraints
             minimum_energy.mc_obj = mc_obj
             mc_obj.attach( minimum_energy )
             mc_obj.runMC( steps=n_steps_per_temp, verbose=False, equil=False )
