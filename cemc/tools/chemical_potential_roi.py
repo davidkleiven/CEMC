@@ -4,6 +4,10 @@ import numpy as np
 import time
 
 class ChemicalPotentialROI(object):
+    """
+    Class that identifies interesting chemical potentials to study.
+    The algoritthm performs the following steps
+    """
     def __init__(self, atoms, conc_step=0.1, temperature=100, symbols=[]):
         self.atoms = atoms
         self.conc_step = conc_step
@@ -124,16 +128,43 @@ class ChemicalPotentialROI(object):
         return mu_roi
 
     @staticmethod
-    def suggest_mu(mu_roi=None, N=10):
+    def list_match(list1, list2):
+        """
+        Checks if the elements in two lists match
+
+        :param list1: First entry
+        :param list2: Second entry
+        """
+        if len(list1) != len(list2):
+            return False
+
+        for entry in list1:
+            if entry not in list2:
+                return False
+        return True
+
+    @staticmethod
+    def suggest_mu(mu_roi=None, N=10, extend_fraction=0.1, elements=None):
         """
         This function suggests mu that can be used for exploring the
         parameter space based on the region of interest found by
         the function chemical_potential_roi
         """
-        extend_fraction = 0.05
         suggested_sampling_lines = []
         names = [key for key in mu_roi[0].keys() if key.startswith("c1")]
-        for phase_comb in combinations(mu_roi,2):
+
+        if elements is None:
+            phase_combinations = combinations(mu_roi,2)
+        else:
+            if len(elements) != 2:
+                raise ValueError("You have to specify start and end points!")
+            phase_combinations = [[]]
+            for entry in mu_roi:
+                if ChemicalPotentialROI.list_match(entry["symbs"], elements[0]) or \
+                    ChemicalPotentialROI.list_match(entry["symbs"], elements[1]):
+                    phase_combinations[0].append(entry)
+
+        for phase_comb in phase_combinations:
             mu_array1 = np.array([phase_comb[0][key] for key in names])
             mu_array2 = np.array([phase_comb[1][key] for key in names])
             suggested_sampling_lines.append(ChemicalPotentialROI.linear_sampling(mu_array1, mu_array2, N, extend_fraction=extend_fraction))

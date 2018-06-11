@@ -7,7 +7,7 @@ try:
     from ase.ce.settings_bulk import BulkCrystal
     from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
     from cemc.wanglandau.ce_calculator import CE
-    from cemc.mcmc import PairConstraint
+    from cemc.mcmc import PairConstraint, FixedElement
     from helper_functions import get_max_cluster_dia_name, get_example_network_name
     has_ase_with_ce = True
 except Exception as exc:
@@ -103,7 +103,7 @@ class TestSGCMC( unittest.TestCase ):
             no_throw = False
         self.assertTrue( no_throw, msg=msg )
 
-    def test_pair_constraint(self):
+    def test_constraints(self):
         if ( not has_ase_with_ce ):
             self.skipTest( "ASE version does not have CE" )
             return
@@ -117,9 +117,11 @@ class TestSGCMC( unittest.TestCase ):
             }
             name = get_example_network_name(ceBulk)
             constraint = PairConstraint(calc=ceBulk.atoms._calc, cluster_name=name, elements=["Al","Si"])
+            fixed_element = FixedElement(element="Cu") # Just an element that is not present to avoid long trials
             T = 600.0
             mc = SGCMonteCarlo( ceBulk.atoms, T, symbols=["Al","Mg","Si"], plot_debug=False )
             mc.add_constraint(constraint)
+            mc.add_constraint(fixed_element)
             mc.runMC( chem_potential=chem_pots, mode="fixed", steps=10 )
         except Exception as exc:
             msg = str(exc)

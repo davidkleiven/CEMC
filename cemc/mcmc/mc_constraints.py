@@ -51,3 +51,25 @@ class PairConstraint(MCConstraint):
 
         # Force the calculator to update the symbols
         return not self.cpp_constraint.elems_in_pair(system_changes)
+
+
+class FixedElement(MCConstraint):
+    """
+    Prevents an element to be moved
+
+    :param element: Element to fix
+    """
+    def __init__(self, element=None):
+        super(FixedElement,self).__init__()
+        self.name = "FixedElement"
+        self.element = element
+
+
+    def __call__(self, system_changes):
+        """
+        Checks if the *element* is involved in any of the changes
+        """
+        for change in system_changes:
+            if change[0] == self.element or change[1] == self.element:
+                return False
+        return True
