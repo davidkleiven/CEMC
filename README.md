@@ -1,5 +1,8 @@
-![Build status](https://travis-ci.org/davidkleiven/WangLandau.svg?branch=master)
-# WangLandau
+![Build status](https://travis-ci.org/davidkleiven/CEMC.svg?branch=master)
+[![MIT License](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](LICENSE)
+# Cluster Expansion Monte Carlo
+
+[Documentation page](http://folk.ntnu.no/davidkl/CEMC/index.html)
 
 # Dependencies
 * [SWIG](http://www.swig.org/) (newer than version 3.0)
@@ -24,6 +27,11 @@ pip install -r requirements.txt
 Install the package
 ```bash
 pip install .
+```
+
+Run the all tests
+```bash
+python -m unittest discover tests/
 ```
 
 # Examples

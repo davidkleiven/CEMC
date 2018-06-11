@@ -22,7 +22,7 @@ void ClusterTracker::find_clusters()
     atomic_clusters[i] = -1; // All atoms are initially a root site
   }
   const vector< map<string,Cluster> >& clusters = updater->get_clusters();
-  const Matrix<int>& trans_mat = updater->get_trans_matrix();
+  const auto& trans_mat = updater->get_trans_matrix();
 
   for ( unsigned int i=0;i<symbs.size();i++ )
   {
@@ -32,11 +32,7 @@ void ClusterTracker::find_clusters()
       continue;
     }
 
-    int current_root_indx = i;
-    while( atomic_clusters[current_root_indx] != -1 )
-    {
-      current_root_indx = atomic_clusters[current_root_indx];
-    }
+    int current_root_indx = root_indx(i);
 
     if ( atomic_clusters[current_root_indx] != -1 )
     {
@@ -59,15 +55,10 @@ void ClusterTracker::find_clusters()
 
         if ( symbs[indx] == element )
         {
-          int root_indx = indx;
-          while( atomic_clusters[root_indx] != -1 )
+          int root = root_indx(indx);
+          if ( root != current_root_indx )
           {
-            root_indx = atomic_clusters[root_indx];
-          }
-
-          if ( root_indx != current_root_indx )
-          {
-            atomic_clusters[root_indx] = current_root_indx;
+            atomic_clusters[root] = current_root_indx;
           }
         }
       }
@@ -111,15 +102,17 @@ void ClusterTracker::get_cluster_statistics( map<string,double> &res, vector<int
 
   for ( auto iter=num_members_in_cluster.begin(); iter != num_members_in_cluster.end(); ++iter )
   {
+    int size = 0;
     if ( iter->second >= 1 )
     {
-      cluster_sizes.push_back(iter->second+1);
+      size = iter->second+1;
+      cluster_sizes.push_back(size);
     }
-    average_size += iter->second;
-    avg_size_sq += iter->second*iter->second;
-    if ( iter->second > max_size )
+    average_size += size;
+    avg_size_sq += size*size;
+    if ( size > max_size )
     {
-      max_size = iter->second;
+      max_size = size;
     }
   }
   res["avg_size"] = average_size;
@@ -198,7 +191,8 @@ void ClusterTracker::verify_cluster_name_exists() const
     }
   }
   stringstream ss;
-  ss << "There are now correlation functions corresponding to the cluster name given!\n";
+  ss << "There are no correlation functions corresponding to the cluster name given!\n";
+  ss << "Given: " << cname << "\n";
   ss << "Available names:\n";
   ss << all_names;
   throw invalid_argument( ss.str() );
@@ -280,7 +274,7 @@ void ClusterTracker::grow_cluster( unsigned int size )
 
   unsigned int num_inserted = 0;
   const vector< map<string,Cluster> >& clusters = updater->get_clusters();
-  const Matrix<int>& trans_mat = updater->get_trans_matrix();
+  const auto& trans_mat = updater->get_trans_matrix();
   unsigned int start_indx = 0;
   unsigned int max_attempts = 200000;
   unsigned int number_of_attempts = 0;
@@ -331,7 +325,7 @@ void ClusterTracker::surface( map<int,int> &surf ) const
 {
   const vector<string>& symbs = updater->get_symbols();
   const vector< map<string,Cluster> >& clusters = updater->get_clusters();
-  const Matrix<int>& trans_mat = updater->get_trans_matrix();
+  const auto& trans_mat = updater->get_trans_matrix();
 
   for ( unsigned int i=0;i<atomic_clusters.size();i++ )
   {

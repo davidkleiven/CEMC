@@ -2,28 +2,33 @@ import unittest
 from ase.build import bulk
 try:
     from ase.ce import BulkCrystal
+    from ase.ce import CorrFunction
     from cemc.wanglandau import WangLandauInit, WangLandau, WangLandauDBManager, AtomExistsError
     has_CE = True
 except Exception as exc:
     print (exc)
     has_CE = False
 
-db_name = "temp_db.db"
+db_name = "temp_db_wanglandau.db"
 wl_db_name = "wanglandau_test_init.db"
 bc_kwargs = {
     "crystalstructure":"fcc",
-    "size":[3,3,3],
+    "size":[4,4,4],
     "basis_elements":[["Al","Mg"]],
     "db_name":db_name,
     "conc_args":{"conc_ratio_min_1":[[1,0]],"conc_ratio_max_1":[[0,1]]},
-    "max_cluster_dia":4,
+    "max_cluster_size":4,
     "a":4.05
 }
 
-eci = {
-    "c1_0":1.0,
-    "c2_1000_1_00":1.0
-}
+
+def get_eci():
+    bc = BulkCrystal(**bc_kwargs)
+    cf = CorrFunction(bc)
+    cf = cf.get_cf(bc.atoms)
+    eci = {key:0.001 for key in cf.keys()}
+    return eci
+
 class TestInitWLSim( unittest.TestCase ):
     def test_no_throw( self ):
         no_throw = True
@@ -31,6 +36,7 @@ class TestInitWLSim( unittest.TestCase ):
             self.skipTest( "ASE version does not have CE" )
 
         msg = ""
+        eci = get_eci()
         try:
             initializer = WangLandauInit( wl_db_name )
             T = [1000,10]
@@ -46,7 +52,7 @@ class TestInitWLSim( unittest.TestCase ):
             if ( runID == -1 ):
                 raise ValueError( "No new Wang Landau simulation in the database!" )
             simulator = WangLandau( atoms, wl_db_name, runID, fmin=1.8 )
-            simulator.run_fast_sampler( mode="adaptive_windows" )
+            simulator.run_fast_sampler( mode="adaptive_windows", maxsteps=100 )
         except Exception as exc:
             msg = str(exc)
             no_throw = False

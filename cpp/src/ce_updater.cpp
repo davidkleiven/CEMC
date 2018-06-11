@@ -71,10 +71,7 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   }
 
   unsigned int num_trans_symm = PyList_Size( clist );
-  /*if ( num_trans_symm != 1 )
-  {
-    throw invalid_argument( "The CE udpater only supports 1 site type at the moment..." );
-  }*/
+
   // Loop over all symmetry equivalent sites
   for ( unsigned int s=0;s<num_trans_symm;s++ )
   {
@@ -115,7 +112,6 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
         {
           continue;
         }
-
         PyObject *py_members = PyList_GetItem( current_indx_list, j );
         int n_sub_clusters = PyList_Size(py_members);
         if ( n_sub_clusters < 0 )
@@ -164,6 +160,7 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   }
   Py_DECREF( clst_indx );
   Py_DECREF( clist );
+  //verify_clusters_only_exits_in_one_symm_group();
 
   #ifdef CE_DEBUG
     cerr << "Reading basis functions from BC object\n";
@@ -203,9 +200,19 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   }
   PyObject *trans_mat =  PyArray_FROM_OTF( trans_mat_orig, NPY_INT32, NPY_ARRAY_IN_ARRAY );
   unsigned int max_indx = get_max_indx_of_zero_site(); // Compute the max index that is ever going to be checked
+  if ( max_indx == 0 )
+  {
+    throw runtime_error("It looks like no clusters are present. Max lookup index was 0 for ref_indx 0");
+  }
+
+  set<int> unique_indx;
+  get_unique_indx_in_clusters(unique_indx);
+  vector<int> unique_indx_vec;
+  set2vector( unique_indx, unique_indx_vec );
 
   npy_intp *size = PyArray_DIMS( trans_mat );
-  trans_matrix.set_size( size[0],max_indx+1 );
+  trans_matrix.set_size( size[0], unique_indx_vec.size(), max_indx );
+  trans_matrix.set_lookup_values(unique_indx_vec);
   cout << "Dimension of translation matrix stored: " << size[0] << " " << max_indx << endl;
   if ( max_indx+1 > size[1] )
   {
@@ -216,9 +223,10 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
     throw invalid_argument(ss.str());
   }
   for ( unsigned int i=0;i<size[0];i++ )
-  for ( unsigned int j=0;j<max_indx+1;j++ )
+  for ( unsigned int j=0;j<unique_indx_vec.size();j++ )
   {
-    trans_matrix(i,j) = *static_cast<int*>(PyArray_GETPTR2(trans_mat,i,j) );
+    int col = unique_indx_vec[j];
+    trans_matrix(i,col) = *static_cast<int*>(PyArray_GETPTR2(trans_mat,i,col) );
   }
 
   /**
@@ -329,7 +337,7 @@ double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const vector< ve
     unsigned int n_memb = indx_list[i].size();
     for ( unsigned int j=0;j<n_memb;j++ )
     {
-      unsigned int trans_indx = trans_matrix( ref_indx,indx_list[i][j] );
+      const int& trans_indx = trans_matrix( ref_indx,indx_list[i][j] );
       sp_temp *= basis_functions[dec[j+1]][symbs[trans_indx]];
     }
     sp += sp_temp;
@@ -350,6 +358,17 @@ SymbolChange& CEUpdater::py_tuple_to_symbol_change( PyObject *single_change, Sym
   symb_change.old_symb = PyString_AsString( PyTuple_GetItem(single_change,1) );
   symb_change.new_symb = PyString_AsString( PyTuple_GetItem(single_change,2) );
   return symb_change;
+}
+
+void CEUpdater::py_changes2_symb_changes( PyObject* all_changes, vector<SymbolChange> &symb_changes )
+{
+  int size = PyList_Size(all_changes);
+  for (unsigned int i=0;i<size;i++ )
+  {
+    SymbolChange symb_change;
+    py_tuple_to_symbol_change( PyList_GetItem(all_changes,i), symb_change );
+    symb_changes.push_back(symb_change);
+  }
 }
 
 void CEUpdater::update_cf( SymbolChange &symb_change )
@@ -497,7 +516,11 @@ double CEUpdater::calculate( PyObject *system_changes )
 {
 
   int size = PyList_Size(system_changes);
-  if ( size == 1 )
+  if ( size == 0 )
+  {
+    return get_energy();
+  }
+  else if ( size == 1 )
   {
     for ( int i=0;i<size;i++ )
     {
@@ -512,13 +535,27 @@ double CEUpdater::calculate( PyObject *system_changes )
     py_tuple_to_symbol_change( PyList_GetItem(system_changes,1), changes[1] );
     return calculate(changes);
   }
+  else if ( size%2 == 0 )
+  {
+    // The size is larger than 2 and an even number.
+    // Assume that this is a sequence of swap moves
+    vector<swap_move> sequence;
+    for ( unsigned int i=0;i<size/2;i++ )
+    {
+      swap_move changes;
+      py_tuple_to_symbol_change( PyList_GetItem(system_changes,2*i), changes[0] );
+      py_tuple_to_symbol_change( PyList_GetItem(system_changes,2*i+1), changes[1] );
+      sequence.push_back(changes);
+    }
+    return calculate(sequence);
+  }
   else
   {
     throw runtime_error( "Swaps of more than 2 atoms is not supported!" );
   }
 }
 
-double CEUpdater::calculate( array<SymbolChange,2> &system_changes )
+double CEUpdater::calculate( swap_move &system_changes )
 {
   if ( symbols[system_changes[0].indx] == symbols[system_changes[1].indx] )
   {
@@ -675,6 +712,14 @@ void CEUpdater::get_singlets( PyObject *npy_obj ) const
   Py_DECREF( npy_array );
 }
 
+PyObject* CEUpdater::get_singlets() const
+{
+  npy_intp dims[1] = {singlets.size()};
+  PyObject* npy_array = PyArray_SimpleNew( 1, dims, NPY_DOUBLE );
+  get_singlets(npy_array);
+  return npy_array;
+}
+
 void CEUpdater::add_linear_vib_correction( const map<string,double> &eci_per_kbT )
 {
   delete vibs;
@@ -796,4 +841,83 @@ unsigned int CEUpdater::get_max_indx_of_zero_site() const
     }
   }
   return max_indx;
+}
+
+
+void CEUpdater::get_unique_indx_in_clusters( set<int> &unique_indx )
+{
+  for ( auto iter=clusters.begin(); iter != clusters.end(); ++iter )
+  {
+    for ( auto subiter=iter->begin(); subiter != iter->end(); ++subiter )
+    {
+      const vector <vector<int> >& mems = subiter->second.get();
+      // Loop over clusters
+      for ( unsigned int i=0;i<mems.size();i++ )
+      {
+        // Loop over members in subcluster
+        for ( unsigned int j=0;j<mems[i].size();j++ )
+        {
+          unique_indx.insert(mems[i][j]);
+        }
+      }
+    }
+  }
+}
+
+double CEUpdater::calculate( vector<swap_move> &sequence )
+{
+  if ( sequence.size() >= history->max_history/2 )
+  {
+    throw invalid_argument("The length of sequence of swap move exceeds the buffer size for the history tracker");
+  }
+
+  for ( unsigned int i=0;i<sequence.size();i++ )
+  {
+    calculate(sequence[i]);
+  }
+  return get_energy();
+}
+
+
+void CEUpdater::verify_clusters_only_exits_in_one_symm_group()
+{
+  for (unsigned int symm_group=0;symm_group<clusters.size();symm_group++ )
+  {
+    for (auto iter=clusters[symm_group].begin(); iter != clusters[symm_group].end(); ++iter )
+    {
+      for (unsigned int symm2=symm_group+1;symm2<clusters.size();symm2++ )
+      {
+        for (auto iter2=clusters[symm2].begin(); iter2 != clusters[symm2].end();++iter2 )
+        {
+          if (iter->first == iter2->first)
+          {
+            stringstream msg;
+            msg << "A cluster with the name " << iter->first << " name appears to exits in symmetry group ";
+            msg << symm_group << " and " << symm2;
+            throw invalid_argument(msg.str());
+          }
+        }
+      }
+    }
+  }
+}
+
+
+void CEUpdater::get_clusters( const string &cname, map<unsigned int, const Cluster*> &clst) const
+{
+  for (unsigned int i=0;i<clusters.size();i++ )
+  {
+    auto iter = clusters[i].find(cname);
+    if ( iter != clusters[i].end())
+    {
+      clst[i] = &iter->second;
+    }
+  }
+}
+
+
+void CEUpdater::get_clusters( const char* cname, map<unsigned int, const Cluster*> &clst) const
+{
+  string cname_str(cname);
+  get_clusters(cname_str, clst);
 }

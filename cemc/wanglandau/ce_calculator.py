@@ -13,6 +13,8 @@ mpl.rcParams["svg.fonttype"] = "none"
 from matplotlib import pyplot as plt
 from ase.visualize import view
 from cemc.mcmc import linear_vib_correction as lvc
+from inspect import getargspec
+
 from mpi4py import MPI
 try:
     from cemc.ce_updater import ce_updater as ce_updater
@@ -22,17 +24,27 @@ except Exception as exc:
     print (str(exc))
     print ("Could not find C++ version, falling back to Python version")
 
+def get_max_dia_name():
+    """
+    In the past max_cluster_dist was named max_cluster_dia.
+    We support both version here
+    """
+    args = getargspec(BulkCrystal.__init__).args
+    if "max_cluster_dia" in args:
+        return "max_cluster_dia"
+    return "max_cluster_dist"
+
 def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays_BC=False ):
     """
-    Constructs a CE calculator by first computing the correlation function
+    Constructs a CE calculator for a supercell by first computing the correlation function
     from a small cell
 
-    Arguments
-    -----------
-    small_bc - Instance of BulkCrystal or BulkSpacegroup with a relatively small unitcell
-    bc_kwargs - dictionary of the keyword arguments used to construct small_bc
-    eci - Effective Cluster Interactions
-    size - The atoms in small_bc will be extended by this amount
+    :param small_bc: Instance of BulkCrystal or BulkSpacegroup with a relatively small unitcell
+    :param bc_kwargs: dictionary of the keyword arguments used to construct small_bc
+    :param eci: Effective Cluster Interactions
+    :param size: The atoms in small_bc will be extended by this amount
+    :param free_unused_arrays_BC: If True it will delete the *clunster_indx*,
+        *trans_matrix* and *dist_matrix* of BC to save memory
     """
     rank = MPI.COMM_WORLD.Get_rank()
     unknown_type = False
@@ -45,7 +57,8 @@ def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays
         min_length = np.min(cell_lenghts)/2.0
 
         bc_kwargs["size"] = size
-        bc_kwargs["max_cluster_dia"] = min_length
+        size_name = get_max_dia_name()
+        bc_kwargs[size_name] = min_length
 
         db_name = "temporary_db.db"
         if ( os.path.exists(db_name) ):
@@ -70,6 +83,13 @@ def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays
 class CE( Calculator ):
     """
     Class for updating the CE when symbols change
+
+    :param BC: Instance of BulkCrystal or BulkSpacegroup from ASE
+    :param eci: Dictionary with the effective cluster interactions
+    :param initial_cf: Dictionary with the correlation function of the atoms
+        object in BC
+    :param free_unused_arrays_BC: If True it will delete the *clunster_indx*,
+        *trans_matrix* and *dist_matrix* of BC to save memory
     """
 
     implemented_properties = ["energy"]
@@ -138,6 +158,8 @@ class CE( Calculator ):
     def get_full_cluster_names( self, cnames ):
         """
         Returns the full cluster names with decoration info in the end
+
+        :param cnames: List of the current cluster names
         """
         full_names = self.cf.keys()
         print (full_names)
@@ -176,6 +198,8 @@ class CE( Calculator ):
     def include_linvib_in_ecis( self, T ):
         """
         Includes the effect of linear vibration correction in the ECIs
+
+        :param T: Temperature in Kelvin
         """
         if ( self.linear_vib_correction is None ):
             return
@@ -189,6 +213,8 @@ class CE( Calculator ):
     def vib_energy( self, T ):
         """
         Returns the vibration energy per atom
+
+        :param T: Temperature in kelving
         """
         if ( self.updater is not None ):
             return self.updater.vib_energy(T)
@@ -269,9 +295,13 @@ class CE( Calculator ):
         Returns the energy of the system
         """
         energy = 0.0
-        for key,value in self.eci.iteritems():
-            energy += value*self.cf[key]
-        return energy*len(self.atoms)
+        if ( self.updater is None ):
+            for key,value in self.eci.iteritems():
+                energy += value*self.cf[key]
+            energy *= len(self.atoms)
+        else:
+            energy = self.updater.get_energy()
+        return energy
 
     def create_ctype_lookup( self ):
         """
@@ -329,7 +359,11 @@ class CE( Calculator ):
 
     def spin_product_one_atom( self, ref_indx, indx_list, dec ):
         """
-        Spin product for a single atom
+        Spin product for a single atom. Note that it is recommended to use the
+        C++ version
+
+        :param ref_indx: Reference index
+        :param indx_list: List of indices
         """
         num_indx = len(indx_list)
         bf = self.BC.basis_functions
@@ -364,6 +398,13 @@ class CE( Calculator ):
         """
         Calculates the energy. The system_changes is assumed to be a list
         of tuples of the form (indx,old_symb,new_symb)
+
+        :param atoms: Atoms object. Note that this is purely a cosmetic argument
+            to fit the signature of this function in ASE. The energy returned,
+            is the one of the internal atoms object *after* system_changes is applied
+        :param properties: Has to be ["energy"]
+        :param system_changes: Updates to the system. Same signature as
+            :py:meth:`cemc.mcmc.MCObserver.__call__`
         """
         if ( use_cpp ):
             energy = self.updater.calculate(system_changes)
@@ -388,36 +429,53 @@ class CE( Calculator ):
     def update_ecis( self, new_ecis ):
         """
         Updates the ecis
+
+        :param new_ecis: New ECI values
         """
         self.eci = new_ecis
         if ( not self.updater is None ):
             self.updater.set_ecis(self.eci)
 
-    def get_singlets( self, array ):
+    def get_singlets( self, array=None ):
+        """
+        Return the singlets
+        """
         if ( self.updater is None ):
             indx = 0
+            singlets = []
             for key,value in self.cf.iteritems():
                 if ( key.startswith("c1") ):
-                    singlets[indx] = value
-                    indx += 1
+                    singlets.append(value)
+            array = np.array(singlets)
             return array
         else:
-            self.updater.get_singlets( array )
-            return array
+            if array is None:
+                return self.updater.get_singlets()
+            return self.updater.get_singlets(array)
 
     def set_composition( self, comp ):
         """
         Change composition of an object.
+
+        :param comp: Dictionary with the new composition. If you want
+            to set the composition to for instance 20%% Mg and 80 %% Al, this
+            argument should be {"Mg":0.2, "Al":0.8}
         """
         # Verify that the sum of the compositions is one
         tot_conc = 0.0
+        max_element = None
+        max_conc = 0.0
         for key,conc in comp.iteritems():
             tot_conc += conc
+            if ( conc > max_conc ):
+                max_element = key
+                max_conc = conc
 
-        if ( tot_conc != 1.0 ):
+        if ( np.abs(tot_conc-1.0) > 1E-6 ):
             raise ValueError( "The specified concentration does not sum to 1!" )
-        # Change all atoms to the first one
-        init_elm = comp.keys()[0]
+
+        # Change all atoms to the one with the highest concentration
+        init_elm = max_element
         for i in range( len(self.atoms) ):
             #self.update_cf( (i,self.atoms[i].symbol,init_elm) ) # Set all atoms to init element
             self.calculate( self.atoms, ["energy"], [(i,self.atoms[i].symbol,init_elm)] )
@@ -430,17 +488,94 @@ class CE( Calculator ):
                 self.update_cf( (i,init_elm,elm) )
             start += n_at
         self.clear_history()
-        print ("Composition set")
 
     def set_symbols( self, symbs ):
         """
         Change the symbols of the entire atoms object
+
+        :param symbs: List of new symbols
         """
         if ( len(symbs) != len(self.atoms ) ):
             raise ValueError( "Length of the symbols array has to match the length of the atoms object.!" )
         for i,symb in enumerate(symbs):
             self.update_cf( (i,self.atoms[i].symbol,symb) )
         self.clear_history()
+
+    def singlet2comp( self, singlets ):
+        """
+        Convert singlet to compositions
+
+        :param singlets: Singlet values
+        """
+        bfs = self.BC.basis_functions
+
+        if ( len(singlets.keys()) != len(bfs) ):
+            msg = "The number singlet terms specified is different from the number of basis functions\n"
+            msg += "Given singlet terms: {}\n".format(singlets)
+            msg += "Basis functions: {}\n".format(bfs)
+            raise ValueError( msg )
+
+        # Generate system of equations
+        rhs = np.zeros(len(bfs))
+        spec_element = bfs[0].keys()[0] # Concentration of this element is implicitly determined via the others
+        for key,value in singlets.iteritems():
+            dec = int(key[-1])
+            rhs[dec] = value - bfs[dec][spec_element]
+
+        matrix = np.zeros((len(bfs),len(bfs)))
+        for key in singlets.keys():
+            row = int(key[-1])
+            col = 0
+            for element in bfs[0].keys():
+                if ( element == spec_element ):
+                    continue
+                matrix[row,col] = bfs[row][element]-bfs[row][spec_element]
+                col += 1
+        concs = np.linalg.solve( matrix, rhs )
+
+        eps = 1E-6
+        # Allow some uncertainty in the solution
+        for i in range(len(concs)):
+            if ( concs[i] < 0.0 and concs[i] > -eps ):
+                concs[i] = 0.0
+        conc_spec_element = 1.0 - np.sum(concs)
+
+        if ( conc_spec_element < 0.0 and conc_spec_element > -eps ):
+            conc_spec_element = 0.0
+
+        # Some trivial checks
+        if ( conc_spec_element > 1.0 or conc_spec_element < 0.0 ):
+            msg = "Something strange happened when converting singlets to composition\n"
+            msg += "Concentration of one of the implicitly determined element is {}".format(conc_spec_element)
+            raise RuntimeError(msg)
+
+        if ( np.any(concs>1.0) or np.any(concs<0.0) ):
+            msg = "Something went wrong when the linear system of equations were solved.\n"
+            msg += "Final concentration is {}".format(concs)
+            raise RuntimeError(msg)
+
+        conc_dict = {}
+        #conc_dict[spec_element] = conc_spec_element
+        counter = 0
+        for element in bfs[0].keys():
+            if ( element == spec_element ):
+                conc_dict[element] = conc_spec_element
+            else:
+                conc_dict[element] = concs[counter]
+                counter += 1
+        return conc_dict
+
+    def set_singlets( self, singlets ):
+        """
+        Brings the system into a certain configuration such that the singlet terms
+        has a certain value. Note that depending on the size of the atoms object,
+        it is not all singlet value that are possible. So the composition
+        obtained in the end, may differ slightly from the intended value.
+
+        :param singlets: Singlet values
+        """
+        conc = self.singlet2comp(singlets)
+        self.set_composition(conc)
 
     def write( self, fname ):
         """

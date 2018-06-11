@@ -1,6 +1,7 @@
 import unittest
 try:
     from ase.ce.settings_bulk import BulkCrystal
+    from ase.ce import CorrFunction
     from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
     from cemc.wanglandau.ce_calculator import CE
     from cemc.mcmc.mc_parameter_sweep import MCParameterSweep
@@ -9,10 +10,6 @@ except Exception as exc:
     print (str(exc))
     has_ase_with_ce = False
 
-ecis = {
-    "c1_0":-0.1,
-    "c2_1000_1_00":0.1,
-}
 
 db_name = "test_sgc.db"
 class TestMCParameterSweep( unittest.TestCase ):
@@ -23,6 +20,9 @@ class TestMCParameterSweep( unittest.TestCase ):
         }
         ceBulk = BulkCrystal( crystalstructure="fcc", a=4.05, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, db_name=db_name)
         ceBulk._get_cluster_information()
+        cf = CorrFunction(ceBulk)
+        cf = cf.get_cf(ceBulk.atoms)
+        ecis = {key:1.0 for key in cf.keys()}
         calc = CE( ceBulk, ecis )
         ceBulk.atoms.set_calculator(calc)
         return ceBulk

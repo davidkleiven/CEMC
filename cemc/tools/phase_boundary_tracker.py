@@ -18,7 +18,7 @@ import os
 import gc
 from matplotlib import pyplot as plt
 plt.switch_backend("Agg") # With this backend one does not need a screen (useful for clusters)
-import Image
+#import Image
 
 comm = MPI.COMM_WORLD
 
@@ -27,32 +27,24 @@ class PhaseChangedOnFirstIterationError(Exception):
         super( PhaseChangedOnFirstIterationError,self).__init__(message)
 
 class PhaseBoundaryTracker(object):
-    def __init__( self, gs1, gs2, mu_name="c1_0", chemical_potential=None, logfile="",
+    def __init__( self, gs1, gs2, mu_name="c1_0", logfile="", chemical_potential=None,
     conf_same_phase=0.45, conf_substep_conv=0.05, max_singlet_change=0.05, backupfile="backup_phase_track.h5" ):
         """
-        Class for tracker phase boundary
+        Class for tracking the phase boundary between two phases
+        NOTE: Has only been confirmed to work for binary systems!
 
-        Parameters
-        -----------
-        gs1,gs2 - Dictionaries containing the following fields
-                  {
-                    "bc":BulkCrystal object,
-                    "cf":Correlation function of the state of the atoms object in BulkCrystal
-                    "eci":Effective Cluster Interactions
-                  }
-        mu_name - Name of the chemical potential to be altered.
-                  If the system is binary the default: c1_0 is the correct one
-        chemical_potential - Dictionary containing all the chemical potential
-                             if the system under consideration is ternary this
-                             looks like: {"c1_0":-1.06,"c1_1":-1.04}
-
-                             If the system is binary this field can be left open
-        logfile - Filename where log messages should be written
-        conf_same_phase - Confidence level used for hypothesis testing when checking if the two systems
-                          have ended up in the same phase. Has to be in the range [0.0,0.5)
-        conf_substep_conv - Confidence level used for hypethesis testing when checking if the stepsize
+        :params gs1,gs2: Dictionaries containing the following fields
+                    * *bc* BulkCrystal object,
+                    * *cf* Correlation function of the state of the atoms object in BulkCrystal
+                    * *eci* Effective Cluster Interactions
+        :param mu_name: Name of the chemical potential to be altered.
+                        If the system is binary the default: c1_0 is the correct one
+        :param logfile: Filename where log messages should be written
+        :param conf_same_phase: Confidence level used for hypothesis testing when checking if the two systems
+                                have ended up in the same phase. Has to be in the range [0.0,0.5)
+        :param conf_substep_conv: Confidence level used for hypethesis testing when checking if the stepsize
                             needs to be refined. Has to be in the range[0.0,0.5)
-        max_singlet_change - The maximum amount the singlet terms are allowed to change on each step
+        :param max_singlet_change: The maximum amount the singlet terms are allowed to change on each step
         """
         self.gs1 = gs1
         self.gs2 = gs2
@@ -71,7 +63,6 @@ class PhaseBoundaryTracker(object):
             self.chemical_potential = {mu_name:0.0}
         else:
             self.chemical_potential=chemical_potential
-        self.check_gs()
 
         # Set the calculators of the atoms objects
         calc1 = ClusterExpansion( self.gs1["bc"], cluster_name_eci=self.gs1["eci"], init_cf=self.gs1["cf"] )
@@ -114,6 +105,8 @@ class PhaseBoundaryTracker(object):
     def check_gs_argument( self, gs ):
         """
         Check that the gs arguments contain the correct fields
+
+        :param gs: Ground state structure
         """
         required_fields = ["bc","cf","eci"]
         keys = gs.keys()
@@ -149,6 +142,9 @@ class PhaseBoundaryTracker(object):
     def backup( self, data, dsetname="data" ):
         """
         Stores backup data to hdf5 file
+
+        :param data: Dictionary of data to be backed up
+        :param dsetname: Basename for all datasets in the h5 file
         """
         rank = comm.Get_rank()
         if ( rank == 0 ):
@@ -172,6 +168,11 @@ class PhaseBoundaryTracker(object):
     def predict_composition( self, comp, temperatures, target_temp, target_comp=0.0 ):
         """
         Performs a prediction of the next composition value based on history
+
+        :param comp: History of compositions
+        :param temperatures: History of temperatures
+        :param target_temp: Temperature where the composition should be predicted
+        :param target_comp: Not used
         """
         if ( len(comp) <= 2 ):
             return comp[-1], None
@@ -218,6 +219,15 @@ class PhaseBoundaryTracker(object):
         """
         Check if two numbers are equal provided that their standard deviations
         are known
+
+        :param x1: First value
+        :param x2: Second value
+        :param std1: Standard deviation of the first value
+        :param std2: Standard deviation of the second value
+        :param confidence_level: Confidence level for hypothesis testing
+        :param stdtol: If the standard deviation of the difference between x1 and x2
+            is smaller than this value. It will not perform hypothesis testing.
+        :param eps_fallback: If not hypothesis returns abs(x1-x1) < eps_fallback
         """
         if ( confidence_level >= 0.5 ):
             raise ValueError( "The confidence level has to be in the range [0,0.5)")
@@ -237,165 +247,30 @@ class PhaseBoundaryTracker(object):
             return True
         return False
 
-    def compositions_significantly_different( self, thermo1, thermo2, confidence_level=0.05 ):
-        """
-        Returns True if the compositions are significantly different
-        """
-        name = "var_singlet_{}".format(self.mu_name)
-        var1 = thermo1[name]#/thermo1["n_mc_steps"]
-        var2 = thermo2[name]#/thermo2["n_mc_steps"]
-        name = "singlet_{}".format(self.mu_name)
-        comp1 = thermo1[name]
-        comp2 = thermo2[name]
-        diff = comp2-comp1
-        std_diff = np.sqrt( var1+var2 )
-        z = diff/std_diff
-        min_percentile = stats.norm.ppf(confidence_level)
-        max_percentile = stats.norm.ppf(1.0-confidence_level)
-
-        if (( z > max_percentile ) or ( z < min_percentile )):
-            return True
-        return False
-
-    def find_new_mu( self, sgc_mc, dmu, direction, current_comp, thermo, current_mu ):
-        """
-        Brings the system back to the original phase by slowly varying the chemical potential
-        """
-        changed_phase = False
-        mu = current_mu
-        self.logger.info( "*********** Finding new chemical potential *************" )
-        print (thermo)
-        while( not changed_phase ):
-            if ( direction == "increase" ):
-                mu += dmu
-            else:
-                mu -= dmu
-            self.logger.info( "Current mu: {}".format(mu) )
-            self.logger.handlers[0].flush()
-            #self.flush_log()
-            self.chemical_potential[self.mu_name] = mu
-            sgc_mc.runMC( steps=100000, chem_potential=self.chemical_potential )
-            thermo_new = sgc_mc.get_thermodynamic()
-            print (thermo_new)
-            changed_phase = self.compositions_significantly_different( thermo, thermo_new, confidence_level=0.05 )
-            mu_phase_change = mu
-
-        # Store the symbols
-        symbs_old = [atom.symbol for atom in sgc_mc.atoms]
-
-        # Run until the phase change back again
-        changed_phase = False
-        thermo = thermo_new
-        self.logger.info( "*********** Find mu that makes the system change to the wrong phase ***************" )
-        while( not changed_phase ):
-            if ( direction == "increase" ):
-                mu -= dmu # To come back to the wrong phase the chemical potential has to be increased
-            else:
-                mu += dmu
-            self.logger.info( "Current mu: {}".format(mu))
-            self.logger.handlers[0].flush()
-            #self.flush_log()
-            self.chemical_potential[self.mu_name] = mu
-            sgc_mc.runMC( steps=100000, chem_potential=self.chemical_potential )
-            thermo_new = sgc_mc.get_thermodynamic()
-            changed_phase = self.compositions_significantly_different( thermo, thermo_new, confidence_level=0.05 )
-            mu_phase_change_back = mu
-
-        # Set the symbols to the correct phase
-        sgc_mc.atoms._calc.set_symbols( symbs_old )
-        return 0.5*( mu_phase_change + mu_phase_change_back )
-
-    def on_similar_composition( self, args ):
-        """
-        Handling the case when the composition of the two "phases" have become
-        equal
-        """
-        self.logger.info( "Composition of the two phases are similar!" )
-        diff1 = np.abs( args["current_comp1"] - args["prev_comp1"] )
-        diff2 = np.abs( args["current_comp2"] - args["prev_comp2"] )
-
-        # Check if the two phase boundaries met (check what the sequence of compositions predicts)
-        x1_pred = args["x1_pred"]
-        x2_pred = args["x2_pred"]
-        std1 = args["std1"]
-        std2 = args["std2"]
-        eq = self.is_equal( x1_pred, x2_pred, std1, std2, confidence_level=0.05 )
-        #eq = (np.abs(x1_pred-x2_pred)<0.1)
-        res = {"converged":False,"msg":"Continue simulation","mu":args["prev_mu"]}
-        if ( eq ):
-            #print (x1,x1_predict,std1)
-            #print (x2,x2_predict,std2)
-            # The curves met
-            res["converged"] = True
-            res["msg"] = "Phase boundaries met"
-            return res
-
-        # Simulations not converged, chemical potential is outside the region
-        # where both phases are stable
-        dmu = np.abs( args["prev_mu"]-args["current_mu"] )/args["n_mu_steps"]
-        if ( diff1 > diff2 ):
-            # System 1 changed phase
-            self.logger.info( "System 1 changed phase" )
-            new_mu = self.find_new_mu( args["sgc1"], dmu, "increase", args["current_comp1"], args["thermo1"], args["current_mu"] )
-        else:
-            self.logger.info( "System 2 changed phase" )
-            new_mu = self.find_new_mu( args["sgc2"], dmu, "decrease", args["current_comp2"], args["thermo2"], args["current_mu"] )
-        res["mu"] = new_mu
-        return res
-
-    def on_different_composition( self, args ):
-        """
-        Handling the case when the compositions are different
-        """
-        self.logger.info( "Compositions are different" )
-        comp1_can_be_predicted = self.is_equal( args["current_comp1"], args["x1_pred"], args["std1"], args["std1"], confidence_level=0.0001 )
-        comp2_can_be_predicted = self.is_equal( args["current_comp2"], args["x2_pred"], args["std2"], args["std2"], confidence_level=0.0001 )
-        ##comp1_can_be_predicted = ( np.abs(args["current_comp1"]-args["x1_pred"] ) < 0.1 )
-        ##comp2_can_be_predicted = ( np.abs(args["current_comp2"]-args["x2_pred"] ) < 0.1 )
-        res = {"converged":False, "msg":"Continue simulation"}
-        if ( not comp1_can_be_predicted and not comp2_can_be_predicted ):
-            self.logger.info( "Both systems changed phase. Resetting mu to the previous value" )
-            # Both systems changed phase --> impossible. Typically due to a
-            # two large step in the chemical potential.
-            # Reset mu to the previous value
-            res["msg"] = "Reset mu"
-            return res
-        if ( not comp1_can_be_predicted or not comp2_can_be_predicted ):
-            # Both compositions are different, but one of them cannot be
-            # predicted by the sequence of compositions
-            # One of the system went to a third phase
-            print (args["current_comp1"],args["x1_pred"])
-            print (args["current_comp2"],args["x2_pred"])
-            res["converged"] = True
-            res["msg"] = "One of the phases seems to have ended up in a third phase"
-            return res
-        return res
-
     def composition_first_larger_than_second( self, x1, x2 ):
+        """
+        Check if the first arguments is larger than the second
+
+        :param x1: First value
+        :param x2: Second value
+        """
         return x1 > x2
 
     def system_changed_phase( self, prev_comp, comp ):
         """
         Check if composition changes too much from one step to another
+
+        :param prev_comp: Composition on the previous step
+        :param comp: Composition on the current step
         """
         return np.abs( prev_comp-comp ) > self.max_singlet_change
-
-    def composition_change_too_large( self, prev_comp, comp, std, threshold=0.05, confidence_level=0.45 ):
-        """
-        Check if the change in composition is larger than the allowed tolerance
-        """
-        diff = np.abs(prev_comp-comp)-threshold
-        std_diff = np.sqrt(2.0)*std
-        z_diff = diff/std_diff
-        min_percentile = stats.norm.ppf(confidence_level)
-        max_percentile = stats.norm.ppf(1.0-confidence_level)
-        if ( z_diff > max_percentile or z_diff < min_percentile ):
-            return True
-        return False
 
     def reset_symbols( self, calc, old_symbs ):
         """
         Resetting symbol and print a log message of the new elements
+
+        :param calc: CE calculator object
+        :param old_symbs: Symbols of old state
         """
         calc.set_symbols( old_symbs )
         cf = calc.get_cf()
@@ -409,6 +284,12 @@ class PhaseBoundaryTracker(object):
     def separation_line_adaptive_euler( self, T0=100, min_step=1, stepsize=100, mc_args={} ):
         """
         Solve the differential equation using adaptive euler
+
+        :param T0: Initial temperature
+        :param min_step: Minimum step size in kelvin
+        :param stepsize: Initial stepsize in kelving
+        :param mc_args: Dictionary of arguments for the MC samplers.
+            See :py:meth:`cemc.mcmc.SGCMonteCarlo.runMC`
         """
         mu_prev = self.get_zero_temperature_mu_boundary()
         calc1 = CE( self.gs1["bc"], self.gs1["eci"], initial_cf=self.gs1["cf"] )
@@ -606,145 +487,12 @@ class PhaseBoundaryTracker(object):
         res["msg"] = "Not able to make progress with the smalles stepsize {}K".format(min_step)
         return res
 
-    def separation_line( self, temperatures, n_mc_steps=100000 ):
-        """
-        Computes the separation line. Assuming that the zero kelvin line
-        is a good approximation at Tmin
-        """
-        nsteps = len(temperatures)
-        Tmin = temperatures[0]
-        Tmax = temperatures[-1]
-        mu0 = self.get_zero_temperature_mu_boundary()
-        calc1 = CE( self.gs1["bc"], self.gs1["eci"], initial_cf=self.gs1["cf"] )
-        calc2 = CE( self.gs2["bc"], self.gs2["eci"], initial_cf=self.gs2["cf"] )
-        self.gs1["bc"].atoms.set_calculator(calc1)
-        self.gs2["bc"].atoms.set_calculator(calc2)
-        sgc1 = SGCMonteCarlo( self.gs1["bc"].atoms, Tmin, symbols=["Al","Mg"], logfile="log_syst1.log" )
-        sgc2 = SGCMonteCarlo( self.gs2["bc"].atoms, Tmin, symbols=["Al","Mg"], logfile="log_syst2.log" )
-        beta = 1.0/(kB*temperatures)
-        dbeta = beta[1]-beta[0]
-        mu = np.zeros(nsteps)
-        mu[0] = mu0
-        orig_mu = self.chemical_potential[self.mu_name]
-        comp1 = np.zeros(nsteps)
-        comp2 = np.zeros(nsteps)
-        n = 1
-        predicter = SequencePredicter( maxorder=10 )
-        res = {
-            "converged":False,
-            "msg":"Simulations not started",
-            "temperature":[],
-            "singlet1":[],
-            "singlet2":[],
-            "mu":[]
-        }
-
-        while( n < nsteps ):
-            self.logger.info( "Current mu: {}. Current temperature: {}K".format(mu[n-1],1.0/(kB*beta[n-1])))
-            self.logger.handlers[0].flush()
-            #self.flush_log()
-            symbs1_old = [atom.symbol for atom in self.gs1["bc"].atoms]
-            symbs2_old = [atom.symbol for atom in self.gs2["bc"].atoms]
-            self.chemical_potential[self.mu_name] = mu[n-1]
-
-            sgc1.T = 1.0/(kB*beta[n-1])
-            sgc2.T = 1.0/(kB*beta[n-1])
-
-            # Run Monte Carlo to sample
-            sgc1.runMC( steps=n_mc_steps, equil=True, chem_potential=self.chemical_potential )
-            thermo1 = sgc1.get_thermodynamic(reset_ecis=True)
-            sgc2.runMC( steps=n_mc_steps, equil=True,  chem_potential=self.chemical_potential )
-            thermo2 = sgc2.get_thermodynamic(reset_ecis=True)
-
-            E2 = thermo2["energy"]
-            E1 = thermo1["energy"]
-            singl_name = "singlet_{}".format(self.mu_name)
-            x2 = thermo2[singl_name]
-            x1 = thermo1[singl_name]
-            comp1[n-1] = x1
-            comp2[n-1] = x2
-            self.logger.info("Singlets: x1={},x2={}".format(comp1[n-1],comp2[n-1]))
-            self.logger.handlers[0].flush()
-
-            var_name = "var_singlet_{}".format(self.mu_name)
-            std1 = np.sqrt( thermo1[var_name]/thermo1["n_mc_steps"] )
-            std2 = np.sqrt( thermo2[var_name]/thermo2["n_mc_steps"] )
-            std1 = np.sqrt( thermo1[var_name] )
-            std2 = np.sqrt( thermo2[var_name] )
-            if ( not self.compositions_significantly_different(thermo1,thermo2,confidence_level=0.05) ):
-                if ( n == 1 ):
-                    raise PhaseChangedOnFirstIterationError( "One of the systems changed phase on first iteration. Verify that the chemical potentials are correct \
-                                         and restart from a lower initial temperature" )
-                args = {
-                    "current_comp1":comp1[n-1],
-                    "prev_comp1":comp1[n-2],
-                    "current_comp2":comp2[n-1],
-                    "prev_comp2":comp2[n-2],
-                    "x1_pred":predicter( mu[:n], comp1[:n] )[0],
-                    "x2_pred":predicter( mu[:n], comp2[:n] )[0],
-                    "sgc1":sgc1,
-                    "sgc2":sgc2,
-                    "std1":std1,
-                    "std2":std2,
-                    "prev_mu":mu[n-2],
-                    "current_mu":mu[n-1],
-                    "n_mu_steps":10,
-                    "thermo1":thermo1,
-                    "thermo2":thermo2
-                }
-                result = self.on_similar_composition( args )
-                res["converged"] = result["converged"]
-                res["msg"] = result["msg"]
-                mu[n-1] = result["mu"]
-            else:
-                x1_pred, cv1 = predicter( mu[:n], comp1[:n] )
-                x2_pred, cv2 = predicter( mu[:n], comp2[:n] )
-                args = {
-                    "current_comp1":comp1[n-1],
-                    "x1_pred":x1_pred,
-                    "x2_pred":x2_pred,
-                    "std1":std1,
-                    "std2":std2,
-                    "current_comp2":comp2[n-1]
-                }
-                result = self.on_different_composition( args )
-                res["converged"] = result["converged"]
-                update_mu_using_diff_equation = True
-                if ( res["msg"] == "Reset mu" ):
-                    mu[n-1] = mu[n-2]
-                    calc1.set_symbols( symbs1_old )
-                    calc2.set_symbols( symbs2_old )
-                    update_mu_using_diff_equation = False
-                else:
-                    res["msg"] = result["msg"]
-
-                if ( update_mu_using_diff_equation and not result["converged"] ):
-                    db = beta[n]-beta[n-1]
-                    #print (E2,E1,x2,x1)
-                    #print ( (E2-E1)/((x2-x1)*len(sgc1.atoms)), mu[n-1])
-                    rhs = (E2-E1)/( beta[n-1]*(x2-x1)*len(sgc1.atoms) ) - mu[n-1]/beta[n-1]
-                    mu[n] = mu[n-1] + rhs*db
-                    n += 1
-
-            if ( 1.0/(kB*beta[n]) > Tmax ):
-                res["converged"] = True
-            if ( res["converged"] ):
-                res["temperature"] = list( 1.0/(kB*beta[:n]) )
-                res["mu"] = list( mu[:n] )
-                res["singlet1"] = list( comp1[:n] )
-                res["singlet2"] = list( comp2[:n] )
-                return res
-
-        res["temperature"] = list( 1.0/(kB*beta) )
-        res["mu"] = list( mu )
-        res["singlet1"] = list( comp1 )
-        res["singlet2"] = list( comp2 )
-        return res
-
-
     def mean_field_separation_line( self, Tmax, nsteps=10 ):
         """
         Computes the separation line in the mean field approximation
+
+        :param Tmax: Maximum temperature
+        :param nsteps: Number of steps between T=1K and Tmax
         """
         mu0 = self.get_zero_temperature_mu_boundary()
         Tmin = 1.0
@@ -775,7 +523,7 @@ class PhaseBoundaryTracker(object):
 
     def mean_field_common_tangent_construction( self, T, relative_width=0.1, n_points=100 ):
         """
-        Construction of a common tangent point
+        Construction of a common tangent point (NOT USED)
         """
         mu0 = self.get_zero_temperature_mu_boundary()
         mu_min = mu0 - relative_width*mu0/2.0
@@ -806,23 +554,15 @@ class PhaseBoundaryTracker(object):
     def get_mean_field_phase_boundary( self, Tmin, Tmax, ntemps ):
         """
         Computes the phase boundary in the Mean Field Approximation
+
+        :param Tmin: Minimum temperature
+        :param Tmax: Maximum temperature
+        :param ntemps: Number of temperatures between Tmin and Tmax
         """
         betas = np.linspace( 1.0/(kB*Tmin), 1.0/(kB*Tmax), ntemps )
         mu0 = self.get_zero_temperature_mu_boundary()
         db = betas[1]-betas[0]
         delta_singlets = self.gs1["cf"][self.mu_name] - self.gs2["cf"][self.mu_name] # Constant in MFA
-
-    def check_gs( self ):
-        """
-        Check that provided parameters are correct
-        """
-        required_keys = ["bc","cf","eci"]
-        for req_key in required_keys:
-            if ( not req_key in self.gs1.keys() or not req_key in self.gs2.keys() ):
-                raise ValueError( "Keys of the dictionaries describing the ground state are wrong. Has to include {}".format(required_keys) )
-
-        if ( not self.mu_name in self.gs1["eci"].keys() or not self.mu_name in self.gs2["eci"].keys() ):
-            raise ValueError( "There are no ECI corresponding to the chemical potential under consideration!" )
 
 def fig2rgb( fig ):
     """

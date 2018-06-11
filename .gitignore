@@ -13,3 +13,7 @@ cemc.egg-info/*
 *.pkl
 subbin.csv
 demo.traj
+free_energy_barrier.json
+__pycache__/*
+cemc/__pycache__/*
+tests/__pycache__/*

@@ -1,5 +1,5 @@
 from ase.units import kB
-import montecarlo as mc
+from cemc.mcmc import montecarlo as mc
 import numpy as np
 
 class SimulatedAnnealingCanonical( object ):

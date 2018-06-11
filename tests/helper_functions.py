@@ -1,4 +1,9 @@
+from cemc.wanglandau.ce_calculator import CE, get_ce_calc
 from ase.ce import BulkSpacegroup
+from ase.ce import BulkCrystal
+from inspect import getargspec
+from ase.ce import CorrFunction
+
 def get_bulkspacegroup_binary():
 # https://materials.springer.com/isp/crystallographic/docs/sd_0453869
     a = 10.553
@@ -20,3 +25,54 @@ def get_bulkspacegroup_binary():
     bs = BulkSpacegroup( basis_elements=basis_elements, basis=basis, spacegroup=217, cellpar=cellpar, conc_args=conc_args,
     max_cluster_size=4, db_name=db_name, size=[1,1,1], grouped_basis=[[0,1,2,3]] )
     return bs, db_name
+
+
+def get_small_BC_with_ce_calc(lat="fcc"):
+    db_name = "test_db_{}.db".format(lat)
+
+    conc_args = {
+        "conc_ratio_min_1":[[1,0]],
+        "conc_ratio_max_1":[[0,1]],
+    }
+    a = 4.05
+    ceBulk = BulkCrystal( crystalstructure=lat, a=a, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, \
+    db_name=db_name, max_cluster_size=4)
+    ceBulk.reconfigure_settings()
+    ceBulk._get_cluster_information()
+    cf = CorrFunction(ceBulk)
+    corrfuncs = cf.get_cf(ceBulk.atoms)
+    eci = {name:1.0 for name in corrfuncs.keys()}
+    calc = CE( ceBulk, eci )
+    ceBulk.atoms.set_calculator(calc)
+    return ceBulk
+
+def get_max_cluster_dia_name():
+    """
+    In former versions max_cluster_dist was called max_cluster_dia
+    """
+    kwargs = {"max_cluster_dia":5.0}
+    argspec = getargspec(BulkCrystal.__init__).args
+    if "max_cluster_dia" in argspec:
+        return "max_cluster_dia"
+    return "max_cluster_dist"
+
+def flatten_cluster_names(cnames):
+    flattened = []
+    for sub in cnames:
+        for sub2 in sub:
+            flattened += sub2
+    return flattened
+
+def get_example_network_name(bc):
+    return bc.cluster_names[0][2][0]
+
+def get_example_ecis(bc=None):
+    cf = CorrFunction(bc)
+    cf = cf.get_cf(bc.atoms)
+    eci = {key:0.001 for key in cf.keys()}
+    return eci
+
+def get_example_cf(bc=None):
+    cf = CorrFunction(bc)
+    cf = cf.get_cf(bc.atoms)
+    return cf
