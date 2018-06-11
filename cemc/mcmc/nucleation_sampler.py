@@ -11,6 +11,7 @@ class Mode(object):
     bring_system_into_window = 0
     sample_in_window = 1
     equillibriate = 2
+    transition_path_sampling = 3
 
 class NucleationSampler( object ):
     """
@@ -96,16 +97,21 @@ class NucleationSampler( object ):
         stat = network.get_statistics()
         lower,upper = self.get_window_boundaries(self.current_window)
         max_size_ok = stat["max_size"] >= lower and stat["max_size"] < upper
-        network.reset()
+
+        n_clusters_ok = True
         if ( self.max_one_cluster ):
             n_clusters = stat["number_of_clusters"]
-            if ( retstat ):
-                return max_size_ok and n_clusters == 1,stat
-            else:
-                return max_size_ok and n_clusters == 1
+            n_clusters_ok = (n_clusters == 1)
+
+        if self.mode == Mode.transition_path_sampling:
+            max_size_ok = True # Do not restrict the window size in this case
+            n_clusters_ok = True
+
+        network.reset()
+
         if ( retstat ):
-            return max_size_ok,stat
-        return max_size_ok
+            return max_size_ok and n_clusters_ok,stat
+        return max_size_ok and n_clusters_ok
 
     def bring_system_into_window(self,network):
         """

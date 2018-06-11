@@ -1,15 +1,16 @@
-from cemc.mcmc import NucleationMC
+from cemc.mcmc import SGCNucleation
 import json
 import numpy as np
 from ase.units import kB
 from ase.io.trajectory import TrajectoryWriter
 import copy
 from matplotlib import pyplot as plt
+from ase.calculators.singlepoint import SinglePointCalculator
 
 class TransitionPathRelaxer(object):
     def __init__( self, nuc_mc=None ):
-        if ( not isinstance(nuc_mc,NucleationMC) ):
-            raise TypeError( "nuc_mc has to be an instance of NucleationMC" )
+        if ( not isinstance(nuc_mc,SGCNucleation) ):
+            raise TypeError( "nuc_mc has to be an instance of SGCNucleation" )
         self.nuc_mc = nuc_mc
         self.nuc_mc.set_mode( "transition_path_sampling" )
         self.init_path = None
@@ -25,58 +26,57 @@ class TransitionPathRelaxer(object):
         self.nuc_mc.min_size_product = self.init_path["min_size_product"]
         self.nuc_mc.max_size_reactant = self.init_path["max_size_reactant"]
 
-    def shooting_move( self, timeslice, direction="forward" ):
+    def shooting_move( self, timeslice ):
         """
         Performs one shooting move
+        """
+
         """
         if ( direction == "forward" ):
             n_sweeps = len(self.init_path["energy"])-timeslice+1
         elif ( direction == "backward" ):
             n_sweeps = timeslice
+        """
 
         new_path = {}
         new_path["symbols"] = []
         new_path["energy"] = []
         self.nuc_mc.set_state( self.init_path["symbols"][timeslice] )
         self.nuc_mc.current_energy = self.init_path["energy"][timeslice]
-        for i in range(n_sweeps):
+        direction = "nodir"
+        N = len(self.init_path["energy"])
+        for i in range(N):
             self.nuc_mc.network.reset()
             self.nuc_mc.sweep()
             self.nuc_mc.network(None)
             new_path["energy"].append(self.nuc_mc.current_energy)
             new_path["symbols"].append( [atom.symbol for atom in self.nuc_mc.atoms] )
-            if ( self.nuc_mc.is_product() and direction=="backward" ):
-                self.log ("Ended up in product basin, when propagation direction is backward")
-                return False
-            elif ( self.nuc_mc.is_reactant() and direction=="forward" ):
-                self.log("Ended up in reactant basin when propagation direction is forward")
-                return False
+            if self.nuc_mc.is_product():
+                # This is a forward path
+                if i >= len(self.init_path["energy"])-timeslice:
+                    direction = "forward"
+                    break
+            elif self.nuc_mc.is_reactant():
+                # This is a backward path
+                direction = "backward"
+                if i>= timeslice-1:
+                    break
 
         self.nuc_mc.network.reset()
         self.nuc_mc.network(None) # Construct the network to to check the endpoints
 
         # Figure out if the system ended up in the correct target
-        ended_in_correct_basin = False
+        self.log ("New {} path accepted.".format(direction) )
         if ( direction == "forward" ):
-            if ( self.nuc_mc.is_product() ):
-                ended_in_correct_basin = True
+            self.init_path["energy"][timeslice+1:] = new_path["energy"]
+            self.init_path["symbols"][timeslice+1:] = new_path["symbols"]
+            return True
         elif ( direction == "backward" ):
-            if ( self.nuc_mc.is_reactant() ):
-                ended_in_correct_basin = True
-
-        path_length = n_sweeps
-        if ( ended_in_correct_basin ):
-            self.log ("New {} path accepted. Path length {}".format(direction,path_length) )
-            if ( direction == "forward" ):
-                self.init_path["energy"][timeslice+1:] = new_path["energy"]
-                self.init_path["symbols"][timeslice+1:] = new_path["symbols"]
-                return True
-            elif ( direction == "backward" ):
-                self.init_path["energy"][:timeslice] = new_path["energy"]
-                self.init_path["symbols"][:timeslice] = new_path["symbols"]
-                return True
+            self.init_path["energy"][:timeslice] = new_path["energy"]
+            self.init_path["symbols"][:timeslice] = new_path["symbols"]
+            return True
         else:
-            self.log( "New path rejected because it ended in the wrong basin. Path length {}".format(path_length))
+            self.log( "New path rejected because it ended in the wrong basin")
         return False
 
     def log(self, msg ):
@@ -103,7 +103,7 @@ class TransitionPathRelaxer(object):
             direct = direcions[np.random.randint(low=0,high=2)]
             self.log( "Move {} of {}".format(move,n_shooting_moves) )
             timeslice = np.random.randint(low=min_slice,high=max_slice )
-            self.shooting_move(timeslice,direction=direct)
+            self.shooting_move(timeslice)
             min_slice, max_slice = self.refine_path_length(verbose=True)
 
         ofname = initial_path.rpartition(".")[0]
@@ -119,11 +119,13 @@ class TransitionPathRelaxer(object):
         Writes the path to a trajectory file
         """
         traj = TrajectoryWriter(fname,'w')
-        for state in self.init_path["symbols"]:
+        for energy,state in zip(self.init_path["energy"], self.init_path["symbols"]):
             self.nuc_mc.network.reset()
             self.nuc_mc.set_state(state)
             self.nuc_mc.network(None)
             atoms = self.nuc_mc.network.get_atoms_with_largest_cluster( prohibited_symbols=["Al","Mg"] )
+            calc = SinglePointCalculator(atoms, energy=energy)
+            atoms.set_calculator(calc)
             if ( atoms is None ):
                 traj.write(self.nuc_mc.atoms )
             else:
@@ -141,18 +143,22 @@ class TransitionPathRelaxer(object):
         diff = np.abs(n_react-n_prod)
         if ( n_react > n_prod ):
             # Remove the first slices from the reactant side
-            self.init_path = self.init_path[diff:]
+            self.init_path["energy"] = self.init_path["energy"][diff:]
+            self.init_path["symbols"] = self.init_path["symbols"][diff:]
             reactant_indicator = reactant_indicator[diff:]
             product_indicator = product_indicator[diff:]
         elif ( n_prod > n_react ):
             # Remove the last slices from the product side
-            self.init_path = self.init_path[:-diff]
+            self.init_path["energy"] = self.init_path["energy"][:-diff]
+            self.init_path["symbols"] = self.init_path["symbols"][:-diff]
             reactant_indicator = reactant_indicator[:-diff]
             product_indicator = product_indicator[:-diff]
 
+        n_react = np.sum(reactant_indicator)
+        n_prod = np.sum(product_indicator)
         if ( verbose ):
             length_in_basins = min([n_react,n_prod])
-            length_in_transition_region = len(reactant_indicator-n_react-n_prod)
+            length_in_transition_region = len(reactant_indicator)-n_react-n_prod
             self.log( "Length in basis: {}. Length in transition region: {}".format(length_in_basins,length_in_transition_region) )
 
         min_trans_indx = 1
@@ -226,6 +232,8 @@ class TransitionPathRelaxer(object):
         """
         Compute the basin indicators of the state
         """
+        reactant_indicator = []
+        product_indicator = []
         for state in path["symbols"]:
             self.nuc_mc.network.reset()
             self.nuc_mc.set_state( state )
