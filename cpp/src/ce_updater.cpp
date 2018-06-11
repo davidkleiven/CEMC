@@ -160,6 +160,7 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   }
   Py_DECREF( clst_indx );
   Py_DECREF( clist );
+  //verify_clusters_only_exits_in_one_symm_group();
 
   #ifdef CE_DEBUG
     cerr << "Reading basis functions from BC object\n";
@@ -357,6 +358,17 @@ SymbolChange& CEUpdater::py_tuple_to_symbol_change( PyObject *single_change, Sym
   symb_change.old_symb = PyString_AsString( PyTuple_GetItem(single_change,1) );
   symb_change.new_symb = PyString_AsString( PyTuple_GetItem(single_change,2) );
   return symb_change;
+}
+
+void CEUpdater::py_changes2_symb_changes( PyObject* all_changes, vector<SymbolChange> &symb_changes )
+{
+  int size = PyList_Size(all_changes);
+  for (unsigned int i=0;i<size;i++ )
+  {
+    SymbolChange symb_change;
+    py_tuple_to_symbol_change( PyList_GetItem(all_changes,i), symb_change );
+    symb_changes.push_back(symb_change);
+  }
 }
 
 void CEUpdater::update_cf( SymbolChange &symb_change )
@@ -864,4 +876,48 @@ double CEUpdater::calculate( vector<swap_move> &sequence )
     calculate(sequence[i]);
   }
   return get_energy();
+}
+
+
+void CEUpdater::verify_clusters_only_exits_in_one_symm_group()
+{
+  for (unsigned int symm_group=0;symm_group<clusters.size();symm_group++ )
+  {
+    for (auto iter=clusters[symm_group].begin(); iter != clusters[symm_group].end(); ++iter )
+    {
+      for (unsigned int symm2=symm_group+1;symm2<clusters.size();symm2++ )
+      {
+        for (auto iter2=clusters[symm2].begin(); iter2 != clusters[symm2].end();++iter2 )
+        {
+          if (iter->first == iter2->first)
+          {
+            stringstream msg;
+            msg << "A cluster with the name " << iter->first << " name appears to exits in symmetry group ";
+            msg << symm_group << " and " << symm2;
+            throw invalid_argument(msg.str());
+          }
+        }
+      }
+    }
+  }
+}
+
+
+void CEUpdater::get_clusters( const string &cname, map<unsigned int, const Cluster*> &clst) const
+{
+  for (unsigned int i=0;i<clusters.size();i++ )
+  {
+    auto iter = clusters[i].find(cname);
+    if ( iter != clusters[i].end())
+    {
+      clst[i] = &iter->second;
+    }
+  }
+}
+
+
+void CEUpdater::get_clusters( const char* cname, map<unsigned int, const Cluster*> &clst) const
+{
+  string cname_str(cname);
+  get_clusters(cname_str, clst);
 }
