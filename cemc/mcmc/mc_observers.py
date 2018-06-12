@@ -404,13 +404,14 @@ class NetworkObserver( MCObserver ):
 
         tup.sort()
         tup = tup[::-1]
-        highlist = {clst[1]:highlight_elements[i] for i,clst in enumerate(tup)}
+        max_n_elems = len(highlight_elements)
+        highlist = {clst[1]:highlight_elements[i%max_n_elems] for i,clst in enumerate(tup)}
         highlist = {}
         counter = 0
         for clst in tup:
             while ( highlight_elements[counter] in prohibited_symbols ):
                 counter += 1
-            highlist[clst[1]] = highlight_elements[counter]
+            highlist[clst[1]] = highlight_elements[counter%max_n_elems]
         return highlist
 
     def get_cluster_count(self):

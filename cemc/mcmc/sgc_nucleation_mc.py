@@ -1,6 +1,18 @@
 from cemc.mcmc.nucleation_sampler import NucleationSampler, Mode
 from cemc.mcmc import SGCMonteCarlo
 from cemc.mcmc.mc_observers import NetworkObserver
+from ase.calculators.singlepoint import SinglePointCalculator
+from ase.io.trajectory import TrajectoryWriter
+import time
+import os
+import copy
+import json
+
+
+class DidNotReachProductOrReactantError(Exception):
+    def __init__(self, msg):
+        super(DidNotReachProductOrReactantError, self).__init__(msg)
+
 
 class SGCNucleation( SGCMonteCarlo ):
     """
@@ -181,9 +193,11 @@ class SGCNucleation( SGCMonteCarlo ):
         """
         res_reactant["energy"] = res_reactant["energy"][::-1]
         res_reactant["symbols"] = res_reactant["symbols"][::-1]
+        res_reactant["sizes"] = res_reactant["sizes"][::-1]
         combined_path = {}
         combined_path["energy"] = res_reactant["energy"]+res_product["energy"]
         combined_path["symbols"] = res_reactant["symbols"]+res_product["symbols"]
+        combined_path["sizes"] = res_reactant["sizes"]+res_product["sizes"]
         return combined_path
 
     def save_path( self, fname, res ):
@@ -195,11 +209,13 @@ class SGCNucleation( SGCMonteCarlo ):
         with open(fname,'w') as outfile:
             json.dump(res,outfile)
 
-    def sweep(self):
+    def sweep(self, nsteps=None):
         """
         Performs one MC sweep
         """
-        for i in range(len(self.atoms)):
+        if nsteps is None:
+            nsteps = len(self.atoms)
+        for i in range(nsteps):
             self._mc_step()
 
     def set_mode( self, mode ):
@@ -229,6 +245,8 @@ class SGCNucleation( SGCMonteCarlo ):
         """
         Show a plot indicating if the path is long enough
         """
+        import numpy as np
+        from matplotlib import pyplot as plt
         product_indicator = []
         reactant_indicator = []
         for state in path:
@@ -253,12 +271,18 @@ class SGCNucleation( SGCMonteCarlo ):
         ax.plot( hA, label="Reactant indicator" )
         ax.set_xlabel( "MC sweeps" )
         ax.legend()
-        return fig
 
-    def find_transition_path( self, initial_cluster_size=None, max_size_reactant=None, min_size_product=None, path_length=1000, max_attempts=100, folder="." ):
+        fig_size = plt.figure()
+        ax_size = fig_size.add_subplot(1,1,1)
+        ax_size.plot(path["sizes"])
+        return fig, fig_size
+
+    def find_transition_path( self, initial_cluster_size=None, max_size_reactant=None, \
+        min_size_product=None, path_length=1000, max_attempts=100, folder=".", nsteps=None, mpicomm=None ):
         """
         Find one transition path
         """
+        import numpy as np
         if ( initial_cluster_size is None ):
             raise ValueError( "Initial cluster size not given!" )
         if ( max_size_reactant is None ):
@@ -266,7 +290,17 @@ class SGCNucleation( SGCMonteCarlo ):
         if ( min_size_product is None ):
             raise ValueError( "The minimum size of cluster allowed for the state to be characterized as product is not given!" )
 
-        self.mode = Mode.transition_path_sampling
+        trans_path_mpi_comm = mpicomm
+        self.mpicomm = None
+        self.rank = 0
+        size = 1
+        if trans_path_mpi_comm is not None:
+            self.rank = trans_path_mpi_comm.Get_rank()
+            size = trans_path_mpi_comm.Get_size()
+
+        self.log("Running transition path seach on {} processors".format(size))
+
+        self.nuc_sampler.mode = Mode.transition_path_sampling
         self.max_size_reactant = max_size_reactant
         self.min_size_product = min_size_product
 
@@ -277,10 +311,10 @@ class SGCNucleation( SGCMonteCarlo ):
 
         num_reactants = 0
         num_products = 0
-        default_trajfile = folder+"/default_trajfile.traj"
-        reactant_file = folder+"/trajectory_reactant.traj"
-        product_file = folder+"/trajectory_product.traj"
-        reference_path_file = folder+"/reference_path.json"
+        default_trajfile = folder+"/default_trajfile{}.traj".format(self.rank)
+        reactant_file = folder+"/trajectory_reactant{}.traj".format(self.rank)
+        product_file = folder+"/trajectory_product{}.traj".format(self.rank)
+        reference_path_file = folder+"/reference_path{}.json".format(self.rank)
 
         self.network.reset()
         self.network.grow_cluster( initial_cluster_size )
@@ -289,15 +323,19 @@ class SGCNucleation( SGCMonteCarlo ):
         target = "both"
         reactant_res = {}
         product_res = {}
+
+        found_reactant_origin = False
+        found_product_origin = False
         for attempt in range(max_attempts):
             self.reset()
             self.atoms._calc.set_symbols(init_symbols)
+            res = {"type":"transition_region"}
             try:
-                res = self.find_one_transition_path( path_length=path_length/2, trajfile=default_trajfile, target=target )
+                res = self.find_one_transition_path( path_length=path_length/2, trajfile=default_trajfile, \
+                    target=target, nsteps=nsteps )
             except DidNotReachProductOrReactantError as exc:
                 self.log( str(exc) )
                 self.log ( "Trying one more time" )
-                continue
 
             if ( res["type"] == "reactant" ):
                 num_reactants += 1
@@ -315,23 +353,46 @@ class SGCNucleation( SGCMonteCarlo ):
                     found_product_origin = True
                     product_res = copy.deepcopy(res)
 
+            found_path = found_product_origin and found_reactant_origin
             if ( os.path.exists(default_trajfile) ):
                 os.remove(default_trajfile)
 
-            if ( found_product_origin and found_reactant_origin ):
+            if found_path:
                 combined_path = self.merge_reference_path(reactant_res,product_res)
+                combined_path["nsteps_per_sweep"] = nsteps
                 self.save_path( reference_path_file, combined_path )
                 self.log( "Found a path to the product region and a path to the reactant region" )
                 self.log( "They are stored in {} and {}".format(product_file,reactant_file))
                 self.log( "The reference path is stored in {}".format(reference_path_file) )
-                self.show_statistics(combined_path["symbols"])
-                return
+                #self.show_statistics(combined_path["symbols"])
+
+            # Collect the found_path flag from all processes
+            if trans_path_mpi_comm is not None:
+                send_buf = np.zeros(1, dtype=np.uint8)
+                send_buf[0] = found_path
+                recv_buf = np.zeros(1, dtype=np.uint8)
+                trans_path_mpi_comm.Allreduce(send_buf, recv_buf)
+                found_path = (recv_buf[0] >= 1)
+
+            if found_path:
+                break
             self.log( "Attempt: {} of {} ended in {} region".format(attempt,max_attempts,res["type"]) )
-        msg = "Did not manage to find both a configuration in the product region and the reactant region\n"
-        raise RuntimeError( msg )
+
+        if not found_path:
+            msg = "Did not manage to find both a configuration in the product region and the reactant region\n"
+            raise RuntimeError( msg )
 
 
-    def find_one_transition_path( self, path_length=1000, trajfile="default.traj", target="both" ):
+
+    def add_info_to_atoms(self, atoms):
+        """
+        Adds info to atoms object
+        """
+        atoms.info["is_product"] = self.is_product()
+        atoms.info["is_reactant"] = self.is_reactant()
+        atoms.info["cluster_size"] = self.network.max_size
+
+    def find_one_transition_path( self, path_length=1000, trajfile="default.traj", target="both", nsteps=None ):
         """
         Finds a transition path by running random samples
         """
@@ -353,16 +414,21 @@ class SGCNucleation( SGCMonteCarlo ):
         now = time.time()
         energies = []
         result = {}
+        sizes = []
         for sweep in range(path_length):
             self.network.reset()
             if ( time.time() - now > output_every_sec ):
                 self.log( "Sweep {} of {}".format(sweep,path_length))
                 now = time.time()
-            self.sweep()
+            self.sweep(nsteps=nsteps)
             self.network(None) # Explicitly enforce a construction of the network
             energies.append(self.current_energy)
             symbs.append( [atom.symbol for atom in self.atoms] )
             atoms = self.network.get_atoms_with_largest_cluster(prohibited_symbols=unique_symbols)
+            sizes.append(self.network.max_size)
+            self.add_info_to_atoms(atoms)
+            calc = SinglePointCalculator(atoms, energy=self.current_energy)
+            atoms.set_calculator(calc)
             if ( atoms is None ):
                 traj.write(self.atoms)
             else:
@@ -374,12 +440,14 @@ class SGCNucleation( SGCMonteCarlo ):
                     result["type"] = "product"
                     result["symbols"] = symbs
                     result["energy"] = energies
+                    result["sizes"] = sizes
                     return result
             elif ( target == "product" ):
                 if ( self.is_reactant() ):
                     result["type"] = "reactant"
                     result["symbols"] = symbs
                     result["energy"] = energies
+                    result["sizes"] = sizes
                     # Terminate before the desired path length is reached
                     return result
 
@@ -397,4 +465,5 @@ class SGCNucleation( SGCMonteCarlo ):
 
         result["symbols"] = symbs
         result["energy"] = energies
+        result["sizes"] = sizes
         return result
