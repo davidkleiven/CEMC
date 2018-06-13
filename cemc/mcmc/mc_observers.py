@@ -174,8 +174,8 @@ class SGCObserver(MCObserver):
         self.quantities = {
             "singlets":np.zeros( n_singlets, dtype=np.float64 ),
             "singlets_sq":np.zeros( n_singlets, dtype=np.float64 ),
-            "energy":Averager(ref_value=1.0),
-            "energy_sq":Averager(ref_value=1.0),
+            "energy":Averager(ref_value=ce_calc.get_energy()),
+            "energy_sq":Averager(ref_value=ce_calc.get_energy()),
             "singl_eng":np.zeros( n_singlets, dtype=np.float64 ),
             "counter":0
         }
@@ -217,11 +217,6 @@ class SGCObserver(MCObserver):
         """
         Updates all SGC parameters
         """
-        if self.quantities["counter"] == 0:
-            E0 = self.mc.current_energy_without_vib()
-            self.quantities["energy"] = Averager(ref_value=E0)
-            self.quantities["energy_sq"] = Averager(ref_value=E0**2)
-
         self.quantities["counter"] += 1
         new_singlets = np.zeros_like( self.singlets )
         self.ce_calc.get_singlets(  new_singlets )

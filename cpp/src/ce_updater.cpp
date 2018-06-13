@@ -909,7 +909,8 @@ void CEUpdater::read_trans_matrix( PyObject* py_trans_mat )
     int size = PyList_Size(py_trans_mat);
     trans_matrix.set_size( size, unique_indx_vec.size(), max_indx );
     trans_matrix.set_lookup_values(unique_indx_vec);
-
+    cout << "Reading translation matrix from list of dictionaries\n";
+    unsigned int n_elements_insterted = 0;
     for (unsigned int i=0;i<size;i++ )
     {
       PyObject* dict = PyList_GetItem(py_trans_mat, i);
@@ -924,10 +925,11 @@ void CEUpdater::read_trans_matrix( PyObject* py_trans_mat )
           ss << "Requested value " << col << " is not a key in the dictionary!";
           throw invalid_argument(ss.str());
         }
-        
         trans_matrix(i, col) = PyInt_AsLong(value);
+        n_elements_insterted++;
       }
     }
+    cout << "Inserted " << n_elements_insterted << " into the translation matrix\n";
   }
   else
   {
@@ -950,7 +952,7 @@ void CEUpdater::read_trans_matrix( PyObject* py_trans_mat )
     for ( unsigned int j=0;j<unique_indx_vec.size();j++ )
     {
       int col = unique_indx_vec[j];
-      trans_matrix(i,col) = *static_cast<int*>(PyArray_GETPTR2(trans_mat,i,col) );
+      trans_matrix(i, col) = *static_cast<int*>(PyArray_GETPTR2(trans_mat, i, col) );
     }
     Py_DECREF(trans_mat);
   }

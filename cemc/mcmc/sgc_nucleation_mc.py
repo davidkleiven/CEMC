@@ -87,6 +87,7 @@ class SGCNucleation( SGCMonteCarlo ):
             self.nuc_sampler.current_window = i
             self.reset()
             self.nuc_sampler.bring_system_into_window(self.network)
+            self.current_energy = self.atoms.get_calculator().get_energy()
 
             self.nuc_sampler.mode = Mode.equillibriate
             self.estimate_correlation_time()
@@ -158,7 +159,6 @@ class SGCNucleation( SGCMonteCarlo ):
         Overrides the parents method
         """
         super(SGCNucleation,self).reset()
-        self.current_energy = 1E10
         self.network.reset()
 
     def read_list_of_lists(self,fname,dtype="str"):

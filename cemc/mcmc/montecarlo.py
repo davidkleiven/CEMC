@@ -62,10 +62,11 @@ class Montecarlo(object):
         self.atoms_indx = {}
         self.symbols = []
         self.build_atoms_list()
-        self.current_energy = 1E100
+        E0 = self.atoms.get_calculator().get_energy()
+        self.current_energy = E0
         self.new_energy = self.current_energy
-        self.mean_energy = Averager(ref_value=1.0)
-        self.energy_squared = Averager(ref_value=1.0)
+        self.mean_energy = Averager(ref_value=E0)
+        self.energy_squared = Averager(ref_value=E0)
         self.mpicomm = mpicomm
         self.rank = 0
         self.energy_bias = 0.0
@@ -376,7 +377,7 @@ class Montecarlo(object):
         if ( self.mpicomm is not None ):
             nproc = self.mpicomm.Get_size()
 
-
+        self.reset()
         if mode == "fixed":
             self.log("Equilibriating with {} MC steps".format(window_length))
             for _ in range(window_length):
@@ -396,6 +397,7 @@ class Montecarlo(object):
             self.log( "{:10} {:10} {:10} {:10} {:10} {:10}".format("Energy", "std.dev", "delta E", "quantile", "Singlets", "Quantile (compositions)") )
         else:
             self.log( "{:10} {:10} {:10} {:10}".format("Energy", "std.dev", "delta E", "quantile") )
+
         all_energies = []
         means = []
         composition = []
@@ -595,9 +597,6 @@ class Montecarlo(object):
         totalenergies.append(self.current_energy)
         start = time.time()
         prev = 0
-        E0 = self.atoms.get_calculator().get_energy()
-        self.mean_energy = Averager(ref_value=E0)
-        self.energy_squared = Averager(ref_value=E0**2)
         self.current_step = 0
 
         if ( equil ):
@@ -635,10 +634,6 @@ class Montecarlo(object):
         # self.current_step gets updated in the _mc_step function
         log_status_conv = True
         self.reset()
-        E0 = self.atoms.get_calculator().get_energy()
-        self.mean_energy = Averager(E0)
-        self.energy_squared = Averager(E0**2)
-
         while( self.current_step < steps ):
             en, accept = self._mc_step( verbose=verbose )
             self.mean_energy += self.current_energy_without_vib()
@@ -678,10 +673,11 @@ class Montecarlo(object):
             return
 
         size = self.mpicomm.Get_size()
+        print(self.mean_energy.eman)
         self.mean_energy = self.mpicomm.allreduce( self.mean_energy, op=MPI.SUM)
-        self.mean_energy /= size
+        print(self.mean_energy.mean)
+        print()
         self.energy_squared = self.mpicomm.allreduce( self.energy_squared, op=MPI.SUM)
-        self.energy_squared /= size
 
     def get_thermodynamic( self ):
         """

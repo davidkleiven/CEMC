@@ -1,7 +1,7 @@
 
 class Averager(object):
     def __init__(self, ref_value=1.0):
-        self._ref_value = ref_value
+        self._ref_value = float(ref_value)
         self._n_samples = 0
         self._mean = 0.0
 
@@ -27,7 +27,7 @@ class Averager(object):
 
     def __itruediv__(self, number):
         return self.__idiv__(number)
-    
+
     def __idiv__(self, number):
         self._mean /= float(number)
         self._n_samples /= float(number)
@@ -42,4 +42,6 @@ class Averager(object):
 
     @property
     def mean(self):
+        if self._n_samples == 0:
+            return self._mean*self._ref_value
         return (self._mean/self._n_samples)*self._ref_value

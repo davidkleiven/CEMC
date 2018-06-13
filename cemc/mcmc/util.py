@@ -27,8 +27,9 @@ def trans_matrix2listdict(BC):
     matrix = BC.trans_matrix
     unique_indx = unique_cluster_indices(BC.cluster_indx)
     print(unique_indx)
-    listdict = [{}]*matrix.shape[0]
+    listdict = []
     for refindx in range(matrix.shape[0]):
+        listdict.append({})
         for indx in unique_indx:
             listdict[refindx][indx] = matrix[refindx, indx]
     return listdict

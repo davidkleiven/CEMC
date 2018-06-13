@@ -375,11 +375,12 @@ class SGCMonteCarlo( mc.Montecarlo ):
             self.averager.quantities = all_res[0]
             for i in range(1,len(all_res)):
                 for key,value in all_res[i].iteritems():
-                    self.averager.quantities[key] += value/float(size)
+                    self.averager.quantities[key] += value
 
-                # Normalize by the number of processors
-                #for key in self.averager.quantities.keys():
-                #    self.averager.quantities[key] /= size
+            # Normalize by the number of processors
+            for key in self.averager.quantities.keys():
+                if key != "energy" and key != "energy_sq":
+                    self.averager.quantities[key] /= size
 
             """
             # Numerical pressicion issue?
@@ -403,12 +404,12 @@ class SGCMonteCarlo( mc.Montecarlo ):
         singlets = self.averager.singlets/N
         singlets_sq = self.averager.quantities["singlets_sq"]/N
         #quantities["chem_pots"] = self.chem_pots
-        quantities["energy"] = self.averager.energy/N
+        quantities["energy"] = self.averager.energy.mean
         for i in range( len(self.chem_pots) ):
             quantities["energy"] += self.chem_pots[i]*singlets[i]*len(self.atoms)
 
-        quantities["heat_capacity"] = self.averager.energy_sq/N - (self.averager.energy/N)**2 + \
-                                      np.sum( self.averager.singl_eng/N - (self.averager.energy/N)*singlets )
+        quantities["heat_capacity"] = self.averager.energy_sq.mean - (self.averager.energy.mean)**2 + \
+                                      np.sum( self.averager.singl_eng/N - (self.averager.energy.mean)*singlets )
         quantities["heat_capacity"] /= (kB*self.T**2)
         quantities["temperature"] = self.T
         quantities["n_mc_steps"] = self.averager.counter
