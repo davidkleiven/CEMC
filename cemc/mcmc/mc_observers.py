@@ -8,6 +8,7 @@ from ase.io.trajectory import TrajectoryWriter
 from cemc.ce_updater import ce_updater
 from ase.data import atomic_numbers
 import time
+from cemc.mcmc.averager import Averager
 
 highlight_elements = ["Li","Be","B","C","N","O","F","Ne","Na","Mg","Al","Si","P","S","Cl","Ar"]
 class MCObserver( object ):
@@ -173,8 +174,8 @@ class SGCObserver(MCObserver):
         self.quantities = {
             "singlets":np.zeros( n_singlets, dtype=np.float64 ),
             "singlets_sq":np.zeros( n_singlets, dtype=np.float64 ),
-            "energy":0.0,
-            "energy_sq":0.0,
+            "energy":Averager(ref_value=1.0),
+            "energy_sq":Averager(ref_value=1.0),
             "singl_eng":np.zeros( n_singlets, dtype=np.float64 ),
             "counter":0
         }
@@ -200,8 +201,8 @@ class SGCObserver(MCObserver):
         """
         self.quantities["singlets"][:] = 0.0
         self.quantities["singlets_sq"][:] = 0.0
-        self.quantities["energy"] = 0.0
-        self.quantities["energy_sq"] = 0.0
+        self.quantities["energy"].clear()
+        self.quantities["energy_sq"].clear()
         self.quantities["singl_eng"][:] = 0.0
         self.quantities["counter"] = 0
         """
@@ -216,6 +217,11 @@ class SGCObserver(MCObserver):
         """
         Updates all SGC parameters
         """
+        if self.quantities["counter"] == 0:
+            E0 = self.mc.current_energy_without_vib()
+            self.quantities["energy"] = Averager(ref_value=E0)
+            self.quantities["energy_sq"] = Averager(ref_value=E0**2)
+
         self.quantities["counter"] += 1
         new_singlets = np.zeros_like( self.singlets )
         self.ce_calc.get_singlets(  new_singlets )

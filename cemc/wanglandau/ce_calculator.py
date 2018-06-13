@@ -15,6 +15,7 @@ from ase.visualize import view
 from cemc.mcmc import linear_vib_correction as lvc
 from inspect import getargspec
 from cemc.mcmc.util import trans_matrix2listdict
+import gc
 
 from mpi4py import MPI
 try:
@@ -51,38 +52,51 @@ def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays
     unknown_type = False
     large_bc = small_bc # Just for the other processes
     init_cf = None
+    error_happened = False
+    msg = ""
     if ( rank == 0 ):
-        calc1 = CE( small_bc, eci )
-        init_cf = calc1.get_cf()
-        cell_lenghts = small_bc.atoms.get_cell_lengths_and_angles()[:3]
-        min_length = np.min(cell_lenghts)/2.0
+        try:
+            calc1 = CE( small_bc, eci )
+            init_cf = calc1.get_cf()
+            cell_lenghts = small_bc.atoms.get_cell_lengths_and_angles()[:3]
+            min_length = np.min(cell_lenghts)/2.0
 
-        bc_kwargs["size"] = size
-        size_name = get_max_dia_name()
-        bc_kwargs[size_name] = min_length
+            bc_kwargs["size"] = size
+            size_name = get_max_dia_name()
+            bc_kwargs[size_name] = min_length
 
-        db_name = "temporary_db.db"
-        if ( os.path.exists(db_name) ):
-            os.remove( db_name )
-        bc_kwargs["db_name"] = db_name
+            db_name = "temporary_db.db"
+            if ( os.path.exists(db_name) ):
+                os.remove( db_name )
+            bc_kwargs["db_name"] = db_name
 
-        if ( isinstance(small_bc,BulkCrystal) ):
-            large_bc = BulkCrystal(**bc_kwargs)
-        elif ( isinstance(small_bc,BulkSpacegroup) ):
-            large_bc = BulkSpacegroup(**bc_kwargs)
-        else:
-            unknown_type = True
+            if ( isinstance(small_bc,BulkCrystal) ):
+                large_bc = BulkCrystal(**bc_kwargs)
+            elif ( isinstance(small_bc,BulkSpacegroup) ):
+                large_bc = BulkSpacegroup(**bc_kwargs)
+            else:
+                unknown_type = True
 
-        if free_unused_arrays_BC:
-            large_bc.dist_matrix = None
+            if free_unused_arrays_BC:
+                large_bc.dist_matrix = None
 
-        if convert_trans_matrix:
-            trans_listdict = trans_matrix2listdict(large_bc)
-            large_bc.trans_matrix = trans_listdict
-            print("Warning! The translation matrix of ClusterExpansionSetting")
-            print("has been converted to a list of dictionaries.")
-            print("Do not expect any of the funcionality in ASE to work")
-            print("with the ClusterExpansionSetting anymore!")
+            if convert_trans_matrix:
+                trans_listdict = trans_matrix2listdict(large_bc)
+                large_bc.trans_matrix = trans_listdict
+                print("Warning! The translation matrix of ClusterExpansionSetting")
+                print("has been converted to a list of dictionaries.")
+                print("Do not expect any of the funcionality in ASE to work")
+                print("with the ClusterExpansionSetting anymore!")
+            gc.collect() # Force garbage collection
+        except Exception as exc:
+            error_happened = True
+            msg = str(exc)
+            print(msg)
+
+    # Broad cast the error flag and raise error on all processes
+    error_happened = MPI.COMM_WORLD.bcast(error_happened, root=0)
+    if error_happened:
+        raise RuntimeError(msg)
 
     unknown_type = MPI.COMM_WORLD.bcast( unknown_type, root=0 )
     if ( unknown_type ):

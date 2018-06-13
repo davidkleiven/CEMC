@@ -14,6 +14,7 @@ from ase.units import kJ,mol
 from mpi4py import MPI
 from cemc.mcmc import mpi_tools
 from cemc.mcmc.exponential_filter import ExponentialFilter
+from cemc.mcmc.averager import Averager
 #from ase.io.trajectory import Trajectory
 
 class DidNotReachEquillibriumError(Exception):
@@ -63,10 +64,12 @@ class Montecarlo(object):
         self.build_atoms_list()
         self.current_energy = 1E100
         self.new_energy = self.current_energy
-        self.mean_energy = 0.0
-        self.energy_squared = 0.0
+        self.mean_energy = Averager(ref_value=1.0)
+        self.energy_squared = Averager(ref_value=1.0)
         self.mpicomm = mpicomm
         self.rank = 0
+        self.energy_bias = 0.0
+        self.update_energy_bias = True
 
         if ( self.mpicomm is not None ):
             self.rank = self.mpicomm.Get_rank()
@@ -165,8 +168,8 @@ class Montecarlo(object):
         self.filter.reset()
         self.current_step = 0
         self.num_accepted = 0
-        self.mean_energy = 0.0
-        self.energy_squared = 0.0
+        self.mean_energy.clear()
+        self.energy_squared.clear()
         #self.correlation_info = None
         self.corrtime_energies = []
         if ( self.accept_first_trial_move_after_reset ):
@@ -229,8 +232,8 @@ class Montecarlo(object):
 
         # First collect the energies from all processors
         self.collect_energy()
-        U = self.mean_energy/self.current_step
-        E_sq = self.energy_squared/self.current_step
+        U = self.mean_energy.mean
+        E_sq = self.energy_squared.mean
         var = (E_sq - U**2)
         nproc = 1
         if ( self.mpicomm is not None ):
@@ -408,7 +411,7 @@ class Montecarlo(object):
               if ( self.plot_debug ):
                   all_energies.append( self.current_energy_without_vib()/len(self.atoms) )
           self.collect_energy()
-          E_new = self.mean_energy/window_length
+          E_new = self.mean_energy.mean
           means.append( E_new )
           var_E_new = self.get_var_average_energy()
           comp_conv, composition, var_comp, comp_quant = self.composition_reached_equillibrium( composition, var_comp, confidence_level=confidence_level )
@@ -450,8 +453,8 @@ class Montecarlo(object):
 
           if ( energy_conv and comp_conv ):
               self.log( "System reached equillibrium in {} mc steps".format(number_of_iterations*window_length))
-              self.mean_energy = 0.0
-              self.energy_squared = 0.0
+              self.mean_energy.clear()
+              self.energy_squared.clear()
               self.current_step = 0
 
               if ( len(composition) > 0 ):
@@ -503,7 +506,7 @@ class Montecarlo(object):
         """
         Returns message that is printed to the logger after the run
         """
-        U = self.mean_energy/self.current_step
+        U = self.mean_energy.mean
         var_E = self.get_var_average_energy()
         self.log( "Total number of MC steps: {}".format(self.current_step) )
         self.log( "Final mean energy: {} +- {}%".format(U,np.sqrt(var_E)/np.abs(U) ) )
@@ -592,8 +595,9 @@ class Montecarlo(object):
         totalenergies.append(self.current_energy)
         start = time.time()
         prev = 0
-        self.mean_energy = 0.0
-        self.energy_squared = 0.0
+        E0 = self.atoms.get_calculator().get_energy()
+        self.mean_energy = Averager(ref_value=E0)
+        self.energy_squared = Averager(ref_value=E0**2)
         self.current_step = 0
 
         if ( equil ):
@@ -631,6 +635,10 @@ class Montecarlo(object):
         # self.current_step gets updated in the _mc_step function
         log_status_conv = True
         self.reset()
+        E0 = self.atoms.get_calculator().get_energy()
+        self.mean_energy = Averager(E0)
+        self.energy_squared = Averager(E0**2)
+
         while( self.current_step < steps ):
             en, accept = self._mc_step( verbose=verbose )
             self.mean_energy += self.current_energy_without_vib()
@@ -670,14 +678,10 @@ class Montecarlo(object):
             return
 
         size = self.mpicomm.Get_size()
-        recv = np.zeros(1)
-        energy_arr = np.array(self.mean_energy)
-        energy_sq_arr = np.array(self.energy_squared)
-        self.mpicomm.Allreduce( energy_arr, recv, op=MPI.SUM)
-        self.mean_energy = recv[0]/size
-        recv[0] = 0.0
-        self.mpicomm.Allreduce( energy_sq_arr, recv, op=MPI.SUM)
-        self.energy_squared = recv[0]/size
+        self.mean_energy = self.mpicomm.allreduce( self.mean_energy, op=MPI.SUM)
+        self.mean_energy /= size
+        self.energy_squared = self.mpicomm.allreduce( self.energy_squared, op=MPI.SUM)
+        self.energy_squared /= size
 
     def get_thermodynamic( self ):
         """
@@ -685,8 +689,8 @@ class Montecarlo(object):
         """
         self.collect_energy()
         quantities = {}
-        quantities["energy"] = self.mean_energy/self.current_step
-        mean_sq = self.energy_squared/self.current_step
+        quantities["energy"] = self.mean_energy.mean
+        mean_sq = self.energy_squared.mean
         quantities["heat_capacity"] = (mean_sq-quantities["energy"]**2)/(units.kB*self.T**2)
         quantities["energy_std"] = np.sqrt(self.get_var_average_energy())
         return quantities
