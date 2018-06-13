@@ -14,6 +14,7 @@ from matplotlib import pyplot as plt
 from ase.visualize import view
 from cemc.mcmc import linear_vib_correction as lvc
 from inspect import getargspec
+from cemc.mcmc.util import trans_matrix2listdict
 
 from mpi4py import MPI
 try:
@@ -34,7 +35,7 @@ def get_max_dia_name():
         return "max_cluster_dia"
     return "max_cluster_dist"
 
-def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays_BC=False ):
+def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays_BC=False, convert_trans_matrix=False ):
     """
     Constructs a CE calculator for a supercell by first computing the correlation function
     from a small cell
@@ -72,6 +73,17 @@ def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays
         else:
             unknown_type = True
 
+        if free_unused_arrays_BC:
+            large_bc.dist_matrix = None
+
+        if convert_trans_matrix:
+            trans_listdict = trans_matrix2listdict(large_bc)
+            large_bc.trans_matrix = trans_listdict
+            print("Warning! The translation matrix of ClusterExpansionSetting")
+            print("has been converted to a list of dictionaries.")
+            print("Do not expect any of the funcionality in ASE to work")
+            print("with the ClusterExpansionSetting anymore!")
+
     unknown_type = MPI.COMM_WORLD.bcast( unknown_type, root=0 )
     if ( unknown_type ):
         raise TypeError( "The small_bc argument has to by of type BulkCrystal or BulkSpacegroup" )
@@ -108,12 +120,7 @@ class CE( Calculator ):
         # Make supercell
         self.atoms = self.BC.atoms
         symbols = [atom.symbol for atom in self.BC.atoms] # Keep a copy of the original symbols
-
-        # Make sure that the database information fits
-        if ( len(self.BC.atoms) != self.BC.trans_matrix.shape[0] ):
-            msg = "The number of atoms and the dimension of the translation matrix is inconsistent"
-            msg = "Dimension of translation matrix: {}. Number of atoms: {}".format(self.BC.trans_matrix.shape,len(self.BC.atoms))
-            raise ValueError( msg )
+        self._check_trans_mat_dimensions()
 
         #print (self.basis_elements)
         #if ( len(BC.basis_elements) > 1 ):
@@ -126,7 +133,10 @@ class CE( Calculator ):
         self.convert_cluster_indx_to_list()
         self.permutations = {}
         self.create_permutations()
-        self.BC.trans_matrix = np.array(self.BC.trans_matrix).astype(np.int32)
+
+        if isinstance(self.BC.trans_matrix, np.ndarray):
+            self.BC.trans_matrix = np.array(self.BC.trans_matrix).astype(np.int32)
+
         self.updater = None
         if ( use_cpp ):
             self.updater = ce_updater.CEUpdater()
@@ -147,13 +157,26 @@ class CE( Calculator ):
             self.undo_changes = self.updater.undo_changes
             self.update_cf = self.updater.update_cf
         else:
-            self.clear_history = self.clear_history_pure_python
-            self.undo_changes = self.undo_changes_pure_python
-            self.update_cf = self.update_cf_pure_python
+            raise ImportError("Could not find C++ backend for the updater!")
 
         # Set the symbols back to their original value
         self.set_symbols(symbols)
         self._linear_vib_correction = None
+
+    def _check_trans_mat_dimensions(self):
+        """
+        Check that the dimension of the trans matrix matches the number of atoms
+        """
+        if isinstance(self.BC.trans_matrix,list):
+            n_sites = len(self.BC.trans_matrix)
+        elif isinstance(self.BC.trans_matrix, np.ndarray):
+            n_sites = self.BC.trans_matrix.shape[0]
+
+        # Make sure that the database information fits
+        if ( len(self.BC.atoms) != n_sites ):
+            msg = "The number of atoms and the dimension of the translation matrix is inconsistent"
+            msg = "Dimension of translation matrix: {}. Number of atoms: {}".format(self.BC.trans_matrix.shape,len(self.BC.atoms))
+            raise ValueError( msg )
 
     def get_full_cluster_names( self, cnames ):
         """
@@ -313,87 +336,6 @@ class CE( Calculator ):
                 prefix = name#name.rpartition('_')[0]
                 self.ctype[prefix] = (n,ctype)
 
-    def update_cf_pure_python( self, single_change ):
-        """
-        Changing one element and update the correlation functions
-        """
-        indx = single_change[0]
-        old_symb = single_change[1]
-        new_symb = single_change[2]
-        self.old_cfs.append( copy.deepcopy(self.cf) )
-        if ( old_symb == new_symb ):
-            return self.cf
-        natoms = len(self.atoms)
-        bf_list = list(range(len(self.BC.basis_functions)))
-
-        self.atoms[indx].symbol = new_symb
-
-        bf = self.BC.basis_functions
-        for name in self.eci.keys():
-            if ( name == "c0" ):
-                continue
-            elif ( name.startswith("c1") ):
-                dec = int(name[-1]) - 1
-                self.cf[name] += (bf[dec][new_symb]-bf[dec][old_symb])/natoms
-                continue
-            prefix = name.rpartition('_')[0]
-            dec = int(name.rpartition('_')[-1]) - 1
-
-            res = self.ctype[prefix]
-            num = res[0]
-            ctype = res[1]
-            #for n in range(2, len(self.BC.cluster_names)):
-            #    try:
-            #        ctype = self.BC.cluster_names[n].index(prefix)
-            #        num = n
-            #        break
-            #    except ValueError:
-            #        continue
-            perm = list(product(bf_list, repeat=num))
-            count = len(self.BC.cluster_indx[num][ctype])*natoms
-            sp = self.spin_product_one_atom( indx, self.BC.cluster_indx[num][ctype], perm[dec] )
-            sp /= count
-            bf_indx = perm[dec][0]
-            self.cf[name] += num*( bf[bf_indx][new_symb] - bf[bf_indx][old_symb] )*sp
-        return self.cf
-
-    def spin_product_one_atom( self, ref_indx, indx_list, dec ):
-        """
-        Spin product for a single atom. Note that it is recommended to use the
-        C++ version
-
-        :param ref_indx: Reference index
-        :param indx_list: List of indices
-        """
-        num_indx = len(indx_list)
-        bf = self.BC.basis_functions
-        sp = 0.0
-        for i in range(num_indx):
-            sp_temp = 1.0
-            for j, indx in enumerate(indx_list[i][:]):
-                trans_indx = self.corrFunc.trans_matrix[ref_indx, indx]
-                sp_temp *= bf[dec[j+1]][self.atoms[trans_indx].symbol]
-            sp += sp_temp
-        return sp
-
-    def undo_changes_pure_python( self ):
-        """
-        This function undo all changes stored in all symbols starting from the
-        last one
-        """
-        for i in range(len(self.changes),0,-1):
-            entry = self.changes[i-1]
-            self.atoms[entry[0]].symbol = entry[1]
-            self.cf = self.old_cfs[i-1]
-        self.clear_history()
-
-    def clear_history_pure_python( self ):
-        """
-        Clears the history of the calculator
-        """
-        self.changes = []
-        self.old_cfs = []
-
     def calculate( self, atoms, properties, system_changes ):
         """
         Calculates the energy. The system_changes is assumed to be a list
@@ -406,14 +348,8 @@ class CE( Calculator ):
         :param system_changes: Updates to the system. Same signature as
             :py:meth:`cemc.mcmc.MCObserver.__call__`
         """
-        if ( use_cpp ):
-            energy = self.updater.calculate(system_changes)
-            self.cf = self.updater.get_cf()
-        else:
-            self.changes += system_changes
-            for entry in system_changes:
-                self.update_cf( entry )
-            energy = self.get_energy()
+        energy = self.updater.calculate(system_changes)
+        self.cf = self.updater.get_cf()
         self.results["energy"] = energy
         return self.results["energy"]
 

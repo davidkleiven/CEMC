@@ -184,5 +184,8 @@ private:
 
   /** Verifies that each cluster name exists only in one symmetry group*/
   void verify_clusters_only_exits_in_one_symm_group();
+
+  /** Reads the translation matrix */
+  void read_trans_matrix( PyObject* py_trans_mat );
 };
 #endif

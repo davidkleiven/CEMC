@@ -198,44 +198,9 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
     status = Status_t::INIT_FAILED;
     return;
   }
-  PyObject *trans_mat =  PyArray_FROM_OTF( trans_mat_orig, NPY_INT32, NPY_ARRAY_IN_ARRAY );
-  unsigned int max_indx = get_max_indx_of_zero_site(); // Compute the max index that is ever going to be checked
-  if ( max_indx == 0 )
-  {
-    throw runtime_error("It looks like no clusters are present. Max lookup index was 0 for ref_indx 0");
-  }
 
-  set<int> unique_indx;
-  get_unique_indx_in_clusters(unique_indx);
-  vector<int> unique_indx_vec;
-  set2vector( unique_indx, unique_indx_vec );
-
-  npy_intp *size = PyArray_DIMS( trans_mat );
-  trans_matrix.set_size( size[0], unique_indx_vec.size(), max_indx );
-  trans_matrix.set_lookup_values(unique_indx_vec);
-  cout << "Dimension of translation matrix stored: " << size[0] << " " << max_indx << endl;
-  if ( max_indx+1 > size[1] )
-  {
-    stringstream ss;
-    ss << "Something is wrong with the translation matrix passed.\n";
-    ss << "Shape of translation matrix (" << size[0] << "," << size[1] << ")\n";
-    ss << "Maximum index encountered in the cluster lists: " << max_indx << endl;
-    throw invalid_argument(ss.str());
-  }
-  for ( unsigned int i=0;i<size[0];i++ )
-  for ( unsigned int j=0;j<unique_indx_vec.size();j++ )
-  {
-    int col = unique_indx_vec[j];
-    trans_matrix(i,col) = *static_cast<int*>(PyArray_GETPTR2(trans_mat,i,col) );
-  }
-
-  /**
-  trans_matrix.set_size( size[0], size[1] );
-  for ( unsigned int i=0;i<size[0];i++ )
-  for ( unsigned int j=0;j<size[1];j++ )
-  {
-    trans_matrix(i,j) = *static_cast<int*>(PyArray_GETPTR2(trans_mat,i,j) );
-  }*/
+  read_trans_matrix(trans_mat_orig);
+  Py_DECREF(trans_mat_orig);
 
   // Read the ECIs
   Py_ssize_t pos = 0;
@@ -920,4 +885,80 @@ void CEUpdater::get_clusters( const char* cname, map<unsigned int, const Cluster
 {
   string cname_str(cname);
   get_clusters(cname_str, clst);
+}
+
+
+void CEUpdater::read_trans_matrix( PyObject* py_trans_mat )
+{
+
+  bool is_list = PyList_Check(py_trans_mat);
+
+  set<int> unique_indx;
+  get_unique_indx_in_clusters(unique_indx);
+  vector<int> unique_indx_vec;
+  set2vector( unique_indx, unique_indx_vec );
+
+  unsigned int max_indx = get_max_indx_of_zero_site(); // Compute the max index that is ever going to be checked
+  if ( max_indx == 0 )
+  {
+    throw runtime_error("It looks like no clusters are present. Max lookup index was 0 for ref_indx 0");
+  }
+
+  if ( is_list )
+  {
+    int size = PyList_Size(py_trans_mat);
+    trans_matrix.set_size( size, unique_indx_vec.size(), max_indx );
+    trans_matrix.set_lookup_values(unique_indx_vec);
+
+    for (unsigned int i=0;i<size;i++ )
+    {
+      PyObject* dict = PyList_GetItem(py_trans_mat, i);
+      for (unsigned int j=0;j<unique_indx_vec.size();j++ )
+      {
+        int col = unique_indx_vec[j];
+        PyObject *value = PyDict_GetItem(dict, PyInt_FromLong(col));
+
+        if (value == NULL)
+        {
+          stringstream ss;
+          ss << "Requested value " << col << " is not a key in the dictionary!";
+          throw invalid_argument(ss.str());
+        }
+        
+        trans_matrix(i, col) = PyInt_AsLong(value);
+      }
+    }
+  }
+  else
+  {
+    PyObject *trans_mat =  PyArray_FROM_OTF( py_trans_mat, NPY_INT32, NPY_ARRAY_IN_ARRAY );
+
+    npy_intp *size = PyArray_DIMS( trans_mat );
+    trans_matrix.set_size( size[0], unique_indx_vec.size(), max_indx );
+    trans_matrix.set_lookup_values(unique_indx_vec);
+    cout << "Dimension of translation matrix stored: " << size[0] << " " << unique_indx_vec.size() << endl;
+
+    if ( max_indx+1 > size[1] )
+    {
+      stringstream ss;
+      ss << "Something is wrong with the translation matrix passed.\n";
+      ss << "Shape of translation matrix (" << size[0] << "," << size[1] << ")\n";
+      ss << "Maximum index encountered in the cluster lists: " << max_indx << endl;
+      throw invalid_argument(ss.str());
+    }
+    for ( unsigned int i=0;i<size[0];i++ )
+    for ( unsigned int j=0;j<unique_indx_vec.size();j++ )
+    {
+      int col = unique_indx_vec[j];
+      trans_matrix(i,col) = *static_cast<int*>(PyArray_GETPTR2(trans_mat,i,col) );
+    }
+    Py_DECREF(trans_mat);
+  }
+  /**
+  trans_matrix.set_size( size[0], size[1] );
+  for ( unsigned int i=0;i<size[0];i++ )
+  for ( unsigned int j=0;j<size[1];j++ )
+  {
+    trans_matrix(i,j) = *static_cast<int*>(PyArray_GETPTR2(trans_mat,i,j) );
+  }*/
 }
