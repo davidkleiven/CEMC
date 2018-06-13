@@ -5,6 +5,7 @@ try:
     from cemc.wanglandau.ce_calculator import CE, get_ce_calc
     from ase.visualize import view
     from helper_functions import get_bulkspacegroup_binary, get_max_cluster_dia_name
+    import copy
     has_ase_with_ce = True
 except Exception as exc:
     print (str(exc))
@@ -135,17 +136,27 @@ class TestCE( unittest.TestCase ):
             "max_cluster_size":4
         }
         ceBulk = BulkCrystal( **kwargs )
-        calc = get_ce_calc( ceBulk, kwargs, eci, size=[4,4,4] )
-        corr_func = CorrFunction(calc.BC)
-        ceBulk = calc.BC
-        ceBulk.atoms.set_calculator(calc)
-        for i in range(10):
-            calc.calculate( ceBulk.atoms, ["energy"], [(i,"Al","Mg")] )
-            updated_cf = calc.get_cf()
-            brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, updated_cf.keys() )
-            print (updated_cf)
-            for key,value in brute_force.iteritems():
-                self.assertAlmostEqual( value, updated_cf[key] )
+        convert_trans_mat_options = [False, False]
+        kwargs_template = copy.deepcopy(kwargs)
+        kwargs_template["size"] = [4,4,4]
+        kwargs_template["db_name"] = "template_bc.db"
+        template_supercell_bc = BulkCrystal(**kwargs_template)
+        template_supercell_bc.reconfigure_settings()
+
+        for option in convert_trans_mat_options:
+            ceBulk = BulkCrystal( **kwargs )
+            calc = get_ce_calc( ceBulk, kwargs, eci, size=[4,4,4], convert_trans_matrix=option )
+            ceBulk = calc.BC
+            ceBulk.atoms.set_calculator(calc)
+            corr_func = CorrFunction(template_supercell_bc)
+            #corr_func = CorrFunction(ceBulk)
+            for i in range(10):
+                calc.calculate( ceBulk.atoms, ["energy"], [(i,"Al","Mg")] )
+                updated_cf = calc.get_cf()
+                #template_supercell_bc.atoms = ceBulk.atoms
+                brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, updated_cf.keys() )
+                for key,value in brute_force.iteritems():
+                    self.assertAlmostEqual( value, updated_cf[key] )
 
     def test_double_swaps_ternary( self ):
         if ( not has_ase_with_ce ): # Disable this test
