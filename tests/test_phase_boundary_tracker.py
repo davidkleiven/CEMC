@@ -7,7 +7,8 @@ try:
     from cemc.mcmc import linear_vib_correction as lvc
     from helper_functions import get_example_cf, get_example_ecis
     has_ase_with_ce = True
-except:
+except Exception as exc:
+    print(str(exc))
     has_ase_with_ce = False
 
 ecivib = {
@@ -47,15 +48,16 @@ class TestPhaseBoundaryMC( unittest.TestCase ):
                 "eci":get_example_ecis(bc=b2),
                 "cf":get_example_cf(bc=b2)
             }
+            ground_states = [gs1, gs2]
 
-            boundary = PhaseBoundaryTracker( gs1, gs2 )
+            boundary = PhaseBoundaryTracker( ground_states )
             T = [10,20]
             mc_args = {
                 "steps":10,
                 "mode":"fixed",
                 "equil":False
             }
-            res = boundary.separation_line_adaptive_euler( T0=100,min_step=99,stepsize=100, mc_args=mc_args )
+            res = boundary.separation_line_adaptive_euler( T0=100,min_step=99,stepsize=100, mc_args=mc_args, symbols=["Al","Mg"] )
         except Exception as exc:
             no_throw = False
             msg = str(exc)

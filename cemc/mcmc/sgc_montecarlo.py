@@ -19,6 +19,9 @@ class SGCMonteCarlo( mc.Montecarlo ):
         if ( not symbols is None ):
             # Override the symbols function in the main class
             self.symbols = symbols
+
+        if len(self.symbols) <= 1:
+            raise ValueError("At least 2 symbols have to be specified")
         self.averager = SGCObserver( self.atoms._calc, self, len(self.symbols)-1 )
         self.chem_pots = []
         self.chem_pot_names = []
