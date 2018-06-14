@@ -1,0 +1,7 @@
+{
+  "energy":[-10.0,-20.0,-3.0],
+  "max_size_reactant":5,
+  "min_size_product":10,
+  "nsteps_per_sweep":20,
+  "symbols":[["Al","Al","Al","Al","Al","Al","Al","Al","Al","Al","Al","Al","Al","Al","Al","Al","Al","Al","Al","Al","Al","Al","Al","Al","Al","Al","Al"], ["Al","Al","Al","Al","Al","Al","Al","Al","Al","Al","Al","Al","Mg","Al","Al","Al","Al","Al","Mg","Al","Al","Al","Al","Al","Al","Al","Al"],["Al","Al","Mg","Al","Al","Al","Al","Al","Mg","Al","Al","Al","Al","Al","Mg","Al","Al","Al","Al","Al","Al","Al","Al","Mg","Al","Al","Mg"]]
+}

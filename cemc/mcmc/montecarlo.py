@@ -673,7 +673,7 @@ class Montecarlo(object):
             return
 
         size = self.mpicomm.Get_size()
-        print(self.mean_energy.eman)
+        print(self.mean_energy.mean)
         self.mean_energy = self.mpicomm.allreduce( self.mean_energy, op=MPI.SUM)
         print(self.mean_energy.mean)
         print()

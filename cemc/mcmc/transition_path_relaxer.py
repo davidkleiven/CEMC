@@ -18,6 +18,7 @@ class TransitionPathRelaxer(object):
         self.init_path = None
         self.initial_peak_energy = None
         self.nsteps_per_sweep = None
+        self.rank = 0
 
     def load_path( self, fname ):
         """
@@ -34,14 +35,6 @@ class TransitionPathRelaxer(object):
         """
         Performs one shooting move
         """
-
-        """
-        if ( direction == "forward" ):
-            n_sweeps = len(self.init_path["energy"])-timeslice+1
-        elif ( direction == "backward" ):
-            n_sweeps = timeslice
-        """
-
         new_path = {}
         new_path["symbols"] = []
         new_path["energy"] = []
@@ -99,11 +92,12 @@ class TransitionPathRelaxer(object):
             self.log( "New path rejected because it did not reach any of the basins")
         return False
 
-    def log(self, msg ):
+    def log(self, msg):
         """
         Log result to a file
         """
-        print(msg)
+        if self.rank == 0:
+            print(msg)
 
     def relax_path( self, initial_path=None, n_shooting_moves=10000 ):
         """
@@ -150,12 +144,10 @@ class TransitionPathRelaxer(object):
             self.nuc_mc.set_state(state)
             self.nuc_mc.network(None)
             atoms = self.nuc_mc.network.get_atoms_with_largest_cluster( prohibited_symbols=["Al","Mg"] )
+            if atoms is None:
+                atoms = self.nuc_mc.atoms
             calc = SinglePointCalculator(atoms, energy=energy)
-            atoms.set_calculator(calc)
-            if ( atoms is None ):
-                traj.write(self.nuc_mc.atoms )
-            else:
-                traj.write(atoms)
+            traj.write(atoms)
         self.log( "Trajectory written to {}".format(fname))
 
     def center_barrier( self, verbose=False ):
@@ -223,6 +215,11 @@ class TransitionPathRelaxer(object):
                 min_slice_outside_reactant = timeslice
             elif ( self.nuc_mc.is_product() and max_slice_outside_products is None ):
                 max_slice_outside_products = timeslice
+
+        if min_slice_outside_reactant is None:
+            min_slice_outside_reactant = 0
+        if max_slice_outside_products is None:
+            max_slice_outside_products = len(self.init_path["energy"])
         return min_slice_outside_reactant,max_slice_outside_products
 
 
@@ -240,7 +237,10 @@ class TransitionPathRelaxer(object):
 
         n_paths_found = 0
         overall_num_paths = 0
+        if mpicomm is not None:
+            self.rank = mpicomm.Get_rank()
         while( overall_num_paths < n_paths and counter < max_attempts ):
+            self.log("Total number of paths found: {}".format(overall_num_paths))
             counter += 1
             self.init_path = copy.deepcopy(orig_path)
             timeslice = np.random.randint(low=min_slice,high=max_slice)
@@ -257,15 +257,14 @@ class TransitionPathRelaxer(object):
             else:
                 overall_num_paths = n_paths_found
 
-        rank = 0
         if mpicomm is not None:
-            rank = mpicomm.Get_rank()
             temp_paths = mpicomm.gather(all_paths, root=0)
             all_paths = []
-            for sublist in temp_paths:
-                all_paths += sublist
+            if self.rank == 0:
+                for sublist in temp_paths:
+                    all_paths += sublist
 
-        if rank == 0:
+        if self.rank == 0:
             self.save_tse_ensemble( all_paths, fname=outfile )
 
     def save_tse_ensemble(self, new_paths, fname="tse_ensemble.json" ):
@@ -312,7 +311,10 @@ class TransitionPathRelaxer(object):
         """
         with open(path_file,'r') as infile:
             data = json.load(infile)
-        paths = data["transition_paths"]
+        try:
+            paths = data["transition_paths"]
+        except KeyError:
+            paths = [data]
         total_product_indicator = np.zeros(len(paths[0]["symbols"]))
         total_reactant_indicator = np.zeros(len(paths[0]["symbols"]))
         self.nuc_mc.min_size_product = paths[0]["min_size_product"]

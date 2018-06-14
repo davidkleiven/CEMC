@@ -13,6 +13,10 @@ class DidNotReachProductOrReactantError(Exception):
     def __init__(self, msg):
         super(DidNotReachProductOrReactantError, self).__init__(msg)
 
+class DidNotFindPathError(Exception):
+    def __init__(self, msg):
+        super(DidNotFindPathError, self).__init__(msg)
+
 
 class SGCNucleation( SGCMonteCarlo ):
     """
@@ -380,7 +384,7 @@ class SGCNucleation( SGCMonteCarlo ):
 
         if not found_path:
             msg = "Did not manage to find both a configuration in the product region and the reactant region\n"
-            raise RuntimeError( msg )
+            raise DidNotFindPathError( msg )
 
 
 
