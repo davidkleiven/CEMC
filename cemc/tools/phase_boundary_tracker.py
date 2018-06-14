@@ -66,10 +66,10 @@ class PhaseBoundaryTracker(object):
         # Set the calculators of the atoms objects
         calcs = []
         self.mfa = []
-        for gs in self.ground_states:
-            calcs.append( ClusterExpansion( gs["bc"], cluster_name_eci=gs["eci"], init_cf=gs["cf"] ) )
-            gs["bc"].atoms.set_calculator(calcs[-1])
-            self.mfa.append( MeanFieldApprox(gs["bc"]) )
+        #for gs in self.ground_states:
+        #    calcs.append( ClusterExpansion( gs["bc"], cluster_name_eci=gs["eci"], init_cf=gs["cf"] ) )
+        #    gs["bc"].atoms.set_calculator(calcs[-1])
+        #    self.mfa.append( MeanFieldApprox(gs["bc"]) )
 
         self.current_backup_indx = 0
 
@@ -115,6 +115,18 @@ class PhaseBoundaryTracker(object):
             if ( key not in required_fields ):
                 raise ValueError( "The GS argument has to contain {} keys. Given {}".format(required_fields,keys) )
 
+    def get_gs_energies(self):
+        """
+        Return the Ground State Energies
+        """
+        energy = []
+        for gs in self.ground_states:
+            gs_energy = 0.0
+            for key in gs["eci"].keys():
+                gs_energy += gs["eci"][key]*gs["cf"][key]
+            energy.append(len(gs["bc"].atoms)*gs_energy)
+        return energy
+
     def get_zero_temperature_mu_boundary( self ):
         """
         Computes the chemical potential at which the two phases coexists
@@ -123,14 +135,17 @@ class PhaseBoundaryTracker(object):
         N = len(self.ground_states)-1
         B = np.zeros((N,N))
         energy_vector = np.zeros(N)
+        gs_energies = self.get_gs_energies()
         for i in range(N):
             for j in range(N):
-                ref_singlet = self.ground_states[0]["cf"][self.singlet_names[0]]
+                ref_singlet = self.ground_states[0]["cf"][self.singlet_names[j]]
                 singlet = self.ground_states[i+1]["cf"][self.singlet_names[j]]
                 B[i,j] = (ref_singlet-singlet)
-            E_ref = self.ground_states[0]["bc"].atoms.get_potential_energy()/len(self.ground_states[0]["bc"].atoms)
-            E = self.ground_states[i+1]["bc"].atoms.get_potential_energy()/len(self.ground_states[i+1]["bc"].atoms)
-            energy_vector[i] = E-E_ref
+            #E_ref = self.ground_states[0]["bc"].atoms.get_potential_energy()/len(self.ground_states[0]["bc"].atoms)
+            #E = self.ground_states[i+1]["bc"].atoms.get_potential_energy()/len(self.ground_states[i+1]["bc"].atoms)
+            E_ref = gs_energies[0]/len(self.ground_states[0]["bc"].atoms)
+            E = gs_energies[i+1]/len(self.ground_states[i+1]["bc"].atoms)
+            energy_vector[i] = E_ref-E
 
         mu_boundary = np.linalg.solve(B, energy_vector)
         return mu_boundary
@@ -172,7 +187,9 @@ class PhaseBoundaryTracker(object):
                         continue
                     if ( key == "images" ):
                         for img_num, img in enumerate(value):
-                            img = value.T
+                            if img is None:
+                                continue
+                            #img = img.T
                             dset = grp.create_dataset( "img_{}".format(img_num), data=img )
                             dset.attrs['CLASS'] = "IMAGE"
                             dset.attrs['IMAGE_VERSION'] = '1.2'
@@ -339,13 +356,14 @@ class PhaseBoundaryTracker(object):
         N = len(self.ground_states)-1
         A = np.zeros((N,N))
         energy_vector = np.zeros(N)
+        print(N)
         for i in range(N):
             for j in range(N):
-                ref_singlet = thermo[0][self.get_singlet_name(self.singlet_names[0])]
+                ref_singlet = thermo[0][self.get_singlet_name(self.singlet_names[j])]
                 singlet = thermo[i+1][self.get_singlet_name(self.singlet_names[j])]
                 A[i,j] = ref_singlet-singlet
-            ref_energy = thermo[0]["energy"]
-            E = thermo[i+1]["energy"]
+            ref_energy = thermo[0]["energy"]/len(self.ground_states[0]["bc"].atoms)
+            E = thermo[i+1]["energy"]/len(self.ground_states[i+1]["bc"].atoms)
             energy_vector[i] = ref_energy-E
         invA = np.linalg.inv(A)
         rhs = invA.dot(energy_vector)/beta - mu_array/beta
@@ -380,10 +398,25 @@ class PhaseBoundaryTracker(object):
             See :py:meth:`cemc.mcmc.SGCMonteCarlo.runMC`
         """
         mu_prev = self.get_zero_temperature_mu_boundary()
+        mu = np.zeros_like(mu_prev)
+        if ( comm.Get_size() > 1 ):
+            mpicomm = comm
+        else:
+            mpicomm = None
+
         calcs = []
+        old_symbols = []
+        sgc_obj = []
         for gs in self.ground_states:
-            calcs.append( CE( gs["bc"], gs["eci"], initial_cf=gs["cf"] ))
+            calcs.append(CE(gs["bc"], gs["eci"], initial_cf=gs["cf"]))
             gs["bc"].atoms.set_calculator(calcs[-1])
+            symbs = [atom.symbol for atom in gs["bc"].atoms]
+            old_symbols.append(symbs)
+            sgc_obj.append(SGCMonteCarlo(gs["bc"].atoms, T0, symbols=symbols, mpicomm=mpicomm))
+
+        for calc in calcs:
+            print(calc.get_cf())
+
         #calc1 = CE( self.gs1["bc"], self.gs1["eci"], initial_cf=self.gs1["cf"] )
         #calc2 = CE( self.gs2["bc"], self.gs2["eci"], initial_cf=self.gs2["cf"] )
         #self.gs1["bc"].atoms.set_calculator(calc1)
@@ -397,14 +430,6 @@ class PhaseBoundaryTracker(object):
 
         mc_args["equil"] = True
 
-        if ( comm.Get_size() > 1 ):
-            mpicomm = comm
-        else:
-            mpicomm = None
-        sgc_obj = []
-        for gs in self.ground_states:
-            sgc_obj.append(SGCMonteCarlo(gs["bc"].atoms, T0, symbols=symbols, mpicomm=mpicomm))
-
         singlets = []
         mu_array = []
         temp_array = []
@@ -412,9 +437,9 @@ class PhaseBoundaryTracker(object):
         Tprev = T0
         target_comp = None
         target_temp = None
-        rhs_prev = None
+        rhs_prev = np.zeros_like(mu)
         is_first = True
-        mu = mu_prev
+        mu[:] = mu_prev
         n_steps_required_to_reach_temp = 1
         substep_count = 1
         update_symbols = [True for _ in range(len(self.ground_states))]
@@ -423,10 +448,8 @@ class PhaseBoundaryTracker(object):
         #singl_name = "singlet_{}".format(self.mu_name)
         ref_compare = False
         iteration = 1
-        old_symbols = []
-        for gs in self.ground_states:
-            symbs = [atom.symbol for atom in gs["bc"].atoms]
-            old_symbols.append(symbs)
+        eps = 0.01
+
         #symbs1_old = [atom.symbol for atom in self.gs1["bc"].atoms]
         #symbs2_old = [atom.symbol for atom in self.gs2["bc"].atoms]
         while( stepsize > min_step ):
@@ -436,13 +459,14 @@ class PhaseBoundaryTracker(object):
             Tnext = T+dT
 
             beta = 1.0/(kB*T)
-            for sgc in sgc_obj:
-                sgc.T = T
+
             #sgc1.T = T
             #sgc2.T = T
             comm.barrier()
             thermo = []
-            for sgc in sgc_obj:
+            for i,sgc in enumerate(sgc_obj):
+                self.log("Running MC for system {}".format(i))
+                sgc.T = T
                 sgc.runMC(**mc_args)
                 thermo.append(sgc.get_thermodynamic())
 
@@ -463,7 +487,7 @@ class PhaseBoundaryTracker(object):
                 rhs_prev = rhs
                 is_first = False
                 beta_prev = 1.0/(kB*T)
-                mu_prev = mu
+                mu_prev[:] = mu
                 Tprev = T
                 singlets.append(self.get_singlet_array(thermo))
                 ref_singlet = singlets[-1]
@@ -552,8 +576,8 @@ class PhaseBoundaryTracker(object):
                 dT /= 2.0
                 stepsize = dT # No point in trying larger steps than this
                 T = Tprev
-                mu = mu_prev
-                rhs = rhs_prev
+                mu[:] = mu_prev
+                rhs[:] = rhs_prev
 
                 for calc, symbs in zip(calcs, old_symbols):
                     self.reset_symbols(calc, symbs)
@@ -577,15 +601,18 @@ class PhaseBoundaryTracker(object):
 
                 #if ( x1_is_equal and x2_is_equal ):
                 if all_equal:
-                    self.log( "Converged. Proceeding to the next temperature interval" )
+                    self.log("============================================================")
+                    self.log("== Converged. Proceeding to the next temperature interval ==")
+                    self.log("============================================================")
                     # Converged
                     stepsize = orig_stepsize
                     dT = stepsize
                     Tprev = T
-                    rhs_prev = rhs
-                    mu_prev = mu
-                    comp1.append(x1)
-                    comp2.append(x2)
+                    rhs_prev[:] = rhs
+                    mu_prev[:] = mu
+                    singlets.append(singlet_array)
+                    #comp1.append(x1)
+                    #comp2.append(x2)
                     temp_array.append(T)
                     mu_array.append(mu)
                     backupdata = {
@@ -599,15 +626,15 @@ class PhaseBoundaryTracker(object):
                     # Did not converge reset and decrease the stepsize
                     T = Tprev
                     dT /= 2.0
-                    mu = mu_prev
-                    rhs = rhs_prev
+                    mu[:] = mu_prev
+                    rhs[:] = rhs_prev
 
                     # Update the target compositions to the new ones
                     self.log( "Did not converge. Updating target compositions. Refining stepsize. New stepsize: {}K".format(dT) )
                     self.log( "Resetting system" )
 
                     # Reset the system to pure phases
-                    for calc, symbs in zip(calcs, old_symbs):
+                    for calc, symbs in zip(calcs, old_symbols):
                         self.reset_symbols(calc, symbs)
                     #self.reset_symbols( calc1, symbs1_old )
                     #self.reset_symbols( calc2, symbs2_old )
