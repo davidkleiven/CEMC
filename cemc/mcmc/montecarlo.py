@@ -673,10 +673,7 @@ class Montecarlo(object):
             return
 
         size = self.mpicomm.Get_size()
-        print(self.mean_energy.mean)
         self.mean_energy = self.mpicomm.allreduce( self.mean_energy, op=MPI.SUM)
-        print(self.mean_energy.mean)
-        print()
         self.energy_squared = self.mpicomm.allreduce( self.energy_squared, op=MPI.SUM)
 
     def get_thermodynamic( self ):
