@@ -42,13 +42,6 @@ class PhaseBoundaryTracker(object):
                         in BulkCrystal
                 * *eci* Effective Cluster Interactions
     :param logfile: Filename where log messages should be written
-    :param conf_same_phase: Confidence level used for hypothesis testing
-                            when checking if the two systems
-                            have ended up in the same phase.
-                            Has to be in the range [0.0,0.5)
-    :param conf_substep_conv: Confidence level used for hypethesis testing
-        when checking if the stepsize
-        needs to be refined. Has to be in the range[0.0,0.5)
     :param max_singlet_change: The maximum amount the singlet
         terms are allowed to change on each step
     """
@@ -432,8 +425,9 @@ class PhaseBoundaryTracker(object):
             chem_pot += rhs * dbeta
 
             # Append the last step to the array
-            if stepsize <= min_step:
+            if delta_temp <= min_step:
                 ode_solution.append(singlet_array, temperature, chem_pot)
+                break
             is_first = False
 
         res = {}

@@ -4,8 +4,10 @@ import numpy as np
 try:
     from ase.ce.settings_bulk import BulkCrystal
     from cemc.tools.phase_boundary_tracker import PhaseBoundaryTracker, PhaseChangedOnFirstIterationError
+    from cemc.tools import save_phase_boundary, process_phase_boundary
     from cemc.mcmc import linear_vib_correction as lvc
     from helper_functions import get_example_cf, get_example_ecis
+    from helper_functions import get_ternary_BC
     has_ase_with_ce = True
 except Exception as exc:
     print(str(exc))
@@ -57,39 +59,52 @@ class TestPhaseBoundaryMC( unittest.TestCase ):
                 "mode":"fixed",
                 "equil":False
             }
-            res = boundary.separation_line_adaptive_euler( T0=100,min_step=99,stepsize=100, mc_args=mc_args, symbols=["Al","Mg"] )
+            res = boundary.separation_line_adaptive_euler( init_temp=100, min_step=99,stepsize=100, mc_args=mc_args, symbols=["Al","Mg"] )
+            fname = "test_phase_boundary.h5"
+            save_phase_boundary(fname, res)
+            process_phase_boundary(fname)
         except Exception as exc:
             no_throw = False
             msg = str(exc)
         self.assertTrue( no_throw, msg=msg )
 
-    def test_with_linvib( self ):
+    def test_with_ternay(self):
         if ( not has_ase_with_ce ):
-            self.skipTest( "ASE version does not have CE" )
+            msg = "ASE version does not have CE"
+            self.skipTest( msg )
+            return
+        no_throw = True
+        msg = ""
         try:
-            b1, b2 = self.init_bulk_crystal()
-            gs1 = {
-                "bc":b1,
-                "eci":get_example_ecis(bc=b1),
-                "cf":get_example_cf(bc=b1),
-                "linvib":lvc.LinearVibCorrection( eci_vib )
-            }
+            ground_states = []
+            elements = ["Al", "Mg", "Si"]
+            for i in range(3):
+                ce_bulk = get_ternary_BC()
+                eci = get_example_ecis(bc=ce_bulk)
+                for atom in ce_bulk.atoms:
+                    atom.symbol = elements[i]
+                gs = {
+                    "bc":ce_bulk,
+                    "eci":eci,
+                    "cf":get_example_cf(bc=ce_bulk)
+                }
+                ground_states.append(gs)
 
-            gs2 = {
-                "bc":b2,
-                "eci":get_example_ecis(bc=b2),
-                "cf":get_example_cf(bc=b2),
-                "linvib":lvc.LinearVibCorrection( eci_vib )
-            }
-
-            boundary = PhaseBoundaryTracker( gs1, gs2 )
+            boundary = PhaseBoundaryTracker( ground_states )
             T = [10,20]
-            res = boundary.separation_line( np.array(T) )
-        except PhaseChangedOnFirstIterationError as exc:
-            pass
+            mc_args = {
+                "steps":10,
+                "mode":"fixed",
+                "equil":False
+            }
+            res = boundary.separation_line_adaptive_euler( init_temp=100,min_step=99,stepsize=100, mc_args=mc_args, symbols=["Al","Mg","Si"] )
+            fname = "test_phase_boundary_ternary.h5"
+            save_phase_boundary(fname, res)
+            process_phase_boundary(fname)
         except Exception as exc:
             no_throw = False
             msg = str(exc)
+        self.assertTrue( no_throw, msg=msg )
 
 if __name__ == "__main__":
     unittest.main()

@@ -46,6 +46,20 @@ def get_small_BC_with_ce_calc(lat="fcc"):
     ceBulk.atoms.set_calculator(calc)
     return ceBulk
 
+def get_ternary_BC():
+    db_name = "test_db_ternary.db"
+    conc_args = {
+        "conc_ratio_min_1":[[4,0,0]],
+        "conc_ratio_max_1":[[0,4,0]],
+        "conc_ratio_min_1":[[2,2,0]],
+        "conc_ratio_max_2":[[1,1,2]]
+    }
+    max_dia = get_max_cluster_dia_name()
+    size_arg = {max_dia:4.05}
+    ceBulk = BulkCrystal( crystalstructure="fcc", a=4.05, size=[4,4,4], basis_elements=[["Al","Mg","Si"]], \
+                          conc_args=conc_args, db_name=db_name, max_cluster_size=4, **size_arg)
+    return ceBulk
+
 def get_max_cluster_dia_name():
     """
     In former versions max_cluster_dist was called max_cluster_dia
