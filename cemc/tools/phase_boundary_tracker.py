@@ -37,10 +37,9 @@ class PhaseBoundaryTracker(object):
     NOTE: Has only been confirmed to work for binary systems!
 
     :params ground_state: List of dictionaries containing the following fields
-                * *bc* BulkCrystal object,
-                * *cf* Correlation function of the state of the atoms object
-                        in BulkCrystal
-                * *eci* Effective Cluster Interactions
+        * *bc* BulkCrystal object
+        * *cf* Correlation function of the state of the atoms object in BulkCrystal
+        * *eci* Effective Cluster Interactions
     :param logfile: Filename where log messages should be written
     :param max_singlet_change: The maximum amount the singlet
         terms are allowed to change on each step
