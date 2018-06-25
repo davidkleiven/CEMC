@@ -40,7 +40,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         if ( not has_attached_obs ):
             self.attach( self.averager )
 
-    def get_trial_move( self ):
+    def _get_trial_move( self ):
         """
         Generate a trial move by flipping the symbol of one atom
         """
@@ -52,23 +52,23 @@ class SGCMonteCarlo( mc.Montecarlo ):
         system_changes = [(indx,old_symb,new_symb)]
         return system_changes
 
-    def check_symbols(self):
+    def _check_symbols(self):
         """
         Override because there are no restriction on the symbols here
         """
         pass
 
-    def update_tracker( self, system_changes ):
+    def _update_tracker( self, system_changes ):
         """
         Override the update of the atom tracker. The atom tracker is irrelevant in the semi grand canonical ensemble
         """
         pass
 
-    def get_var_average_singlets( self ):
+    def _get_var_average_singlets( self ):
         """
         Returns the variance for the average singlets taking the correlation time into account
         """
-        self.collect_averager_results()
+        self._collect_averager_results()
         N = self.averager.counter
         singlets = self.averager.quantities["singlets"]/N
         singlets_sq = self.averager.quantities["singlets_sq"]/N
@@ -97,7 +97,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
             tau = 1.0
         return 2.0*var_n*tau/(N*nproc)
 
-    def has_converged_prec_mode( self, prec=0.01, confidence_level=0.05, log_status=False ):
+    def _has_converged_prec_mode( self, prec=0.01, confidence_level=0.05, log_status=False ):
         """
         Checks that the averages have converged to the desired precission
 
@@ -105,9 +105,9 @@ class SGCMonteCarlo( mc.Montecarlo ):
         :param confidence_level: Confidence level for hypothesis testing
         :param log_status: If True it will print a message showing the variances and convergence criteria
         """
-        energy_converged = super( SGCMonteCarlo, self ).has_converged_prec_mode( prec=prec, confidence_level=confidence_level, log_status=log_status )
+        energy_converged = super( SGCMonteCarlo, self )._has_converged_prec_mode( prec=prec, confidence_level=confidence_level, log_status=log_status )
         percentile = stats.norm.ppf(1.0-confidence_level)
-        var_n = self.get_var_average_singlets()
+        var_n = self._get_var_average_singlets()
         if ( self.mpicomm is not None ):
             var_n /= self.mpicomm.Get_size()
         singlet_converged = ( np.max(var_n) < (prec/percentile)**2 )
@@ -122,19 +122,19 @@ class SGCMonteCarlo( mc.Montecarlo ):
             result = (recv_buf[0] == self.mpicomm.Get_size())
         return result
 
-    def on_converged_log(self):
+    def _on_converged_log(self):
         """
         Log the convergence message
         """
-        super(SGCMonteCarlo,self).on_converged_log()
+        super(SGCMonteCarlo,self)._on_converged_log()
         singlets = self.averager.singlets/self.averager.counter
-        var_n = self.get_var_average_singlets()
+        var_n = self._get_var_average_singlets()
         var_n = np.abs(var_n) # Just in case some variances should be negative
         self.log( "Thermal averaged singlet terms:" )
         for i in range( len(singlets) ):
             self.log( "{}: {} +- {}%".format(self.chem_pot_names[i],singlets[i],np.sqrt(var_n[i])/np.abs(singlets[i]) ) )
 
-    def composition_reached_equillibrium(self, prev_composition, var_prev, confidence_level=0.05):
+    def _composition_reached_equillibrium(self, prev_composition, var_prev, confidence_level=0.05):
         """
         Returns True if the composition reached equillibrium
 
@@ -147,11 +147,11 @@ class SGCMonteCarlo( mc.Montecarlo ):
             nproc = self.mpicomm.Get_size()
         # Collect the result from the other processes
         # and average them into the values on the root node
-        self.collect_averager_results()
+        self._collect_averager_results()
         N = self.averager.counter
         singlets = self.averager.singlets/N
         singlets_sq = self.averager.quantities["singlets_sq"]/N
-        var_n = self.get_var_average_singlets()
+        var_n = self._get_var_average_singlets()
 
         if ( len(prev_composition) != len(singlets) ):
             # Prev composition is unknown so makes no sense
@@ -197,10 +197,10 @@ class SGCMonteCarlo( mc.Montecarlo ):
     def chemical_potential( self, chem_pot ):
         self._chemical_potential = chem_pot
         if ( self.chem_pot_in_ecis ):
-            self.reset_eci_to_original( self.atoms._calc.eci)
-        self.include_chemcical_potential_in_ecis( chem_pot, self.atoms._calc.eci )
+            self._reset_eci_to_original( self.atoms._calc.eci)
+        self._include_chemcical_potential_in_ecis( chem_pot, self.atoms._calc.eci )
 
-    def include_chemcical_potential_in_ecis( self, chem_potential, eci ):
+    def _include_chemcical_potential_in_ecis( self, chem_potential, eci ):
         """
         Including the chemical potentials in the ecis
         """
@@ -216,7 +216,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         self.chem_pot_in_ecis = True
         return eci
 
-    def reset_eci_to_original( self, eci_with_chem_pot ):
+    def _reset_eci_to_original( self, eci_with_chem_pot ):
         """
         Resets the ecis to their original value
         """
@@ -226,17 +226,17 @@ class SGCMonteCarlo( mc.Montecarlo ):
         self.chem_pot_in_ecis = False
         return eci_with_chem_pot
 
-    def reset_ecis( self ):
+    def _reset_ecis( self ):
         """
         Return the ECIs
         """
-        return self.reset_eci_to_original( self.atoms.bc._calc.eci )
+        return self._reset_eci_to_original( self.atoms.bc._calc.eci )
 
-    def estimate_correlation_time_composition( self, window_length=1000, restart=False ):
+    def _estimate_correlation_time_composition( self, window_length=1000, restart=False ):
         """
         #Estimate the corralation time for energy and composition
         """
-        mc.Montecarlo.estimate_correlation_time( self, window_length=window_length, restart=restart )
+        mc.Montecarlo._estimate_correlation_time( self, window_length=window_length, restart=restart )
         singlets = [[] for _ in range(len(self.symbols)-1)]
         for i in range(window_length):
             self.averager.reset()
@@ -316,20 +316,20 @@ class SGCMonteCarlo( mc.Montecarlo ):
         self.reset()
 
         # Include vibrations in the ECIS, does nothing if no vibration ECIs are set
-        self.include_vib()
+        self._include_vib()
 
         if ( equil ):
             reached_equil = True
-            res = self.estimate_correlation_time( restart=True )
+            res = self._estimate_correlation_time( restart=True )
             if ( not res["correlation_time_found"] ):
                 res["correlation_time_found"] = True
                 res["correlation_time"] = 1000
-            self.distribute_correlation_time()
+            self._distribute_correlation_time()
             try:
-                self.equillibriate(**equil_params)
+                self._equillibriate(**equil_params)
             except mc.DidNotReachEquillibriumError:
                 reached_equil = False
-            atleast_one_proc = self.atleast_one_reached_equillibrium(reached_equil)
+            atleast_one_proc = self._atleast_one_reached_equillibrium(reached_equil)
 
             if ( not atleast_one_proc ):
                 raise mc.DidNotReachEquillibriumError()
@@ -337,7 +337,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         self.reset()
         mc.Montecarlo.runMC( self, steps=steps, verbose=verbose, equil=False, mode=mode, prec_confidence=prec_confidence, prec=prec )
 
-    def collect_averager_results(self):
+    def _collect_averager_results(self):
         """
         If MPI is used, this function collects the results from the averager
         """
@@ -401,7 +401,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         """
         Compute thermodynamic quantities
         """
-        self.collect_averager_results()
+        self._collect_averager_results()
         N = self.averager.counter
         quantities = {}
         singlets = self.averager.singlets/N
@@ -422,7 +422,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
             quantities["var_singlet_{}".format(self.chem_pot_names[i])] = singlets_sq[i]-singlets[i]**2
             quantities["mu_{}".format(self.chem_pot_names[i])] = self.chem_pots[i]
         if ( reset_ecis ):
-            self.reset_eci_to_original( self.atoms._calc.eci )
+            self._reset_eci_to_original( self.atoms._calc.eci )
         return quantities
 
     def _parallelization_works( self, all_res ):

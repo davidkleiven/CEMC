@@ -68,7 +68,7 @@ class NucleationSampler( object ):
         mpi_tools.set_seeds( self.nucleation_mpicomm )
         self.current_cluster_size = 0
 
-    def get_window_boundaries(self, num):
+    def _get_window_boundaries(self, num):
         """
         Return the upper and lower boundary of the windows
 
@@ -95,7 +95,7 @@ class NucleationSampler( object ):
         network.reset()
         network(None) # Explicitly call the network observer
         stat = network.get_statistics()
-        lower,upper = self.get_window_boundaries(self.current_window)
+        lower,upper = self._get_window_boundaries(self.current_window)
         max_size_ok = stat["max_size"] >= lower and stat["max_size"] < upper
 
         n_clusters_ok = True
@@ -119,7 +119,7 @@ class NucleationSampler( object ):
 
         :param network: Instance of :py:class:`cemc.mcmc.NetworkObserver`
         """
-        lower,upper = self.get_window_boundaries(self.current_window)
+        lower,upper = self._get_window_boundaries(self.current_window)
         size = int(0.5*(lower+upper)+1)
         network.grow_cluster( size )
         network(None)
@@ -135,13 +135,13 @@ class NucleationSampler( object ):
             raise RuntimeError(msg)
         self.current_cluster_size = stat["max_size"]
 
-    def get_indx( self, size ):
+    def _get_indx( self, size ):
         """
         Get the corresponding bin
 
         :param size: The size of which its corresponding bin number should be computed
         """
-        lower,upper = self.get_window_boundaries(self.current_window)
+        lower,upper = self._get_window_boundaries(self.current_window)
         #indx = int( (size-lower)/float(upper-lower) )
         indx = int(size-lower)
         return indx
@@ -153,9 +153,9 @@ class NucleationSampler( object ):
         :param mc_obj: Instance of the sampler (typically `cemc.mcmc.SGCNucleation`)
         """
         stat = mc_obj.network.get_statistics()
-        indx = self.get_indx( stat["max_size"] )
+        indx = self._get_indx( stat["max_size"] )
         if ( indx < 0 ):
-            lower,upper = self.get_window_boundaries(self.current_window)
+            lower,upper = self._get_window_boundaries(self.current_window)
             raise ValueError( "Given size: {}. Boundaries: [{},{})".format(stat["max_size"],lower,upper))
         self.histograms[self.current_window][indx] += 1
 
@@ -164,7 +164,7 @@ class NucleationSampler( object ):
             mc_obj.atoms._calc.get_singlets(  new_singlets )
             self.singlets[self.current_window][indx,:] += new_singlets
 
-    def collect_results(self):
+    def _collect_results(self):
         """
         Collect results from all processors if this algorithm is run in parallel
         """
@@ -206,7 +206,7 @@ class NucleationSampler( object ):
 
         :param fname: Filename should be a HDF5 file
         """
-        self.collect_results()
+        self._collect_results()
         rank = 0
         if ( self.nucleation_mpicomm is not None ):
             rank = self.nucleation_mpicomm.Get_rank()

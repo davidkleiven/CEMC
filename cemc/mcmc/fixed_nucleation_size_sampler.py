@@ -40,7 +40,7 @@ class FixedNucleusMC( Montecarlo ):
         indx = self.bc.cluster_names[0][2].index(self.network_name)
         self.network_clust_indx = self.bc.cluster_indx[0][2][indx]
 
-    def get_trial_move(self):
+    def _get_trial_move(self):
         """
         Generate a trial move
         """
@@ -71,11 +71,11 @@ class FixedNucleusMC( Montecarlo ):
         system_changes = [(self.rand_a,symb_a,symb_b),(self.rand_b,symb_b,symb_a)]
         return system_changes
 
-    def accept( self, system_changes ):
+    def _accept( self, system_changes ):
         """
         Accept trial move
         """
-        move_accepted = Montecarlo.accept( self, system_changes )
+        move_accepted = Montecarlo._accept( self, system_changes )
         self.network.reset()
         self.network(system_changes)
         stat = self.network.get_statistics()
@@ -122,7 +122,7 @@ class FixedNucleusMC( Montecarlo ):
         """
         if ( init_cluster ):
             self.network.grow_cluster(self.size)
-            self.build_atoms_list()
+            self._build_atoms_list()
             self.atoms._calc.clear_history()
         step = 0
         while( step < nsteps ):

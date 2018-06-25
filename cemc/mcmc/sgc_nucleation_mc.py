@@ -53,13 +53,13 @@ class SGCNucleation( SGCMonteCarlo ):
         else:
             self.log( "Solute atoms are only allowed in the cluster" )
 
-    def accept( self, system_changes ):
+    def _accept( self, system_changes ):
         """
         Accept the trial move
 
         :param system_changes: See :py:meth:`cemc.mcmc.Montecarlo.accept`
         """
-        move_accepted = SGCMonteCarlo.accept( self, system_changes )
+        move_accepted = SGCMonteCarlo._accept( self, system_changes )
         in_window,stat = self.nuc_sampler.is_in_window(self.network,retstat=True)
         if ( not self.allow_solutes ):
             new_size = stat["max_size"]
@@ -70,13 +70,13 @@ class SGCNucleation( SGCMonteCarlo ):
                 self.nuc_sampler.current_cluster_size = new_size
         return move_accepted and in_window
 
-    def get_trial_move(self):
+    def _get_trial_move(self):
         """
         Perform a trial move
         """
         if ( not self.nuc_sampler.is_in_window(self.network) ):
             raise RuntimeError( "System is outside the window before the trial move is performed!" )
-        return SGCMonteCarlo.get_trial_move(self)
+        return SGCMonteCarlo._get_trial_move(self)
 
     def run( self, nsteps=10000 ):
         """
@@ -94,8 +94,8 @@ class SGCNucleation( SGCMonteCarlo ):
             self.current_energy = self.atoms.get_calculator().get_energy()
 
             self.nuc_sampler.mode = Mode.equillibriate
-            self.estimate_correlation_time()
-            self.equillibriate()
+            self._estimate_correlation_time()
+            self._equillibriate()
             self.nuc_sampler.mode = Mode.sample_in_window
 
             current_step = 0
@@ -139,7 +139,7 @@ class SGCNucleation( SGCMonteCarlo ):
         stat = self.network.get_statistics()
         return stat["max_size"] >= self.min_size_product
 
-    def merge_product_and_reactant_path( self, reactant_traj, product_traj, reactant_symb, product_symb ):
+    def _merge_product_and_reactant_path( self, reactant_traj, product_traj, reactant_symb, product_symb ):
         """
         Merge the product and reactant path into one file
         """
@@ -148,7 +148,7 @@ class SGCNucleation( SGCMonteCarlo ):
         reactant_symbols = []
         product_symbols = []
 
-    def save_list_of_lists(self,fname,data):
+    def _save_list_of_lists(self,fname,data):
         """
         Save a list of lists into a text file
         """
@@ -165,7 +165,7 @@ class SGCNucleation( SGCMonteCarlo ):
         super(SGCNucleation,self).reset()
         self.network.reset()
 
-    def read_list_of_lists(self,fname,dtype="str"):
+    def _read_list_of_lists(self,fname,dtype="str"):
         """
         Read list of lists
         """
@@ -173,7 +173,7 @@ class SGCNucleation( SGCMonteCarlo ):
         if ( dtype not in supported_dtypes ):
             raise ValueError( "dtype hsa to be one of {}".format(supported_dtypes))
 
-    def symbols2uint( self, symbols, description ):
+    def _symbols2uint( self, symbols, description ):
         """
         Convert an array of symbols into a numpy array of indices to the desctiption array
         """
@@ -182,7 +182,7 @@ class SGCNucleation( SGCMonteCarlo ):
             nparray[i] = desctiption.index(symb)
         return nparray
 
-    def uint2symbols( self, nparray, description ):
+    def _uint2symbols( self, nparray, description ):
         """
         Convert uint8 array to symbols array
         """
@@ -191,7 +191,7 @@ class SGCNucleation( SGCMonteCarlo ):
             symbs.append( description[nparray[i]] )
         return symbs
 
-    def merge_reference_path( self, res_reactant, res_product ):
+    def _merge_reference_path( self, res_reactant, res_product ):
         """
         This store the reference path into a JSON
         """
@@ -335,7 +335,7 @@ class SGCNucleation( SGCMonteCarlo ):
             self.atoms._calc.set_symbols(init_symbols)
             res = {"type":"transition_region"}
             try:
-                res = self.find_one_transition_path( path_length=path_length/2, trajfile=default_trajfile, \
+                res = self._find_one_transition_path( path_length=path_length/2, trajfile=default_trajfile, \
                     target=target, nsteps=nsteps )
             except DidNotReachProductOrReactantError as exc:
                 self.log( str(exc) )
@@ -362,7 +362,7 @@ class SGCNucleation( SGCMonteCarlo ):
                 os.remove(default_trajfile)
 
             if found_path:
-                combined_path = self.merge_reference_path(reactant_res,product_res)
+                combined_path = self._merge_reference_path(reactant_res,product_res)
                 combined_path["nsteps_per_sweep"] = nsteps
                 self.save_path( reference_path_file, combined_path )
                 self.log( "Found a path to the product region and a path to the reactant region" )
@@ -388,7 +388,7 @@ class SGCNucleation( SGCMonteCarlo ):
 
 
 
-    def add_info_to_atoms(self, atoms):
+    def _add_info_to_atoms(self, atoms):
         """
         Adds info to atoms object
         """
@@ -396,7 +396,7 @@ class SGCNucleation( SGCMonteCarlo ):
         atoms.info["is_reactant"] = self.is_reactant()
         atoms.info["cluster_size"] = self.network.max_size
 
-    def find_one_transition_path( self, path_length=1000, trajfile="default.traj", target="both", nsteps=None ):
+    def _find_one_transition_path( self, path_length=1000, trajfile="default.traj", target="both", nsteps=None ):
         """
         Finds a transition path by running random samples
         """
@@ -430,7 +430,7 @@ class SGCNucleation( SGCMonteCarlo ):
             symbs.append( [atom.symbol for atom in self.atoms] )
             atoms = self.network.get_atoms_with_largest_cluster(prohibited_symbols=unique_symbols)
             sizes.append(self.network.max_size)
-            self.add_info_to_atoms(atoms)
+            self._add_info_to_atoms(atoms)
             calc = SinglePointCalculator(atoms, energy=self.current_energy)
             atoms.set_calculator(calc)
             if ( atoms is None ):

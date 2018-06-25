@@ -72,7 +72,7 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
                 self.data.append( np.ones(self.n_bins+1) )
                 self.energydata.append( np.zeros(self.n_bins+1) )
 
-    def get_window_limits( self, window ):
+    def _get_window_limits( self, window ):
         """
         Returns the upper and lower bound for window
 
@@ -86,14 +86,14 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
         max_limit = (window+1)*self.window_singletrange
         return min_limit, max_limit
 
-    def get_window_indx( self, window, value ):
+    def _get_window_indx( self, window, value ):
         """
         Returns the bin index of value in the current window
 
         :param window: Index of current window
         :param value: Value to be added in a histogram
         """
-        min_lim, max_lim= self.get_window_limits(window)
+        min_lim, max_lim= self._get_window_limits(window)
         if ( value < min_lim or value >= max_lim ):
             msg = "Value out of range for window\n"
             msg += "Value has to be in range [{},{})\n".format(min_lim,max_lim)
@@ -107,7 +107,7 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
         indx = (value-min_lim)*N/(max_lim-min_lim)
         return int(indx)
 
-    def collect_results( self ):
+    def _collect_results( self ):
         """
         Collects the results from all processors
         """
@@ -126,16 +126,16 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
         self.data = temp_data
         self.energydata = temp_energy
 
-    def update_records( self ):
+    def _update_records( self ):
         """
         Update the data arrays
         """
         singlet = self.averager.singlets[0]
-        indx = self.get_window_indx( self.current_window, singlet )
+        indx = self._get_window_indx( self.current_window, singlet )
         self.data[self.current_window][indx] += 1
         self.energydata[self.current_window][indx] += self.current_energy
 
-    def accept( self, system_changes ):
+    def _accept( self, system_changes ):
         """
         Return True if the trial move was accepted, False otherwise
 
@@ -143,25 +143,25 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
         """
 
         # Check if move accepted by SGCMonteCarlo
-        move_accepted = SGCMonteCarlo.accept(self, system_changes)
+        move_accepted = SGCMonteCarlo._accept(self, system_changes)
         # Now check if the move keeps us in same window
         new_singlets = np.zeros_like(self.averager.singlets)
         self.atoms._calc.get_singlets( new_singlets )
         singlet = new_singlets[0]
         # Set in_window to True and check if it should be False instead
         in_window = True
-        min_allowed,max_allowed = self.get_window_limits(self.current_window)
+        min_allowed,max_allowed = self._get_window_limits(self.current_window)
 
         if (singlet < min_allowed or singlet > max_allowed):
             in_window = False
         # Now system will return to previous state if not inside window
         return move_accepted and in_window
 
-    def get_merged_records( self ):
+    def _get_merged_records( self ):
         """
         Merge the records into a one array
         """
-        self.collect_results()
+        self._collect_results()
         all_data = self.data[0].tolist()
         energy = (self.energydata[0]/self.data[0]).tolist()
         for i in range(1,len(self.data)):
@@ -182,7 +182,7 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
         """
         Stores the results to a JSON file
         """
-        self.get_merged_records()
+        self._get_merged_records()
         if ( self.rank == 0 ):
             self.result["temperature"] = self.T
             self.result["chemical_potential"] = self.chemical_potential
@@ -234,11 +234,11 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
             obj.energydata[i][:] = np.array(energydata[i])
         return obj
 
-    def bring_system_into_window(self):
+    def _bring_system_into_window(self):
         """
         Brings the system into the current window
         """
-        min_lim, max_lim = self.get_window_limits(self.current_window)
+        min_lim, max_lim = self._get_window_limits(self.current_window)
         newsinglet = 0.5*(min_lim+max_lim)
         self.atoms._calc.set_singlets({"c1_0":newsinglet})
 
@@ -260,7 +260,7 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
         for i in range(self.n_windows):
             self.current_window = i
             # We are inside a new window, update to start with concentration in the middle of this window
-            self.bring_system_into_window()
+            self._bring_system_into_window()
             self.is_first = True
             #Now we are in the middle of the current window, start MC
             current_step = 0
@@ -273,11 +273,11 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
 
                 # Run MC step
                 self._mc_step()
-                self.update_records()
+                self._update_records()
                 self.averager.reset()
             self.log( "Acceptance rate in window {}: {}".format(self.current_window,float(self.num_accepted)/self.current_step) )
             self.reset()
-        self.get_merged_records()
+        self._get_merged_records()
 
 
     @staticmethod

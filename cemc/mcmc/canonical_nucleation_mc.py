@@ -19,25 +19,25 @@ class CanonicalNucleationMC( Montecarlo ):
         self.network = NetworkObserver( calc=self.atoms._calc, cluster_name=self.network_name, element=self.network_element )
         self.attach( self.network )
 
-    def accept( self, system_changes ):
-        move_accepted = Montecarlo.accept( self, system_changes )
+    def _accept( self, system_changes ):
+        move_accepted = Montecarlo._accept( self, system_changes )
         in_window = self.nuc_sampler.is_in_window(self.network)
         return move_accepted and in_window
 
-    def get_trial_move(self):
+    def _get_trial_move(self):
         """
         Perform a trial move
         """
         if ( not self.nuc_sampler.is_in_window(self.network) ):
             self.network(None)
             msg = "System is outside the window before the trial move is performed!\n"
-            stat = self.network.get_statistics()
-            num_clusters = stat["number_of_clusters"]
-            max_size = stat["max_size"]
-            lower,upper = self.nuc_sampler.get_window_boundaries(self.nuc_sampler.current_window)
-            msg += "Num. clusters: {}. Max size: {}. Window limits: [{},{})".format(num_clusters,max_size,lower,upper)
             raise RuntimeError( msg )
-        return Montecarlo.get_trial_move(self)
+            #stat = self.network.get_statistics()
+            #num_clusters = stat["number_of_clusters"]
+            #max_size = stat["max_size"]
+            #lower,upper = self.nuc_sampler.get_window_boundaries(self.nuc_sampler.current_window)
+            #msg += "Num. clusters: {}. Max size: {}. Window limits: [{},{})".format(num_clusters,max_size,lower,upper)
+        return Montecarlo._get_trial_move(self)
 
     def get_atoms_count(self):
         """
@@ -102,7 +102,7 @@ class CanonicalNucleationMC( Montecarlo ):
                 raise RuntimeError( msg )
 
         # Re-initialize the tracker
-        self.build_atoms_list()
+        self._build_atoms_list()
         self.atoms._calc.clear_history()
 
     def run( self, nsteps=10000 ):
@@ -118,7 +118,7 @@ class CanonicalNucleationMC( Montecarlo ):
             self.log( "Window {} of {}".format(i,self.nuc_sampler.n_windows) )
             self.nuc_sampler.current_window = i
 
-            lower,upper = self.nuc_sampler.get_window_boundaries(i)
+            lower,upper = self.nuc_sampler._get_window_boundaries(i)
             if ( 0.5*(lower+upper) >= n_solute_atoms ):
                 self.log( "The concentration of solute atoms is too low to simulate this size. Aborting.")
                 break
@@ -127,8 +127,8 @@ class CanonicalNucleationMC( Montecarlo ):
             self.add_additional_atoms_to_match_concentration()
 
             self.nuc_sampler.mode = Mode.equillibriate
-            self.estimate_correlation_time()
-            self.equillibriate()
+            self._estimate_correlation_time()
+            self._equillibriate()
             self.nuc_sampler.mode = Mode.sample_in_window
 
             current_step = 0

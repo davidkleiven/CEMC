@@ -133,7 +133,7 @@ class ActivitySampler( Montecarlo ):
             atom_count[atom.symbol] += 1
         return atom_count
 
-    def get_trial_move( self ):
+    def _get_trial_move( self ):
         """
         Override the parents trial move class
         """
@@ -148,13 +148,13 @@ class ActivitySampler( Montecarlo ):
             return system_changes
         else:
             self.current_move_type = "regular"
-            return super(ActivitySampler,self).get_trial_move()
+            return super(ActivitySampler,self)._get_trial_move()
 
-    def accept( self, system_changes ):
+    def _accept( self, system_changes ):
         """
         Override parents accept function
         """
-        move_accepted = super(ActivitySampler,self).accept(system_changes)
+        move_accepted = super(ActivitySampler,self)._accept(system_changes)
         if ( self.current_move_type == "insert_move" ):
             # Always reject such that the composition is conserved.
             # The new_energy will however be updated so we can use this
