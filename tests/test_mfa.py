@@ -6,7 +6,7 @@ try:
     from cemc.mfa.mean_field_approx import MeanFieldApprox
     from cemc.mfa import CanonicalMeanField
     from ase.units import kB
-    from cemc.wanglandau.ce_calculator import CE
+    from cemc import CE
     has_ase_with_ce = True
 except Exception as exc:
     print ( str(exc) )

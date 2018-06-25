@@ -3,7 +3,7 @@ try:
     from ase.ce.settings_bulk import BulkCrystal
     from ase.ce import CorrFunction
     from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
-    from cemc.wanglandau.ce_calculator import CE
+    from cemc import CE
     from cemc.mcmc.mc_parameter_sweep import MCParameterSweep
     has_ase_with_ce = True
 except Exception as exc:

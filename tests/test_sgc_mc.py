@@ -6,7 +6,7 @@ try:
     from cemc.mcmc import linear_vib_correction as lvc
     from ase.ce.settings_bulk import BulkCrystal
     from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
-    from cemc.wanglandau.ce_calculator import CE
+    from cemc import CE
     from cemc.mcmc import PairConstraint, FixedElement
     from helper_functions import get_max_cluster_dia_name, get_example_network_name
     has_ase_with_ce = True

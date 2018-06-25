@@ -6,7 +6,7 @@ try:
     from cemc.mcmc.sgc_nucleation_mc import DidNotFindPathError
     from cemc.mcmc import TransitionPathRelaxer
     from ase.ce import BulkCrystal
-    from cemc.wanglandau.ce_calculator import get_ce_calc
+    from cemc import get_ce_calc
     from helper_functions import get_small_BC_with_ce_calc, get_example_network_name
     available = True
     available_reason = ""

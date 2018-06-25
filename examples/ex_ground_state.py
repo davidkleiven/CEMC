@@ -26,7 +26,7 @@ bc = BulkCrystal( crystalstructure="fcc", a=4.05, conc_args=conc_args, db_name="
 eci = get_example_ecis(bc=bc)
 
 # Initialize a Cluster Expansion calculator (C++ version is required)
-from cemc.wanglandau import CE
+from cemc import CE
 calc = CE( bc, eci )
 bc.atoms.set_calculator(calc)
 

@@ -3,7 +3,7 @@ reason = ""
 import unittest
 try:
     from cemc.mcmc import ActivitySampler
-    from cemc.wanglandau.ce_calculator import CE
+    from cemc import CE
     from ase.ce import BulkCrystal
     from ase.ce import CorrFunction
     import numpy as np

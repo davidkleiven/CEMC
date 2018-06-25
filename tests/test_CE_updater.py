@@ -2,7 +2,7 @@ import unittest
 try:
     from ase.ce.settings_bulk import BulkCrystal
     from ase.ce.corrFunc import CorrFunction
-    from cemc.wanglandau.ce_calculator import CE, get_ce_calc
+    from cemc import CE, get_ce_calc
     from ase.visualize import view
     from helper_functions import get_bulkspacegroup_binary, get_max_cluster_dia_name
     import copy

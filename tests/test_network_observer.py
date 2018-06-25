@@ -1,7 +1,7 @@
 import unittest
 try:
     from cemc.mcmc import NetworkObserver
-    from cemc.wanglandau.ce_calculator import CE
+    from cemc import CE
     from ase.ce import BulkCrystal
     from ase.ce import CorrFunction
     from ase.io import read

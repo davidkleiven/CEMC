@@ -1,4 +1,4 @@
-from cemc.wanglandau.ce_calculator import CE, get_ce_calc
+from cemc.ce_calculator import CE, get_ce_calc
 from ase.ce import BulkSpacegroup
 from ase.ce import BulkCrystal
 from inspect import getargspec

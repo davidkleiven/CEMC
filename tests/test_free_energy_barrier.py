@@ -2,7 +2,7 @@ import unittest
 try:
     has_CE = True
     from ase.ce import BulkCrystal, CorrFunction
-    from cemc.wanglandau.ce_calculator import get_ce_calc
+    from cemc import get_ce_calc
     from cemc.mcmc import SGCFreeEnergyBarrier
 except ImportError as exc:
     print (str(exc))

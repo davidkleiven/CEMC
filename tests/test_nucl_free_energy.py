@@ -3,7 +3,7 @@ try:
     from cemc.mcmc import NucleationSampler,SGCNucleation, CanonicalNucleationMC, FixedNucleusMC
     from ase.ce import BulkCrystal
     from ase.ce import CorrFunction
-    from cemc.wanglandau.ce_calculator import get_ce_calc
+    from cemc import get_ce_calc
     from helper_functions import flatten_cluster_names
     available = True
 except Exception as exc:
