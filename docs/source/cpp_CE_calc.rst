@@ -8,8 +8,8 @@ C++ Cluster Expansion Calculator
   :py:meth:`cemc.wanglandau.ce_calculator.set_composition`, not change
   the elements manually.
 
-.. autoclass:: cemc.wanglandau.ce_calculator.CE
+.. autoclass:: cemc.ce_calculator.CE
   :members:
 
-.. automodule:: cemc.wanglandau.ce_calculator
+.. automodule:: cemc.ce_calculator
   :members: get_ce_calc
