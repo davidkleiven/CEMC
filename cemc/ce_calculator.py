@@ -87,7 +87,11 @@ def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays
                 print("has been converted to a list of dictionaries.")
                 print("Do not expect any of the funcionality in ASE to work")
                 print("with the ClusterExpansionSetting anymore!")
-            gc.collect() # Force garbage collection
+                gc.collect() # Force garbage collection
+        except MemoryError:
+            # No default error message here
+            error_happened = True
+            msg = "Memory Error. Most likely went out of memory when initializing an array"
         except Exception as exc:
             error_happened = True
             msg = str(exc)
@@ -95,6 +99,7 @@ def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays
 
     # Broad cast the error flag and raise error on all processes
     error_happened = MPI.COMM_WORLD.bcast(error_happened, root=0)
+    msg = MPI.COMM_WORLD.bcast(msg, root=0)
     if error_happened:
         raise RuntimeError(msg)
 
