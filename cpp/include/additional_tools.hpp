@@ -25,8 +25,11 @@ std::vector<T>& cyclic_permute( std::vector<T> &vec );
 
 template<class T>
 void keys( std::map<std::string,T> &, std::vector<std::string> &keys );
-#include "additional_tools.tpp"
 
 template<class T>
 void set2vector( const std::set<T> &s, std::vector<T> &v );
+
+int kronecker(int i, int j);
+
+#include "additional_tools.tpp"
 #endif

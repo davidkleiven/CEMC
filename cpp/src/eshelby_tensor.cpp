@@ -12,7 +12,10 @@ EshelbyTensor::EshelbyTensor(double a, double b, double c, double poisson):a(a),
   {
     throw invalid_argument("The Eshelby tensor assumes that a > b > c!");
   }
+}
 
+void EshelbyTensor::init()
+{
   double theta = asin( sqrt((a*a-c*c)/a*a) );
   double kappa = sqrt( (a*a-b*b)/(a*a-c*c) );
   elliptic_f = F(theta, kappa);
@@ -122,5 +125,22 @@ double EshelbyTensor::evlauate_principal(int i, int j, int k, int l) const
   else
   {
     throw invalid_argument("The given combination of ijkl is not a principal combination!");
+  }
+}
+
+void EshelbyTensor::sort_indices( int orig[4] )
+{
+  if (orig[0] > orig[1])
+  {
+    int temp_orig0 = orig[0];
+    orig[0] = orig[1];
+    orig[1] = temp_orig0;
+  }
+
+  if (orig[2] > orig[3])
+  {
+    int temp_orig2 = orig[2];
+    orig[2] = orig[3];
+    orig[3] = temp_orig2;
   }
 }
