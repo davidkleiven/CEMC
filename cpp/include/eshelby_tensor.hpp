@@ -49,8 +49,8 @@ protected:
   void construct_ref_tensor( std::map<std::string, double> &elm, double semi_axes[3]);
 
   /** Elliptic integrals */
-  virtual double F(double theta, double kappa);
-  virtual double E(double theta, double kappa);
-  virtual double elliptic_integral_python(double theta, double kappa, const char* func_name);
+  virtual double F(double theta, double kappa) const;
+  virtual double E(double theta, double kappa) const;
+  virtual double elliptic_integral_python(double theta, double kappa, const char* func_name) const;
 };
 #endif
