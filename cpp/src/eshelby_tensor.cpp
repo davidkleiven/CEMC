@@ -184,6 +184,16 @@ void EshelbyTensor::construct_full_tensor()
 
       int indx_in_array = get_array_indx(indices[0], indices[1], indices[2], indices[3]);
       tensor[indx_in_array] = iter->second;
+
+      // Populate minor symmetries also
+      indx_in_array = get_array_indx(indices[0], indices[1], indices[3], indices[2]);
+      tensor[indx_in_array] = iter->second;
+
+      indx_in_array = get_array_indx(indices[1], indices[0], indices[3], indices[2]);
+      tensor[indx_in_array] = iter->second;
+
+      indx_in_array = get_array_indx(indices[1], indices[0], indices[2], indices[3]);
+      tensor[indx_in_array] = iter->second;
     }
     circular_shift(semi_axes, 3);
   }
