@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <map>
 #include <string>
+#include <iostream>
 
 using namespace std;
 
@@ -25,7 +26,7 @@ void EshelbyTensor::init()
   I_tensor(I);
 }
 
-double EshelbyTensor::elliptic_integral_python(double theta, double kappa, const char* funcname)
+double EshelbyTensor::elliptic_integral_python(double theta, double kappa, const char* funcname) const
 {
   PyObject* mod_string = PyString_FromString("scipy.special");
   PyObject* scipy_spec = PyImport_Import(mod_string);
@@ -46,12 +47,12 @@ double EshelbyTensor::elliptic_integral_python(double theta, double kappa, const
   return value;
 }
 
-double EshelbyTensor::F(double theta, double kappa)
+double EshelbyTensor::F(double theta, double kappa) const
 {
   return elliptic_integral_python(theta, kappa, "ellipkinc");
 }
 
-double EshelbyTensor::E(double theta, double kappa)
+double EshelbyTensor::E(double theta, double kappa) const
 {
   return elliptic_integral_python(theta, kappa, "ellipeinc");
 }
@@ -59,8 +60,20 @@ double EshelbyTensor::E(double theta, double kappa)
 
 void EshelbyTensor::I_tensor(array<double,6> &result) const
 {
-  double f = elliptic_f;
-  double e = elliptic_e;
+  double theta = asin(sqrt(a*a - c*c)/(a*a));
+  double kappa;
+  if (abs(a*a - c*c) < 1E-6)
+  {
+    kappa = 0.0;
+  }
+  else
+  {
+    kappa = sqrt((a*a - b*b) / (a*a - c*c));
+  }
+  cout << "Theta: " << theta << " kappa: " << kappa << endl;
+
+  double f = F(theta, kappa);
+  double e = E(theta, kappa);
 
   double I1 = 4.0*PI*a*b*c*(f-e)/( (a*a-b*b)*sqrt(a*a-c*c) );
   double f_factor = b*sqrt(a*a-c*c)/(a*c);
@@ -206,6 +219,7 @@ void EshelbyTensor::construct_ref_tensor(map<string, double> &elements, double s
   double b_cyc = semi_axes[1];
   double c_cyc = semi_axes[2];
 
+  /*
   double theta = asin(sqrt(a_cyc*a_cyc - c_cyc*c_cyc)/a_cyc*a_cyc);
   double kappa;
   if (abs(a_cyc*a_cyc - c_cyc*c_cyc) < 1E-6)
@@ -215,11 +229,18 @@ void EshelbyTensor::construct_ref_tensor(map<string, double> &elements, double s
   else
   {
     kappa = sqrt((a_cyc*a_cyc - b_cyc*b_cyc) / (a_cyc*a_cyc - c_cyc*c_cyc));
-  }
+  }*/
 
-  double f_int = F(theta, kappa);
-  double e_int = E(theta, kappa);
-
+  //cout << "Elliptic integrals: F: " << f_int << " " << "E: " << e_int << endl;
+  array<double, 6> I;
+  I_tensor(I);
+  double I1 = I[0];
+  double I2 = I[1];
+  double I3 = I[2];
+  double I11 = I[3];
+  double I12 = I[4];
+  double I13 = I[5];
+  /*
   double I1 = 4.0*PI*a_cyc*b_cyc*c_cyc / sqrt((a_cyc*a_cyc - b_cyc*b_cyc) * (a_cyc*a_cyc - c_cyc*c_cyc));
   I1 *= (f_int - e_int);
 
@@ -233,8 +254,9 @@ void EshelbyTensor::construct_ref_tensor(map<string, double> &elements, double s
   I11 /= (3.0*(1.0 - a_cyc*a_cyc/(c_cyc*c_cyc)));
   double I13 = 3*I1/(c_cyc*c_cyc) - 3*a_cyc*a_cyc*I11/(c_cyc*c_cyc) - b_cyc*b_cyc*I12/(c_cyc*c_cyc);
 
-  double pref = 1.0/(8.0*PI*(1-poisson));
+  cout << I1 << " " << I2 << " " << I3 << " " << I11 << " " << I12 << " " << I13 <<endl;*/
 
+  double pref = 1.0/(8.0*PI*(1-poisson));
   // S_1111
   elements["0000"] = pref*(3.0*a_cyc*a_cyc*I11 + (1.0-2*poisson)*I1);
 
