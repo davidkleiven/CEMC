@@ -9,7 +9,7 @@ public:
   virtual ~EshelbySphere(){};
 
   /** Acces operator */
-  virtual double operator()(int i, int j, int k, int l) const override;
+  virtual double operator()(int i, int j, int k, int l) override;
 
   /** Nothing to initialize for a sphere */
   virtual void init() override {}; // No initialization is needed here

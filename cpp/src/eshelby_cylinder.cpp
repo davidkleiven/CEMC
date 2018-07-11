@@ -1,7 +1,7 @@
 #include "eshelby_cylinder.hpp"
 #include <cmath>
 
-double EshelbyCylinder::operator()(int i, int j, int k, int l) const
+double EshelbyCylinder::operator()(int i, int j, int k, int l)
 {
   int indices[4] = {i,j,k,l};
   sort_indices(indices);
