@@ -232,14 +232,14 @@ void EshelbyTensor::construct_ref_tensor(map<string, double> &elements, double s
   }*/
 
   //cout << "Elliptic integrals: F: " << f_int << " " << "E: " << e_int << endl;
-  array<double, 6> I;
-  I_tensor(I);
-  double I1 = I[0];
-  double I2 = I[1];
-  double I3 = I[2];
-  double I11 = I[3];
-  double I12 = I[4];
-  double I13 = I[5];
+  array<double, 6> I_values;
+  I_tensor(I_values);
+  double I1 = I_values[0];
+  double I2 = I_values[1];
+  double I3 = I_values[2];
+  double I11 = I_values[3];
+  double I12 = I_values[4];
+  double I13 = I_values[5];
   /*
   double I1 = 4.0*PI*a_cyc*b_cyc*c_cyc / sqrt((a_cyc*a_cyc - b_cyc*b_cyc) * (a_cyc*a_cyc - c_cyc*c_cyc));
   I1 *= (f_int - e_int);
