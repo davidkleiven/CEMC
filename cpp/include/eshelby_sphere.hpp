@@ -11,10 +11,12 @@ public:
   /** Acces operator */
   virtual double operator()(int i, int j, int k, int l) override;
 
+  /** Alternative access */
+  double get(int i, int j, int k, int l) const;
+
   /** Nothing to initialize for a sphere */
   virtual void init() override {}; // No initialization is needed here
 private:
-  double a;
-  double poisson;
+  virtual void construct_full_tensor() override;
 };
 #endif

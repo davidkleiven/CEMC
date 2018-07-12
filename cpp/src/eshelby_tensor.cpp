@@ -5,7 +5,7 @@
 #include <map>
 #include <string>
 #include <iostream>
-#include <numpy/ndarrayobject.h>
+#include <sstream>
 
 using namespace std;
 
@@ -369,6 +369,15 @@ void EshelbyTensor::key_to_array(const string &key, int array[4])
   }
 }
 
+void EshelbyTensor::array_to_key(string &key, int array[4])
+{
+  stringstream ss;
+  for (unsigned int i=0;i<4;i++)
+  {
+    ss << array[i];
+  }
+  key = ss.str();
+}
 void EshelbyTensor::circular_shift(double data[], int size)
 {
   double first = data[0];
@@ -391,24 +400,31 @@ void EshelbyTensor::symmetrize(mat3x3 &matrix)
 }
 
 
-PyObject* EshelbyTensor::asnpy_array() const
+PyObject* EshelbyTensor::aslist()
 {
   mat6x6 voigt;
   voigt_representation(voigt);
-  npy_intp dims[2] = {6, 6};
-  PyObject *npy_array = PyArray_SimpleNew(2, dims, NPY_DOUBLE);
+  PyObject *npy_array = PyList_New(6);
 
   for (unsigned int i=0;i<6;i++)
-  for (unsigned int j=0;j<6;j++)
   {
-    double* ptr = static_cast<double*>(PyArray_GETPTR2(npy_array, i, j));
-    *ptr = voigt[i][j];
+    PyObject *sublist = PyList_New(6);
+    for (unsigned int j=0;j<6;j++)
+    {
+      PyObject *py_val = PyFloat_FromDouble(voigt[i][j]);
+
+      // NOTE: SetItem steals a reference. So no DECREF needed.
+      PyList_SetItem(sublist, j, py_val);
+    }
+    PyList_SetItem(npy_array, i, sublist);
   }
   return npy_array;
 }
 
-void EshelbyTensor::voigt_representation(mat6x6 &voigt) const
+void EshelbyTensor::voigt_representation(mat6x6 &voigt)
 {
+  if (require_rebuild) construct_full_tensor();
+
   double scale = 1.0;
   for (unsigned int i=0;i<3;i++)
   for (unsigned int j=0;j<3;j++)
@@ -419,6 +435,11 @@ void EshelbyTensor::voigt_representation(mat6x6 &voigt) const
     int voigt2 = voigt_indx(k, l);
     int indx = get_array_indx(i, j, k, l);
     double value = tensor[indx];
+
+    if ((voigt1 >= 3) || (voigt2 >= 3))
+    {
+      value *= 2;
+    }
     voigt[voigt1][voigt2] = value;
   }
 }
@@ -435,5 +456,30 @@ unsigned int EshelbyTensor::voigt_indx(unsigned int i, unsigned int j)
 
   if ((min==1) && (max==2)) return 3;
   if ((min==0) && (max==2)) return 4;
-  if ((min==0) && (max==1)) return 5;
+
+  return 5;
+}
+
+PyObject* EshelbyTensor::get_raw()
+{
+  if (require_rebuild) construct_full_tensor();
+
+  PyObject* eshelby_dict = PyDict_New();
+  int array[4];
+  string key;
+  for (unsigned int i=0;i<3;i++)
+  for (unsigned int j=0;j<3;j++)
+  for (unsigned int k=0;k<3;k++)
+  for (unsigned int l=0;l<3;l++)
+  {
+    array[0] = i;
+    array[1] = j;
+    array[2] = k;
+    array[3] = l;
+    array_to_key(key, array);
+    int indx = get_array_indx(i, j, k, l);
+    PyObject *py_val = PyFloat_FromDouble(tensor[indx]);
+    PyDict_SetItemString(eshelby_dict, key.c_str(), py_val);
+  }
+  return eshelby_dict;
 }

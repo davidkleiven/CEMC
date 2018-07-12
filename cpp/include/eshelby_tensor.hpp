@@ -19,11 +19,13 @@ public:
   virtual double operator()(int i, int j, int k, int l);
 
   /** Return the Eshelby tensor as a numpy array using Voigt notation */
-  PyObject* asnpy_array() const;
+  PyObject* aslist();
 
   /** Represent the Eshelby tensor in Voigt notation */
-  void voigt_representation(mat6x6 &matrix) const;
+  void voigt_representation(mat6x6 &matrix);
 
+  /** Get the full tensor as a dictionary */
+  PyObject *get_raw();
   /** Initialize elliptic integrals etc. Has to be called prior to evaluation */
   virtual void init();
 protected:
@@ -70,6 +72,9 @@ protected:
   /** Convert dictionary key to arrya of indices */
   static void key_to_array(const std::string &key, int array[4]);
 
+  /** Convert array of indices to string key */
+  static void array_to_key(std::string &key, int array[4]);
+
   /** Symmetrize the matrix. Put upper part into lower */
   static void symmetrize(mat3x3 &mat);
 
@@ -77,7 +82,7 @@ protected:
   static unsigned int voigt_indx(unsigned int i, unsigned int j);
 
   /** Constructs the full Eshelby tensor */
-  void construct_full_tensor();
+  virtual void construct_full_tensor();
 
   /** Construct elements that can use the same permuation of the semi axes */
   void construct_ref_tensor( std::map<std::string, double> &elm, const mat3x3 &I, const vec3 &vec, \
