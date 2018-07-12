@@ -1,4 +1,5 @@
 #include "eshelby_tensor.hpp"
+#include "additional_tools.hpp"
 #include <Python.h>
 #include <cmath>
 #include <stdexcept>
@@ -64,12 +65,12 @@ void EshelbyTensor::I_matrix(mat3x3 &result, vec3 &princ) const
   {
     throw invalid_argument("Sphere is not implemented yet!");
   }
-  else if (abs(b*b - c*c) < tol)
+  else if (abs(a*a - b*b) < tol)
   {
     I_principal_oblate_sphere(princ);
     I_matrix_oblate_sphere(result, princ);
   }
-  else if (abs(a*a - b*b) < tol)
+  else if (abs(b*b - c*c) < tol)
   {
     I_principal_prolate_sphere(princ);
     I_matrix_prolate_sphere(result, princ);
@@ -98,9 +99,9 @@ void EshelbyTensor::I_principal_general(vec3 &vec) const
 void EshelbyTensor::I_matrix_general(mat3x3 &result, const vec3 &princ) const
 {
   vec3 semi_axes;
-  semi_axes[0] = a;
-  semi_axes[1] = b;
-  semi_axes[2] = c;
+  semi_axes[0] = a*a;
+  semi_axes[1] = b*b;
+  semi_axes[2] = c*c;
 
   // Loop over cyclic permutations
   for (unsigned int perm=0;perm<3;perm++)
@@ -109,13 +110,13 @@ void EshelbyTensor::I_matrix_general(mat3x3 &result, const vec3 &princ) const
     unsigned int i2 = (perm+1)%3;
     unsigned int i3 = (perm+2)%3;
 
-    result[i1][i2] = (princ[i2]-princ[i1])/(3.0*(pow(semi_axes[i1], 2) - pow(semi_axes[i2], 2)));
+    result[i1][i2] = (princ[i2]-princ[i1])/(3.0*(semi_axes[i1] - semi_axes[i2]));
     result[i1][i3] = princ[i1] - 4.0*PI/3.0 + \
-      (pow(semi_axes[i1],2) - pow(semi_axes[i2],2))*result[i1][i2];
+      (semi_axes[i1] - semi_axes[i2])*result[i1][i2];
 
-    result[i1][i3] /= (pow(semi_axes[i3], 2) - pow(semi_axes[i1], 2));
+    result[i1][i3] /= (semi_axes[i3] - semi_axes[i1]);
 
-    result[i1][i1] = 4.0*PI/(3.0*pow(semi_axes[i1], 2)) - result[i1][i2] - result[i1][i3];
+    result[i1][i1] = 4.0*PI/(3.0*semi_axes[i1]) - result[i1][i2] - result[i1][i3];
   }
 }
 
@@ -131,40 +132,33 @@ void EshelbyTensor::I_matrix_oblate_sphere(mat3x3 &result, const vec3 &princ) co
 {
   // a = b > c
   vec3 semi_axes;
-  semi_axes[0] = a;
-  semi_axes[1] = b;
-  semi_axes[2] = c;
+  semi_axes[0] = a*a;
+  semi_axes[1] = b*b;
+  semi_axes[2] = c*c;
+  double tol = 1E-6;
 
-  for (unsigned int perm=0;perm<3;perm++)
-  {
-    unsigned int i1 = perm;
-    unsigned int i2 = (perm+1)%3;
-    unsigned int i3 = (perm+2)%3;
+  // First row
+  result[0][2] = princ[0] - 4.0*PI/3.0;
+  result[0][2] /= (semi_axes[2] - semi_axes[0]);
+  result[0][0] = PI/semi_axes[0] - 0.75*result[0][2];
+  result[0][1] = result[0][0]/3.0;
 
-    if ( (i1 == 0 ) && (i2==1) )
-    {
-      result[i1][i3] = princ[i1] - 4.0*PI/3.0;
-      result[i1][i3] /= (pow(semi_axes[i3], 2) - pow(semi_axes[i1], 2));
-      result[i1][i1] = 4.0*PI/(3.0*pow(semi_axes[i1], 2)) - result[i1][i3];
-      result[i1][i1] = result[i1][i1]/3.0;
-    }
-    else
-    {
-      result[i1][i2] = (princ[i2]-princ[i1])/(3.0*(pow(semi_axes[i1], 2) - pow(semi_axes[i2], 2)));
-      result[i1][i3] = princ[i1] - 4.0*PI/3.0 + \
-        (pow(semi_axes[i1],2) - pow(semi_axes[i2],2))*result[i1][i2];
+  // Second row
+  result[1][2] = (princ[2] - princ[1])/(3.0*(semi_axes[1] - semi_axes[2]));
+  result[1][1] = 4.0*PI/(3.0*semi_axes[1]) - result[1][2] - result[0][1];
+  result[1][0] = result[0][1];
 
-      result[i1][i3] /= (pow(semi_axes[i3], 2) - pow(semi_axes[i1], 2));
-
-      result[i1][i1] = 4.0*PI/(3.0*pow(semi_axes[i1], 2)) - result[i1][i2] - result[i1][i3];
-    }
-  }
+  // Third row
+  result[2][0] = result[0][2];
+  result[2][1] = result[1][2];
+  result[2][2] = 4.0*PI/(3.0*semi_axes[2]) - result[0][2] - result[1][2];
 }
 
 void EshelbyTensor::I_principal_prolate_sphere(vec3 &vec) const
 {
   // a > b=c
   vec[1] = 2.0*PI*a*c*c*( (a/c)*sqrt(pow(a/c, 2) - 1) - acosh(a/c));
+  vec[1] /= pow(a*a-c*c, 1.5);
   vec[2] = vec[1];
   vec[0] = 4.0*PI - vec[1] - vec[2];
 }
@@ -173,34 +167,25 @@ void EshelbyTensor::I_matrix_prolate_sphere(mat3x3 &result, const vec3 &princ) c
 {
   // a > b = c
   vec3 semi_axes;
-  semi_axes[0] = a;
-  semi_axes[1] = b;
-  semi_axes[2] = c;
+  semi_axes[0] = a*a;
+  semi_axes[1] = b*b;
+  semi_axes[2] = c*c;
 
-  for (unsigned int perm=0;perm<3;perm++)
-  {
-    unsigned int i1 = perm;
-    unsigned int i2 = (perm+1)%3;
-    unsigned int i3 = (perm+2)%3;
+  // First row
+  result[0][1] = (princ[1] - princ[0])/(3.0*(semi_axes[0] - semi_axes[1]));
+  result[0][2] = princ[0] - 4.0*PI/3.0 + (semi_axes[0] - semi_axes[1])*result[0][1];
+  result[0][2] /= (semi_axes[2] - semi_axes[0]);
+  result[0][0] = 4.0*PI/(3.0*semi_axes[0]) - result[0][1] - result[0][2];
 
-    if ( (i1 == 1 ) && (i2==2) )
-    {
-      result[i1][i3] = princ[i1] - 4.0*PI/3.0;
-      result[i1][i3] /= (pow(semi_axes[i3], 2) - pow(semi_axes[i1], 2));
-      result[i1][i1] = 4.0*PI/(3.0*pow(semi_axes[i1], 2)) - result[i1][i3];
-      result[i1][i1] = result[i1][i1]/3.0;
-    }
-    else
-    {
-      result[i1][i2] = (princ[i2]-princ[i1])/(3.0*(pow(semi_axes[i1], 2) - pow(semi_axes[i2], 2)));
-      result[i1][i3] = princ[i1] - 4.0*PI/3.0 + \
-        (pow(semi_axes[i1],2) - pow(semi_axes[i2],2))*result[i1][i2];
+  // Second row
+  result[1][0] = result[0][1];
+  result[1][2] = PI/(3.0*semi_axes[1]) - 0.25*result[0][1];
+  result[1][1] = 3.0*result[1][2];
 
-      result[i1][i3] /= (pow(semi_axes[i3], 2) - pow(semi_axes[i1], 2));
-
-      result[i1][i1] = 4.0*PI/(3.0*pow(semi_axes[i1], 2)) - result[i1][i2] - result[i1][i3];
-    }
-  }
+  // Third row
+  result[2][0] = result[0][2];
+  result[2][1] = result[1][2];
+  result[2][2] = (4.0*PI)/(3.0*semi_axes[2]) - result[0][2] - result[1][2];
 }
 
 
@@ -288,14 +273,14 @@ void EshelbyTensor::construct_full_tensor()
     tensor[i] = 0.0;
   }
 
-  mat3x3 I;
+  mat3x3 I_mat;
   vec3 princ;
-  I_matrix(I, princ);
+  I_matrix(I_mat, princ);
 
   for (unsigned int shift=0;shift<3;shift++ )
   {
     map<string, double> ref_tensor;
-    construct_ref_tensor(ref_tensor, I, princ, shift);
+    construct_ref_tensor(ref_tensor, I_mat, princ, shift);
 
     for (auto iter=ref_tensor.begin(); iter != ref_tensor.end(); ++iter)
     {
@@ -329,27 +314,30 @@ void EshelbyTensor::construct_ref_tensor(map<string, double> &elements, const ma
   const vec3 &princ, unsigned int shift)
 {
   vec3 semi_axes;
-  semi_axes[0] = a;
-  semi_axes[1] = b;
-  semi_axes[2] = c;
+  semi_axes[0] = a*a;
+  semi_axes[1] = b*b;
+  semi_axes[2] = c*c;
 
   int i1 = shift;
   int i2 = (shift+1)%3;
   int i3 = (shift+2)%3;
 
   double pref = 1.0/(8.0*PI*(1-poisson));
+  double Q = 3.0*pref;
+  double R = (1.0-2*poisson)*pref;
+
   // S_1111
-  elements["0000"] = pref*(3.0*pow(semi_axes[i1], 2)*I[i1][i1] + (1.0-2*poisson)*princ[i1]);
+  elements["0000"] = Q*semi_axes[i1]*I[i1][i1] + R*princ[i1];
 
   // S_1122
-  elements["0011"] = pref*(pow(semi_axes[i2], 2)*I[i1][i2] + (1.0-2.0*poisson)*princ[i1]);
+  elements["0011"] = Q*semi_axes[i2]*I[i1][i2] - R*princ[i1];
 
   // S_1133
-  elements["0022"] = pref*(pow(semi_axes[i3], 2)*I[i1][i2] + (1.0-2.0*poisson)*princ[i1]);
+  elements["0022"] = Q*semi_axes[i3]*I[i1][i3] - R*princ[i1];
 
   // S_1212
-  elements["0101"] = 0.5*pref*( (pow(semi_axes[i1], 2) + pow(semi_axes[i2], 2))*I[i1][i2]\
-    - (1.0-2.0*poisson)*(princ[i1]+princ[i2]));
+  elements["0101"] = 0.5*Q*(semi_axes[i1] + semi_axes[i2])*I[i1][i2]\
+    + 0.5*R*(princ[i1]+princ[i2]);
 
   elements["0001"] = 0.0;
   elements["0112"] = 0.0;

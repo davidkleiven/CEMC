@@ -25,5 +25,4 @@ void EshelbySphere::construct_full_tensor()
     int indx = get_array_indx(i, j, k, l);
     tensor[indx] = get(i, j, k, l);
   }
-  cout << get(0,0,0,0) << endl;
 }

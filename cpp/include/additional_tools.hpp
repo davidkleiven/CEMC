@@ -23,6 +23,9 @@ std::ostream& operator <<( std::ostream &out, const std::vector<T> &vec );
 template<class T>
 std::vector<T>& cyclic_permute( std::vector<T> &vec );
 
+template<class T, unsigned int N>
+std::ostream& operator <<(std::ostream &out, const std::array<T, N> &array);
+
 template<class T>
 void keys( std::map<std::string,T> &, std::vector<std::string> &keys );
 
