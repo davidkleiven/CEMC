@@ -8,7 +8,7 @@ std::ostream& operator <<( std::ostream &out, const std::map<key,value> &map )
     out << iter->first << ":" << iter->second << "\n";
   }
   return out;
-}
+};
 
 template<class T>
 std::ostream& operator << (std::ostream &out, const std::vector<T> &vec )
@@ -20,7 +20,7 @@ std::ostream& operator << (std::ostream &out, const std::vector<T> &vec )
   }
   out << "]";
   return out;
-}
+};
 
 template<class T>
 std::vector<T>& cyclic_permute( std::vector<T> &vec )
@@ -32,7 +32,7 @@ std::vector<T>& cyclic_permute( std::vector<T> &vec )
     vec[i+1] = prev;
   }
   return vec;
-}
+};
 
 template<class T>
 void keys( std::map<std::string,T> &dict, std::vector<std::string> &names )
@@ -42,7 +42,7 @@ void keys( std::map<std::string,T> &dict, std::vector<std::string> &names )
   {
     names.push_back(iter->first);
   }
-}
+};
 
 template<class T>
 void set2vector( const std::set<T> &s, std::vector<T> &vec )
@@ -52,4 +52,15 @@ void set2vector( const std::set<T> &s, std::vector<T> &vec )
   {
     vec.push_back(*iter);
   }
-}
+};
+
+template<class T, unsigned int N>
+std::ostream& operator <<(std::ostream& out, std::array<T, N> &array)
+{
+  for (unsigned int i=0;i<N;i++ )
+  {
+    out << array[i];
+  }
+  out << "\n";
+  return out;
+};

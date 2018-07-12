@@ -15,11 +15,15 @@
 %{
 #define SWIG_FILE_WITH_INIT
 
+#include "additional_tools.hpp"
 #include "ce_updater.hpp"
 #include "wang_landau_sampler.hpp"
 #include "adaptive_windows.hpp"
 #include "cluster_tracker.hpp"
 #include "pair_constraint.hpp"
+#include "eshelby_tensor.hpp"
+#include "eshelby_sphere.hpp"
+#include "eshelby_cylinder.hpp"
 %}
 %include "numpy.i"
 
@@ -42,3 +46,6 @@
 %include "mc_observers.hpp"
 %include "cluster_tracker.hpp"
 %include "pair_constraint.hpp"
+%include "eshelby_tensor.hpp"
+%include "eshelby_sphere.hpp"
+%include "eshelby_cylinder.hpp"
