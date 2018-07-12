@@ -5,6 +5,7 @@
 #include <map>
 #include <string>
 #include <iostream>
+#include <numpy/ndarrayobject.h>
 
 using namespace std;
 
@@ -387,4 +388,52 @@ void EshelbyTensor::symmetrize(mat3x3 &matrix)
       matrix[row][col] = matrix[col][row];
     }
   }
+}
+
+
+PyObject* EshelbyTensor::asnpy_array() const
+{
+  mat6x6 voigt;
+  voigt_representation(voigt);
+  npy_intp dims[2] = {6, 6};
+  PyObject *npy_array = PyArray_SimpleNew(2, dims, NPY_DOUBLE);
+
+  for (unsigned int i=0;i<6;i++)
+  for (unsigned int j=0;j<6;j++)
+  {
+    double* ptr = static_cast<double*>(PyArray_GETPTR2(npy_array, i, j));
+    *ptr = voigt[i][j];
+  }
+  return npy_array;
+}
+
+void EshelbyTensor::voigt_representation(mat6x6 &voigt) const
+{
+  double scale = 1.0;
+  for (unsigned int i=0;i<3;i++)
+  for (unsigned int j=0;j<3;j++)
+  for (unsigned int k=0;k<3;k++)
+  for (unsigned int l=0;l<3;l++)
+  {
+    int voigt1 = voigt_indx(i, j);
+    int voigt2 = voigt_indx(k, l);
+    int indx = get_array_indx(i, j, k, l);
+    double value = tensor[indx];
+    voigt[voigt1][voigt2] = value;
+  }
+}
+
+unsigned int EshelbyTensor::voigt_indx(unsigned int i, unsigned int j)
+{
+  if (i==j)
+  {
+    return i;
+  }
+
+  int max = i > j ? i:j;
+  int min = i > j ? j:i;
+
+  if ((min==1) && (max==2)) return 3;
+  if ((min==0) && (max==2)) return 4;
+  if ((min==0) && (max==1)) return 5;
 }

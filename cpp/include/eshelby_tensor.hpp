@@ -3,8 +3,10 @@
 #include <array>
 #include <map>
 #include <string>
+#include <Python.h>
 
 typedef std::array< std::array<double, 3>, 3> mat3x3;
+typedef std::array< std::array<double, 6>, 6> mat6x6;
 typedef std::array<double, 3> vec3;
 
 class EshelbyTensor
@@ -15,6 +17,12 @@ public:
 
   /** Evaluate the Eshelby Tensor (Not implemented!)*/
   virtual double operator()(int i, int j, int k, int l);
+
+  /** Return the Eshelby tensor as a numpy array using Voigt notation */
+  PyObject* asnpy_array() const;
+
+  /** Represent the Eshelby tensor in Voigt notation */
+  void voigt_representation(mat6x6 &matrix) const;
 
   /** Initialize elliptic integrals etc. Has to be called prior to evaluation */
   virtual void init();
@@ -64,6 +72,9 @@ protected:
 
   /** Symmetrize the matrix. Put upper part into lower */
   static void symmetrize(mat3x3 &mat);
+
+  /** Convert two indices to their Voigt representation */
+  static unsigned int voigt_indx(unsigned int i, unsigned int j);
 
   /** Constructs the full Eshelby tensor */
   void construct_full_tensor();
