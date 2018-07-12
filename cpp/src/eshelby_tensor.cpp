@@ -23,7 +23,6 @@ void EshelbyTensor::init()
   double kappa = sqrt( (a*a-b*b)/(a*a-c*c) );
   elliptic_f = F(theta, kappa);
   elliptic_e = E(theta, kappa);
-  I_tensor(I);
 }
 
 double EshelbyTensor::elliptic_integral_python(double theta, double kappa, const char* funcname) const
@@ -57,42 +56,152 @@ double EshelbyTensor::E(double theta, double kappa) const
   return elliptic_integral_python(theta, kappa, "ellipeinc");
 }
 
-
-void EshelbyTensor::I_tensor(array<double,6> &result) const
+void EshelbyTensor::I_matrix(mat3x3 &result, vec3 &princ) const
 {
-  double theta = asin(sqrt(a*a - c*c)/(a*a));
-  double kappa;
-  if (abs(a*a - c*c) < 1E-6)
+  double tol = 1E-6;
+  if (abs(a*a - c*c) < tol)
   {
-    kappa = 0.0;
+    throw invalid_argument("Sphere is not implemented yet!");
+  }
+  else if (abs(b*b - c*c) < tol)
+  {
+    I_principal_oblate_sphere(princ);
+    I_matrix_oblate_sphere(result, princ);
+  }
+  else if (abs(a*a - b*b) < tol)
+  {
+    I_principal_prolate_sphere(princ);
+    I_matrix_prolate_sphere(result, princ);
   }
   else
   {
-    kappa = sqrt((a*a - b*b) / (a*a - c*c));
+    I_principal_general(princ);
+    I_matrix_general(result, princ);
   }
-  cout << "Theta: " << theta << " kappa: " << kappa << endl;
+  symmetrize(result);
+}
 
+void EshelbyTensor::I_principal_general(vec3 &vec) const
+{
+  double theta = asin(sqrt(1.0 - pow(c/a,2)));
+  double kappa = sqrt( (a*a - b*b)/(a*a - c*c));
   double f = F(theta, kappa);
   double e = E(theta, kappa);
 
-  double I1 = 4.0*PI*a*b*c*(f-e)/( (a*a-b*b)*sqrt(a*a-c*c) );
-  double f_factor = b*sqrt(a*a-c*c)/(a*c);
-  double I3 = 4.0*PI*a*b*c*(f_factor-e)/( (b*b-c*c)*sqrt(a*a-c*c) );
-
-  double I2 = 4.0*PI - I1 - I3;
-  double I12 = (I2-I1)/(a*a-b*b);
-
-  double I11 = 3.0*I1 - 4.0*PI*c*c/pow(a,2) - (b*b-c*c)*I12;
-  I11 /= (3.0*(a*a-c*c));
-  double I13 = 4.0*PI/(a*a) - 3.0*I11 - I12;
-
-  result[0] = I1;
-  result[1] = I2;
-  result[2] = I3;
-  result[3] = I11;
-  result[4] = I12;
-  result[5] = I13;
+  vec[0] = 4.0*PI*a*b*c*(f-e)/((a*a-b*b)*sqrt(a*a-c*c));
+  vec[2] = 4.0*PI*a*b*c/((b*b-c*c)*sqrt(a*a-c*c));
+  vec[2] *= (b*sqrt(a*a-c*c)/(a*c) - e);
+  vec[1] = 4.0*PI - vec[0] - vec[2];
 }
+
+void EshelbyTensor::I_matrix_general(mat3x3 &result, const vec3 &princ) const
+{
+  vec3 semi_axes;
+  semi_axes[0] = a;
+  semi_axes[1] = b;
+  semi_axes[2] = c;
+
+  // Loop over cyclic permutations
+  for (unsigned int perm=0;perm<3;perm++)
+  {
+    unsigned int i1 = perm;
+    unsigned int i2 = (perm+1)%3;
+    unsigned int i3 = (perm+2)%3;
+
+    result[i1][i2] = (princ[i2]-princ[i1])/(3.0*(pow(semi_axes[i1], 2) - pow(semi_axes[i2], 2)));
+    result[i1][i3] = princ[i1] - 4.0*PI/3.0 + \
+      (pow(semi_axes[i1],2) - pow(semi_axes[i2],2))*result[i1][i2];
+
+    result[i1][i3] /= (pow(semi_axes[i3], 2) - pow(semi_axes[i1], 2));
+
+    result[i1][i1] = 4.0*PI/(3.0*pow(semi_axes[i1], 2)) - result[i1][i2] - result[i1][i3];
+  }
+}
+
+void EshelbyTensor::I_principal_oblate_sphere(vec3 &vec) const
+{
+  // a = b > c
+  vec[0] = 2.0*PI*a*a*c*(acos(c/a) - (c/a)*sqrt(1-pow(c/a, 2)))/pow(a*a-c*c, 1.5);
+  vec[1] = vec[0];
+  vec[2] = 4.0*PI - vec[0] - vec[1];
+}
+
+void EshelbyTensor::I_matrix_oblate_sphere(mat3x3 &result, const vec3 &princ) const
+{
+  // a = b > c
+  vec3 semi_axes;
+  semi_axes[0] = a;
+  semi_axes[1] = b;
+  semi_axes[2] = c;
+
+  for (unsigned int perm=0;perm<3;perm++)
+  {
+    unsigned int i1 = perm;
+    unsigned int i2 = (perm+1)%3;
+    unsigned int i3 = (perm+2)%3;
+
+    if ( (i1 == 0 ) && (i2==1) )
+    {
+      result[i1][i3] = princ[i1] - 4.0*PI/3.0;
+      result[i1][i3] /= (pow(semi_axes[i3], 2) - pow(semi_axes[i1], 2));
+      result[i1][i1] = 4.0*PI/(3.0*pow(semi_axes[i1], 2)) - result[i1][i3];
+      result[i1][i1] = result[i1][i1]/3.0;
+    }
+    else
+    {
+      result[i1][i2] = (princ[i2]-princ[i1])/(3.0*(pow(semi_axes[i1], 2) - pow(semi_axes[i2], 2)));
+      result[i1][i3] = princ[i1] - 4.0*PI/3.0 + \
+        (pow(semi_axes[i1],2) - pow(semi_axes[i2],2))*result[i1][i2];
+
+      result[i1][i3] /= (pow(semi_axes[i3], 2) - pow(semi_axes[i1], 2));
+
+      result[i1][i1] = 4.0*PI/(3.0*pow(semi_axes[i1], 2)) - result[i1][i2] - result[i1][i3];
+    }
+  }
+}
+
+void EshelbyTensor::I_principal_prolate_sphere(vec3 &vec) const
+{
+  // a > b=c
+  vec[1] = 2.0*PI*a*c*c*( (a/c)*sqrt(pow(a/c, 2) - 1) - acosh(a/c));
+  vec[2] = vec[1];
+  vec[0] = 4.0*PI - vec[1] - vec[2];
+}
+
+void EshelbyTensor::I_matrix_prolate_sphere(mat3x3 &result, const vec3 &princ) const
+{
+  // a > b = c
+  vec3 semi_axes;
+  semi_axes[0] = a;
+  semi_axes[1] = b;
+  semi_axes[2] = c;
+
+  for (unsigned int perm=0;perm<3;perm++)
+  {
+    unsigned int i1 = perm;
+    unsigned int i2 = (perm+1)%3;
+    unsigned int i3 = (perm+2)%3;
+
+    if ( (i1 == 1 ) && (i2==2) )
+    {
+      result[i1][i3] = princ[i1] - 4.0*PI/3.0;
+      result[i1][i3] /= (pow(semi_axes[i3], 2) - pow(semi_axes[i1], 2));
+      result[i1][i1] = 4.0*PI/(3.0*pow(semi_axes[i1], 2)) - result[i1][i3];
+      result[i1][i1] = result[i1][i1]/3.0;
+    }
+    else
+    {
+      result[i1][i2] = (princ[i2]-princ[i1])/(3.0*(pow(semi_axes[i1], 2) - pow(semi_axes[i2], 2)));
+      result[i1][i3] = princ[i1] - 4.0*PI/3.0 + \
+        (pow(semi_axes[i1],2) - pow(semi_axes[i2],2))*result[i1][i2];
+
+      result[i1][i3] /= (pow(semi_axes[i3], 2) - pow(semi_axes[i1], 2));
+
+      result[i1][i1] = 4.0*PI/(3.0*pow(semi_axes[i1], 2)) - result[i1][i2] - result[i1][i3];
+    }
+  }
+}
+
 
 double EshelbyTensor::evlauate_principal(int i, int j, int k, int l) const
 {
@@ -173,16 +282,19 @@ double EshelbyTensor::operator()(int i, int j, int k, int l)
 
 void EshelbyTensor::construct_full_tensor()
 {
-  double semi_axes[3] = {a, b, c};
   for (unsigned int i=0;i<81;i++)
   {
     tensor[i] = 0.0;
   }
 
-  for (unsigned int i=0;i<3;i++ )
+  mat3x3 I;
+  vec3 princ;
+  I_matrix(I, princ);
+
+  for (unsigned int shift=0;shift<3;shift++ )
   {
     map<string, double> ref_tensor;
-    construct_ref_tensor(ref_tensor, semi_axes);
+    construct_ref_tensor(ref_tensor, I, princ, shift);
 
     for (auto iter=ref_tensor.begin(); iter != ref_tensor.end(); ++iter)
     {
@@ -192,7 +304,7 @@ void EshelbyTensor::construct_full_tensor()
       // Update the array to the current cyclic permutation
       for (unsigned int n=0;n<4;n++)
       {
-        indices[n] = (indices[n]+1)%3;
+        indices[n] = (indices[n]+shift)%3;
       }
 
       int indx_in_array = get_array_indx(indices[0], indices[1], indices[2], indices[3]);
@@ -208,66 +320,35 @@ void EshelbyTensor::construct_full_tensor()
       indx_in_array = get_array_indx(indices[1], indices[0], indices[2], indices[3]);
       tensor[indx_in_array] = iter->second;
     }
-    circular_shift(semi_axes, 3);
   }
   require_rebuild = false;
 }
 
-void EshelbyTensor::construct_ref_tensor(map<string, double> &elements, double semi_axes[3])
+void EshelbyTensor::construct_ref_tensor(map<string, double> &elements, const mat3x3 &I, \
+  const vec3 &princ, unsigned int shift)
 {
-  double a_cyc = semi_axes[0];
-  double b_cyc = semi_axes[1];
-  double c_cyc = semi_axes[2];
+  vec3 semi_axes;
+  semi_axes[0] = a;
+  semi_axes[1] = b;
+  semi_axes[2] = c;
 
-  /*
-  double theta = asin(sqrt(a_cyc*a_cyc - c_cyc*c_cyc)/a_cyc*a_cyc);
-  double kappa;
-  if (abs(a_cyc*a_cyc - c_cyc*c_cyc) < 1E-6)
-  {
-    kappa = 0.0;
-  }
-  else
-  {
-    kappa = sqrt((a_cyc*a_cyc - b_cyc*b_cyc) / (a_cyc*a_cyc - c_cyc*c_cyc));
-  }*/
-
-  //cout << "Elliptic integrals: F: " << f_int << " " << "E: " << e_int << endl;
-  array<double, 6> I_values;
-  I_tensor(I_values);
-  double I1 = I_values[0];
-  double I2 = I_values[1];
-  double I3 = I_values[2];
-  double I11 = I_values[3];
-  double I12 = I_values[4];
-  double I13 = I_values[5];
-  /*
-  double I1 = 4.0*PI*a_cyc*b_cyc*c_cyc / sqrt((a_cyc*a_cyc - b_cyc*b_cyc) * (a_cyc*a_cyc - c_cyc*c_cyc));
-  I1 *= (f_int - e_int);
-
-  double I3 = 4.0*PI*a_cyc*b_cyc*c_cyc / sqrt((b_cyc*b_cyc - c_cyc*c_cyc) * (a_cyc*a_cyc - b_cyc*b_cyc));
-  I3 *= ( (b_cyc*sqrt(a_cyc*a_cyc - c_cyc*c_cyc)) / (a_cyc*c_cyc) - e_int);
-
-  double I2 = 4.0*PI - I1 - I3;
-
-  double I12 = (I2 - I1) / (a_cyc*a_cyc - b_cyc*b_cyc);
-  double I11 = 4.0*PI/(a_cyc*a_cyc) - 3*I1/(c_cyc*c_cyc) + (b_cyc*b_cyc/(c_cyc*c_cyc) - 1.0)*I2;
-  I11 /= (3.0*(1.0 - a_cyc*a_cyc/(c_cyc*c_cyc)));
-  double I13 = 3*I1/(c_cyc*c_cyc) - 3*a_cyc*a_cyc*I11/(c_cyc*c_cyc) - b_cyc*b_cyc*I12/(c_cyc*c_cyc);
-
-  cout << I1 << " " << I2 << " " << I3 << " " << I11 << " " << I12 << " " << I13 <<endl;*/
+  int i1 = shift;
+  int i2 = (shift+1)%3;
+  int i3 = (shift+2)%3;
 
   double pref = 1.0/(8.0*PI*(1-poisson));
   // S_1111
-  elements["0000"] = pref*(3.0*a_cyc*a_cyc*I11 + (1.0-2*poisson)*I1);
+  elements["0000"] = pref*(3.0*pow(semi_axes[i1], 2)*I[i1][i1] + (1.0-2*poisson)*princ[i1]);
 
   // S_1122
-  elements["0011"] = pref*(b_cyc*b_cyc*I12 + (1.0-2.0*poisson)*I1);
+  elements["0011"] = pref*(pow(semi_axes[i2], 2)*I[i1][i2] + (1.0-2.0*poisson)*princ[i1]);
 
   // S_1133
-  elements["0022"] = pref*(c_cyc*c_cyc*I13 + (1.0-2.0*poisson)*I1);
+  elements["0022"] = pref*(pow(semi_axes[i3], 2)*I[i1][i2] + (1.0-2.0*poisson)*princ[i1]);
 
   // S_1212
-  elements["0101"] = 0.5*pref*( (a_cyc*a_cyc + b_cyc*b_cyc)*I12 - (1.0-2.0*poisson)*(I1+I2));
+  elements["0101"] = 0.5*pref*( (pow(semi_axes[i1], 2) + pow(semi_axes[i2], 2))*I[i1][i2]\
+    - (1.0-2.0*poisson)*(princ[i1]+princ[i2]));
 
   elements["0001"] = 0.0;
   elements["0112"] = 0.0;
@@ -295,4 +376,15 @@ void EshelbyTensor::circular_shift(double data[], int size)
     data[i] = data[i+1];
   }
   data[size-1] = first;
+}
+
+void EshelbyTensor::symmetrize(mat3x3 &matrix)
+{
+  for (unsigned int row=1;row<3;row++)
+  {
+    for (unsigned int col=0;col<row-1;col++)
+    {
+      matrix[row][col] = matrix[col][row];
+    }
+  }
 }

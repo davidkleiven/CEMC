@@ -4,6 +4,9 @@
 #include <map>
 #include <string>
 
+typedef std::array< std::array<double, 3>, 3> mat3x3;
+typedef std::array<double, 3> vec3;
+
 class EshelbyTensor
 {
 public:
@@ -25,7 +28,24 @@ protected:
   std::array<double,6> I;
   bool require_rebuild{true};
 
-  void I_tensor(std::array<double,6> &I) const;
+  void I_matrix(mat3x3 &I, vec3 &vec) const;
+
+  void I_matrix_general(mat3x3 &I, const vec3 &vec) const;
+
+  /** Compute the principal vecotor in the general case */
+  void I_principal_general(vec3 &vec) const;
+
+  void I_matrix_oblate_sphere(mat3x3 &I, const vec3 &vec) const;
+
+  /** Compute the principal vecotor in the general case */
+  void I_principal_oblate_sphere(vec3 &vec) const;
+
+  void I_matrix_prolate_sphere(mat3x3 &I, const vec3 &vec) const;
+
+  /** Compute the principal vecotor in the general case */
+  void I_principal_prolate_sphere(vec3 &vec) const;
+
+
   double evlauate_principal(int i, int j, int k, int l) const;
   double tensor[81]; // Rank 4 Eshelby tensor
 
@@ -42,11 +62,15 @@ protected:
   /** Convert dictionary key to arrya of indices */
   static void key_to_array(const std::string &key, int array[4]);
 
+  /** Symmetrize the matrix. Put upper part into lower */
+  static void symmetrize(mat3x3 &mat);
+
   /** Constructs the full Eshelby tensor */
   void construct_full_tensor();
 
   /** Construct elements that can use the same permuation of the semi axes */
-  void construct_ref_tensor( std::map<std::string, double> &elm, double semi_axes[3]);
+  void construct_ref_tensor( std::map<std::string, double> &elm, const mat3x3 &I, const vec3 &vec, \
+    unsigned int shift);
 
   /** Elliptic integrals */
   virtual double F(double theta, double kappa) const;
