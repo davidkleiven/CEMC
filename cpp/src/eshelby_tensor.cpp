@@ -471,3 +471,19 @@ PyObject* EshelbyTensor::get_raw()
   }
   return eshelby_dict;
 }
+
+void EshelbyTensor::dot(vec6 &voigt)
+{
+  mat6x6 matrix;
+  voigt_representation(matrix);
+  vec6 result;
+  for (unsigned int i=0;i<6;i++)
+  {
+    result[i] = 0.0;
+    for (unsigned int j=0;j<6;j++)
+    {
+      result[i] += matrix[i][j]*voigt[j];
+    }
+  }
+  voigt = result;
+}
