@@ -7,3 +7,4 @@ from canonical_free_energy import CanonicalFreeEnergy
 from chemical_potential_roi import ChemicalPotentialROI
 from cemc.tools.phase_track_utils import save_phase_boundary
 from cemc.tools.phase_track_utils import process_phase_boundary
+from cemc.tools.strain_energy import StrainEnergy
