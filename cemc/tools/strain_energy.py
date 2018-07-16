@@ -3,6 +3,7 @@ import numpy as np
 from cemc.ce_updater import EshelbyTensor, EshelbySphere
 from cemc.tools import rot_matrix, rotate_tensor, to_voigt, to_full_tensor
 from itertools import product
+from scipy.optimize import minimize
 
 
 class StrainEnergy(object):
@@ -26,6 +27,18 @@ class StrainEnergy(object):
             eshelby = EshelbyTensor(aspect[0], aspect[1], aspect[2],
                                     poisson)
         return eshelby
+
+    def _check_ellipsoid(self, ellipsoid):
+        """Check that the ellipsoid arguments is correct."""
+        required_keys = ["aspect", "scale_factor"]
+        for key in ellipsoid.keys():
+            if key not in required_keys:
+                msg = "The ellipsoid dictionary has to"
+                msg += "include {}".format(required_keys)
+                raise ValueError(msg)
+
+        if len(ellipsoid["aspect"]) != 3:
+            raise ValueError("aspect ratio should be a list/array of length 3")
 
     def equivalent_eigenstrain(self, scale_factor):
         """Compute the equivalent eigenstrain.
@@ -59,13 +72,15 @@ class StrainEnergy(object):
         sigma[3:] = np.sqrt(2)*sigma[3:]
         return -0.5*sigma.dot(strain)
 
-    def explore_orientations(self, aspect, scale_factor, e_matrix, step=10):
+    def explore_orientations(self, ellipsoid, e_matrix, step=10):
         """Explore the strain energy as a function of ellipse orientation."""
-
-        aspect = np.array(aspect)
+        self._check_ellipsoid(ellipsoid)
+        scale_factor = ellipsoid["scale_factor"]
+        aspect = np.array(ellipsoid["aspect"])
         self.eshelby = StrainEnergy.get_eshelby(aspect, self.poisson)
         result = []
         eigenstrain_orig = to_full_tensor(self.eigenstrain)
+
         for euler in product(np.arange(0, 360, step), repeat=3):
             sequence = [("x", euler[0]), ("z", euler[1]), ("x", euler[2])]
             matrix = rot_matrix(sequence)
@@ -74,7 +89,41 @@ class StrainEnergy(object):
             energy = self.strain_energy(scale_factor, e_matrix)
             result.append({"energy": energy, "rot_seq": sequence})
         self.summarize_orientation_serch(result)
+
+        # Sort the result from low energy to high energy
+        energies = [res["energy"] for res in result]
+        sorted_indx = np.argsort(energies)
+        result = [result[indx] for indx in sorted_indx]
+
+        # Reset the strain
+        self.eigenstrain = to_voigt(eigenstrain_orig)
         return result
+
+    def optimize_rotation(self, ellipsoid, e_matrix, init_rot):
+        """Optimize a rotation."""
+        self._check_ellipsoid(ellipsoid)
+        axes, angles = unwrap_euler_angles(init_rot)
+        orig_strain = to_full_tensor(self.eigenstrain.copy())
+        aspect = np.array(ellipsoid["aspect"])
+
+        self.eshelby = StrainEnergy.get_eshelby(aspect, self.poisson)
+        opt_args = {
+            "ellipsoid": ellipsoid,
+            "elast_matrix": e_matrix,
+            "strain_energy_obj": self,
+            "orig_strain": orig_strain,
+            "rot_axes": axes
+        }
+        opts = {"eps": 0.1}
+        res = minimize(cost_minimize_strain_energy, angles, args=(opt_args,),
+                       options=opts)
+        rot_seq = combine_axes_and_angles(axes, res["x"])
+        optimal_orientation = {
+            "energy": res["fun"],
+            "rot_sequence": rot_seq,
+            "rot_matrix": rot_matrix(rot_seq)
+        }
+        return optimal_orientation
 
     def log(self, msg):
         """Log message to screen."""
@@ -142,3 +191,36 @@ class StrainEnergy(object):
         if log:
             ax.set_xscale("log")
         return fig
+
+
+def unwrap_euler_angles(sequence):
+    """Unwrap the list of axes and angles to separate lists."""
+    axes = []
+    angles = []
+    for item in sequence:
+        axes.append(item[0])
+        angles.append(item[1])
+    return axes, angles
+
+
+def combine_axes_and_angles(axes, angles):
+    """Combine the list of axes and angles into a list of dict."""
+    return zip(axes, angles)
+
+
+def cost_minimize_strain_energy(euler, args):
+    """Cost function used to minimize."""
+
+    ellipsoid = args["ellipsoid"]
+    scale_factor = ellipsoid["scale_factor"]
+    e_matrix = args["elast_matrix"]
+    orig_strain = args["orig_strain"]
+    obj = args["strain_energy_obj"]
+    rot_axes = args["rot_axes"]
+
+    rot_seq = combine_axes_and_angles(rot_axes, euler)
+    matrix = rot_matrix(rot_seq)
+    tensor = rotate_tensor(orig_strain, matrix)
+    tensor = to_voigt(tensor)
+    obj.eigenstrain = tensor
+    return obj.strain_energy(scale_factor, e_matrix)
