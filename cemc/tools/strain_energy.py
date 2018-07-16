@@ -4,6 +4,8 @@ from cemc.ce_updater import EshelbyTensor, EshelbySphere
 from cemc.tools import rot_matrix, rotate_tensor, to_voigt, to_full_tensor
 from itertools import product
 from scipy.optimize import minimize
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import pyplot as plt
 
 
 class StrainEnergy(object):
@@ -72,7 +74,38 @@ class StrainEnergy(object):
         sigma[3:] = np.sqrt(2)*sigma[3:]
         return -0.5*sigma.dot(strain)
 
-    def explore_orientations(self, ellipsoid, e_matrix, step=10):
+    def explore_aspect_ratios(self, scale_factor, e_matrix,
+                              angle_step=30):
+        """
+        Exploring aspect ratios for needle, plate and spheres
+        """
+
+        ellipsoids = {
+            "plate": {
+                        "scale_factor": scale_factor,
+                        "aspect": [1000.0, 1000.0, 1.0]
+                    },
+            "sphere": {
+                        "scale_factor": scale_factor,
+                        "aspect": [1.0, 1.0, 1.0]
+                    },
+            "needle": {
+                        "scale_factor": scale_factor,
+                        "aspect": [1000.0, 1.0, 1.0]
+                    }
+        }
+        self.log("\n")
+        for key, value in ellipsoids.items():
+            res = self.explore_orientations(value, e_matrix, step=angle_step)
+
+            self.log("Minmum energy for {} inclusion:".format(key))
+            E = res[0]["energy"]*1000.0
+            rot = res[0]["rot_seq"]
+            self.log("Energy: {} meV/A^3. Rotation: {}".format(E, rot))
+            self.log("\n")
+
+    def explore_orientations(self, ellipsoid, e_matrix, step=10,
+                             print_summary=False):
         """Explore the strain energy as a function of ellipse orientation."""
         self._check_ellipsoid(ellipsoid)
         scale_factor = ellipsoid["scale_factor"]
@@ -87,8 +120,16 @@ class StrainEnergy(object):
             strain = rotate_tensor(eigenstrain_orig, matrix)
             self.eigenstrain = to_voigt(strain)
             energy = self.strain_energy(scale_factor, e_matrix)
-            result.append({"energy": energy, "rot_seq": sequence})
-        self.summarize_orientation_serch(result)
+            res = {"energy": energy, "rot_seq": sequence}
+            a = matrix.T.dot([1.0, 0.0, 0.0])
+            b = matrix.T.dot([0.0, 1.0, 0.0])
+            c = matrix.T.dot([0.0, 0.0, 1.0])
+            res["half_axes"] = {"a": a, "b": b, "c": c}
+            res["eigenstrain"] = self.eigenstrain
+            result.append(res)
+
+        if print_summary:
+            self.summarize_orientation_serch(result)
 
         # Sort the result from low energy to high energy
         energies = [res["energy"] for res in result]
@@ -114,7 +155,7 @@ class StrainEnergy(object):
             "orig_strain": orig_strain,
             "rot_axes": axes
         }
-        opts = {"eps": 0.1}
+        opts = {"eps": 1.0}
         res = minimize(cost_minimize_strain_energy, angles, args=(opt_args,),
                        options=opts)
         rot_seq = combine_axes_and_angles(axes, res["x"])
@@ -123,6 +164,9 @@ class StrainEnergy(object):
             "rot_sequence": rot_seq,
             "rot_matrix": rot_matrix(rot_seq)
         }
+
+        # Reset the eigenstrain back
+        self.eigenstrain = to_voigt(orig_strain)
         return optimal_orientation
 
     def log(self, msg):
@@ -146,21 +190,57 @@ class StrainEnergy(object):
         self.log("{} orientation with the lowest energy".format(num_angles))
         self.log("---------------------------------------------------------")
         for i in range(num_angles):
-            self.log("{:3} \t {}".format(top_20[i]["energy"],
-                                         top_20[i]["rot_seq"]))
+            out = "{:3} \t {} \t".format(top_20[i]["energy"]*1000.0,
+                                         top_20[i]["rot_seq"])
+            a = np.round(top_20[i]["half_axes"]["a"], decimals=2)
+            b = np.round(top_20[i]["half_axes"]["b"], decimals=2)
+            c = np.round(top_20[i]["half_axes"]["c"], decimals=2)
+            out += "a: {} \t b: {} c: {}\t".format(a, b, c)
+            out += "{}".format(top_20[i]["eigenstrain"])
+            self.log(out)
         self.log("---------------------------------------------------------")
+
+    def plot_explore_result(self, explore_result, latex=False):
+        """Plot a diagonistic plot over the exploration result."""
+        energies = []
+        x_val = []
+        for res in explore_result:
+            energies.append(res["energy"])
+            axes, angles = unwrap_euler_angles(res["rot_seq"])
+            x_val.append(map_euler_angles_to_unique_float(angles))
+
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1)
+        ax.plot(x_val, np.array(energies)*1000, 'o')
+
+        if latex:
+            ylab = "Strain energy (meV/\$\SI{}{\\angstrom^3}\$)"
+            xlab = "\$\\alpha + 360\\beta + 360^2 \\gamma\$"
+        else:
+            ylab = "Strain energy (meV/^3)"
+            xlab = "$\\alpha + 360\\beta + 360^2 \\gamma$"
+        ax.set_ylabel(ylab)
+        ax.set_xlabel(xlab)
+        return fig
 
     @staticmethod
     def volume_ellipsoid(aspect):
         """Compute the volume of an ellipsoid."""
         return 4.0*np.pi*aspect[0]*aspect[1]*aspect[2]/3.0
 
-    def plot(self, scale_factor, elast_matrix, log=True):
+    def plot(self, scale_factor, elast_matrix, rot_seq=None, latex=False):
         """Create a plot of the energy as different aspect ratios."""
-        from matplotlib import pyplot as plt
 
         a_over_c = np.logspace(0, 3, 100)
-        b_over_c = [1, 10, 100]
+        b_over_c = [1, 2, 5, 10, 50, 100]
+
+        orig_strain = self.eigenstrain.copy()
+
+        if rot_seq is not None:
+            strain = to_full_tensor(orig_strain)
+            rot_mat = rot_matrix(rot_seq)
+            strain = rotate_tensor(strain, rot_mat)
+            self.eigenstrain = to_voigt(strain)
 
         fig = plt.figure()
         ax = fig.add_subplot(1, 1, 1)
@@ -172,7 +252,7 @@ class StrainEnergy(object):
                     continue
                 aspect = [a, b, 1.0]
                 self.eshelby = StrainEnergy.get_eshelby(aspect, self.poisson)
-                E = self.strain_energy(scale_factor, elast_matrix)
+                E = self.strain_energy(scale_factor, elast_matrix)*1000.0
                 W.append(E)
                 a_plot.append(a)
             ax.plot(a_plot, W, label="{}".format(int(b)))
@@ -183,13 +263,62 @@ class StrainEnergy(object):
         for b in b_sep:
             aspect = [b, b, 1.0]
             self.eshelby = StrainEnergy.get_eshelby(aspect, self.poisson)
-            E = self.strain_energy(scale_factor, elast_matrix)
+            E = self.strain_energy(scale_factor, elast_matrix)*1000.0
             W.append(E)
 
         ax.plot(b_sep, W, "--", color="grey")
-        ax.legend()
-        if log:
-            ax.set_xscale("log")
+        ax.legend(frameon=False, loc="best")
+        if latex:
+            xlab = "\$a/c\$"
+            ylab = "Strain energy (meV/\$\SI{}{\\angstrom^3}\$)"
+        else:
+            xlab = "$a/c$"
+            ylab = "Strain enregy (meV/A^3)"
+        ax.set_xlabel(xlab)
+        ax.set_ylabel(ylab)
+        ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
+        ax.set_xscale("log")
+        self.eigenstrain = orig_strain
+        return fig
+
+    def show_ellipsoid(self, ellipsoid, rot_seq):
+        """Show the ellipsoid at given orientation."""
+        matrix = rot_matrix(rot_seq)
+        coefs = np.array(ellipsoid["aspect"])
+
+        # Spherical angles
+        u = np.linspace(0, 2.0*np.pi, 100)
+        v = np.linspace(0, np.pi, 100)
+        rx, ry, rz = coefs
+        x = rx * np.outer(np.cos(u), np.sin(v))
+        y = ry * np.outer(np.sin(u), np.sin(v))
+        z = rz * np.outer(np.ones_like(u), np.cos(v))
+
+        N_pos = x.shape[0]*x.shape[1]
+        # Pack x, y, z into a numpy matrix
+        all_coords = np.zeros((3, N_pos))
+        all_coords[0, :] = np.ravel(x)
+        all_coords[1, :] = np.ravel(y)
+        all_coords[2, :] = np.ravel(z)
+
+        # Rotate all. Use the transpose of the rotation matrix because
+        # the rotation matrix is intended to be used for rotating the
+        # coordinate system, keeping the ellipsoid fixed
+        # so the inverse rotation is required when rotating the ellipsoid
+        all_coords = matrix.T.dot(all_coords)
+        x = np.reshape(all_coords[0, :], x.shape)
+        y = np.reshape(all_coords[1, :], y.shape)
+        z = np.reshape(all_coords[2, :], z.shape)
+
+        # Adjustment of the axes, so that they all have the same span:
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.plot_surface(x, y, z, rstride=4, cstride=4, color="grey")
+
+        max_radius = max(rx, ry, rz)
+        for axis in 'xyz':
+            getattr(ax, 'set_{}lim'.format(axis))((-max_radius, max_radius))
         return fig
 
 
@@ -224,3 +353,20 @@ def cost_minimize_strain_energy(euler, args):
     tensor = to_voigt(tensor)
     obj.eigenstrain = tensor
     return obj.strain_energy(scale_factor, e_matrix)
+
+
+def map_euler_angles_to_unique_float(euler):
+    """Map the euler angles into one unique float."""
+    return euler[0] + euler[1]*360 + euler[2]*360*360
+
+
+def vec2polar_angles(vec):
+    """Find the polar angles describing the direction of a vector."""
+    vec /= np.sqrt(vec.dot(vec))
+    theta = np.arccos(vec[2])
+    if theta < 1E-6 or theta > np.pi-1E-6:
+        phi = 0.0
+    else:
+        phi = np.arcsin(vec[1]/np.sin(theta))
+        # assert abs(abs(vec[0]) - abs(np.cos(phi)*np.sin(theta))) < 1E-6
+    return (phi, theta)
