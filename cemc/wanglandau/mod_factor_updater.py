@@ -1,6 +1,6 @@
-import wang_landau_sampler as wls
-from settings import SimulationState
-import converged_histogram_policy as chp
+from cemc.wanglandau import wang_landau_sampler as wls
+from cemc.wanglandau.settings import SimulationState
+from cemc.wanglandau import converged_histogram_policy as chp
 
 class ModificationFactorUpdater( object ):
     def __init__( self, wl_sim ):

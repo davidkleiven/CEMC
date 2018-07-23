@@ -8,18 +8,18 @@ import copy
 import json
 import sqlite3 as sq
 import io
-import wltools
+from cemc.wanglandau import wltools
 from ase.db import connect
 from ase.visualize import view
-import mod_factor_updater as mfu
-import converged_histogram_policy as chp
-from settings import SimulationState
+from cemc.wanglandau import mod_factor_updater as mfu
+from cemc.wanglandau import converged_histogram_policy as chp
+from cemc.wanglandau.settings import SimulationState
 import logging
 import time
-from histogram import Histogram
+from cemc.wanglandau.histogram import Histogram
 from matplotlib import pyplot as plt
 from ase import units
-import ce_calculator
+from cemc import CE
 try:
     from cemc.ce_updater.ce_updater import WangLandauSampler
     has_fast_wl_sampler = True
@@ -191,7 +191,7 @@ class WangLandau( object ):
                 self.atom_positions_track[atom.symbol].append( atom.index )
             else:
                 self.atom_positions_track[atom.symbol] = [atom.index]
-        self.symbols = self.atom_positions_track.keys()
+        self.symbols = list(self.atom_positions_track.keys())
 
     def read_params( self ):
         """
@@ -452,9 +452,6 @@ class WangLandau( object ):
         if ( not has_fast_wl_sampler ):
             raise ImportError( "The fast WL sampler was not imported!" )
 
-        if ( not ce_calculator.use_cpp ):
-            raise ImportError( "There is no C++ version of the CE-calculator available!" )
-
         allowed_modes = ["regular","adaptive_windows"]
         if ( not mode in allowed_modes ):
             raise ValueError( "Unknown mode. Has to one of {}".format(allowed_modes) )
@@ -463,7 +460,7 @@ class WangLandau( object ):
         ecis = self.atoms._calc.eci
         perms = self.atoms._calc.permutations
 
-        fast_wl_sampler = WangLandauSampler( BC,corrFunc,ecis,perms, self )
+        fast_wl_sampler = WangLandauSampler(BC, corrFunc, ecis, perms, self)
 
         if ( mode == "adaptive_windows" ):
             fast_wl_sampler.use_adaptive_windows( minimum_window_width )

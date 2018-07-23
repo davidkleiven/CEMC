@@ -2,8 +2,8 @@ import sys
 import sqlite3 as sq
 import numpy as np
 from cemc.wanglandau import WangLandau
-from wl_analyzer import WangLandauSGCAnalyzer
-import wltools
+from cemc.wanglandau.wl_analyzer import WangLandauSGCAnalyzer
+from cemc.wanglandau import wltools
 from ase.db import connect
 import ase.units
 from scipy import special
@@ -88,10 +88,11 @@ class WangLandauDBManager( object ):
         conn = sq.connect( self.db_name )
         cur = conn.cursor()
         cur.execute("SELECT uid FROM simulations" )
-        ids = cur.fetchall()
+        ids = list(cur.fetchall())
+        ids = [item[0] for item in ids]
         conn.close()
-
-        if ( len(ids) == 0 ):
+        print(ids)
+        if len(ids) == 0:
             return 0
         return np.max(ids)+1
 
@@ -111,7 +112,9 @@ class WangLandauDBManager( object ):
         for row in db.select():
             if ( row.id in atIds[0] ):
                 continue
-            self.insert( row.id, Tmax, initial_f=initial_f, fmin=fmin, flatness=flatness,Nbins=Nbins,n_kbT=n_kbT )
+            self.insert(
+                row.id, Tmax, initial_f=initial_f, fmin=fmin,
+                flatness=flatness, Nbins=Nbins, n_kbT=n_kbT)
 
     def exists_in_db( self, atomID ):
         """
@@ -166,7 +169,7 @@ class WangLandauDBManager( object ):
             at_count = wltools.element_count( db.get_atoms(id=atomID) )
 
 
-            for key,value in chem_pot.iteritems():
+            for key,value in chem_pot.items():
                 if ( not key in at_count.keys() ):
                     continue
                 Emin -= value*at_count[key]

@@ -47,7 +47,7 @@ with open("/home/davidkl/Documents/GPAWTutorial/CE/data/almg_eci.json") as infil
 #ecis["c2_707_1_1"] = 0.0
 print (ecis)
 def update_phonons( ecis, phonon_ecis, temp ):
-    for key,value in phonon_ecis.iteritems():
+    for key,value in phonon_ecis.items():
         if ( not key in ecis.keys() ):
             ecis[key] = 0.0
 
@@ -83,7 +83,7 @@ def mcmc( ceBulk, c_mg, phonons=False ):
                 continue
             # Remove higher than two terms
             ph = {}
-            for key,value in phonon_ecis.iteritems():
+            for key,value in phonon_ecis.items():
                 if ( key.startswith("c2") ):
                     ph[key] = value
             phonon_ecis = ph

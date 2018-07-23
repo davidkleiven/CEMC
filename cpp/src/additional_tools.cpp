@@ -26,7 +26,7 @@ PyObject* string2py(const string &str)
   #if PY_MAJOR_VERSION >= 3
     // Python 3
     return PyUnicode_FromString(str.c_str());
-  #else:
+  #else
     // Python 2
     return PyUnicode_FromString(str.c_str());
   #endif

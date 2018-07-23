@@ -1,5 +1,5 @@
-import wang_landau_sampler as wlg
-from settings import SimulationState
+from cemc.wanglandau import wang_landau_sampler as wlg
+from cemc.wanglandau.settings import SimulationState
 
 class ConvergedHistogramPolicy( object ):
     """

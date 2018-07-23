@@ -50,8 +50,8 @@ class TestTransitionPath(unittest.TestCase):
             relaxer = TransitionPathRelaxer( nuc_mc=mc )
             relaxer.generate_paths( initial_path="tests/test_data/example_path.json", n_paths=1, max_attempts=2, outfile="data/tse_ensemble.json" )
         except Exception as exc:
-            msg = str(exc)
-            no_throw = False
+                msg = str(exc)
+                no_throw = False
         self.assertTrue(no_throw, msg=msg)
 
 if __name__ == "__main__":

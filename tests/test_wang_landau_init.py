@@ -48,13 +48,13 @@ class TestInitWLSim( unittest.TestCase ):
             except AtomExistsError:
                 pass
             initializer.prepare_wang_landau_run( [("id","=","1")] )
-            atoms = initializer.get_atoms( 1, eci )
-            db_manager = WangLandauDBManager( wl_db_name )
+            atoms = initializer.get_atoms(1, eci)
+            db_manager = WangLandauDBManager(wl_db_name)
             runID = db_manager.get_next_non_converged_uid( 1 )
             if ( runID == -1 ):
                 raise ValueError( "No new Wang Landau simulation in the database!" )
-            simulator = WangLandau( atoms, wl_db_name, runID, fmin=1.8 )
-            simulator.run_fast_sampler( mode="adaptive_windows", maxsteps=100 )
+            simulator = WangLandau(atoms, wl_db_name, runID, fmin=1.8)
+            simulator.run_fast_sampler(mode="adaptive_windows", maxsteps=100)
         except Exception as exc:
             msg = str(exc)
             no_throw = False

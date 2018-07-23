@@ -57,7 +57,7 @@ class FreeEnergy(object):
         if ( mode == "decreasing" ):
             srt_indx = srt_indx[::-1]
 
-        for key,value in data.iteritems():
+        for key,value in data.items():
             data[key] = np.array( [value[indx] for indx in srt_indx ] )
 
         # Make sure that the key_sort entries actually fits

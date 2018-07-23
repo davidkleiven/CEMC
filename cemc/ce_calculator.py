@@ -204,7 +204,6 @@ class CE( Calculator ):
         :param cnames: List of the current cluster names
         """
         full_names = self.cf.keys()
-        print (full_names)
         only_prefix = [name.rpartition("_")[0] for name in full_names]
         full_cluster_names = []
 
@@ -338,7 +337,7 @@ class CE( Calculator ):
         """
         energy = 0.0
         if ( self.updater is None ):
-            for key,value in self.eci.iteritems():
+            for key,value in self.eci.items():
                 energy += value*self.cf[key]
             energy *= len(self.atoms)
         else:
@@ -398,7 +397,7 @@ class CE( Calculator ):
         if ( self.updater is None ):
             indx = 0
             singlets = []
-            for key,value in self.cf.iteritems():
+            for key,value in self.cf.items():
                 if ( key.startswith("c1") ):
                     singlets.append(value)
             array = np.array(singlets)
@@ -420,7 +419,7 @@ class CE( Calculator ):
         tot_conc = 0.0
         max_element = None
         max_conc = 0.0
-        for key,conc in comp.iteritems():
+        for key,conc in comp.items():
             tot_conc += conc
             if ( conc > max_conc ):
                 max_element = key
@@ -435,7 +434,7 @@ class CE( Calculator ):
             #self.update_cf( (i,self.atoms[i].symbol,init_elm) ) # Set all atoms to init element
             self.calculate( self.atoms, ["energy"], [(i,self.atoms[i].symbol,init_elm)] )
         start = 0
-        for elm,conc in comp.iteritems():
+        for elm,conc in comp.items():
             if ( elm == init_elm ):
                 continue
             n_at = int( round(conc*len(self.atoms)) )
@@ -472,8 +471,8 @@ class CE( Calculator ):
 
         # Generate system of equations
         rhs = np.zeros(len(bfs))
-        spec_element = bfs[0].keys()[0] # Concentration of this element is implicitly determined via the others
-        for key,value in singlets.iteritems():
+        spec_element = list(bfs[0].keys())[0] # Concentration of this element is implicitly determined via the others
+        for key,value in singlets.items():
             dec = int(key[-1])
             rhs[dec] = value - bfs[dec][spec_element]
 

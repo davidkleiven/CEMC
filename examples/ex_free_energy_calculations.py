@@ -11,7 +11,7 @@ Features
 # The file has two columns separated by comma
 # The first is tempeature the second is internal energy
 fname = "examples/free_energy_data.csv"
-n_atoms = 1000 # The MC simulation of the data in the file used 1000 atoms
+n_atoms = 1000  # The MC simulation of the data in the file used 1000 atoms
 
 # The chemical formula of the system in the file was Al750Mg250
 conc = {

@@ -98,7 +98,7 @@ class MeanFieldApprox( object ):
         if ( chem_pot != self.chemical_potential ):
             self.reset_calculator_parameters()
             self._chemical_potential = chem_pot
-            for key,mu in chem_pot.iteritems():
+            for key,mu in chem_pot.items():
                 try:
                     indx = self.bc.atoms._calc.cluster_names.index(key)
                     self.bc.atoms._calc.eci[indx] -= mu

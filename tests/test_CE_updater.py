@@ -7,7 +7,6 @@ try:
     from helper_functions import get_bulkspacegroup_binary
     from helper_functions import get_max_cluster_dia_name
     import copy
-    import time
     has_ase_with_ce = True
 except Exception as exc:
     print(str(exc))
@@ -57,7 +56,7 @@ class TestCE(unittest.TestCase):
                 calc.update_cf((i, old_symb, new_symb))
                 updated_cf = calc.get_cf()
                 brute_force = cf.get_cf(ceBulk.atoms)
-                for key, value in updated_cf.iteritems():
+                for key, value in updated_cf.items():
                     self.assertAlmostEqual(value, brute_force[key], msg=msg)
 
     def test_random_swaps(self):
@@ -82,7 +81,7 @@ class TestCE(unittest.TestCase):
                                [(indx, old_symb, new_symb)])
                 updated_cf = calc.get_cf()
                 brute_force = corr_func.get_cf_by_cluster_names(ceBulk.atoms, updated_cf.keys())
-                for key, value in updated_cf.iteritems():
+                for key, value in updated_cf.items():
                     self.assertAlmostEqual(value, brute_force[key], msg=msg)
 
 
@@ -113,7 +112,7 @@ class TestCE(unittest.TestCase):
                 calc.calculate(ceBulk.atoms, ["energy"], [(indx1,symb1,symb2),(indx2,symb2,symb1)])
                 updated_cf = calc.get_cf()
                 brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, updated_cf.keys() )
-                for key,value in brute_force.iteritems():
+                for key,value in brute_force.items():
                     self.assertAlmostEqual( value, updated_cf[key] )
 
     def test_supercell( self ):
@@ -156,7 +155,7 @@ class TestCE(unittest.TestCase):
             brute_force = corr_func.get_cf_by_cluster_names(
                 ceBulk.atoms, updated_cf.keys())
 
-            for key, value in brute_force.iteritems():
+            for key, value in brute_force.items():
                 self.assertAlmostEqual(value, updated_cf[key])
 
     def test_double_swaps_ternary( self ):
@@ -207,7 +206,7 @@ class TestCE(unittest.TestCase):
             calc.calculate( ceBulk.atoms, ["energy"], [(indx1,symb1,symb2),(indx2,symb2,symb1)])
             update_cf = calc.get_cf()
             brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, update_cf.keys() )
-            for key,value in brute_force.iteritems():
+            for key,value in brute_force.items():
                 self.assertAlmostEqual( value, update_cf[key])
 
     def test_binary_spacegroup( self ):
@@ -230,7 +229,7 @@ class TestCE(unittest.TestCase):
             calc.calculate( bs.atoms, ["energy"], [(i,old_symb,new_symb)] )
             updated_cf = calc.get_cf()
             brute_force = cf.get_cf_by_cluster_names( bs.atoms, updated_cf.keys() )
-            for key,value in brute_force.iteritems():
+            for key,value in brute_force.items():
                 self.assertAlmostEqual( value, updated_cf[key] )
 
     def test_set_singlets( self ):
@@ -270,7 +269,7 @@ class TestCE(unittest.TestCase):
                     ref_cf = calc.get_cf()
 
                     singlets = {}
-                    for key,value in ref_cf.iteritems():
+                    for key,value in ref_cf.items():
                         if ( key.startswith("c1") ):
                             singlets[key] = value
                     comp = calc.singlet2comp(singlets)
@@ -308,7 +307,7 @@ class TestCE(unittest.TestCase):
         calc.calculate( ceBulk.atoms, ["energy"], changes )
         updated_cf = calc.get_cf()
         brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, updated_cf.keys() )
-        for key,value in brute_force.iteritems():
+        for key,value in brute_force.items():
             self.assertAlmostEqual( value, updated_cf[key] )
 
 

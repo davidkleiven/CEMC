@@ -1,6 +1,8 @@
 #include "ce_updater.hpp"
 #include <iostream>
-#include "init_numpy.hpp"
+#define NO_IMPORT_ARRAY
+#define PY_ARRAY_UNIQUE_SYMBOL CE_UPDATER_ARRAY_API
+#include "numpy/arrayobject.h"
 #include "additional_tools.hpp"
 #include <iostream>
 #include <sstream>
@@ -16,8 +18,6 @@ using namespace std;
 CEUpdater::CEUpdater(){};
 CEUpdater::~CEUpdater()
 {
-  if (PyArray_API == NULL) init_numpy();
-  
   delete history;
   delete vibs; vibs=nullptr;
   if ( atoms != nullptr ) Py_DECREF(atoms);

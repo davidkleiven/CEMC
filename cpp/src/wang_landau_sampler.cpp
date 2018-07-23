@@ -1,6 +1,9 @@
 #include "wang_landau_sampler.hpp"
 #include "additional_tools.hpp"
 #include "adaptive_windows.hpp"
+#define NO_IMPORT_ARRAY
+#define PY_ARRAY_UNIQUE_SYMBOL CE_UPDATER_ARRAY_API
+#include "numpy/arrayobject.h"
 #include <omp.h>
 #include <cstdlib>
 #include <ctime>
@@ -15,6 +18,7 @@ const unsigned int WangLandauSampler::num_threads = omp_get_max_threads(); // Us
 
 WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject *ecis, PyObject *permutations, PyObject *py_wl_in )
 {
+
   // Initialize the seeds for the different threads
   srand(time(NULL));
   for ( unsigned int i=0;i<num_threads;i++ )
@@ -56,12 +60,16 @@ WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject
   while ( PyDict_Next(py_symbpos, &pos, &key, &value) )
   {
     vector<int> pos;
+    if (!PyList_Check(value))
+    {
+      throw invalid_argument("Expected list when parsing position track!");
+    }
     int size = PyList_Size(value);
     for ( int i=0;i<size;i++ )
     {
-      pos.push_back( PyInt_AsLong(PyList_GetItem(value,i)) );
+      pos.push_back( py2int(PyList_GetItem(value,i)) );
     }
-    temp_atom_positions_track[PyString_AsString(key)] = pos;
+    temp_atom_positions_track[py2string(key)] = pos;
   }
   Py_DECREF(py_symbpos);
   for ( unsigned int i=0;i<num_threads;i++ )
@@ -87,7 +95,7 @@ WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject
   Py_DECREF(py_flat);
 
   PyObject *py_conv = PyObject_GetAttrString( py_wl, "check_convergence_every" );
-  check_convergence_every = PyInt_AsLong( py_conv );
+  check_convergence_every = py2int( py_conv );
   Py_DECREF(py_conv );
 
 
@@ -95,18 +103,28 @@ WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject
     cout << "Reading site types\n";
   #endif
   PyObject *py_site_types = PyObject_GetAttrString( py_wl, "site_types" );
+  if (!PyList_Check(py_site_types))
+  {
+    throw invalid_argument("Expected list when parsing site_types!");
+  }
+
   int size = PyList_Size(py_site_types);
   for ( int i=0;i<size;i++ )
   {
-    site_types.push_back( PyInt_AsLong( PyList_GetItem(py_site_types,i)) );
+    site_types.push_back( py2int( PyList_GetItem(py_site_types,i)) );
   }
   Py_DECREF( py_site_types );
 
   PyObject *py_symbols = PyObject_GetAttrString( py_wl, "symbols" );
+  if (!PyList_Check(py_symbols))
+  {
+    throw invalid_argument("Expected list when parsing symbols!");
+  }
+
   size = PyList_Size( py_symbols );
   for ( int i=0;i<size;i++ )
   {
-    symbols.push_back( PyString_AsString(PyList_GetItem(py_symbols,i)) );
+    symbols.push_back( py2string(PyList_GetItem(py_symbols,i)) );
   }
   Py_DECREF(py_symbols);
 
@@ -115,7 +133,7 @@ WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject
   #endif
   PyObject *py_hist = PyObject_GetAttrString( py_wl, "histogram" );
   PyObject *py_nbins = PyObject_GetAttrString( py_hist, "Nbins" );
-  int Nbins = PyInt_AsLong( py_nbins );
+  int Nbins = py2int( py_nbins );
   Py_DECREF( py_nbins );
 
   PyObject *py_emin = PyObject_GetAttrString( py_hist, "Emin" );
@@ -132,7 +150,7 @@ WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject
   Py_DECREF( py_hist );
 
   PyObject *py_cur_bin = PyObject_GetAttrString( py_wl, "current_bin" );
-  unsigned int curbin = PyInt_AsLong(py_cur_bin);
+  unsigned int curbin = py2int(py_cur_bin);
   Py_DECREF(py_cur_bin);
   for ( unsigned int i=0;i<num_threads;i++ )
   {

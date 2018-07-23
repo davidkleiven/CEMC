@@ -28,7 +28,7 @@ class TestFreeEnergy( unittest.TestCase ):
             ceBulk = BulkCrystal( **kwargs )
             cf = CorrFunction(ceBulk)
             cf_dict = cf.get_cf(ceBulk.atoms)
-            ecis = {key:1.0 for key,value in cf_dict.iteritems()}
+            ecis = {key:1.0 for key,value in cf_dict.items()}
 
 
             #calc = CE( ceBulk, ecis, size=(3,3,3) )

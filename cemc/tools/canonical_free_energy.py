@@ -30,7 +30,7 @@ class CanonicalFreeEnergy( object ):
         """
         Return the entropy at infinite temperature
         """
-        concs = np.array( [value for key,value in self.comp.iteritems()] )
+        concs = np.array( [value for key,value in self.comp.items()] )
         infinite_temp_value = np.sum( concs*np.log(concs) )
         return -infinite_temp_value
 
