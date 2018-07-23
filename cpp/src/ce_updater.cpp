@@ -66,6 +66,8 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   create_cname_with_dec( corrFunc );
   PyObject *clist = PyObject_GetAttrString( BC, "cluster_names" );
   PyObject *clst_indx = PyObject_GetAttrString( BC, "cluster_indx" );
+  PyObject *clst_order = PyObject_GetAttrString(BC, "cluster_order");
+  PyObject *clst_equiv_sites = PyObject_GetAttrString(BC, "cluster_eq_sites");
   if ( clist == NULL )
   {
     status = Status_t::INIT_FAILED;
@@ -79,7 +81,25 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   {
     PyObject *clusters_name_list = PyList_GetItem( clist, s );
     PyObject *current_indx_outer = PyList_GetItem( clst_indx, s );
+    PyObject *current_order_outer = PyList_GetItem(clst_order, s);
+    PyObject *current_equiv_outer = PyList_GetItem(clst_equiv_sites, s);
+
     int n_cluster_sizes = PyList_Size( clusters_name_list );
+    int n_indx = PyList_Size(current_indx_outer);
+    int n_order = PyList_Size(current_order_outer);
+    int n_equiv = PyList_Size(current_equiv_outer);
+
+    if ((n_cluster_sizes != n_indx) || (n_cluster_sizes != n_order) || \
+        (n_cluster_sizes != n_equiv))
+    {
+      stringstream ss ;
+      ss << "Cluster names, cluster index, cluster order and ";
+      ss << "cluster equivalent sites does not have the same length!";
+      ss << "Given lengths: " << n_cluster_sizes << " " << n_indx << " ";
+      ss << n_order << " " << n_equiv;
+      throw invalid_argument(ss.str());
+    }
+
     map<string,Cluster> new_clusters;
     if ( n_cluster_sizes < 0 )
     {
@@ -89,8 +109,10 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
     // Loop over the different cluster sizes
     for ( int i=0;i<n_cluster_sizes;i++ )
     {
-      PyObject* current_list_name = PyList_GetItem(clusters_name_list,i);
-      PyObject *current_indx_list = PyList_GetItem( current_indx_outer, i );
+      PyObject *current_list_name = PyList_GetItem(clusters_name_list,i);
+      PyObject *current_indx_list = PyList_GetItem(current_indx_outer, i);
+      PyObject *current_order = PyList_GetItem(current_order_outer, i);
+      PyObject *current_equiv = PyList_GetItem(current_equiv_outer, i);
 
       int n_clusters = PyList_Size( current_list_name );
       if ( n_clusters < 0 )
@@ -105,6 +127,8 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
       for ( int j=0;j<n_clusters;j++ )
       {
         string cluster_name( py2string( PyList_GetItem(current_list_name,j) ) );
+
+        // TODO: What is this doing?
         if ( cname_with_dec.find(cluster_name) == cname_with_dec.end() )
         {
           // Skip this cluster
@@ -114,7 +138,10 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
         {
           continue;
         }
+
         PyObject *py_members = PyList_GetItem( current_indx_list, j );
+        PyObject *py_order = PyList_GetItem(current_order, j);
+        PyObject *py_equiv = PyList_GetItem(current_equiv, j);
         int n_sub_clusters = PyList_Size(py_members);
         if ( n_sub_clusters < 0 )
         {
@@ -125,18 +152,61 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
         }
 
         vector< vector<int> > members;
+        vector< vector<int> > order;
+        vector< vector<int> > equiv;
+
         // Loop over the indivudal clusters
         for ( int k=0;k<n_sub_clusters;k++ )
         {
           PyObject *py_one_cluster = PyList_GetItem(py_members,k);
+          PyObject *py_one_order = PyList_GetItem(py_order, k);
+
           int n_members = PyList_Size(py_one_cluster);
           vector<int> sub_clust;
-          for ( unsigned int l=0;l<n_members;l++ )
+          vector<int> sub_order;
+          for ( unsigned int l=0;l<n_members+1;l++ )
           {
-            sub_clust.push_back( py2int( PyList_GetItem(py_one_cluster,l)) );
+            if (l<n_members)
+            {
+              sub_clust.push_back( py2int( PyList_GetItem(py_one_cluster,l)) );
+            }
+
+            // The order contains the reference index in addition
+            sub_order.push_back( py2int(PyList_GetItem(py_one_order,l)));
           }
           members.push_back(sub_clust);
+          order.push_back(sub_order);
+
+          // Parse the equivalent sites array
+          int n_equiv_groups = PyList_Size(py_equiv);
+
+          if (n_equiv_groups < 0)
+          {
+            stringstream msg;
+            msg << "Could not read equivalent size. Size: " << i << " subcluster: " << j << " name: " << cluster_name;
+            msg << ". Length smaller than zero!";
+            throw invalid_argument(msg.str());
+          }
+          for (unsigned int k=0;k<n_equiv_groups;k++)
+          {
+            // Can be None or emtpy
+            PyObject *py_one_equiv = PyList_GetItem(py_equiv, k);
+            
+            vector<int> group;
+            int n_in_group = 0;
+            if (PyList_Check(py_one_equiv))
+            {
+              n_in_group = PyList_Size(py_one_equiv);
+            }
+
+            for (int l=0;l<n_in_group;l++ )
+            {
+              group.push_back(py2int(PyList_GetItem(py_one_equiv, l)));
+            }
+            equiv.push_back(group);
+          }
         }
+
         if ( cname_with_dec.find(cluster_name) == cname_with_dec.end() )
         {
           stringstream ss;
@@ -146,7 +216,7 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
           throw invalid_argument( ss.str() );
         }
         string full_cname = cname_with_dec.at(cluster_name);
-        new_clusters[cluster_name] = Cluster( cluster_name, members );
+        new_clusters[cluster_name] = Cluster( cluster_name, members, order, equiv );
 
         if ( cluster_symm_group_count.find(cluster_name) == cluster_symm_group_count.end() )
         {
