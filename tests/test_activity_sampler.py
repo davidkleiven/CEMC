@@ -34,9 +34,6 @@ class TestActivitySampler(unittest.TestCase):
                 "max_cluster_size": 3
             }
             ceBulk = BulkCrystal(**kwargs)
-            # print (ceBulk.cluster_indx[0][3][2])
-            # print(ceBulk.cluster_order[0][3][2])
-            # print(ceBulk.cluster_eq_sites[0][3][2])
             cf = CorrFunction(ceBulk)
             cf = cf.get_cf(ceBulk.atoms)
             ecis = {key: 1.0 for key in cf.keys()}

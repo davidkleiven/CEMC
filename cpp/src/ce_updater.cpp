@@ -68,6 +68,10 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   PyObject *clst_indx = PyObject_GetAttrString( BC, "cluster_indx" );
   PyObject *clst_order = PyObject_GetAttrString(BC, "cluster_order");
   PyObject *clst_equiv_sites = PyObject_GetAttrString(BC, "cluster_eq_sites");
+  PyObject *py_num_elements = PyObject_GetAttrString(BC, "num_unique_elements");
+  int num_bfs = py2int(py_num_elements)-1;
+  Py_DECREF(py_num_elements);
+
   if ( clist == NULL )
   {
     status = Status_t::INIT_FAILED;
@@ -176,35 +180,40 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
           }
           members.push_back(sub_clust);
           order.push_back(sub_order);
+        }
 
-          // Parse the equivalent sites array
-          int n_equiv_groups = PyList_Size(py_equiv);
+        // Parse the equivalent sites array
+        int n_equiv_groups = PyList_Size(py_equiv);
+        if (n_equiv_groups < 0)
+        {
+          stringstream msg;
+          msg << "Could not read equivalent size. Size: ";
+          msg << i << " subcluster: " << j << " name: " << cluster_name;
+          msg << ". Length smaller than zero!";
+          throw invalid_argument(msg.str());
+        }
+        for (unsigned int k=0;k<n_equiv_groups;k++)
+        {
+          // Can be None or emtpy
+          PyObject *py_one_equiv_direct = PyList_GetItem(py_equiv, k);
 
-          if (n_equiv_groups < 0)
+          // Use sequence as it handles both tuples and lists
+          PyObject *py_one_equiv = PySequence_Fast(py_one_equiv_direct, NULL); // New reference
+
+          vector<int> group;
+          int n_in_group = PySequence_Fast_GET_SIZE(py_one_equiv);
+
+          if (n_in_group < 2)
           {
-            stringstream msg;
-            msg << "Could not read equivalent size. Size: " << i << " subcluster: " << j << " name: " << cluster_name;
-            msg << ". Length smaller than zero!";
-            throw invalid_argument(msg.str());
+            throw invalid_argument("A group has to consist of more than one member");
           }
-          for (unsigned int k=0;k<n_equiv_groups;k++)
-          {
-            // Can be None or emtpy
-            PyObject *py_one_equiv = PyList_GetItem(py_equiv, k);
-            
-            vector<int> group;
-            int n_in_group = 0;
-            if (PyList_Check(py_one_equiv))
-            {
-              n_in_group = PyList_Size(py_one_equiv);
-            }
 
-            for (int l=0;l<n_in_group;l++ )
-            {
-              group.push_back(py2int(PyList_GetItem(py_one_equiv, l)));
-            }
-            equiv.push_back(group);
+          for (int l=0;l<n_in_group;l++ )
+          {
+            group.push_back(py2int(PySequence_Fast_GET_ITEM(py_one_equiv, l)));
           }
+          Py_DECREF(py_one_equiv);
+          equiv.push_back(group);
         }
 
         if ( cname_with_dec.find(cluster_name) == cname_with_dec.end() )
@@ -217,6 +226,7 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
         }
         string full_cname = cname_with_dec.at(cluster_name);
         new_clusters[cluster_name] = Cluster( cluster_name, members, order, equiv );
+        new_clusters.at(cluster_name).construct_equivalent_deco(num_bfs);
 
         if ( cluster_symm_group_count.find(cluster_name) == cluster_symm_group_count.end() )
         {
@@ -232,6 +242,8 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   }
   Py_DECREF( clst_indx );
   Py_DECREF( clist );
+  Py_DECREF(clst_order);
+  Py_DECREF(clst_equiv_sites);
   //verify_clusters_only_exits_in_one_symm_group();
 
   #ifdef CE_DEBUG
