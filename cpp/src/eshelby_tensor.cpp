@@ -29,7 +29,7 @@ void EshelbyTensor::init()
 
 double EshelbyTensor::elliptic_integral_python(double theta, double kappa, const char* funcname) const
 {
-  PyObject* mod_string = PyString_FromString("scipy.special");
+  PyObject* mod_string = string2py("scipy.special");
   PyObject* scipy_spec = PyImport_Import(mod_string);
   PyObject* func = PyObject_GetAttrString(scipy_spec, funcname);
   PyObject* m = PyFloat_FromDouble(kappa*kappa);

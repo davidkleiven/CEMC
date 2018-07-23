@@ -86,7 +86,7 @@ void CFHistoryTracker::insert( PyObject *pycf, SymbolChange *symb_changes )
   PyObject *value;
   while(  PyDict_Next(pycf, &pos, &key,&value) )
   {
-    string new_key = PyString_AsString(key);
+    string new_key = py2string(key);
     if ( cf_history[current]->count(new_key) == 0 )
     {
       continue;

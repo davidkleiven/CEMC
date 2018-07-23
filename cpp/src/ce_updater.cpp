@@ -45,7 +45,7 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   {
     PyObject *pyindx = PyInt_FromLong(i);
     PyObject *atom = PyObject_GetItem(atoms,pyindx);
-    symbols.push_back( PyString_AsString( PyObject_GetAttrString(atom,"symbol")) );
+    symbols.push_back(py2string( PyObject_GetAttrString(atom,"symbol")) );
     Py_DECREF(pyindx);
     Py_DECREF(atom);
   }
@@ -102,7 +102,7 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
       // Loop over each cluster at that given size
       for ( int j=0;j<n_clusters;j++ )
       {
-        string cluster_name( PyString_AsString( PyList_GetItem(current_list_name,j) ) );
+        string cluster_name( py2string( PyList_GetItem(current_list_name,j) ) );
         if ( cname_with_dec.find(cluster_name) == cname_with_dec.end() )
         {
           // Skip this cluster
@@ -184,7 +184,7 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
     PyObject *bf_dict = PyList_GetItem( bfs, i );
     while( PyDict_Next(bf_dict, &pos, &key,&value) )
     {
-      new_entry[PyString_AsString(key)] = PyFloat_AS_DOUBLE(value);
+      new_entry[py2string(key)] = PyFloat_AS_DOUBLE(value);
     }
     basis_functions.push_back(new_entry);
   }
@@ -207,7 +207,7 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   map<string,double> temp_ecis;
   while(  PyDict_Next(pyeci, &pos, &key,&value) )
   {
-    temp_ecis[PyString_AsString(key)] = PyFloat_AS_DOUBLE(value);
+    temp_ecis[py2string(key)] = PyFloat_AS_DOUBLE(value);
   }
   ecis.init(temp_ecis);
   #ifdef CE_DEBUG
@@ -320,8 +320,8 @@ void CEUpdater::update_cf( PyObject *single_change )
 SymbolChange& CEUpdater::py_tuple_to_symbol_change( PyObject *single_change, SymbolChange &symb_change )
 {
   symb_change.indx = PyInt_AsLong( PyTuple_GetItem(single_change,0) );
-  symb_change.old_symb = PyString_AsString( PyTuple_GetItem(single_change,1) );
-  symb_change.new_symb = PyString_AsString( PyTuple_GetItem(single_change,2) );
+  symb_change.old_symb = py2string( PyTuple_GetItem(single_change,1) );
+  symb_change.new_symb = py2string( PyTuple_GetItem(single_change,2) );
   return symb_change;
 }
 
@@ -358,7 +358,7 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
   symbols[symb_change.indx] = symb_change.new_symb;
   if ( atoms != nullptr )
   {
-    PyObject *symb_str = PyString_FromString(symb_change.new_symb.c_str());
+    PyObject *symb_str = string2py(symb_change.new_symb.c_str());
     PyObject *pyindx = PyInt_FromLong(symb_change.indx);
     PyObject* atom = PyObject_GetItem(atoms, pyindx);
     PyObject_SetAttrString( atom, "symbol", symb_str );
@@ -443,7 +443,7 @@ void CEUpdater::undo_changes()
 
     if ( atoms != nullptr )
     {
-      PyObject *old_symb_str = PyString_FromString(last_changes->old_symb.c_str());
+      PyObject *old_symb_str = string2py(last_changes->old_symb.c_str());
       PyObject *pyindx = PyInt_FromLong(last_changes->indx);
       PyObject *pysymb = PyObject_GetItem(atoms, pyindx);
       PyObject_SetAttrString( pysymb, "symbol", old_symb_str );
@@ -623,7 +623,7 @@ void CEUpdater::set_ecis( PyObject *new_ecis )
   Py_ssize_t pos = 0;
   while( PyDict_Next(new_ecis, &pos, &key,&value) )
   {
-    ecis[PyString_AsString(key)] = PyFloat_AS_DOUBLE(value);
+    ecis[py2string(key)] = PyFloat_AS_DOUBLE(value);
   }
 
   if ( !all_eci_corresponds_to_cf() )
@@ -719,7 +719,7 @@ void CEUpdater::create_cname_with_dec( PyObject *cf )
   PyObject *value;
   while(  PyDict_Next(cf, &pos, &key,&value) )
   {
-    string new_key = PyString_AsString(key);
+    string new_key = py2string(key);
     if ( new_key.substr(0,2) == "c1" )
     {
       cname_with_dec[new_key] = new_key;
