@@ -137,7 +137,7 @@ PyObject* ClusterTracker::get_cluster_statistics_python() const
   PyObject* size_list = PyList_New(0);
   for ( int i=0; i< cluster_sizes.size();i++ )
   {
-    PyObject *value = PyInt_FromLong( cluster_sizes[i] );
+    PyObject *value = int2py( cluster_sizes[i] );
     PyList_Append( size_list, value );
     Py_DECREF(value);
   }
@@ -168,7 +168,7 @@ PyObject* ClusterTracker::atomic_clusters2group_indx_python() const
   atomic_clusters2group_indx(grp_indx);
   for ( unsigned int i=0;i<grp_indx.size();i++ )
   {
-    PyObject *pyint = PyInt_FromLong( grp_indx[i] );
+    PyObject *pyint = int2py( grp_indx[i] );
     PyList_Append( list, pyint );
     Py_DECREF(pyint);
   }
@@ -367,8 +367,8 @@ PyObject* ClusterTracker::surface_python() const
   PyObject* dict = PyDict_New();
   for ( auto iter=surf.begin(); iter != surf.end(); ++iter )
   {
-    PyObject* py_int_key = PyInt_FromLong(iter->first);
-    PyObject* py_int_surf = PyInt_FromLong(iter->second);
+    PyObject* py_int_key = int2py(iter->first);
+    PyObject* py_int_surf = int2py(iter->second);
     PyDict_SetItem( dict, py_int_key, py_int_surf );
     Py_DECREF(py_int_key);
     Py_DECREF(py_int_surf);

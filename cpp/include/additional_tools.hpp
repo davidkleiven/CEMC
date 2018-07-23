@@ -38,5 +38,8 @@ int kronecker(int i, int j);
 PyObject* string2py(const std::string &string);
 std::string py2string(PyObject *str);
 
+PyObject* int2py(int integer);
+int py2int(PyObject *integer);
+
 #include "additional_tools.tpp"
 #endif

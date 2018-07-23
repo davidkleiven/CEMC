@@ -43,7 +43,7 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   unsigned int n_atoms = PyObject_Length( atoms );
   for ( unsigned int i=0;i<n_atoms;i++ )
   {
-    PyObject *pyindx = PyInt_FromLong(i);
+    PyObject *pyindx = int2py(i);
     PyObject *atom = PyObject_GetItem(atoms,pyindx);
     symbols.push_back(py2string( PyObject_GetAttrString(atom,"symbol")) );
     Py_DECREF(pyindx);
@@ -131,7 +131,7 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
           vector<int> sub_clust;
           for ( unsigned int l=0;l<n_members;l++ )
           {
-            sub_clust.push_back( PyInt_AsLong( PyList_GetItem(py_one_cluster,l)) );
+            sub_clust.push_back( py2int( PyList_GetItem(py_one_cluster,l)) );
           }
           members.push_back(sub_clust);
         }
@@ -271,11 +271,11 @@ void CEUpdater::create_permutations( PyObject *perms)
       int n_entries = PyTuple_Size(cur);
       for ( int j=0;j<n_entries;j++ )
       {
-        one_perm.push_back( PyInt_AsLong(PyTuple_GetItem(cur,j) ) );
+        one_perm.push_back( py2int(PyTuple_GetItem(cur,j) ) );
       }
       new_vec.push_back(one_perm);
     }
-    permutations[PyInt_AsLong(key)] = new_vec;
+    permutations[py2int(key)] = new_vec;
   }
 }
 
@@ -319,7 +319,7 @@ void CEUpdater::update_cf( PyObject *single_change )
 
 SymbolChange& CEUpdater::py_tuple_to_symbol_change( PyObject *single_change, SymbolChange &symb_change )
 {
-  symb_change.indx = PyInt_AsLong( PyTuple_GetItem(single_change,0) );
+  symb_change.indx = py2int( PyTuple_GetItem(single_change,0) );
   symb_change.old_symb = py2string( PyTuple_GetItem(single_change,1) );
   symb_change.new_symb = py2string( PyTuple_GetItem(single_change,2) );
   return symb_change;
@@ -359,7 +359,7 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
   if ( atoms != nullptr )
   {
     PyObject *symb_str = string2py(symb_change.new_symb.c_str());
-    PyObject *pyindx = PyInt_FromLong(symb_change.indx);
+    PyObject *pyindx = int2py(symb_change.indx);
     PyObject* atom = PyObject_GetItem(atoms, pyindx);
     PyObject_SetAttrString( atom, "symbol", symb_str );
     Py_DECREF(symb_str);
@@ -444,7 +444,7 @@ void CEUpdater::undo_changes()
     if ( atoms != nullptr )
     {
       PyObject *old_symb_str = string2py(last_changes->old_symb.c_str());
-      PyObject *pyindx = PyInt_FromLong(last_changes->indx);
+      PyObject *pyindx = int2py(last_changes->indx);
       PyObject *pysymb = PyObject_GetItem(atoms, pyindx);
       PyObject_SetAttrString( pysymb, "symbol", old_symb_str );
 
@@ -748,7 +748,7 @@ void CEUpdater::build_trans_symm_group( PyObject *py_trans_symm_group )
     int n_sites = PyList_Size( sublist );
     for ( unsigned int j=0;j<n_sites;j++ )
     {
-      int indx = PyInt_AsLong( PyList_GetItem( sublist, j ) );
+      int indx = py2int( PyList_GetItem( sublist, j ) );
       if ( trans_symm_group[indx] != -1 )
       {
         throw runtime_error( "One site appears to be present in more than one translation symmetry group!" );
@@ -917,7 +917,7 @@ void CEUpdater::read_trans_matrix( PyObject* py_trans_mat )
       for (unsigned int j=0;j<unique_indx_vec.size();j++ )
       {
         int col = unique_indx_vec[j];
-        PyObject *value = PyDict_GetItem(dict, PyInt_FromLong(col));
+        PyObject *value = PyDict_GetItem(dict, int2py(col));
 
         if (value == NULL)
         {
@@ -925,7 +925,7 @@ void CEUpdater::read_trans_matrix( PyObject* py_trans_mat )
           ss << "Requested value " << col << " is not a key in the dictionary!";
           throw invalid_argument(ss.str());
         }
-        trans_matrix(i, col) = PyInt_AsLong(value);
+        trans_matrix(i, col) = py2int(value);
         n_elements_insterted++;
       }
     }

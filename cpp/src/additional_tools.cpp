@@ -42,3 +42,21 @@ string py2string(PyObject *str)
     return PyString_AsString(str);
   #endif
 }
+
+PyObject *int2py(int integer)
+{
+  #if PY_MAJOR_VERSION >= 3
+    return PyLong_FromLong(integer);
+  #else
+    return PyInt_FromLong(integer);
+  #endif
+}
+
+int py2int(PyObject *integer)
+{
+  #if PY_MAJOR_VERSION >= 3
+    return PyLong_AsLong(integer);
+  #else
+    return PyInt_AsLong(integer);
+  #endif
+}
