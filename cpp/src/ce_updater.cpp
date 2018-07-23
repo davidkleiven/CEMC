@@ -1,6 +1,6 @@
 #include "ce_updater.hpp"
 #include <iostream>
-#include "numpy/ndarrayobject.h"
+#include "init_numpy.hpp"
 #include "additional_tools.hpp"
 #include <iostream>
 #include <sstream>
@@ -16,6 +16,8 @@ using namespace std;
 CEUpdater::CEUpdater(){};
 CEUpdater::~CEUpdater()
 {
+  if (PyArray_API == NULL) init_numpy();
+  
   delete history;
   delete vibs; vibs=nullptr;
   if ( atoms != nullptr ) Py_DECREF(atoms);
@@ -28,7 +30,7 @@ CEUpdater::~CEUpdater()
 
 void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObject *perms )
 {
-  import_array();
+  //import_array();
   #ifdef CE_DEBUG
     cerr << "Getting symbols from BC object\n";
   #endif

@@ -13,7 +13,7 @@
 }
 
 %{
-#define SWIG_FILE_WITH_INIT
+//#define SWIG_FILE_WITH_INIT
 
 #include "additional_tools.hpp"
 #include "ce_updater.hpp"
@@ -24,12 +24,13 @@
 #include "eshelby_tensor.hpp"
 #include "eshelby_sphere.hpp"
 #include "eshelby_cylinder.hpp"
+//#include "init_numpy.hpp"
 %}
 %include "numpy.i"
-
-%init %{
+/* %init %{
+  //init_numpy();
   import_array();
-%}
+%} */
 
 %template(map_str_dbl) std::map<std::string,double>;
 %template(string_vector) std::vector<std::string>;
