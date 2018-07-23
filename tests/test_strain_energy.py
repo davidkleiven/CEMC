@@ -1,7 +1,13 @@
 """Unit tests for the strain energy."""
-import unittest
-import numpy as np
-from cemc.tools import StrainEnergy
+try:
+    import unittest
+    import numpy as np
+    from cemc.tools import StrainEnergy
+    available = True
+    reason = ""
+except ImportError as exc:
+    available = False
+    reason = str(exc)
 
 
 def kato_et_al_sphere(f, mu, misfit):
@@ -97,6 +103,8 @@ class TestStrainEnergy(unittest.TestCase):
         Materials Science and Engineering: A,
         Elsevier, 1996, 211, 95-103
         """
+        if not available:
+            self.skipTest(reason)
         mu = 0.3
         misfit = [0.05, 0.04, 0.03, 0.03, 0.02, 0.01]
         strain_eng = StrainEnergy(aspect=[2.0, 2.0, 2.0],
@@ -108,6 +116,8 @@ class TestStrainEnergy(unittest.TestCase):
 
     def test_equiv_strain_plate(self):
         """Test the equivalent strains for a plate."""
+        if not available:
+            self.skipTest(reason)
         mu = 0.3
         misfit = [0.05, 0.04, 0.03, 0.03, 0.02, 0.01]
         strain_eng = StrainEnergy(aspect=[200000000.0, 51200000.0, 0.001],
@@ -119,6 +129,8 @@ class TestStrainEnergy(unittest.TestCase):
 
     def test_equiv_strain_needle(self):
         """Test the equivalent strains for a needle."""
+        if not available:
+            self.skipTest(reason)
         mu = 0.3
         misfit = [0.05, 0.04, 0.03, 0.03, 0.02, 0.01]
         strain_eng = StrainEnergy(aspect=[50000.0, 5.0, 5.0],
@@ -130,4 +142,5 @@ class TestStrainEnergy(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    from cemc import TimeLoggingTestRunner
+    unittest.main(testRunner=TimeLoggingTestRunner)

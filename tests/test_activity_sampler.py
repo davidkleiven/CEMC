@@ -51,4 +51,5 @@ class TestActivitySampler( unittest.TestCase ):
         self.assertTrue( no_throw, msg=msg )
 
 if __name__ == "__main__":
-    unittest.main()
+    from cemc import TimeLoggingTestRunner
+    unittest.main(testRunner=TimeLoggingTestRunner)

@@ -28,7 +28,10 @@ class TestMFA( unittest.TestCase ):
                 "conc_ratio_min_1":[[1,0]],
                 "conc_ratio_max_1":[[0,1]],
             }
-            ceBulk = BulkCrystal( crystalstructure="fcc", a=4.05, size=[4,4,4], basis_elements=[["Al","Mg"]], conc_args=conc_args, db_name=db_name, max_cluster_size=4)
+            ceBulk = BulkCrystal(
+                crystalstructure="fcc",
+                a=4.05, size=[3, 3, 3], basis_elements=[["Al","Mg"]],
+                conc_args=conc_args, db_name=db_name, max_cluster_size=3)
             ceBulk._get_cluster_information()
             cf = CorrFunction(ceBulk)
             cf = cf.get_cf(ceBulk.atoms)
@@ -59,4 +62,5 @@ class TestMFA( unittest.TestCase ):
         self.assertTrue( no_throw, msg=msg )
 
 if __name__ == "__main__":
-    unittest.main()
+    from cemc import TimeLoggingTestRunner
+    unittest.main(testRunner=TimeLoggingTestRunner)

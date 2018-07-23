@@ -12,13 +12,13 @@ except Exception as exc:
 db_name = "temp_db_wanglandau.db"
 wl_db_name = "wanglandau_test_init.db"
 bc_kwargs = {
-    "crystalstructure":"fcc",
-    "size":[4,4,4],
-    "basis_elements":[["Al","Mg"]],
-    "db_name":db_name,
-    "conc_args":{"conc_ratio_min_1":[[1,0]],"conc_ratio_max_1":[[0,1]]},
-    "max_cluster_size":4,
-    "a":4.05
+    "crystalstructure": "fcc",
+    "size": [3, 3, 3],
+    "basis_elements": [["Al", "Mg"]],
+    "db_name": db_name,
+    "conc_args": {"conc_ratio_min_1": [[1, 0]], "conc_ratio_max_1": [[0, 1]]},
+    "max_cluster_size": 3,
+    "a": 4.05
 }
 
 
@@ -26,23 +26,25 @@ def get_eci():
     bc = BulkCrystal(**bc_kwargs)
     cf = CorrFunction(bc)
     cf = cf.get_cf(bc.atoms)
-    eci = {key:0.001 for key in cf.keys()}
+    eci = {key: 0.001 for key in cf.keys()}
     return eci
 
 class TestInitWLSim( unittest.TestCase ):
-    def test_no_throw( self ):
+    def test_no_throw(self):
         no_throw = True
-        if ( not has_CE ):
-            self.skipTest( "ASE version does not have CE" )
+        if not has_CE:
+            self.skipTest("ASE version does not have CE")
 
         msg = ""
         eci = get_eci()
         try:
-            initializer = WangLandauInit( wl_db_name )
-            T = [1000,10]
-            comp = {"Al":0.5,"Mg":0.5}
+            initializer = WangLandauInit(wl_db_name)
+            T = [1000, 10]
+            comp = {"Al": 0.5, "Mg": 0.5}
             try:
-                initializer.insert_atoms( bc_kwargs, size=[5,5,5], T=T, n_steps_per_temp=10, eci=eci, composition=comp )
+                initializer.insert_atoms(
+                    bc_kwargs, size=[5, 5, 5],
+                    T=T, n_steps_per_temp=10, eci=eci, composition=comp)
             except AtomExistsError:
                 pass
             initializer.prepare_wang_landau_run( [("id","=","1")] )
@@ -59,4 +61,5 @@ class TestInitWLSim( unittest.TestCase ):
         self.assertTrue( no_throw, msg=msg )
 
 if __name__ == "__main__":
-    unittest.main()
+    from cemc import TimeLoggingTestRunner
+    unittest.main(testRunner=TimeLoggingTestRunner)

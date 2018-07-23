@@ -21,9 +21,9 @@ class TestFreeEnergy( unittest.TestCase ):
                         "conc_ratio_max_1":[[0,1]],
                     }
             kwargs = {
-                "crystalstructure":"fcc", "a":4.05, "size":[4,4,4], "basis_elements":[["Al","Mg"]],
+                "crystalstructure":"fcc", "a":4.05, "size":[3, 3, 3], "basis_elements":[["Al","Mg"]],
                 "conc_args":conc_args, "db_name":"temporary_bcnucleationdb.db",
-                "max_cluster_size":4
+                "max_cluster_size": 3
             }
             ceBulk = BulkCrystal( **kwargs )
             cf = CorrFunction(ceBulk)
@@ -40,12 +40,12 @@ class TestFreeEnergy( unittest.TestCase ):
             T = 300
             mc = SGCFreeEnergyBarrier( ceBulk.atoms, T, symbols=["Al","Mg"], \
             n_windows=5, n_bins=10, min_singlet=0.5, max_singlet=1.0 )
-            mc.run( nsteps=1000, chem_pot=chem_pot )
+            mc.run( nsteps=100, chem_pot=chem_pot )
             mc.save( fname="free_energy_barrier.json" )
 
             # Try to load the object stored
             mc = SGCFreeEnergyBarrier.load( ceBulk.atoms, "free_energy_barrier.json")
-            mc.run( nsteps=1000, chem_pot=chem_pot )
+            mc.run( nsteps=100, chem_pot=chem_pot )
             mc.save( fname="free_energy_barrier.json" )
         except Exception as exc:
             msg = str(exc)
@@ -53,4 +53,5 @@ class TestFreeEnergy( unittest.TestCase ):
         self.assertTrue( no_throw, msg=msg )
 
 if __name__ == "__main__":
-    unittest.main()
+    from cemc import TimeLoggingTestRunner
+    unittest.main(testRunner=TimeLoggingTestRunner)

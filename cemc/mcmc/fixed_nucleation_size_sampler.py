@@ -59,7 +59,7 @@ class FixedNucleusMC( Montecarlo ):
             temp_rand_num_b = np.random.randint(low=0,high=Na)
             temp_b = self.atoms_indx[self.network_element][temp_rand_num_b]
             for clust_indx in self.network_clust_indx:
-                self.rand_b = self.bc.trans_matrix[temp_b,clust_indx[0]]
+                self.rand_b = self.bc.trans_matrix[temp_b][clust_indx[0]]
                 symb_b = self.atoms[self.rand_b].symbol
                 if ( symb_b != self.network_element ):
                     break

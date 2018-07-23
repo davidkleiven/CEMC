@@ -20,7 +20,9 @@ conc_args = {
     "conc_ratio_min_1":[[0,1]],
     "conc_ratio_max_1":[[1,0]]
 }
-bc = BulkCrystal( crystalstructure="fcc", a=4.05, conc_args=conc_args, db_name="test_gs_db.db", size=[4,4,4], basis_elements=[["Al","Mg"]] )
+bc = BulkCrystal(crystalstructure="fcc", a=4.05, conc_args=conc_args,
+                 db_name="test_gs_db.db", size=[3, 3, 3],
+                 basis_elements=[["Al","Mg"]], max_cluster_size=3)
 
 # Just use some example ECIs
 eci = get_example_ecis(bc=bc)

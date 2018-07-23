@@ -27,11 +27,12 @@ db_name = "database_with_dft_structures.db"
 # dictionary
 kwargs = {
     "crystalstructure":"fcc",
-    "a":4.05,
-    "size":[4,4,4],
-    "basis_elements":[["Al","Mg"]],
-    "db_name":db_name,
-    "conc_args":conc_args
+    "a": 4.05,
+    "size": [3, 3, 3],
+    "basis_elements": [["Al","Mg"]],
+    "db_name": db_name,
+    "conc_args": conc_args,
+    "max_cluster_size": 3
 }
 
 # Use some example ecis
@@ -41,7 +42,7 @@ eci = get_example_ecis(bc_kwargs=kwargs)
 ceBulk = BulkCrystal( **kwargs )
 
 # Now we want to get a Cluster Expansion calculator for a big cell
-mc_cell_size = [10,10,10]
+mc_cell_size = [10, 10, 10]
 from cemc import get_ce_calc
 
 calc = get_ce_calc( ceBulk, kwargs, eci=eci, size=mc_cell_size )

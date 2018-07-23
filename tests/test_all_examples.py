@@ -39,4 +39,5 @@ for i in range(len(example_files)):
     setattr(TestSequence, testmethodname, test_method)
 
 if __name__ == "__main__":
-    unittest.main()
+    from cemc import TimeLoggingTestRunner
+    unittest.main(testRunner=TimeLoggingTestRunner)
