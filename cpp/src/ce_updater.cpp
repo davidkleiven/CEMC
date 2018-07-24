@@ -376,18 +376,34 @@ double CEUpdater::get_energy()
   return energy*symbols.size();
 }
 
-double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const vector< vector<int> > &indx_list, const vector<int> &dec, const vector<string> &symbs )
+double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const Cluster &cluster, const vector<int> &dec, const string &ref_symb )
 {
-  unsigned int num_indx = indx_list.size();
   double sp = 0.0;
+
+  const vector< vector<int> >& indx_list = cluster.get();
+  const vector< vector<int> >& order = cluster.get_order();
+  unsigned int num_indx = indx_list.size();
   for ( unsigned int i=0;i<num_indx;i++ )
   {
     double sp_temp = 1.0;
     unsigned int n_memb = indx_list[i].size();
-    for ( unsigned int j=0;j<n_memb;j++ )
+    vector<int> indices(n_memb+1);
+    indices[0] = ref_indx;
+    for (unsigned int j=0;j<n_memb;j++)
     {
-      const int& trans_indx = trans_matrix( ref_indx,indx_list[i][j] );
-      sp_temp *= basis_functions[dec[j+1]][symbs[trans_indx]];
+      indices[j+1] = trans_matrix(ref_indx, indx_list[i][j]);
+    }
+    sort_indices(indices, order[i]);
+    for ( unsigned int j=0;j<indices.size();j++ )
+    {
+      if (indices[j] == ref_indx)
+      {
+        sp_temp *= basis_functions[dec[j]][ref_symb];
+      }
+      else
+      {
+        sp_temp *= basis_functions[dec[j]][symbols[indices[j]]];
+      }
     }
     sp += sp_temp;
   }
@@ -478,6 +494,7 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
     // Extract the prefix
     int pos = name.rfind("_");
     string prefix = name.substr(0,pos);
+    string dec_str = name.substr(pos+1);
 
     double delta_sp = 0.0;
     int symm = trans_symm_group[symb_change.indx];
@@ -486,22 +503,24 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
       next_cf[i] = current_cf[i];
       continue;
     }
-    const vector< vector<int> > &cluster_indices = clusters[symm].at(prefix).get();
-    unsigned int size = clusters[symm].at(prefix).size;
-    double normalization = cluster_indices.size();
+    const Cluster& cluster = clusters[symm].at(prefix);
+    unsigned int size = cluster.size;
+    double normalization = cluster.num_subclusters();
     assert( cluster_indices[0].size() == size );
     assert( bfs.size() == size );
 
-    int permutation_counter = 0;
-    do
+
+    const equiv_deco_t &equiv_deco = cluster.get_equiv_deco(dec_str);
+
+    for (const vector<int>& deco : equiv_deco)
     {
-      double sp_ref = spin_product_one_atom( symb_change.indx, cluster_indices, bfs, symbols );
-      double sp_new = spin_product_one_atom( symb_change.indx, cluster_indices, bfs, symbols );
+      double sp_ref = spin_product_one_atom( symb_change.indx, cluster, deco, symb_change.old_symb );
+      double sp_new = spin_product_one_atom( symb_change.indx, cluster, deco, symb_change.new_symb );
       int bf_ref = bfs[0];
-      delta_sp += basis_functions[bf_ref][symb_change.new_symb]*sp_new - basis_functions[bf_ref][symb_change.old_symb]*sp_ref;
-      permutation_counter += 1;
-    } while ( next_permutation( bfs.begin(),bfs.end() ) );
-    delta_sp *= (static_cast<double>(size)/permutation_counter);
+      delta_sp += sp_new - sp_ref;
+    }
+
+    delta_sp *= (static_cast<double>(size)/equiv_deco.size());
     //delta_sp /= (normalization*symbols.size()); // This was the old normalization
     delta_sp /= (cluster_symm_group_count.at(prefix)*trans_symm_group_count[symm]);
     //cout << name << " " << cluster_indices << endl;
@@ -1047,4 +1066,14 @@ void CEUpdater::read_trans_matrix( PyObject* py_trans_mat )
   {
     trans_matrix(i,j) = *static_cast<int*>(PyArray_GETPTR2(trans_mat,i,j) );
   }*/
+}
+
+void CEUpdater::sort_indices(vector<int> &indices, const vector<int> &order)
+{
+  vector<int> sorted(indices.size());
+  for (unsigned int i=0;i<indices.size();i++)
+  {
+    sorted[i] = indices[order[i]];
+  }
+  indices = sorted;
 }

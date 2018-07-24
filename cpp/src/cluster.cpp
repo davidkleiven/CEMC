@@ -3,6 +3,7 @@
 #include <Python.h>
 #include <algorithm>
 #include <sstream>
+#include <iostream>
 
 using namespace std;
 Cluster::Cluster( const string &name, const cluster_t &mems, \
@@ -162,4 +163,16 @@ void Cluster::all_deco(int num_bfs, vector< vector<int> > &deco) const
   {
     throw invalid_argument("Only cluster sizes 2, 3 and 4 are supported!");
   }
+}
+
+const equiv_deco_t& Cluster::get_equiv_deco(const string& dec_str) const
+{
+  return equiv_deco.at(dec_str);
+}
+
+const equiv_deco_t& Cluster::get_equiv_deco(const std::vector<int> &deco) const
+{
+  string dec_str;
+  deco2string(deco, dec_str);
+  return get_equiv_deco(dec_str);
 }
