@@ -85,7 +85,7 @@ class PairCorrelationObserver( MCObserver ):
         self.n_entries = 0
         self.name = "PairCorrelationObserver"
 
-        for key,value in self.ce_calc.eci.iteritems():
+        for key,value in self.ce_calc.eci.items():
             if ( key.startswith("c2_") ):
                 self.cf[key] = 0.0
                 self.cf_squared[key] = 0.0
@@ -384,7 +384,7 @@ class NetworkObserver( MCObserver ):
 
         current_highlight_element = 0
         high_elms = self.generate_highlight_elements_from_size(group_indx_count,prohibited_symbols)
-        for key,value in group_indx_count.iteritems():
+        for key,value in group_indx_count.items():
             if ( value <= 3 ):
                 continue
             for i,indx in enumerate(self.indx_max_cluster):
@@ -398,7 +398,7 @@ class NetworkObserver( MCObserver ):
         Create list of highlight elements based on the group index count
         """
         tup = []
-        for key,value in group_indx_count.iteritems():
+        for key,value in group_indx_count.items():
             if ( value <= 3 ):
                 continue
             tup.append( (value,key) )
@@ -434,7 +434,7 @@ class NetworkObserver( MCObserver ):
         group_indx_count = self.get_cluster_count()
         max_id = 0
         max_size = 0
-        for key,value in group_indx_count.iteritems():
+        for key,value in group_indx_count.items():
             if ( value > max_size ):
                 max_size = value
                 max_id = key

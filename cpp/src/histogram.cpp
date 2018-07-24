@@ -1,5 +1,7 @@
 #include "histogram.hpp"
-#include <numpy/ndarrayobject.h>
+#define NO_IMPORT_ARRAY
+#define PY_ARRAY_UNIQUE_SYMBOL CE_UPDATER_ARRAY_API
+#include "numpy/ndarrayobject.h"
 #include <iostream>
 #include "additional_tools.hpp"
 #include <fstream>
@@ -8,7 +10,6 @@ using namespace std;
 
 Histogram::Histogram( unsigned int Nbins, double Emin, double Emax ):Nbins(Nbins),Emin(Emin),Emax(Emax)
 {
-  //import_array();
   hist.resize(Nbins);
   logdos.resize(Nbins);
   known_structures.resize(Nbins);
@@ -142,7 +143,6 @@ bool Histogram::bin_in_range( int bin ) const
 
 void Histogram::send_to_python_hist( PyObject *py_hist )
 {
-  import_array();
   PyObject *py_visits = PyObject_GetAttrString( py_hist, "histogram" );
   PyObject *py_visits_npy = PyArray_FROM_OTF( py_visits, NPY_INT32, NPY_ARRAY_OUT_ARRAY );
   PyObject *py_logdos = PyObject_GetAttrString( py_hist, "logdos" );
@@ -175,7 +175,6 @@ void Histogram::reset()
 
 void Histogram::init_from_pyhist( PyObject *py_hist )
 {
-  import_array();
   PyObject *py_logdos = PyObject_GetAttrString( py_hist, "logdos" );
   PyObject *py_logdos_npy = PyArray_FROM_OTF( py_logdos, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY );
   PyObject *py_known_struct = PyObject_GetAttrString( py_hist, "known_state" );

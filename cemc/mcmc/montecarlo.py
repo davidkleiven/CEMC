@@ -193,7 +193,7 @@ class Montecarlo(object):
                 self.atoms_indx[atom.symbol] = [atom.index]
             else:
                 self.atoms_indx[atom.symbol].append(atom.index)
-        self.symbols = self.atoms_indx.keys()
+        self.symbols = list(self.atoms_indx.keys())
 
     def _update_tracker( self, system_changes ):
         """

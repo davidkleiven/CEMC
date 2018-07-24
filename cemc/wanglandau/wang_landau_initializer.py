@@ -1,10 +1,10 @@
 from ase.db import connect
-from ce_calculator import get_ce_calc, CE
+from cemc import get_ce_calc, CE
 from ase.ce import BulkCrystal, BulkSpacegroup
 from cemc.mcmc import SimulatedAnnealingCanonical
 from ase.calculators.singlepoint import SinglePointCalculator
 import pickle as pck
-import wang_landau_db_manager as wldbm
+from cemc.wanglandau import wang_landau_db_manager as wldbm
 import copy
 
 class AtomExistsError(Exception):

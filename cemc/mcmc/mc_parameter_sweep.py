@@ -73,13 +73,13 @@ class MCParameterSweep(object):
 
         data_flattened = {key:[] for key in data[0].keys()}
         for dset in data:
-            for key,value in dset.iteritems():
+            for key,value in dset.items():
                 data_flattened[key].append(value)
 
-        data_flattened = {key:np.array(value) for key,value in data_flattened.iteritems()}
+        data_flattened = {key:np.array(value) for key,value in data_flattened.items()}
         # Append this to the existing files
         with h5.File( self.outfile, 'a' ) as hf:
-            for key,value in data_flattened.iteritems():
+            for key,value in data_flattened.items():
                 if ( key in hf ):
                     dset = hf[key]
                     current_size = len(np.array(dset))

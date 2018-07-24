@@ -21,10 +21,11 @@ db_name = "database_with_dft_structures.db"
 kwargs = {
     "crystalstructure":"fcc",
     "a":4.05,
-    "size":[4,4,4],
+    "size":[3, 3, 3],
     "basis_elements":[["Al","Mg"]],
-    "db_name":db_name,
-    "conc_args":conc_args
+    "db_name": db_name,
+    "conc_args": conc_args,
+    "max_cluster_size": 3
 }
 
 # In this example, we just use some example ecis

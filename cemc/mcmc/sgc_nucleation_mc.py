@@ -419,7 +419,7 @@ class SGCNucleation( SGCMonteCarlo ):
         energies = []
         result = {}
         sizes = []
-        for sweep in range(path_length):
+        for sweep in range(int(path_length)):
             self.network.reset()
             if ( time.time() - now > output_every_sec ):
                 self.log( "Sweep {} of {}".format(sweep,path_length))

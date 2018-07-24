@@ -37,7 +37,7 @@ class LinearVibCorrection(object):
             if ( not key in eci_with_out_vib.keys() ):
                 raise KeyError( "The cluster {} is not in the original ECIs!".format(key) )
 
-        for key,value in self.eci_per_kbT.iteritems():
+        for key,value in self.eci_per_kbT.items():
             eci_with_out_vib[key] += value*kB*T
         self.vibs_included = True
         self.current_eci = copy.deepcopy(eci_with_out_vib)
@@ -50,7 +50,7 @@ class LinearVibCorrection(object):
         self.check_provided_eci_match(eci_with_vibs)
         if ( not self.vibs_included ):
             return
-        for key,value in self.eci_per_kbT.iteritems():
+        for key,value in self.eci_per_kbT.items():
             eci_with_vibs[key] -= value*kB*self.temperature
         self.current_eci = copy.deepcopy(eci_with_vibs)
         self.vibs_included = False

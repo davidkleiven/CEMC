@@ -123,7 +123,7 @@ class CanonicalMeanField(object):
                 atoms_count[atom.symbol] += 1
             else:
                 atoms_count[atom.symbol] = 1
-        conc = {key:float(value)/len(self.atoms) for key,value in atoms_count.iteritems()}
+        conc = {key:float(value)/len(self.atoms) for key,value in atoms_count.items()}
         return conc
 
     def calculate( self ):

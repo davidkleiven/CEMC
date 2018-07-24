@@ -1,7 +1,7 @@
 import numpy as np
 import ase.units
 from ase.db import connect
-from ce_calculator import CE
+from cemc import CE
 import time
 import matplotlib as mpl
 mpl.rcParams["svg.fonttype"] = "none"
@@ -40,7 +40,7 @@ class SimmualtedAnnealingSGC( object ):
         Initialize with the energy of the first structure
         """
         self.energy = self.atoms.get_potential_energy()
-        for key,value in self.chem_pot.iteritems():
+        for key,value in self.chem_pot.items():
             self.energy -= value*self.at_count[key]
 
     def _step( self ):
@@ -103,8 +103,8 @@ class SimmualtedAnnealingSGC( object ):
         print (self.at_count)
         db = connect( self.db_name )
         energy = self.atoms.get_potential_energy()
-        elm = [key for key,value in self.chem_pot.iteritems()]
-        pot = [value for key,value in self.chem_pot.iteritems()]
+        elm = [key for key,value in self.chem_pot.items()]
+        pot = [value for key,value in self.chem_pot.items()]
         uid = db.write( self.atoms, Tmin=Tmin, Tmax=Tmax, data={
         "elements":elm,
         "chemical_potentials":pot

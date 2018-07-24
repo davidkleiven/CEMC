@@ -1,5 +1,5 @@
 from ase.spacegroup.spacegroup import SpaceGroup
-import wltools
+from cemc.wanglandau import wltools
 import numpy as np
 from scipy.spatial import cKDTree as KDTree
 

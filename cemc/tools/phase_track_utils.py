@@ -1,7 +1,7 @@
 import numpy as np
 import h5py as h5
 
-from cemc.wanglandau.ce_calculator import CE
+from cemc import CE
 from cemc.tools import DatasetAverager
 
 class PhaseBoundarySolution(object):

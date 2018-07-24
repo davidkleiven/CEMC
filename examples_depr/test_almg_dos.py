@@ -79,7 +79,7 @@ def find_max_min_energy( atoms ):
 
 def run( runID, explore=False ):
     sum_eci = 0.0
-    for key,value in ecis.iteritems():
+    for key,value in ecis.items():
         sum_eci += np.abs(value)
 
     atoms = get_atoms( mg_concentation )

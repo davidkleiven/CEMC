@@ -22,8 +22,10 @@ def get_bulkspacegroup_binary():
     }
     db_name = "test_db_binary_almg.db"
     basis_elements = [["Al","Mg"],["Al","Mg"],["Al","Mg"],["Al","Mg"]]
+    max_dia = get_max_cluster_dia_name()
+    size_arg = {max_dia:4.1}
     bs = BulkSpacegroup( basis_elements=basis_elements, basis=basis, spacegroup=217, cellpar=cellpar, conc_args=conc_args,
-    max_cluster_size=4, db_name=db_name, size=[1,1,1], grouped_basis=[[0,1,2,3]] )
+    max_cluster_size=3, db_name=db_name, size=[1, 1, 1], grouped_basis=[[0,1,2,3]], **size_arg )
     return bs, db_name
 
 
@@ -36,7 +38,7 @@ def get_small_BC_with_ce_calc(lat="fcc"):
     }
     a = 4.05
     ceBulk = BulkCrystal( crystalstructure=lat, a=a, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, \
-    db_name=db_name, max_cluster_size=4)
+    db_name=db_name, max_cluster_size=3)
     ceBulk.reconfigure_settings()
     ceBulk._get_cluster_information()
     cf = CorrFunction(ceBulk)
@@ -56,8 +58,8 @@ def get_ternary_BC():
     }
     max_dia = get_max_cluster_dia_name()
     size_arg = {max_dia:4.05}
-    ceBulk = BulkCrystal( crystalstructure="fcc", a=4.05, size=[4,4,4], basis_elements=[["Al","Mg","Si"]], \
-                          conc_args=conc_args, db_name=db_name, max_cluster_size=4, **size_arg)
+    ceBulk = BulkCrystal(crystalstructure="fcc", a=4.05, size=[4,4,4], basis_elements=[["Al","Mg","Si"]], \
+                         conc_args=conc_args, db_name=db_name, max_cluster_size=3, **size_arg)
     return ceBulk
 
 def get_max_cluster_dia_name():

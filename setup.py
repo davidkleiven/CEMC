@@ -10,9 +10,10 @@ print (np.get_include())
 
 swig_opts=["-modern","-Icpp/include","-c++"]
 if ( sys.version_info >= (3,0) ):
-    swig_opts.append("-py3")
-    sys.stdout.write( "Currently SWIG only works with python2" )
-    sys.exit(1)
+    pass
+    #swig_opts.append("-python3")
+    #sys.stdout.write( "Currently SWIG only works with python2" )
+    #sys.exit(1)
 
 src_folder = "cpp/src"
 inc_folder = "cpp/include"

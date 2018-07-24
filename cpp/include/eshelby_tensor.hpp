@@ -8,6 +8,7 @@
 typedef std::array< std::array<double, 3>, 3> mat3x3;
 typedef std::array< std::array<double, 6>, 6> mat6x6;
 typedef std::array<double, 3> vec3;
+typedef std::array<double, 6> vec6;
 
 class EshelbyTensor
 {
@@ -23,6 +24,11 @@ public:
 
   /** Represent the Eshelby tensor in Voigt notation */
   void voigt_representation(mat6x6 &matrix);
+
+  /** Inplace dot product between Eshelby Tensor and a Voigt vector
+  * On return the passed vector contains the dot product
+  */
+  void dot(vec6 &voigt);
 
   /** Get the full tensor as a dictionary */
   PyObject *get_raw();

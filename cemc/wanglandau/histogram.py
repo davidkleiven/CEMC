@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import interpolate
-import wltools
+from cemc.wanglandau import wltools
 import sqlite3 as sq
 import time
 from matplotlib import pyplot as plt

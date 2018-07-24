@@ -50,8 +50,10 @@ class TestNetworkObs( unittest.TestCase ):
                 "conc_ratio_max_1":[[0,1]],
             }
             a = 4.05
-            ceBulk = BulkCrystal( crystalstructure="fcc", a=a, size=[4,4,4], basis_elements=[["Al","Mg"]], conc_args=conc_args, \
-            db_name=db_name, max_cluster_size=4)
+            ceBulk = BulkCrystal(
+                crystalstructure="fcc", a=a, size=[3, 3, 3],
+                basis_elements=[["Al","Mg"]], conc_args=conc_args,
+                db_name=db_name, max_cluster_size=3)
             net_name = str(get_example_network_name(ceBulk))
             cf = CorrFunction(ceBulk)
             cf = cf.get_cf(ceBulk.atoms)
@@ -80,4 +82,5 @@ class TestNetworkObs( unittest.TestCase ):
         self.assertTrue( no_throw, msg=msg )
 
 if __name__ == "__main__":
-    unittest.main()
+    from cemc import TimeLoggingTestRunner
+    unittest.main(testRunner=TimeLoggingTestRunner)

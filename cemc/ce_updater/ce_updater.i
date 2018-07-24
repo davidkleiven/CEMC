@@ -14,7 +14,7 @@
 
 %{
 #define SWIG_FILE_WITH_INIT
-
+#include "init_numpy.hpp"
 #include "additional_tools.hpp"
 #include "ce_updater.hpp"
 #include "wang_landau_sampler.hpp"
@@ -26,9 +26,9 @@
 #include "eshelby_cylinder.hpp"
 %}
 %include "numpy.i"
-
 %init %{
-  import_array();
+  init_numpy();
+  //import_array();
 %}
 
 %template(map_str_dbl) std::map<std::string,double>;

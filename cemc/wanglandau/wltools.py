@@ -41,6 +41,6 @@ def get_formula( atomic_numbers ):
             elm_count[num] = 1
 
     formula = ""
-    for key,value in elm_count.iteritems():
+    for key,value in elm_count.items():
         formula += "{}{}".format(chemical_symbols[key],value)
     return formula

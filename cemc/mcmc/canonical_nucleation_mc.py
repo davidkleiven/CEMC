@@ -15,7 +15,7 @@ class CanonicalNucleationMC( Montecarlo ):
             kwargs.pop("mpicomm") # Remove MPI communicator if present
 
         super(CanonicalNucleationMC,self).__init__( atoms, T, **kwargs )
-        self.n_atoms = {key:int(value*len(self.atoms)) for key,value in conc.iteritems()}
+        self.n_atoms = {key:int(value*len(self.atoms)) for key,value in conc.items()}
         self.network = NetworkObserver( calc=self.atoms._calc, cluster_name=self.network_name, element=self.network_element )
         self.attach( self.network )
 
@@ -55,7 +55,7 @@ class CanonicalNucleationMC( Montecarlo ):
         """
         Sort the number of atoms dictionary such that the lowest enters first
         """
-        tuple_natoms = [(value,key) for key,value in self.n_atoms.iteritems()]
+        tuple_natoms = [(value,key) for key,value in self.n_atoms.items()]
         tuple_natoms.sort()
         return tuple_natoms
 

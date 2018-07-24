@@ -1,6 +1,6 @@
 from cemc.mcmc import Montecarlo
 from cemc.mcmc import LowestEnergyStructure
-from cemc.wanglandau.ce_calculator import CE
+from cemc import CE
 import numpy as np
 
 class GSFinder(object):

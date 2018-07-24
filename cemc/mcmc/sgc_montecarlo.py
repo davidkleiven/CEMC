@@ -206,7 +206,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         """
         self.chem_pots = []
         self.chem_pot_names = []
-        keys = chem_potential.keys()
+        keys = list(chem_potential.keys())
         keys.sort()
         for key in keys:
             self.chem_pots.append( chem_potential[key] )
@@ -377,7 +377,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         if ( self.rank == 0 ):
             self.averager.quantities = all_res[0]
             for i in range(1,len(all_res)):
-                for key,value in all_res[i].iteritems():
+                for key,value in all_res[i].items():
                     self.averager.quantities[key] += value
 
             # Normalize by the number of processors

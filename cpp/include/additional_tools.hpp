@@ -6,6 +6,7 @@
 #include <set>
 #include <array>
 #include "cf_history_tracker.hpp"
+#include <Python.h>
 
 
 //class SymbolChange;
@@ -33,6 +34,12 @@ template<class T>
 void set2vector( const std::set<T> &s, std::vector<T> &v );
 
 int kronecker(int i, int j);
+
+PyObject* string2py(const std::string &string);
+std::string py2string(PyObject *str);
+
+PyObject* int2py(int integer);
+int py2int(PyObject *integer);
 
 #include "additional_tools.tpp"
 #endif

@@ -5,13 +5,14 @@ try:
     from ase.ce import CorrFunction
     from cemc import get_ce_calc
     from helper_functions import flatten_cluster_names
+    import os
     available = True
 except Exception as exc:
     print (str(exc))
     available = False
 
 def get_network_name(cnames):
-    return cnames[0][2][0]
+    return cnames[0][2][-1]
 
 class TestNuclFreeEnergy( unittest.TestCase ):
     def test_no_throw(self):
@@ -22,47 +23,60 @@ class TestNuclFreeEnergy( unittest.TestCase ):
         msg = ""
         try:
             conc_args = {
-                "conc_ratio_min_1":[[1,0]],
-                "conc_ratio_max_1":[[0,1]],
+                "conc_ratio_min_1": [[1, 0]],
+                "conc_ratio_max_1": [[0, 1]],
             }
+            db_name = "temp_nuc_db.db"
+            if os.path.exists(db_name):
+                os.remove(db_name)
             kwargs = {
-                "crystalstructure":"fcc", "a":4.05, "size":[4,4,4], "basis_elements":[["Al","Mg"]],
-                "conc_args":conc_args, "db_name":"temp_nuc_db.db",
-                "max_cluster_size":4
+                "crystalstructure":"fcc", "a": 4.05,
+                "size":[3, 3, 3],
+                "basis_elements":[["Al", "Mg"]],
+                "conc_args": conc_args, "db_name": db_name,
+                "max_cluster_size": 3
             }
-            ceBulk = BulkCrystal( **kwargs )
+            ceBulk = BulkCrystal(**kwargs)
             cf = CorrFunction(ceBulk)
             cf = cf.get_cf(ceBulk.atoms)
 
-            ecis = {key:0.001 for key in cf.keys()}
-            calc = get_ce_calc( ceBulk, kwargs, ecis, size=[5,5,5], free_unused_arrays_BC=False )
+            ecis = {key: 0.001 for key in cf.keys()}
+            calc = get_ce_calc(ceBulk, kwargs, ecis, size=[5, 5, 5])
             ceBulk = calc.BC
-            ceBulk.atoms.set_calculator( calc )
+            ceBulk.atoms.set_calculator(calc)
 
-            chem_pot = {"c1_0":-1.0651526881167124}
-            sampler = NucleationSampler( size_window_width=10, \
-            chemical_potential=chem_pot, max_cluster_size=20, \
-            merge_strategy="normalize_overlap" )
+            chem_pot = {"c1_0": -1.0651526881167124}
+            sampler = NucleationSampler(
+                size_window_width=10,
+                chemical_potential=chem_pot, max_cluster_size=20,
+                merge_strategy="normalize_overlap")
+
             nn_name = get_network_name(ceBulk.cluster_names)
 
-            mc = SGCNucleation( ceBulk.atoms, 300, nucleation_sampler=sampler, \
-            network_name=nn_name,  network_element="Mg", symbols=["Al","Mg"], \
-            chem_pot=chem_pot )
+            mc = SGCNucleation(
+                ceBulk.atoms, 300, nucleation_sampler=sampler,
+                network_name=nn_name,  network_element="Mg",
+                symbols=["Al", "Mg"], chem_pot=chem_pot)
+
             mc.run(nsteps=2)
             sampler.save(fname="test_nucl.h5")
 
-            mc = CanonicalNucleationMC( ceBulk.atoms, 300, nucleation_sampler=sampler, \
-            network_name=nn_name,  network_element="Mg", \
-            concentration={"Al":0.8,"Mg":0.2} )
+            mc = CanonicalNucleationMC(
+                ceBulk.atoms, 300, nucleation_sampler=sampler,
+                network_name=nn_name,  network_element="Mg",
+                concentration={"Al": 0.8, "Mg": 0.2}
+                )
             mc.run(nsteps=2)
             sampler.save(fname="test_nucl_canonical.h5")
 
-            mc = FixedNucleusMC( ceBulk.atoms, 300, size=6, network_name=nn_name, network_element="Mg" )
+            mc = FixedNucleusMC(ceBulk.atoms, 300, size=6,
+                                network_name=nn_name, network_element="Mg")
             mc.run(nsteps=2)
         except Exception as exc:
             msg = str(exc)
             no_throw = False
-        self.assertTrue(no_throw,msg=msg)
+        self.assertTrue(no_throw, msg=msg)
 
 if __name__ == "__main__":
-    unittest.main()
+    from cemc import TimeLoggingTestRunner
+    unittest.main(testRunner=TimeLoggingTestRunner)

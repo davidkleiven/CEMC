@@ -18,7 +18,7 @@ def main():
     cfs = data["cfs"]
     cf_dict = {key:[] for key in cfs[0].keys()}
     for i in range(len(T)):
-        for key,value in cfs[i].iteritems():
+        for key,value in cfs[i].items():
             cf_dict[key].append( value )
 
     #del T[6]
@@ -27,7 +27,7 @@ def main():
     for key in cf_dict.keys():
         cf_dict[key] = [cf_dict[key][indx] for indx in sort_indx]
 
-    for key,value in cf_dict.iteritems():
+    for key,value in cf_dict.items():
         value = np.array(value)
         ax.plot( T, value, "-o", label="{}".format(key))
 

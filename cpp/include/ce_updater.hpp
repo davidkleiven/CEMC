@@ -73,7 +73,7 @@ public:
   void update_cf( SymbolChange &single_change );
 
   /** Computes the spin product for one element */
-  double spin_product_one_atom( unsigned int ref_indx, const std::vector< std::vector<int> > &indx_list, const std::vector<int> &dec, const std::vector<std::string> &symbs );
+  double spin_product_one_atom( unsigned int ref_indx, const Cluster &indx_list, const std::vector<int> &dec, const std::string &ref_symb );
 
   /**
   Calculates the new energy given a set of system changes
@@ -187,5 +187,8 @@ private:
 
   /** Reads the translation matrix */
   void read_trans_matrix( PyObject* py_trans_mat );
+
+  /** Sort indices according to order */
+  static void sort_indices(std::vector<int> &indx, const std::vector<int> &order);
 };
 #endif

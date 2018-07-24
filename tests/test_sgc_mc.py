@@ -133,4 +133,5 @@ class TestSGCMC( unittest.TestCase ):
             os.remove( db_name )
 
 if __name__ == "__main__":
-    unittest.main()
+    from cemc import TimeLoggingTestRunner
+    unittest.main(testRunner=TimeLoggingTestRunner)

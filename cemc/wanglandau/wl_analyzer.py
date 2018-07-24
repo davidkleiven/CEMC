@@ -2,7 +2,7 @@ from ase import units
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.stats import linregress
-import wltools
+from cemc.wanglandau import wltools
 from scipy.stats import linregress
 
 class WangLandauSGCAnalyzer( object ):
@@ -34,7 +34,7 @@ class WangLandauSGCAnalyzer( object ):
 
         N = len(self.atomic_numbers)
         log_configs = N*np.log(N)-N
-        for key,value in elm_count.iteritems():
+        for key,value in elm_count.items():
             log_configs -= (value*np.log(value)-value)
         factor = np.exp( log_configs - np.log(sumDos) )
         self.dos *= factor

@@ -29,7 +29,7 @@ void EshelbyTensor::init()
 
 double EshelbyTensor::elliptic_integral_python(double theta, double kappa, const char* funcname) const
 {
-  PyObject* mod_string = PyString_FromString("scipy.special");
+  PyObject* mod_string = string2py("scipy.special");
   PyObject* scipy_spec = PyImport_Import(mod_string);
   PyObject* func = PyObject_GetAttrString(scipy_spec, funcname);
   PyObject* m = PyFloat_FromDouble(kappa*kappa);
@@ -470,4 +470,20 @@ PyObject* EshelbyTensor::get_raw()
     PyDict_SetItemString(eshelby_dict, key.c_str(), py_val);
   }
   return eshelby_dict;
+}
+
+void EshelbyTensor::dot(vec6 &voigt)
+{
+  mat6x6 matrix;
+  voigt_representation(matrix);
+  vec6 result;
+  for (unsigned int i=0;i<6;i++)
+  {
+    result[i] = 0.0;
+    for (unsigned int j=0;j<6;j++)
+    {
+      result[i] += matrix[i][j]*voigt[j];
+    }
+  }
+  voigt = result;
 }

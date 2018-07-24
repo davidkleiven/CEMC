@@ -15,7 +15,7 @@ class FreeEnergyMuTempArray(object):
         Generate dataset name
         """
         mu_part = ""
-        for key,value in self.mu[0].iteritems():
+        for key,value in self.mu[0].items():
             mu_part += "{}{}".format(key,int(value*10000))
         dset_name = "{}K{}".format(int(temp),mu_part)
         return dset_name
@@ -27,7 +27,7 @@ class FreeEnergyMuTempArray(object):
             dset = hf.create_dataset( dsetname, data=hist )
             dset.attrs["limits"] = limits
             dset.attrs["temperature"] = T
-            for key,value in chem_pot.iteritems():
+            for key,value in chem_pot.items():
                 dset.attrs[key] = value
 
     def run( self, sgc_mc_obj, sgc_comp_free_eng, min_num_steps=1000 ):

@@ -1,2 +1,2 @@
 # Empty file
-from canonical_mfa import CanonicalMeanField
+from cemc.mfa.canonical_mfa import CanonicalMeanField

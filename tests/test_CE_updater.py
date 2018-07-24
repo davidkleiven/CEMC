@@ -1,94 +1,97 @@
 import unittest
 try:
+    from cemc import TimeLoggingTestRunner
     from ase.ce.settings_bulk import BulkCrystal
     from ase.ce.corrFunc import CorrFunction
     from cemc import CE, get_ce_calc
-    from ase.visualize import view
-    from helper_functions import get_bulkspacegroup_binary, get_max_cluster_dia_name
+    from helper_functions import get_bulkspacegroup_binary
+    from helper_functions import get_max_cluster_dia_name
     import copy
     has_ase_with_ce = True
 except Exception as exc:
-    print (str(exc))
+    print(str(exc))
     has_ase_with_ce = False
 import numpy as np
 import os
 
-class TestCE( unittest.TestCase ):
-    lattices = ["fcc","bcc","sc","hcp"]
-    #lattices = ["hcp"]
+
+class TestCE(unittest.TestCase):
+    lattices = ["fcc", "bcc", "sc", "hcp"]
+
     def get_calc(self, lat):
         db_name = "test_db_{}.db".format(lat)
 
         conc_args = {
-            "conc_ratio_min_1":[[1,0]],
-            "conc_ratio_max_1":[[0,1]],
+            "conc_ratio_min_1": [[1, 0]],
+            "conc_ratio_max_1": [[0, 1]],
         }
         a = 4.05
-        ceBulk = BulkCrystal( crystalstructure=lat, a=a, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, \
-        db_name=db_name, max_cluster_size=4)
+        ceBulk = BulkCrystal(crystalstructure=lat, a=a, size=[3, 3, 3],
+                             basis_elements=[["Al", "Mg"]],
+                             conc_args=conc_args,
+                             db_name=db_name, max_cluster_size=3)
         ceBulk.reconfigure_settings()
         ceBulk._get_cluster_information()
         cf = CorrFunction(ceBulk)
         corrfuncs = cf.get_cf(ceBulk.atoms)
-        eci = {name:1.0 for name in corrfuncs.keys()}
+        eci = {name: 1.0 for name in corrfuncs.keys()}
         ceBulk._get_cluster_information()
-        calc = CE( ceBulk, eci )
-        return calc,ceBulk,eci
+        calc = CE(ceBulk, eci)
+        return calc, ceBulk, eci
 
-    def test_update( self ):
-        if ( not has_ase_with_ce ):
-            self.skipTest( "ASE version does not have CE" )
+    def test_update(self):
+        if not has_ase_with_ce:
+            self.skipTest("ASE version does not have CE")
         for lat in self.lattices:
             msg = "Failed for lattice {}".format(lat)
-            calc,ceBulk,eci = self.get_calc(lat)
+            calc, ceBulk, eci = self.get_calc(lat)
             cf = CorrFunction(ceBulk)
             n_tests = 10
             for i in range(n_tests):
-                print (i)
                 old_symb = ceBulk.atoms[i].symbol
-                if ( old_symb == "Al" ):
+                if old_symb == "Al":
                     new_symb = "Mg"
                 else:
                     new_symb = "Al"
-                calc.update_cf( (i, old_symb, new_symb) )
+                calc.update_cf((i, old_symb, new_symb))
                 updated_cf = calc.get_cf()
-                brute_force = cf.get_cf( ceBulk.atoms )
-                for key,value in updated_cf.iteritems():
-                    self.assertAlmostEqual( value, brute_force[key], msg=msg )
+                brute_force = cf.get_cf(ceBulk.atoms)
+                for key, value in updated_cf.items():
+                    self.assertAlmostEqual(value, brute_force[key], msg=msg)
 
-    def test_random_swaps( self ):
-        if ( not has_ase_with_ce ):
-            self.skipTest( "ASE version does not have CE" )
-            return
-
-        for lat in self.lattices:
-            msg = "Failed for lattice {}".format(lat)
-            calc, ceBulk,eci = self.get_calc(lat)
-            n_tests = 10
-            corr_func = CorrFunction(ceBulk)
-            cf = corr_func.get_cf( ceBulk.atoms )
-            for i in range(n_tests):
-                print ("%d of %d random tests"%(i+1,n_tests))
-                indx = np.random.randint(low=0,high=len(ceBulk.atoms))
-                old_symb = ceBulk.atoms[indx].symbol
-                if ( old_symb == "Al" ):
-                    new_symb = "Mg"
-                else:
-                    new_symb = "Al"
-                calc.calculate( ceBulk.atoms, ["energy"], [(indx, old_symb, new_symb)] )
-                updated_cf = calc.get_cf()
-                brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, updated_cf.keys() )
-                for key,value in updated_cf.iteritems():
-                    self.assertAlmostEqual( value, brute_force[key], msg=msg )
-
-
-    def test_double_swaps( self ):
-        if ( not has_ase_with_ce ):
+    def test_random_swaps(self):
+        if not has_ase_with_ce:
             self.skipTest("ASE version does not have CE")
             return
 
         for lat in self.lattices:
-            calc,ceBulk,eci = self.get_calc(lat)
+            msg = "Failed for lattice {}".format(lat)
+            calc, ceBulk, eci = self.get_calc(lat)
+            n_tests = 10
+            corr_func = CorrFunction(ceBulk)
+            cf = corr_func.get_cf(ceBulk.atoms)
+            for i in range(n_tests):
+                indx = np.random.randint(low=0, high=len(ceBulk.atoms))
+                old_symb = ceBulk.atoms[indx].symbol
+                if old_symb == "Al":
+                    new_symb = "Mg"
+                else:
+                    new_symb = "Al"
+                calc.calculate(ceBulk.atoms, ["energy"],
+                               [(indx, old_symb, new_symb)])
+                updated_cf = calc.get_cf()
+                brute_force = corr_func.get_cf_by_cluster_names(ceBulk.atoms, updated_cf.keys())
+                for key, value in updated_cf.items():
+                    self.assertAlmostEqual(value, brute_force[key], msg=msg)
+
+
+    def test_double_swaps(self):
+        if not has_ase_with_ce:
+            self.skipTest("ASE version does not have CE")
+            return
+
+        for lat in self.lattices:
+            calc, ceBulk, eci = self.get_calc(lat)
             corr_func = CorrFunction(ceBulk)
             cf = corr_func.get_cf(ceBulk.atoms)
             n_tests = 10
@@ -99,18 +102,17 @@ class TestCE( unittest.TestCase ):
 
             # Swap Al and Mg atoms
             for i in range(n_tests):
-                indx1 = np.random.randint(low=0,high=len(ceBulk.atoms))
+                indx1 = np.random.randint(low=0, high=len(ceBulk.atoms))
                 symb1 = ceBulk.atoms[indx1].symbol
                 indx2 = indx1
                 symb2 = symb1
-                while( symb2 == symb1 ):
-                    indx2 = np.random.randint(low=0,high=len(ceBulk.atoms))
+                while symb2 == symb1:
+                    indx2 = np.random.randint(low=0, high=len(ceBulk.atoms))
                     symb2 = ceBulk.atoms[indx2].symbol
-                print (indx1,symb1,indx2,symb2)
-                calc.calculate( ceBulk.atoms, ["energy"], [(indx1,symb1,symb2),(indx2,symb2,symb1)] )
+                calc.calculate(ceBulk.atoms, ["energy"], [(indx1,symb1,symb2),(indx2,symb2,symb1)])
                 updated_cf = calc.get_cf()
                 brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, updated_cf.keys() )
-                for key,value in brute_force.iteritems():
+                for key,value in brute_force.items():
                     self.assertAlmostEqual( value, updated_cf[key] )
 
     def test_supercell( self ):
@@ -118,7 +120,7 @@ class TestCE( unittest.TestCase ):
             self.skipTest("ASE version does not have CE")
             return
 
-        calc, ceBulk,eci = self.get_calc("fcc")
+        calc, ceBulk, eci = self.get_calc("fcc")
         db_name = "test_db_fcc_super.db"
 
         conc_args = {
@@ -127,40 +129,38 @@ class TestCE( unittest.TestCase ):
         }
 
         kwargs = {
-            "crystalstructure":"fcc",
-            "a":4.05,
-            "size":[3,3,3],
+            "crystalstructure": "fcc",
+            "a": 4.05,
+            "size":[3, 3, 3],
             "basis_elements":[["Al","Mg"]],
-            "conc_args":conc_args,
-            "db_name":db_name,
-            "max_cluster_size":4
+            "conc_args": conc_args,
+            "db_name": db_name,
+            "max_cluster_size": 3
         }
-        ceBulk = BulkCrystal( **kwargs )
-        convert_trans_mat_options = [False, False]
+
         kwargs_template = copy.deepcopy(kwargs)
-        kwargs_template["size"] = [4,4,4]
+        kwargs_template["size"] = [4, 4, 4]
         kwargs_template["db_name"] = "template_bc.db"
         template_supercell_bc = BulkCrystal(**kwargs_template)
         template_supercell_bc.reconfigure_settings()
 
-        for option in convert_trans_mat_options:
-            ceBulk = BulkCrystal( **kwargs )
-            calc = get_ce_calc( ceBulk, kwargs, eci, size=[4,4,4], convert_trans_matrix=option )
-            ceBulk = calc.BC
-            ceBulk.atoms.set_calculator(calc)
-            corr_func = CorrFunction(template_supercell_bc)
-            #corr_func = CorrFunction(ceBulk)
-            for i in range(10):
-                calc.calculate( ceBulk.atoms, ["energy"], [(i,"Al","Mg")] )
-                updated_cf = calc.get_cf()
-                #template_supercell_bc.atoms = ceBulk.atoms
-                brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, updated_cf.keys() )
-                for key,value in brute_force.iteritems():
-                    self.assertAlmostEqual( value, updated_cf[key] )
+        ceBulk = BulkCrystal(**kwargs)
+        calc = get_ce_calc(ceBulk, kwargs, eci, size=[4, 4, 4])
+        ceBulk = calc.BC
+        ceBulk.atoms.set_calculator(calc)
+        corr_func = CorrFunction(template_supercell_bc)
+        for i in range(10):
+            calc.calculate(ceBulk.atoms, ["energy"], [(i, "Al", "Mg")])
+            updated_cf = calc.get_cf()
+            brute_force = corr_func.get_cf_by_cluster_names(
+                ceBulk.atoms, updated_cf.keys())
+
+            for key, value in brute_force.items():
+                self.assertAlmostEqual(value, updated_cf[key])
 
     def test_double_swaps_ternary( self ):
         if ( not has_ase_with_ce ): # Disable this test
-            self.skipTest( "ASE version has not cluster expansion" )
+            self.skipTest("ASE version has not cluster expansion")
             return
 
         db_name = "test_db_ternary.db"
@@ -173,7 +173,7 @@ class TestCE( unittest.TestCase ):
         max_dia = get_max_cluster_dia_name()
         size_arg = {max_dia:4.05}
         ceBulk = BulkCrystal( crystalstructure="fcc", a=4.05, size=[4,4,4], basis_elements=[["Al","Mg","Si"]], \
-                              conc_args=conc_args, db_name=db_name, max_cluster_size=4, **size_arg)
+                              conc_args=conc_args, db_name=db_name, max_cluster_size=3, **size_arg)
 
         ceBulk._get_cluster_information()
         corr_func = CorrFunction( ceBulk )
@@ -187,7 +187,6 @@ class TestCE( unittest.TestCase ):
         # Insert 25 Mg atoms and 25 Si atoms
         n = 18
         for i in range(n):
-            print ( "Changing element {} of {}".format(i,n) )
             calc.calculate( ceBulk.atoms, ["energy"], [(i,"Al","Mg")])
             calc.calculate( ceBulk.atoms, ["energy"], [(i+n,"Al","Si")])
             updated_cf = calc.get_cf()
@@ -197,7 +196,6 @@ class TestCE( unittest.TestCase ):
 
         # Swap atoms
         for i in range(n_tests):
-            print ( "Swap {} of {}".format(i,n_tests))
             indx1 = np.random.randint(low=0,high=len(ceBulk.atoms))
             symb1 = ceBulk.atoms[indx1].symbol
             indx2 = indx1
@@ -208,7 +206,7 @@ class TestCE( unittest.TestCase ):
             calc.calculate( ceBulk.atoms, ["energy"], [(indx1,symb1,symb2),(indx2,symb2,symb1)])
             update_cf = calc.get_cf()
             brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, update_cf.keys() )
-            for key,value in brute_force.iteritems():
+            for key,value in brute_force.items():
                 self.assertAlmostEqual( value, update_cf[key])
 
     def test_binary_spacegroup( self ):
@@ -231,7 +229,7 @@ class TestCE( unittest.TestCase ):
             calc.calculate( bs.atoms, ["energy"], [(i,old_symb,new_symb)] )
             updated_cf = calc.get_cf()
             brute_force = cf.get_cf_by_cluster_names( bs.atoms, updated_cf.keys() )
-            for key,value in brute_force.iteritems():
+            for key,value in brute_force.items():
                 self.assertAlmostEqual( value, updated_cf[key] )
 
     def test_set_singlets( self ):
@@ -254,7 +252,7 @@ class TestCE( unittest.TestCase ):
                 a = 4.05
                 mx_dia_name = get_max_cluster_dia_name()
                 size_arg = {mx_dia_name:a}
-                ceBulk = BulkCrystal( crystalstructure="fcc", a=a, size=[5,5,5], basis_elements=[basis_elems], conc_args=conc_args, \
+                ceBulk = BulkCrystal( crystalstructure="fcc", a=a, size=[5, 5, 5], basis_elements=[basis_elems], conc_args=conc_args, \
                 db_name=db_name, max_cluster_size=2,**size_arg)
                 ceBulk.reconfigure_settings()
                 cf = CorrFunction(ceBulk)
@@ -271,7 +269,7 @@ class TestCE( unittest.TestCase ):
                     ref_cf = calc.get_cf()
 
                     singlets = {}
-                    for key,value in ref_cf.iteritems():
+                    for key,value in ref_cf.items():
                         if ( key.startswith("c1") ):
                             singlets[key] = value
                     comp = calc.singlet2comp(singlets)
@@ -309,11 +307,11 @@ class TestCE( unittest.TestCase ):
         calc.calculate( ceBulk.atoms, ["energy"], changes )
         updated_cf = calc.get_cf()
         brute_force = corr_func.get_cf_by_cluster_names( ceBulk.atoms, updated_cf.keys() )
-        for key,value in brute_force.iteritems():
+        for key,value in brute_force.items():
             self.assertAlmostEqual( value, updated_cf[key] )
 
 
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(testRunner=TimeLoggingTestRunner)

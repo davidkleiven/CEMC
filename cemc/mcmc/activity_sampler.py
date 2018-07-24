@@ -102,7 +102,7 @@ class ActivitySampler( Montecarlo ):
             self.singlet_changes[key] = np.array(self.singlet_changes[key])
 
         # Update the corresponding ECIs
-        for name, value in self.atoms._calc.eci.iteritems():
+        for name, value in self.atoms._calc.eci.items():
             if ( name.startswith("c1") ):
                 self.eci_singlets[int(name[-1])] = value
 
@@ -204,7 +204,7 @@ class ActivitySampler( Montecarlo ):
 
         at_count = self.count_atoms()
         concs = {key:0.0 for key in self.symbols}
-        for key,value in at_count.iteritems():
+        for key,value in at_count.items():
             concs[key] = float(value)/len(self.atoms)
 
         beta = 1.0/(kB*self.T)

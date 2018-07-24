@@ -15,6 +15,6 @@ class CEcalc( Calculator ):
 
         cf_by_name = self.corrFunc.get_cf_by_cluster_names( atoms, self.eci.keys() )
         energy = 0.0
-        for key,value in self.eci.iteritems():
+        for key,value in self.eci.items():
             energy += value*cf_by_name[key]
         self.results["energy"] = energy*len(atoms) # Should not return energy per atom!

@@ -139,7 +139,7 @@ class PhaseBoundaryTracker(object):
                     dsetname +
                     "{}".format(
                         self._current_backup_indx))
-                for key, value in data.iteritems():
+                for key, value in data.items():
                     if value is None:
                         continue
                     if key == "images":
