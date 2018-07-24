@@ -58,8 +58,7 @@ def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays
         try:
             calc1 = CE( small_bc, eci )
             init_cf = calc1.get_cf()
-            cell_lenghts = small_bc.atoms.get_cell_lengths_and_angles()[:3]
-            min_length = np.min(cell_lenghts)/2.0
+            min_length = small_bc.max_cluster_dist
 
             bc_kwargs["size"] = size
             size_name = get_max_dia_name()
