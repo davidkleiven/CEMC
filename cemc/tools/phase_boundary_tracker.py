@@ -58,6 +58,7 @@ class PhaseBoundaryTracker(object):
         self._max_singlet_change = max_singlet_change
         self._backupfile = backupfile
         self._sgc_obj = None
+        self._integration_direction = "increasing"
 
         if os.path.exists(self._backupfile):
             os.remove(self._backupfile)
@@ -124,6 +125,27 @@ class PhaseBoundaryTracker(object):
                 self._logger.info(msg)
             elif mode == "warning":
                 self._logger.warning(msg)
+
+    def _set_integration_direction(self, T0, Tend):
+        """Sets the integration direction."""
+        if T0 > Tend:
+            self._integration_direction = "decreasing"
+        else:
+            self._integration_direction = "increasing"
+
+    def _reached_temperature_end_point(self, T, Tend):
+        """Returns true if we reached the temperature end point."""
+        if Tend is None:
+            # End point not give
+            return False
+
+        if self._integration_direction == "increasing":
+            if T > Tend:
+                return True
+        elif self._integration_direction == "decreasing":
+            if T < Tend:
+                return True
+        return False
 
     def _backup(self, data, dsetname="data"):
         """
@@ -331,7 +353,9 @@ class PhaseBoundaryTracker(object):
             min_step=1,
             stepsize=100,
             mc_args=None,
-            symbols=None):
+            symbols=None,
+            init_mu=None,
+            Tend=None):
         """
         Solve the differential equation using adaptive euler
 
@@ -340,14 +364,23 @@ class PhaseBoundaryTracker(object):
         :param stepsize: Initial stepsize in kelving
         :param mc_args: Dictionary of arguments for the MC samplers.
             See :py:meth:`cemc.mcmc.SGCMonteCarlo.runMC`
+        :param init_mu: Initial chemical potential
+        :param Tend: Temperature at which to stop the integration
         """
+        self._set_integration_direction(init_temp, Tend)
         if mc_args is None:
             mc_args = {}
 
         if symbols is None:
             raise ValueError("No symbols given!")
 
-        chem_pot = self._get_init_chem_pot()
+        if init_mu is None:
+            # Estimate the initial chemical potential from the
+            # zero kelvin limit
+            chem_pot = self._get_init_chem_pot()
+        else:
+            # Use the user provided chemical potential is initial value
+            chem_pot = init_mu
         if COMM.Get_size() > 1:
             mpicomm = COMM
         else:
@@ -426,6 +459,8 @@ class PhaseBoundaryTracker(object):
             # Append the last step to the array
             if delta_temp <= min_step:
                 ode_solution.append(singlet_array, temperature, chem_pot)
+                break
+            elif self._reached_temperature_end_point(temperature, Tend):
                 break
             is_first = False
 
