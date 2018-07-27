@@ -44,10 +44,10 @@ class DatasetAverager(object):
         """
         Remove all the unvisited sizes
         """
-        self.x_values = self.x_values[self.num_visits>0]
-        self.y_values = self.y_values[self.num_visits>0]
-        self.y_values_squared = self.y_values_squared[self.num_visits>0]
-        self.num_visits = self.num_visits[self.num_visits>0]
+        self.x_values = self.x_values[self.num_visits > 0]
+        self.y_values = self.y_values[self.num_visits > 0]
+        self.y_values_squared = self.y_values_squared[self.num_visits > 0]
+        self.num_visits = self.num_visits[self.num_visits > 0]
 
     def get(self):
         """
@@ -57,6 +57,58 @@ class DatasetAverager(object):
         res = {}
         res["x_values"] = self.x_values
         res["y_values"] = self.y_values/self.num_visits
-        res["std_y"] = np.sqrt( self.y_values_squared/self.num_visits - res["y_values"]**2)
+        res["std_y"] = np.sqrt(self.y_values_squared/self.num_visits -
+                               res["y_values"]**2)
         res["num_visits"] = self.num_visits
         return res
+
+    def _get_default_field_dict(self):
+        """Returns a trivial field dictionary."""
+        field_dict = {
+            "x_values": "x_values",
+            "y_values": "y_values",
+            "std_y": "std_y",
+            "num_visits": "num_visits"
+        }
+        return field_dict
+
+    def _get_time_stamp(self):
+        """Returns the timestamp."""
+        import time
+        import datetime
+        ts = time.time()
+        st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+        return st
+
+    def save_to_db(self, db_name=None, table=None, name="noname", fields=None,
+                   info={}):
+        """Saves the results into a database."""
+        import dataset
+        if db_name is None:
+            raise ValueError("No database name given!")
+        if table is None:
+            table = "dataset_averager"
+        res = self.get()
+
+        field_dict = self._get_default_field_dict()
+
+        db = dataset.connect("sqlite:///{}".format(db_name))
+        tbl = db[table]
+        if fields is not None:
+            for key, value in fields.items():
+                field_dict[key] = value
+
+        stamp = self._get_time_stamp()
+        rows = []
+        for i in range(len(self.x_values)):
+            db_entry = {
+                "name": name,
+                "timestamp": stamp
+            }
+            db_entry[field_dict["x_values"]] = res["x_values"][i]
+            db_entry[field_dict["y_values"]] = res["y_values"][i]
+            db_entry[field_dict["std_y"]] = res["std_y"][i]
+            db_entry[field_dict["num_visits"]] = res["num_visits"][i]
+            db_entry.update(info)
+            rows.append(db_entry)
+        tbl.insert_many(rows)
