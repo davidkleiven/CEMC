@@ -79,11 +79,13 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
         :param window: Index of window
         """
         if ( window == 0 ):
-            min_limit = 0
+            min_limit = self.min_singlet
         else:
             min_limit = window*self.window_singletrange - self.bin_singletrange
 
+        min_limit = self.min_singlet + abs(self.window_singletrange)*window
         max_limit = (window+1)*self.window_singletrange
+        max_limit = self.min_singlet + abs(self.window_singletrange)*(window+1)
         return min_limit, max_limit
 
     def _get_window_indx( self, window, value ):
@@ -93,7 +95,7 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
         :param window: Index of current window
         :param value: Value to be added in a histogram
         """
-        min_lim, max_lim= self._get_window_limits(window)
+        min_lim, max_lim = self._get_window_limits(window)
         if ( value < min_lim or value >= max_lim ):
             msg = "Value out of range for window\n"
             msg += "Value has to be in range [{},{})\n".format(min_lim,max_lim)
@@ -152,7 +154,7 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
         in_window = True
         min_allowed,max_allowed = self._get_window_limits(self.current_window)
 
-        if (singlet < min_allowed or singlet > max_allowed):
+        if (singlet < min_allowed or singlet >= max_allowed):
             in_window = False
         # Now system will return to previous state if not inside window
         return move_accepted and in_window
@@ -265,6 +267,8 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
             #Now we are in the middle of the current window, start MC
             current_step = 0
             now = time.time()
+            self.log("Initial chemical formula window {}: {}".format(
+                self.current_window, self.atoms.get_chemical_formula()))
             while (current_step < nsteps):
                 current_step += 1
                 if ( time.time()-now > output_every ):
@@ -275,7 +279,10 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
                 self._mc_step()
                 self._update_records()
                 self.averager.reset()
-            self.log( "Acceptance rate in window {}: {}".format(self.current_window,float(self.num_accepted)/self.current_step) )
+            self.log( "Acceptance rate in window {}: {}".format(
+                self.current_window,float(self.num_accepted)/self.current_step) )
+            self.log("Final chemical formula: {}".format(
+                self.atoms.get_chemical_formula()))
             self.reset()
         self._get_merged_records()
 
