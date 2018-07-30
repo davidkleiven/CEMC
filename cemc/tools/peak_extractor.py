@@ -23,7 +23,8 @@ class PeakExtractor(object):
         """Locate peaks.
 
         :return: List of dictionaries
-                 [{"x": x_peak1, "y": y_peak1}, {"x": x_peak2, "y": y_peak2}]
+                 [{"x": x_peak1, "y": y_peak1, "indx1": 3},
+                 {"x": x_peak2, "y": y_peak2, "indx2": 8}]
         """
 
         peaks = []
@@ -31,6 +32,6 @@ class PeakExtractor(object):
             if self.y[i] > self.y[i-1] and self.y[i] > self.y[i+1]:
                 # We have a peak
                 x_peak, y_peak = self._locate_peak(self.x[i-1: i+2],
-                                                   self.y[i-1, i+2])
-                peaks.append({"x": x_peak, "y": y_peak})
+                                                   self.y[i-1: i+2])
+                peaks.append({"x": x_peak, "y": y_peak, "indx": i})
         return peaks

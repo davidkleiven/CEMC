@@ -406,14 +406,17 @@ class SGCMonteCarlo( mc.Montecarlo ):
         quantities = {}
         singlets = self.averager.singlets/N
         singlets_sq = self.averager.quantities["singlets_sq"]/N
-        #quantities["chem_pots"] = self.chem_pots
+
+        quantities["sgc_energy"] = self.averager.energy.mean
+        quantities["sgc_heat_capacity"] = self.averager.energy_sq.mean - \
+            self.averager.energy.mean**2
+
+        quantities["sgc_heat_capacity"] /= (kB*self.T**2)
+
         quantities["energy"] = self.averager.energy.mean
         for i in range( len(self.chem_pots) ):
             quantities["energy"] += self.chem_pots[i]*singlets[i]*len(self.atoms)
-
-        quantities["heat_capacity"] = self.averager.energy_sq.mean - (self.averager.energy.mean)**2 + \
-                                      np.sum( self.averager.singl_eng/N - (self.averager.energy.mean)*singlets )
-        quantities["heat_capacity"] /= (kB*self.T**2)
+            
         quantities["temperature"] = self.T
         quantities["n_mc_steps"] = self.averager.counter
         # Add singlets and chemical potential to the dictionary
