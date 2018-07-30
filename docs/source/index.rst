@@ -45,3 +45,4 @@ Tools
   gs_finder
   free_energy_canonical
   dataset_averager
+  peak_extractor
