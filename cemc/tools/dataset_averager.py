@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.interpolate import interp1d
 
+
 class DatasetAverager(object):
     """
     Class that averages datasets where the range of the individual datasets
