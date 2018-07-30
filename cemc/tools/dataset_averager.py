@@ -5,7 +5,10 @@ class DatasetAverager(object):
     """
     Class that averages datasets where the range of the individual datasets
     may vary
+
+    :param x_values: x-values used for interpolation
     """
+
     def __init__(self, x_values):
         self.x_values = x_values
         self.y_values = np.zeros_like(self.x_values)
@@ -28,6 +31,9 @@ class DatasetAverager(object):
     def add_dataset(self, x_vals, y_vals):
         """
         Add a new dataset to the array
+
+        :param x_vals: x-values of the data
+        :param y_vals: y-values (has to be the same length as x-values)
         """
         interpolator = interp1d(x_vals, y_vals)
         min_indx, max_indx = self._get_boundary_indices(x_vals)
@@ -52,6 +58,14 @@ class DatasetAverager(object):
     def get(self):
         """
         Get results
+
+        :return: Dictionary with results
+                 {
+                    "x_values": x-values of the data
+                    "y_valyes": Averaged and interpolated y-values
+                    "std_y": Standard deviation of the y-values
+                    "num_visits": Number of datapoints used to average
+                 }
         """
         self._remove_unvisited()
         res = {}
@@ -82,7 +96,22 @@ class DatasetAverager(object):
 
     def save_to_db(self, db_name=None, table=None, name="noname", fields=None,
                    info={}):
-        """Saves the results into a database."""
+        """Saves the results into a database.
+
+        :param db_name: Name of the database
+        :param table: Name of the table in the database
+        :param name: Name tag that is stored for each entry
+        :param fields: Translation dictionaries for DB fields.
+                       Default fields are ["x_values", "y_values",
+                       "std_y", "num_visists"]
+                       Example: If x represents temperature and y represents
+                                energy, the translation dictionary could be
+                                fields = {
+                                    "x_values": "temperature",
+                                    "y_values": "energy",
+                                    "std_y": "std_enregy"
+                                }
+        """
         import dataset
         if db_name is None:
             raise ValueError("No database name given!")
