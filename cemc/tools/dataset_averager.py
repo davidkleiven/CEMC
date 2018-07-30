@@ -5,7 +5,7 @@ from scipy.interpolate import interp1d
 class DatasetAverager(object):
     """
     Class that averages datasets where the range of the individual datasets
-    may vary
+    may vary.
 
     :param x_values: x-values used for interpolation
     """
@@ -61,12 +61,12 @@ class DatasetAverager(object):
         Get results
 
         :return: Dictionary with results
-                 {
-                    "x_values": x-values of the data
-                    "y_valyes": Averaged and interpolated y-values
-                    "std_y": Standard deviation of the y-values
-                    "num_visits": Number of datapoints used to average
-                 }
+
+                 * *x_values* x-values of the data
+                 * *y_valyes* Averaged and interpolated y-values
+                 * *std_y* Standard deviation of the y-values
+                 * *num_visits* Number of datapoints used to average
+
         """
         self._remove_unvisited()
         res = {}
@@ -105,13 +105,13 @@ class DatasetAverager(object):
         :param fields: Translation dictionaries for DB fields.
                        Default fields are ["x_values", "y_values",
                        "std_y", "num_visists"]
-                       Example: If x represents temperature and y represents
-                                energy, the translation dictionary could be
-                                fields = {
-                                    "x_values": "temperature",
-                                    "y_values": "energy",
-                                    "std_y": "std_enregy"
-                                }
+
+                       **Example**: If x represents temperature and y represents
+                       energy, the translation dictionary could be
+                       
+                       * *x_values*:"temperature",
+                       * *y_values*:"energy",
+                       * *std_y*:"std_enregy"
         """
         import dataset
         if db_name is None:

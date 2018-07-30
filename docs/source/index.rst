@@ -44,3 +44,4 @@ Tools
   phase_boundary_tracker
   gs_finder
   free_energy_canonical
+  dataset_averager
