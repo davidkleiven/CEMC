@@ -8,7 +8,6 @@ import copy
 import json
 import sqlite3 as sq
 import io
-from cemc.wanglandau import wltools
 from ase.db import connect
 from ase.visualize import view
 from cemc.wanglandau import mod_factor_updater as mfu
@@ -225,7 +224,7 @@ class WangLandau( object ):
             row = db.get( id=atomID )
             elms = row.data.elements
             chem_pot = row.data.chemical_potentials
-            self.chem_pot = wltools.key_value_lists_to_dict(elms,chem_pot)
+            self.chem_pot = dict(zip(elms,chem_pot))
         except Exception as exc:
             self.logger.warning( str(exc) )
 
