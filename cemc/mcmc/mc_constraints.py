@@ -8,6 +8,12 @@ class MCConstraint(object):
         self.name = "GenericConstraint"
 
     def __call__(self, system_changes):
+        """Return true if the trial move is valid.
+
+        :param system_changes: List of tuples with information about the
+                               changes introduced. See doc string of
+                               :py:class:`cemc.mcmc.mc_observers.MCObserver`
+        """
         return True
 
 
@@ -52,7 +58,7 @@ class PairConstraint(MCConstraint):
 
     def __call__(self, system_changes):
         """
-        Checks if there are any pairs of the two atoms.
+        Check if there are any pairs of the two atoms.
         """
 
         # Force the calculator to update the symbols
@@ -73,7 +79,7 @@ class FixedElement(MCConstraint):
 
     def __call__(self, system_changes):
         """
-        Checks if the *element* is involved in any of the changes
+        Check if the *element* is involved in any of the changes
         """
         for change in system_changes:
             if change[0] == self.element or change[1] == self.element:
