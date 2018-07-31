@@ -68,7 +68,7 @@ generated_files = ["database_with_dft_structures.db", "temp_db_wanglandau.db",
                    "test_nucl_canonical.h5", "test_nucl.h5",
                    "test_phase_boundary.h5", "test_phase_boundary_ternary.h5",
                    "BC_wanglandau_Al62Mg63.pkl",
-                   "BC_wanglandau_Al62Mg63.pkl", "demo.traj",
+                   "BC_wanglandau_Al63Mg62.pkl", "demo.traj",
                    "relaxed_path.traj", "subbin.csv",
                    "free_energy_barrier.json"]
 
