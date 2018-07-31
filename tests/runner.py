@@ -1,4 +1,5 @@
 import unittest
+import os
 from cemc import TimeLoggingTestRunner
 import test_activity_sampler
 import test_all_examples
@@ -19,6 +20,11 @@ import test_sgc_mc
 import test_strain_energy
 import test_transition_path
 import test_wang_landau_init
+
+try:
+    os.mkdir("data")
+except Exception as exc:
+    print(str(exc))
 
 loader = unittest.TestLoader()
 suite = unittest.TestSuite()
@@ -46,3 +52,28 @@ suite.addTests(loader.loadTestsFromModule(test_wang_landau_init))
 
 runner = TimeLoggingTestRunner()
 result = runner.run(suite)
+
+generated_files = ["database_with_dft_structures.db", "temp_db_wanglandau.db",
+                   "template_bc.db", "temp_nuc_db.db",
+                   "temporary_bcnucleationdb.db", "temporary_db.db",
+                   "test_db_bcc.db", "test_db_binary_almg.db",
+                   "test_db.db", "test_db_fcc.db", "test_db_fcc_super.db",
+                   "test_db_gsfinder.db", "test_db_hcp.db",
+                   "test_db_network.db", "test_db_sc.db", "test_db_ternary.db",
+                   "test_gs_db.db", "test_phase_boundary.db",
+                   "test_singlets.db", "wanglandau_test_init.db",
+                   "backup_phase_track.h5", "default_output.h5",
+                   "test_nucl_canonical.h5", "test_nucl.h5",
+                   "test_phase_boundary.h5", "test_phase_boundary_ternary.h5",
+                   "BC_wanglandau_Al62Mg63.pkl"]
+
+
+def clean():
+    for fname in generated_files:
+        try:
+            os.remove(fname)
+        except Exception as exc:
+            print(str(exc))
+
+
+clean()
