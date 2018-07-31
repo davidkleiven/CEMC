@@ -57,7 +57,7 @@ def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays
     if ( rank == 0 ):
         try:
             max_size_eci = get_max_size_eci(eci)
-            if max_size_eci > kwargs["max_cluster_size"]:
+            if max_size_eci > bc_kwargs["max_cluster_size"]:
                 msg = "ECI specifies a cluster size larger than "
                 msg += "ClusterExpansionSetting tracks!"
                 raise ValueError(msg)
