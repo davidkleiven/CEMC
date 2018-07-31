@@ -56,6 +56,11 @@ def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays
     msg = ""
     if ( rank == 0 ):
         try:
+            max_size_eci = get_max_size_eci(eci)
+            if max_size_eci > kwargs["max_cluster_size"]:
+                msg = "ECI specifies a cluster size larger than "
+                msg += "ClusterExpansionSetting tracks!"
+                raise ValueError(msg)
             calc1 = CE( small_bc, eci )
             init_cf = calc1.get_cf()
             min_length = small_bc.max_cluster_dist
@@ -109,6 +114,15 @@ def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays
     init_cf = MPI.COMM_WORLD.bcast( init_cf, root=0 )
     calc2 = CE( large_bc, eci, initial_cf=init_cf, free_unused_arrays_BC=free_unused_arrays_BC )
     return calc2
+
+def get_max_size_eci(eci):
+    """Finds the maximum cluster name given in the ECIs."""
+    max_size = 0
+    for key in eci.keys():
+        size = int(key[1])
+        if size > max_size:
+            max_size = size
+    return max_size
 
 class CE( Calculator ):
     """
