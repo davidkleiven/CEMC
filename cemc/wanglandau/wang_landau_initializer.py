@@ -4,7 +4,7 @@ from ase.ce import BulkCrystal, BulkSpacegroup
 from cemc.mcmc import SimulatedAnnealingCanonical
 from ase.calculators.singlepoint import SinglePointCalculator
 import pickle as pck
-from cemc.wanglandau import wang_landau_db_manager as wldbm
+from cemc.wanglandau.wang_landau_db_manager import WangLandauDBManager
 import copy
 
 class AtomExistsError(Exception):
@@ -99,7 +99,7 @@ class WangLandauInit(object):
         """
         Prepares a Wang Landau run
         """
-        manager = wldbm.WangLandauDBManager( self.wl_db_name )
+        manager = WangLandauDBManager( self.wl_db_name )
         print (manager)
         db = connect( self.wl_db_name )
         atomID = db.get( select_cond ).id

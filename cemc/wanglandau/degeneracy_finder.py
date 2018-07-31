@@ -1,5 +1,5 @@
 from ase.spacegroup.spacegroup import SpaceGroup
-from cemc.wanglandau import wltools
+from cemc.wanglandau.wltools import count_elements
 import numpy as np
 from scipy.spatial import cKDTree as KDTree
 
@@ -17,7 +17,7 @@ class DegeneracyFinder( object ):
         """
         Returns the number of degenerate structures
         """
-        atoms_count = wltools.count_elements( self.atoms )
+        atoms_count = count_elements( self.atoms )
         if ( len(atoms_count.keys()) == 1 ):
             return 1
         elif ( len(atoms_count.keys()) == 2 ):

@@ -1,4 +1,3 @@
-from cemc.wanglandau import wang_landau_sampler as wlg
 from cemc.wanglandau.settings import SimulationState
 
 class ConvergedHistogramPolicy( object ):
@@ -7,7 +6,8 @@ class ConvergedHistogramPolicy( object ):
     when the histogram in the WL algorithm has converged
     """
     def __init__( self, wl_sim ):
-        if ( not isinstance(wl_sim, wlg.WangLandau) ):
+        from cemc.wanglandau import WangLandau
+        if ( not isinstance(wl_sim, WangLandau) ):
             raise TypeError( "wl_sim has to be of type WangLandau" )
         self.wl_sim = wl_sim
 

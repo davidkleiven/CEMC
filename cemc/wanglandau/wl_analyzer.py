@@ -2,7 +2,7 @@ from ase import units
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.stats import linregress
-from cemc.wanglandau import wltools
+from cemc.wanglandau.wltools import get_formula
 from scipy.stats import linregress
 
 class WangLandauSGCAnalyzer( object ):
@@ -43,7 +43,7 @@ class WangLandauSGCAnalyzer( object ):
         """
         Returns the chemical formula of the object (only relevant if in cannonical ensemble)
         """
-        return wltools.get_formula( self.atomic_numbers )
+        return get_formula( self.atomic_numbers )
 
 
     def extend_dos_by_extraploation( self ):
