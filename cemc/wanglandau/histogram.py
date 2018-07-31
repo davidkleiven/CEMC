@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import interpolate
-from cemc.wanglandau import wltools
+from cemc.wanglandau.wltools import convert_array, adapt_array
 import sqlite3 as sq
 import time
 from matplotlib import pyplot as plt
@@ -181,10 +181,10 @@ class Histogram( object ):
         conn.close()
 
         try:
-            self.histogram = wltools.convert_array( entries[0] )
-            self.logdos = wltools.convert_array( entries[1] )
-            self.growth_variance = wltools.convert_array( entries[2] )
-            self.known_state = wltools.convert_array( entries[5] ).astype(np.uint8)
+            self.histogram = convert_array( entries[0] )
+            self.logdos = convert_array( entries[1] )
+            self.growth_variance = convert_array( entries[2] )
+            self.known_state = convert_array( entries[5] ).astype(np.uint8)
             self.Nbins = len(self.histogram)
         except Exception as exc:
             self.logger.warning( "The following exception occured during load data from the database")
@@ -203,11 +203,11 @@ class Histogram( object ):
         conn = sq.connect( db_name )
         cur = conn.cursor()
         E = np.linspace( self.Emin, self.Emax, self.Nbins )
-        cur.execute( "update simulations set energy=? WHERE uid=?", (wltools.adapt_array(E),uid)  )
-        cur.execute( "update simulations set logdos=? WHERE uid=?", (wltools.adapt_array(self.logdos),uid)  )
-        cur.execute( "update simulations set histogram=? WHERE uid=?", (wltools.adapt_array(self.histogram),uid) )
-        cur.execute( "update simulations set growth_variance=? WHERE uid=?", (wltools.adapt_array(self.growth_variance),uid))
-        cur.execute( "update simulations set known_structures=? WHERE uid=?", (wltools.adapt_array(self.known_state),uid) )
+        cur.execute( "update simulations set energy=? WHERE uid=?", (adapt_array(E),uid)  )
+        cur.execute( "update simulations set logdos=? WHERE uid=?", (adapt_array(self.logdos),uid)  )
+        cur.execute( "update simulations set histogram=? WHERE uid=?", (adapt_array(self.histogram),uid) )
+        cur.execute( "update simulations set growth_variance=? WHERE uid=?", (adapt_array(self.growth_variance),uid))
+        cur.execute( "update simulations set known_structures=? WHERE uid=?", (adapt_array(self.known_state),uid) )
         cur.execute( "update simulations set Emin=?, Emax=? where uid=?", (self.Emin,self.Emax,uid) )
         conn.commit()
         conn.close()

@@ -10,8 +10,10 @@ import sqlite3 as sq
 import io
 from ase.db import connect
 from ase.visualize import view
-from cemc.wanglandau import mod_factor_updater as mfu
-from cemc.wanglandau import converged_histogram_policy as chp
+from cemc.wanglandau.mod_factor_updater import ModificationFactorUpdater
+from cemc.wanglandau.mod_factor_updater import InverseTimeScheme
+from cemc.wanglandau.converged_histogram_policy import ConvergedHistogramPolicy
+from cemc.wanglandau.converged_histogram_policy import LowerModificationFactor
 from cemc.wanglandau.settings import SimulationState
 import logging
 import time
@@ -115,14 +117,14 @@ class WangLandau( object ):
         self.prev_number_of_converged = 0
         self.prev_number_of_known_bins = 0
         self.n_steps_without_progress = 0
-        self.mod_factor_updater = mfu.ModificationFactorUpdater(self)
-        self.on_converged_hist = chp.ConvergedHistogramPolicy(self)
+        self.mod_factor_updater = ModificationFactorUpdater(self)
+        self.on_converged_hist = ConvergedHistogramPolicy(self)
 
         if ( scheme == "inverse_time" ):
-            self.mod_factor_updater = mfu.InverseTimeScheme(self,fmin=fmin)
-            self.on_converged_hist = chp.LowerModificationFactor(self,fmin=fmin)
+            self.mod_factor_updater = InverseTimeScheme(self,fmin=fmin)
+            self.on_converged_hist = LowerModificationFactor(self,fmin=fmin)
         elif ( scheme == "square_root_reduction" ):
-            self.on_converged_hist = chp.LowerModificationFactor(self,fmin=fmin,m=2)
+            self.on_converged_hist = LowerModificationFactor(self,fmin=fmin,m=2)
 
         if (len(self.atoms) != len(self.site_types )):
             raise ValueError( "A site type for each site has to be specified!" )

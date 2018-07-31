@@ -1,7 +1,6 @@
 import sys
 import sqlite3 as sq
 import numpy as np
-from cemc.wanglandau import WangLandau
 from cemc.wanglandau.wl_analyzer import WangLandauSGCAnalyzer
 from cemc.wanglandau import wltools
 from ase.db import connect

@@ -1,10 +1,10 @@
-from cemc.wanglandau import wang_landau_sampler as wls
 from cemc.wanglandau.settings import SimulationState
 from cemc.wanglandau import converged_histogram_policy as chp
 
 class ModificationFactorUpdater( object ):
     def __init__( self, wl_sim ):
-        if ( not isinstance(wl_sim,wls.WangLandau) ):
+        from cemc.wanglandau import WangLandau
+        if ( not isinstance(wl_sim, WangLandau) ):
             raise TypeError( "wl_sim has to be of type WangLandaus" )
         self.wl_sim = wl_sim
 

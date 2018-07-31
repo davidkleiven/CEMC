@@ -23,6 +23,8 @@ import test_wang_landau_init
 
 try:
     os.mkdir("data")
+except OSError as exc:
+    pass
 except Exception as exc:
     print(str(exc))
 
