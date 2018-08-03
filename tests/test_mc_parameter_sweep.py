@@ -19,7 +19,7 @@ class TestMCParameterSweep( unittest.TestCase ):
             "conc_ratio_max_1":[[0,1]],
         }
         ceBulk = BulkCrystal( crystalstructure="fcc", a=4.05, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, db_name=db_name)
-        ceBulk._get_cluster_information()
+        ceBulk.reconfigure_settings()
         cf = CorrFunction(ceBulk)
         cf = cf.get_cf(ceBulk.atoms)
         ecis = {key:1.0 for key in cf.keys()}

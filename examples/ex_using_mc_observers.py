@@ -33,7 +33,7 @@ eci = get_example_ecis(bc_kwargs=kwargs)
 
 # Initialize a template BulkCrystal Object
 ceBulk = BulkCrystal( **kwargs )
-
+ceBulk.reconfigure_settings()  # Nessecary for the unittests to pass
 # Now we want to get a Cluster Expansion calculator for a big cell
 mc_cell_size = [10,10,10]
 from cemc import get_ce_calc

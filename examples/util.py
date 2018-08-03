@@ -12,4 +12,8 @@ def get_example_ecis(bc=None,bc_kwargs=None):
     return eci
 
 def get_example_network_name(bc):
-    return bc.cluster_names[0][2][0]
+    names = bc.cluster_family_names
+    for name in names:
+        if int(name[1]) == 2:
+            return name
+    raise RuntimeError("No pair cluster found!")

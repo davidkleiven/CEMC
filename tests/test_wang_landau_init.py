@@ -24,6 +24,7 @@ bc_kwargs = {
 
 def get_eci():
     bc = BulkCrystal(**bc_kwargs)
+    bc.reconfigure_settings()
     cf = CorrFunction(bc)
     cf = cf.get_cf(bc.atoms)
     eci = {key: 0.001 for key in cf.keys()}

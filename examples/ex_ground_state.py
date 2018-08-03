@@ -23,6 +23,7 @@ conc_args = {
 bc = BulkCrystal(crystalstructure="fcc", a=4.05, conc_args=conc_args,
                  db_name="test_gs_db.db", size=[3, 3, 3],
                  basis_elements=[["Al","Mg"]], max_cluster_size=3)
+bc.reconfigure_settings()  # Nessecary for unittests to pass
 
 # Just use some example ECIs
 eci = get_example_ecis(bc=bc)

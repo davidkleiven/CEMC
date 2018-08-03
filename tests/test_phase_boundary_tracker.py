@@ -25,7 +25,10 @@ class TestPhaseBoundaryMC( unittest.TestCase ):
             "conc_ratio_max_1":[[0,1]],
         }
         ceBulk1 = BulkCrystal( crystalstructure="fcc", a=4.05, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, db_name=db_name)
+        ceBulk1.reconfigure_settings()
         ceBulk2 = BulkCrystal( crystalstructure="fcc", a=4.05, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, db_name=db_name)
+        ceBulk2.reconfigure_settings()
+
         for atom in ceBulk2.atoms:
             atom.symbol = "Mg"
         return ceBulk1, ceBulk2

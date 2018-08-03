@@ -54,20 +54,24 @@ class TestNetworkObs( unittest.TestCase ):
                 crystalstructure="fcc", a=a, size=[3, 3, 3],
                 basis_elements=[["Al","Mg"]], conc_args=conc_args,
                 db_name=db_name, max_cluster_size=3)
-            net_name = str(get_example_network_name(ceBulk))
+            ceBulk.reconfigure_settings()
             cf = CorrFunction(ceBulk)
             cf = cf.get_cf(ceBulk.atoms)
             eci = {key:0.001 for key in cf.keys()}
             calc = CE( ceBulk, eci=eci )
             ceBulk.atoms.set_calculator(calc)
-            obs = NetworkObserver( calc=calc, cluster_name=net_name, element="Mg" )
             trans_mat = ceBulk.trans_matrix
-            indx = ceBulk.cluster_names[0][2].index(net_name)
-            clusters = ceBulk.cluster_indx[0][2][indx]
+
+            for name, info in ceBulk.cluster_info[0].items():
+                if info["size"] == 2:
+                    net_name = name
+                    break
+            obs = NetworkObserver( calc=calc, cluster_name=net_name, element="Mg" )
 
             # Several hard coded tests
             calc.update_cf( (0,"Al","Mg") )
             size = 2
+            clusters = ceBulk.cluster_info[0][net_name]["indices"]
             for sub_clust in clusters:
                 calc.update_cf( (sub_clust[0],"Al","Mg") )
                 # Call the observer

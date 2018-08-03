@@ -6,16 +6,19 @@
 #include <iostream>
 
 using namespace std;
-Cluster::Cluster( const string &name, const cluster_t &mems, \
-    const cluster_t &order, const cluster_t &equiv ):name(name), members(mems), \
-      order(order), equiv_sites(equiv)
+
+Cluster::Cluster(PyObject *info_dict)
 {
-  size = mems[0].size()+1;
+  parse_info_dict(info_dict);
 }
 
 ostream& operator <<( ostream& out, const Cluster &cluster )
 {
   out << "Name: " << cluster.name << "\n";
+  out << "Descriptor: " << cluster.descriptor << "\n";
+  out << "Max cluster dia: " << cluster.max_cluster_dia << "\n";
+  out << "Size: " << cluster.size << "\n";
+  out << "ref_indx: " << cluster.ref_indx << "\n";
   out << "Members:\n";
   out << cluster.get();
   out << "\nOrder:\n",
@@ -39,7 +42,6 @@ void Cluster::construct_equivalent_deco(int n_basis_funcs)
 {
   vector< vector<int> > bf_indx;
   all_deco(n_basis_funcs, bf_indx);
-
   if (equiv_sites.size() == 0)
   {
     // There are no equivalent sites, or there are only one basis function
@@ -129,7 +131,11 @@ void Cluster::construct_equivalent_deco(int n_basis_funcs)
 
 void Cluster::all_deco(int num_bfs, vector< vector<int> > &deco) const
 {
-  if (get_size() == 2)
+  if (get_size() <= 1)
+  {
+    return;
+  }
+  else if (get_size() == 2)
   {
     for (unsigned int i=0;i<num_bfs;i++)
     for (unsigned int j=0;j<num_bfs;j++)
@@ -175,4 +181,70 @@ const equiv_deco_t& Cluster::get_equiv_deco(const std::vector<int> &deco) const
   string dec_str;
   deco2string(deco, dec_str);
   return get_equiv_deco(dec_str);
+}
+
+void Cluster::parse_info_dict(PyObject *info)
+{
+  // Read reference index
+  PyObject* py_ref_indx = PyDict_GetItemString(info, "ref_indx");
+  ref_indx = py2int(py_ref_indx);
+
+  // Read size
+  PyObject* py_size = PyDict_GetItemString(info, "size");
+  size = py2int(py_size);
+
+  // Read max_cluster_dia
+  PyObject* py_mx_dia = PyDict_GetItemString(info, "max_cluster_dia");
+  if (size <= 1)
+  {
+    max_cluster_dia = "none";
+  }
+  else
+  {
+    max_cluster_dia = py2string(py_mx_dia);
+  }
+  // Read symmetry group
+  PyObject* py_symm = PyDict_GetItemString(info, "symm_group");
+  symm_group = py2int(py_symm);
+
+
+  // Read the name
+  PyObject* py_name = PyDict_GetItemString(info, "name");
+  name = py2string(py_name);
+
+  // Read descriptor
+  PyObject* py_desc = PyDict_GetItemString(info, "descriptor");
+  descriptor = py2string(py_desc);
+
+  // Read indices
+  PyObject* py_indx = PyDict_GetItemString(info, "indices");
+  nested_list_to_cluster(py_indx, members);
+
+  // Read the order
+  if (size >= 2)
+  {
+    PyObject* py_order = PyDict_GetItemString(info, "order");
+    nested_list_to_cluster(py_order, order);
+  }
+
+  // Read equivalent sites
+  PyObject *py_equiv_sites = PyDict_GetItemString(info, "equiv_sites");
+  nested_list_to_cluster(py_equiv_sites, equiv_sites);
+}
+
+void Cluster::nested_list_to_cluster(PyObject *py_list, cluster_t &vec)
+{
+  int size = PyList_Size(py_list);
+  for (int i=0;i<size;i++)
+  {
+    vector<int> one_cluster;
+    PyObject* seq = PySequence_Fast(PyList_GetItem(py_list, i), NULL); // New reference
+    int n_memb = PySequence_Fast_GET_SIZE(seq);
+    for (int j=0;j<n_memb;j++)
+    {
+      one_cluster.push_back(py2int(PySequence_Fast_GET_ITEM(seq, j)));
+    }
+    Py_DECREF(seq);
+    vec.push_back(one_cluster);
+  }
 }

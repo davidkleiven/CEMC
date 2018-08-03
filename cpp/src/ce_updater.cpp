@@ -64,22 +64,54 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
 
   // Read cluster names
   create_cname_with_dec( corrFunc );
-  PyObject *clist = PyObject_GetAttrString( BC, "cluster_names" );
-  PyObject *clst_indx = PyObject_GetAttrString( BC, "cluster_indx" );
-  PyObject *clst_order = PyObject_GetAttrString(BC, "cluster_order");
-  PyObject *clst_equiv_sites = PyObject_GetAttrString(BC, "cluster_eq_sites");
+  // PyObject *clist = PyObject_GetAttrString( BC, "cluster_names" );
+  // PyObject *clst_indx = PyObject_GetAttrString( BC, "cluster_indx" );
+  // PyObject *clst_order = PyObject_GetAttrString(BC, "cluster_order");
+  // PyObject *clst_equiv_sites = PyObject_GetAttrString(BC, "cluster_eq_sites");
   PyObject *py_num_elements = PyObject_GetAttrString(BC, "num_unique_elements");
   int num_bfs = py2int(py_num_elements)-1;
   Py_DECREF(py_num_elements);
 
-  if ( clist == NULL )
+  // if ( clist == NULL )
+  // {
+  //   status = Status_t::INIT_FAILED;
+  //   return;
+  // }
+
+  PyObject* cluster_info = PyObject_GetAttrString(BC, "cluster_info");
+  unsigned int num_trans_symm = PyList_Size(cluster_info);
+
+  for (unsigned int i=0;i<num_trans_symm;i++)
   {
-    status = Status_t::INIT_FAILED;
-    return;
+    PyObject *info_dicts = PyList_GetItem(cluster_info, i);
+    map<string, Cluster> new_clusters;
+    Py_ssize_t pos = 0;
+    PyObject *key;
+    PyObject *value;
+    while( PyDict_Next(info_dicts, &pos, &key, &value) )
+    {
+      string cluster_name = py2string(key);
+      Cluster new_clst(value);
+      new_clst.construct_equivalent_deco(num_bfs);
+      new_clusters[cluster_name] = new_clst;
+
+      if ( cluster_symm_group_count.find(cluster_name) == cluster_symm_group_count.end() )
+      {
+        cluster_symm_group_count[cluster_name] = new_clst.get().size();
+      }
+      else
+      {
+        cluster_symm_group_count[cluster_name] += new_clst.get().size();
+      }
+    }
+    clusters.push_back(new_clusters);
   }
+  Py_DECREF(cluster_info);
+  #ifdef CE_DEBUG
+    cout << "Finished reading cluster_info\n";
+  #endif
 
-  unsigned int num_trans_symm = PyList_Size( clist );
-
+  /*
   // Loop over all symmetry equivalent sites
   for ( unsigned int s=0;s<num_trans_symm;s++ )
   {
@@ -243,8 +275,7 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   Py_DECREF( clst_indx );
   Py_DECREF( clist );
   Py_DECREF(clst_order);
-  Py_DECREF(clst_equiv_sites);
-  //verify_clusters_only_exits_in_one_symm_group();
+  Py_DECREF(clst_equiv_sites);*/
 
   #ifdef CE_DEBUG
     cerr << "Reading basis functions from BC object\n";
@@ -303,8 +334,6 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   //history = new CFHistoryTracker(flattened_cnames);
   history = new CFHistoryTracker(ecis.get_names());
   history->insert( corrFunc, nullptr );
-  //create_ctype_lookup();
-  //create_permutations( perms );
 
   // Store the singlets names
   for ( unsigned int i=0;i<flattened_cnames.size();i++ )
@@ -328,51 +357,11 @@ void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObjec
   }
 }
 
-void CEUpdater::create_ctype_lookup()
-{
-  for ( unsigned int n=2;n<cluster_names.size();n++ )
-  {
-    for ( unsigned int ctype=0;ctype<cluster_names[0][n].size();ctype++ )
-    {
-      ctype_lookup[cluster_names[0][n][ctype]] = ctype;
-    }
-  }
-}
-
-void CEUpdater::create_permutations( PyObject *perms)
-{
-  Py_ssize_t pos = 0;
-  PyObject *key;
-  PyObject *value;
-  while ( PyDict_Next(perms, &pos, &key, &value) )
-  {
-    vector< vector<int> > new_vec;
-    int size = PyList_Size(value);
-    for ( int i=0;i<size;i++ )
-    {
-      vector<int> one_perm;
-      PyObject *cur = PyList_GetItem(value,i);
-      int n_entries = PyTuple_Size(cur);
-      for ( int j=0;j<n_entries;j++ )
-      {
-        one_perm.push_back( py2int(PyTuple_GetItem(cur,j) ) );
-      }
-      new_vec.push_back(one_perm);
-    }
-    permutations[py2int(key)] = new_vec;
-  }
-}
-
 double CEUpdater::get_energy()
 {
   double energy = 0.0;
   cf& corr_func = history->get_current();
   energy = ecis.dot( corr_func );
-  /*
-  for ( auto iter=ecis.begin(); iter != ecis.end(); ++iter )
-  {
-    energy += corr_func[iter->first]*iter->second;
-  }*/
   return energy*symbols.size();
 }
 
@@ -691,8 +680,6 @@ CEUpdater* CEUpdater::copy() const
 {
   CEUpdater* obj = new CEUpdater();
   obj->symbols = symbols;
-  obj->cluster_names = cluster_names;
-  obj->cluster_indx = cluster_indx;
   obj->clusters = clusters;
   obj->trans_symm_group = trans_symm_group;
   obj->trans_symm_group_count = trans_symm_group_count;

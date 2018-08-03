@@ -291,32 +291,15 @@ class CE( Calculator ):
         os.remove(temp_db_name)
         return corr_funcs
 
-    def convert_cluster_indx_to_list( self ):
+    def convert_cluster_indx_to_list(self):
         """
         Converts potentials arrays to lists
         """
-        for symm in range(len(self.BC.cluster_indx)):
-            for i in range(len(self.BC.cluster_indx[symm])):
-                if ( self.BC.cluster_indx[symm][i] is None ):
-                    continue
-                for j in range(len(self.BC.cluster_indx[symm][i])):
-                    if ( self.BC.cluster_indx[symm][i][j] is None ):
-                        continue
-                    for k in range(len(self.BC.cluster_indx[symm][i][j])):
-                        if ( isinstance(self.BC.cluster_indx[symm][i][j][k],np.ndarray) ):
-                            self.BC.cluster_indx[symm][i][j][k] = self.BC.cluster_indx[symm][i][j][k].tolist()
-                        else:
-                            self.BC.cluster_indx[symm][i][j][k] = list(self.BC.cluster_indx[symm][i][j][k])
-
-                    if ( isinstance(self.BC.cluster_indx[symm][i][j],np.ndarray) ):
-                        self.BC.cluster_indx[symm][i][j] = self.BC.cluster_indx[symm][i][j].tolist()
-                    else:
-                        self.BC.cluster_indx[symm][i][j] = list(self.BC.cluster_indx[symm][i][j])
-
-                if ( isinstance(self.BC.cluster_indx[symm][i],np.ndarray) ):
-                    self.BC.cluster_indx[symm][i] = self.BC.cluster_indx[symm][i].tolist()
-                else:
-                    self.BC.cluster_indx[symm][i] = list(self.BC.cluster_indx[symm][i])
+        for item in self.BC.cluster_info:
+            for name, info in item.items():
+                info["indices"] = list(info["indices"])
+                for i in range(len(info["indices"])):
+                    info["indices"][i] = list(info["indices"][i])
 
     def create_permutations( self ):
         """
@@ -326,7 +309,6 @@ class CE( Calculator ):
         bf_list = list(range(len(self.BC.basis_functions)))
         for num in range(2,len(self.BC.cluster_names)):
             perm = list(product(bf_list, repeat=num))
-            #perm = list(combinations(bf_list, repeat=num))
             self.permutations[num] = perm
 
 
