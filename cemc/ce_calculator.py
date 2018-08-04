@@ -61,10 +61,12 @@ def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays
                 msg = "ECI specifies a cluster size larger than "
                 msg += "ClusterExpansionSetting tracks!"
                 raise ValueError(msg)
+            print("Initializing calculator with small BC")
+
             calc1 = CE( small_bc, eci )
+            print("Initialization finished")
             init_cf = calc1.get_cf()
             min_length = small_bc.max_cluster_dist
-
             bc_kwargs["size"] = size
             size_name = get_max_dia_name()
             bc_kwargs[size_name] = min_length
@@ -141,38 +143,37 @@ class CE( Calculator ):
         Calculator.__init__( self )
         self.BC = BC
         self.corrFunc = CorrFunction(self.BC)
+        cf_names = list(eci.keys())
+        print(len(self.BC.atoms))
         if ( initial_cf is None ):
-            self.cf = self.corrFunc.get_cf( self.BC.atoms )
+            print("Calculating {} correlation functions from scratch".format(len(cf_names)))
+            self.cf = self.corrFunc.get_cf_by_cluster_names(self.BC.atoms,
+                                                            cf_names)
         else:
             self.cf = initial_cf
+        print("Correlation functions initialized...")
 
-        if ( eci is None ):
-            eci = {name:1.0 for name in self.cf.keys()}
         self.eci = eci
-        # Make supercell
+
         self.atoms = self.BC.atoms
         symbols = [atom.symbol for atom in self.BC.atoms] # Keep a copy of the original symbols
         self._check_trans_mat_dimensions()
 
-        #print (self.basis_elements)
-        #if ( len(BC.basis_elements) > 1 ):
-        #    raise ValueError( "At the moment only one site type is supported!" )
         self.old_cfs = []
         self.old_atoms = self.atoms.copy()
         self.changes = []
         self.ctype = {}
-        #self.create_ctype_lookup()
         self.convert_cluster_indx_to_list()
-        self.permutations = {}
-        self.create_permutations()
 
         if isinstance(self.BC.trans_matrix, np.ndarray):
             self.BC.trans_matrix = np.array(self.BC.trans_matrix).astype(np.int32)
 
         self.updater = None
         if ( use_cpp ):
+            print("Initializing C++ calculator...")
             self.updater = ce_updater.CEUpdater()
-            self.updater.init( self.BC, self.cf, self.eci, self.permutations )
+            self.updater.init(self.BC, self.cf, self.eci)
+            print("C++ module initialized...")
 
             if ( not self.updater.ok() ):
                 raise RuntimeError( "Could not initialize C++ CE updater" )
@@ -314,17 +315,6 @@ class CE( Calculator ):
                 info["indices"] = list(info["indices"])
                 for i in range(len(info["indices"])):
                     info["indices"][i] = list(info["indices"][i])
-
-    def create_permutations( self ):
-        """
-        Creates a list of permutations of basis functions that should be passed
-        to the C++ module
-        """
-        bf_list = list(range(len(self.BC.basis_functions)))
-        for num in range(2,len(self.BC.cluster_names)):
-            perm = list(product(bf_list, repeat=num))
-            self.permutations[num] = perm
-
 
     def get_energy( self ):
         """
