@@ -50,7 +50,7 @@ public:
   CEUpdater* copy() const;
 
   /** Initialize the object */
-  void init( PyObject *BC, PyObject *corrFunc, PyObject *ecis, PyObject *permutations );
+  void init(PyObject *BC, PyObject *corrFunc, PyObject *ecis);
 
   /** Change values of ecis */
   void set_ecis( PyObject *ecis );
@@ -154,7 +154,6 @@ private:
   NamedArray ecis;
   std::map<std::string,std::string> cname_with_dec;
   CFHistoryTracker *history{nullptr};
-  std::map< int, std::vector< std::vector<int> > > permutations;
   PyObject *atoms{nullptr};
   std::vector<MCObserver*> observers; // TODO: Not used at the moment. The accept/rejection is done in the Python code
   tracker_t *tracker{nullptr}; // Do not own this pointer

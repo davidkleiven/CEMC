@@ -146,11 +146,12 @@ class CE( Calculator ):
         cf_names = list(eci.keys())
         print(len(self.BC.atoms))
         if ( initial_cf is None ):
-            print("Calculating correlation functions from scratch")
+            print("Calculating {} correlation functions from scratch".format(len(cf_names)))
             self.cf = self.corrFunc.get_cf_by_cluster_names(self.BC.atoms,
                                                             cf_names)
         else:
             self.cf = initial_cf
+        print("Correlation functions initialized...")
 
         self.eci = eci
 
@@ -163,8 +164,6 @@ class CE( Calculator ):
         self.changes = []
         self.ctype = {}
         self.convert_cluster_indx_to_list()
-        self.permutations = {}
-        self.create_permutations()
 
         if isinstance(self.BC.trans_matrix, np.ndarray):
             self.BC.trans_matrix = np.array(self.BC.trans_matrix).astype(np.int32)
@@ -173,7 +172,7 @@ class CE( Calculator ):
         if ( use_cpp ):
             print("Initializing C++ calculator...")
             self.updater = ce_updater.CEUpdater()
-            self.updater.init( self.BC, self.cf, self.eci, self.permutations )
+            self.updater.init(self.BC, self.cf, self.eci)
             print("C++ module initialized...")
 
             if ( not self.updater.ok() ):
@@ -316,17 +315,6 @@ class CE( Calculator ):
                 info["indices"] = list(info["indices"])
                 for i in range(len(info["indices"])):
                     info["indices"][i] = list(info["indices"][i])
-
-    def create_permutations( self ):
-        """
-        Creates a list of permutations of basis functions that should be passed
-        to the C++ module
-        """
-        bf_list = list(range(len(self.BC.basis_functions)))
-        for num in range(2,len(self.BC.cluster_names)):
-            perm = list(product(bf_list, repeat=num))
-            self.permutations[num] = perm
-
 
     def get_energy( self ):
         """

@@ -28,7 +28,7 @@ CEUpdater::~CEUpdater()
   }
 }
 
-void CEUpdater::init( PyObject *BC, PyObject *corrFunc, PyObject *pyeci, PyObject *perms )
+void CEUpdater::init(PyObject *BC, PyObject *corrFunc, PyObject *pyeci)
 {
   //import_array();
   #ifdef CE_DEBUG
@@ -525,7 +525,6 @@ CEUpdater* CEUpdater::copy() const
   obj->ecis = ecis;
   obj->cname_with_dec = cname_with_dec;
   obj->history = new CFHistoryTracker(*history);
-  obj->permutations = permutations;
   obj->atoms = nullptr; // Left as nullptr by intention
   obj->tracker = tracker;
   return obj;
