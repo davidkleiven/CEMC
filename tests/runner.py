@@ -70,7 +70,7 @@ generated_files = ["database_with_dft_structures.db", "temp_db_wanglandau.db",
                    "BC_wanglandau_Al62Mg63.pkl",
                    "BC_wanglandau_Al63Mg62.pkl", "demo.traj",
                    "relaxed_path.traj", "subbin.csv",
-                   "free_energy_barrier.json"]
+                   "free_energy_barrier.json", "bin_transfer.csv"]
 
 
 def clean():
