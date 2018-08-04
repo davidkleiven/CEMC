@@ -16,7 +16,7 @@ typedef std::vector< std::map< std::string,std::vector<int> > > listdict;
 class WangLandauSampler
 {
 public:
-  WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject *ecis, PyObject *permutations, PyObject *py_wl );
+  WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject *ecis, PyObject *py_wl );
   ~WangLandauSampler();
 
   /** Returns a trial move that preserves the composition */
