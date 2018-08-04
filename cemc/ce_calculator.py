@@ -56,10 +56,17 @@ def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays
     msg = ""
     if ( rank == 0 ):
         try:
+            max_size_eci = get_max_size_eci(eci)
+            if max_size_eci > bc_kwargs["max_cluster_size"]:
+                msg = "ECI specifies a cluster size larger than "
+                msg += "ClusterExpansionSetting tracks!"
+                raise ValueError(msg)
+            print("Initializing calculator with small BC")
+
             calc1 = CE( small_bc, eci )
+            print("Initialization finished")
             init_cf = calc1.get_cf()
             min_length = small_bc.max_cluster_dist
-
             bc_kwargs["size"] = size
             size_name = get_max_dia_name()
             bc_kwargs[size_name] = min_length
@@ -110,6 +117,15 @@ def get_ce_calc( small_bc, bc_kwargs, eci=None, size=[1,1,1], free_unused_arrays
     calc2 = CE( large_bc, eci, initial_cf=init_cf, free_unused_arrays_BC=free_unused_arrays_BC )
     return calc2
 
+def get_max_size_eci(eci):
+    """Finds the maximum cluster name given in the ECIs."""
+    max_size = 0
+    for key in eci.keys():
+        size = int(key[1])
+        if size > max_size:
+            max_size = size
+    return max_size
+
 class CE( Calculator ):
     """
     Class for updating the CE when symbols change
@@ -127,27 +143,25 @@ class CE( Calculator ):
         Calculator.__init__( self )
         self.BC = BC
         self.corrFunc = CorrFunction(self.BC)
+        cf_names = list(eci.keys())
+        print(len(self.BC.atoms))
         if ( initial_cf is None ):
-            self.cf = self.corrFunc.get_cf( self.BC.atoms )
+            print("Calculating correlation functions from scratch")
+            self.cf = self.corrFunc.get_cf_by_cluster_names(self.BC.atoms,
+                                                            cf_names)
         else:
             self.cf = initial_cf
 
-        if ( eci is None ):
-            eci = {name:1.0 for name in self.cf.keys()}
         self.eci = eci
-        # Make supercell
+
         self.atoms = self.BC.atoms
         symbols = [atom.symbol for atom in self.BC.atoms] # Keep a copy of the original symbols
         self._check_trans_mat_dimensions()
 
-        #print (self.basis_elements)
-        #if ( len(BC.basis_elements) > 1 ):
-        #    raise ValueError( "At the moment only one site type is supported!" )
         self.old_cfs = []
         self.old_atoms = self.atoms.copy()
         self.changes = []
         self.ctype = {}
-        #self.create_ctype_lookup()
         self.convert_cluster_indx_to_list()
         self.permutations = {}
         self.create_permutations()
@@ -157,8 +171,10 @@ class CE( Calculator ):
 
         self.updater = None
         if ( use_cpp ):
+            print("Initializing C++ calculator...")
             self.updater = ce_updater.CEUpdater()
             self.updater.init( self.BC, self.cf, self.eci, self.permutations )
+            print("C++ module initialized...")
 
             if ( not self.updater.ok() ):
                 raise RuntimeError( "Could not initialize C++ CE updater" )
@@ -291,32 +307,15 @@ class CE( Calculator ):
         os.remove(temp_db_name)
         return corr_funcs
 
-    def convert_cluster_indx_to_list( self ):
+    def convert_cluster_indx_to_list(self):
         """
         Converts potentials arrays to lists
         """
-        for symm in range(len(self.BC.cluster_indx)):
-            for i in range(len(self.BC.cluster_indx[symm])):
-                if ( self.BC.cluster_indx[symm][i] is None ):
-                    continue
-                for j in range(len(self.BC.cluster_indx[symm][i])):
-                    if ( self.BC.cluster_indx[symm][i][j] is None ):
-                        continue
-                    for k in range(len(self.BC.cluster_indx[symm][i][j])):
-                        if ( isinstance(self.BC.cluster_indx[symm][i][j][k],np.ndarray) ):
-                            self.BC.cluster_indx[symm][i][j][k] = self.BC.cluster_indx[symm][i][j][k].tolist()
-                        else:
-                            self.BC.cluster_indx[symm][i][j][k] = list(self.BC.cluster_indx[symm][i][j][k])
-
-                    if ( isinstance(self.BC.cluster_indx[symm][i][j],np.ndarray) ):
-                        self.BC.cluster_indx[symm][i][j] = self.BC.cluster_indx[symm][i][j].tolist()
-                    else:
-                        self.BC.cluster_indx[symm][i][j] = list(self.BC.cluster_indx[symm][i][j])
-
-                if ( isinstance(self.BC.cluster_indx[symm][i],np.ndarray) ):
-                    self.BC.cluster_indx[symm][i] = self.BC.cluster_indx[symm][i].tolist()
-                else:
-                    self.BC.cluster_indx[symm][i] = list(self.BC.cluster_indx[symm][i])
+        for item in self.BC.cluster_info:
+            for name, info in item.items():
+                info["indices"] = list(info["indices"])
+                for i in range(len(info["indices"])):
+                    info["indices"][i] = list(info["indices"][i])
 
     def create_permutations( self ):
         """
@@ -326,7 +325,6 @@ class CE( Calculator ):
         bf_list = list(range(len(self.BC.basis_functions)))
         for num in range(2,len(self.BC.cluster_names)):
             perm = list(product(bf_list, repeat=num))
-            #perm = list(combinations(bf_list, repeat=num))
             self.permutations[num] = perm
 
 
