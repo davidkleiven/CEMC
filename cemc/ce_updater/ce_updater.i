@@ -16,6 +16,7 @@
 #define SWIG_FILE_WITH_INIT
 #include "init_numpy.hpp"
 #include "additional_tools.hpp"
+#include "cluster.hpp"
 #include "ce_updater.hpp"
 #include "wang_landau_sampler.hpp"
 #include "adaptive_windows.hpp"
@@ -34,6 +35,7 @@
 %template(map_str_dbl) std::map<std::string,double>;
 %template(string_vector) std::vector<std::string>;
 
+%include "cluster.hpp"
 %include "ce_updater.hpp"
 %include "matrix.hpp"
 %include "matrix.tpp"

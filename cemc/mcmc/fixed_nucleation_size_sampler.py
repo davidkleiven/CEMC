@@ -37,8 +37,10 @@ class FixedNucleusMC( Montecarlo ):
         """
         Find the cluster indices corresponding to the current network name
         """
-        indx = self.bc.cluster_names[0][2].index(self.network_name)
-        self.network_clust_indx = self.bc.cluster_indx[0][2][indx]
+        clusters = self.bc.cluster_info_by_name(self.network_name)
+        if len(clusters) > 1:
+            raise NotImplementedError("Currently this only work for symm grp.")
+        self.network_clust_indx = clusters[0]["indices"]
 
     def _get_trial_move(self):
         """

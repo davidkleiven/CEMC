@@ -134,21 +134,18 @@ public:
   /** Computes the vibrational energy at the given temperature */
   double vib_energy( double T ) const;
 private:
-  void create_ctype_lookup();
-  void create_permutations( PyObject *pypermutations );
   void get_unique_indx_in_clusters( std::set<int> &unique_indx );
 
   /** Returns the maximum index occuring in the cluster indices */
   unsigned int get_max_indx_of_zero_site() const;
 
   std::vector<std::string> symbols;
-  name_list cluster_names;
-  cluster_list cluster_indx;
-  std::vector< std::map<std::string,Cluster> > clusters;
+  std::vector< std::map<std::string, Cluster> > clusters;
   std::vector<int> trans_symm_group;
   std::vector<int> trans_symm_group_count;
   std::map<std::string,int> cluster_symm_group_count;
   bf_list basis_functions;
+
   Status_t status{Status_t::NOT_INITIALIZED};
   //Matrix<int> trans_matrix;
   RowSparseStructMatrix trans_matrix;

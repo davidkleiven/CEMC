@@ -40,7 +40,6 @@ def get_small_BC_with_ce_calc(lat="fcc"):
     ceBulk = BulkCrystal( crystalstructure=lat, a=a, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, \
     db_name=db_name, max_cluster_size=3)
     ceBulk.reconfigure_settings()
-    ceBulk._get_cluster_information()
     cf = CorrFunction(ceBulk)
     corrfuncs = cf.get_cf(ceBulk.atoms)
     eci = {name:1.0 for name in corrfuncs.keys()}
@@ -60,6 +59,7 @@ def get_ternary_BC():
     size_arg = {max_dia:4.05}
     ceBulk = BulkCrystal(crystalstructure="fcc", a=4.05, size=[4,4,4], basis_elements=[["Al","Mg","Si"]], \
                          conc_args=conc_args, db_name=db_name, max_cluster_size=3, **size_arg)
+    ceBulk.reconfigure_settings()
     return ceBulk
 
 def get_max_cluster_dia_name():
@@ -80,7 +80,11 @@ def flatten_cluster_names(cnames):
     return flattened
 
 def get_example_network_name(bc):
-    return bc.cluster_names[0][2][0]
+    names = bc.cluster_family_names
+    for name in names:
+        if int(name[1]) == 2:
+            return name
+    raise RuntimeError("No pair name was found!")
 
 def get_example_ecis(bc=None):
     cf = CorrFunction(bc)

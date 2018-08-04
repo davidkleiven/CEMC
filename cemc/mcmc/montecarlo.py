@@ -686,6 +686,7 @@ class Montecarlo(object):
         mean_sq = self.energy_squared.mean
         quantities["heat_capacity"] = (mean_sq-quantities["energy"]**2)/(units.kB*self.T**2)
         quantities["energy_std"] = np.sqrt(self._get_var_average_energy())
+        quantities["temperature"] = self.T
         return quantities
 
     def _get_trial_move( self ):
@@ -814,4 +815,4 @@ class Montecarlo(object):
                 obs = entry[1]
                 obs(system_changes)
         self.filter.add(self.current_energy)
-        return self.current_energy,move_accepted
+        return self.current_energy, move_accepted

@@ -35,6 +35,7 @@ MCMC
   sgc_free_energy_barrier
   fixednuc_mc
   nucleation_barrier
+  monte_carlo_constraints
 
 Tools
 =======

@@ -12,7 +12,10 @@ except Exception as exc:
     available = False
 
 def get_network_name(cnames):
-    return cnames[0][2][-1]
+    for name in cnames:
+        if int(name[1]) == 2:
+            return name
+    raise RuntimeError("No pair cluster found!")
 
 class TestNuclFreeEnergy( unittest.TestCase ):
     def test_no_throw(self):
@@ -37,6 +40,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
                 "max_cluster_size": 3
             }
             ceBulk = BulkCrystal(**kwargs)
+            ceBulk.reconfigure_settings()
             cf = CorrFunction(ceBulk)
             cf = cf.get_cf(ceBulk.atoms)
 
@@ -51,7 +55,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
                 chemical_potential=chem_pot, max_cluster_size=20,
                 merge_strategy="normalize_overlap")
 
-            nn_name = get_network_name(ceBulk.cluster_names)
+            nn_name = get_network_name(ceBulk.cluster_family_names_by_size)
 
             mc = SGCNucleation(
                 ceBulk.atoms, 300, nucleation_sampler=sampler,

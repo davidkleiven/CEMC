@@ -32,7 +32,7 @@ class TestMFA( unittest.TestCase ):
                 crystalstructure="fcc",
                 a=4.05, size=[3, 3, 3], basis_elements=[["Al","Mg"]],
                 conc_args=conc_args, db_name=db_name, max_cluster_size=3)
-            ceBulk._get_cluster_information()
+            ceBulk.reconfigure_settings()
             cf = CorrFunction(ceBulk)
             cf = cf.get_cf(ceBulk.atoms)
             ecis = {key:0.001 for key in cf.keys()}

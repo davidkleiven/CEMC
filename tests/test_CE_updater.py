@@ -12,7 +12,6 @@ except Exception as exc:
     print(str(exc))
     has_ase_with_ce = False
 import numpy as np
-import os
 
 
 class TestCE(unittest.TestCase):
@@ -31,11 +30,9 @@ class TestCE(unittest.TestCase):
                              conc_args=conc_args,
                              db_name=db_name, max_cluster_size=3)
         ceBulk.reconfigure_settings()
-        ceBulk._get_cluster_information()
         cf = CorrFunction(ceBulk)
         corrfuncs = cf.get_cf(ceBulk.atoms)
         eci = {name: 1.0 for name in corrfuncs.keys()}
-        ceBulk._get_cluster_information()
         calc = CE(ceBulk, eci)
         return calc, ceBulk, eci
 
@@ -135,7 +132,8 @@ class TestCE(unittest.TestCase):
             "basis_elements":[["Al","Mg"]],
             "conc_args": conc_args,
             "db_name": db_name,
-            "max_cluster_size": 3
+            "max_cluster_size": 3,
+            "max_cluster_dist": 4.05
         }
 
         kwargs_template = copy.deepcopy(kwargs)
@@ -145,6 +143,7 @@ class TestCE(unittest.TestCase):
         template_supercell_bc.reconfigure_settings()
 
         ceBulk = BulkCrystal(**kwargs)
+        ceBulk.reconfigure_settings()
         calc = get_ce_calc(ceBulk, kwargs, eci, size=[4, 4, 4])
         ceBulk = calc.BC
         ceBulk.atoms.set_calculator(calc)
@@ -153,7 +152,7 @@ class TestCE(unittest.TestCase):
             calc.calculate(ceBulk.atoms, ["energy"], [(i, "Al", "Mg")])
             updated_cf = calc.get_cf()
             brute_force = corr_func.get_cf_by_cluster_names(
-                ceBulk.atoms, updated_cf.keys())
+                ceBulk.atoms, list(updated_cf.keys()))
 
             for key, value in brute_force.items():
                 self.assertAlmostEqual(value, updated_cf[key])
@@ -174,8 +173,7 @@ class TestCE(unittest.TestCase):
         size_arg = {max_dia:4.05}
         ceBulk = BulkCrystal( crystalstructure="fcc", a=4.05, size=[4,4,4], basis_elements=[["Al","Mg","Si"]], \
                               conc_args=conc_args, db_name=db_name, max_cluster_size=3, **size_arg)
-
-        ceBulk._get_cluster_information()
+        ceBulk.reconfigure_settings()
         corr_func = CorrFunction( ceBulk )
         cf = corr_func.get_cf( ceBulk.atoms )
         #prefixes = [name.rpartition("_")[0] for name in cf.keys()]
@@ -237,7 +235,7 @@ class TestCE(unittest.TestCase):
             self.skipTest( "ASE version does not have CE" )
             return
 
-        system_types = [["Al","Mg"],["Al","Mg","Si"],["Al","Mg","Si","Cu"],["Al","Mg","Si","Cu","Zn"]]
+        system_types = [["Al","Mg"],["Al","Mg","Si"],["Al","Mg","Si","Cu"]]
 
         db_name = "test_singlets.db"
         n_concs = 4

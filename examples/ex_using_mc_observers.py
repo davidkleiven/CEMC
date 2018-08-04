@@ -33,7 +33,7 @@ eci = get_example_ecis(bc_kwargs=kwargs)
 
 # Initialize a template BulkCrystal Object
 ceBulk = BulkCrystal( **kwargs )
-
+ceBulk.reconfigure_settings()  # Nessecary for the unittests to pass
 # Now we want to get a Cluster Expansion calculator for a big cell
 mc_cell_size = [10,10,10]
 from cemc import get_ce_calc
@@ -55,6 +55,7 @@ mc_obj = Montecarlo( ceBulk.atoms, T )
 
 # Now we define the observers
 from cemc.mcmc import CorrelationFunctionTracker, PairCorrelationObserver, Snapshot, LowestEnergyStructure, NetworkObserver
+from cemc.mcmc import SiteOrderParameter
 
 # The Correlation Function Tracker computes the thermodynamic
 # average of all the correlation functions
@@ -76,12 +77,16 @@ low_en = LowestEnergyStructure( calc, mc_obj )
 # This observer tracks networks of a certain atom type
 network_obs = NetworkObserver( calc=calc, cluster_name=get_example_network_name(ceBulk), element="Mg" )
 
+# This tracks the average number of sites that where the symbol as changed
+site_order = SiteOrderParameter(ceBulk.atoms)
+
 # Now we can attach the observers to the mc_obj
 mc_obj.attach( corr_func_obs, interval=1 )
 mc_obj.attach( pair_obs, interval=1 )
 mc_obj.attach( snapshot, interval=10 ) # Take a snap shot every then iteration
 mc_obj.attach( low_en, interval=1 )
 mc_obj.attach( network_obs, interval=5 )
+mc_obj.attach(site_order)
 
 # Now run 30 MC steps
 mc_obj.runMC( mode="fixed", steps=30, equil=False )
@@ -91,3 +96,6 @@ cluster_stat = network_obs.get_statistics()
 
 # Compute the surface of the clusters
 surf = network_obs.surface()
+
+# Get the average number of sites changed and the standard deviation
+avg_changed, std_changed = site_order.get_average()
