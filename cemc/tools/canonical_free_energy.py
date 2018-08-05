@@ -11,8 +11,9 @@ class CanonicalFreeEnergy( object ):
 
     :param composition: Dictionary with compositions
     """
-    def __init__( self, composition ):
+    def __init__( self, composition, limit="hte" ):
         self.comp = composition
+        self.limit = limit
 
     def reference_energy( self, T, energy ):
         """
@@ -21,9 +22,13 @@ class CanonicalFreeEnergy( object ):
         :param T: Temperature in kelvin
         :param energy: Internal energies (per atom)
         """
-        infinite_temp_value = -self.inf_temperature_entropy()
-        beta = 1.0/(kB*T)
-        ref_energy = infinite_temp_value + energy*beta
+        if self.limit == "hte":
+            infinite_temp_value = -self.inf_temperature_entropy()
+            beta = 1.0/(kB*T)
+            ref_energy = infinite_temp_value + energy*beta
+        else:
+            beta = 1.0/(kB*T[0])
+            ref_energy = beta * energy[0]
         return ref_energy
 
     def inf_temperature_entropy(self):
@@ -41,11 +46,17 @@ class CanonicalFreeEnergy( object ):
         :param temperature: Temperature in kelvin
         :param internal_energy: Internal energy (per atom)
         """
-        srt_indx = np.argsort(temperature)[::-1]
+        if self.limit == "hte":
+            srt_indx = np.argsort(temperature)[::-1]
+        else:
+            srt_indx = np.argsort(temperature)
         temp_srt = [temperature[indx] for indx in srt_indx]
         energy_srt = [internal_energy[indx] for indx in srt_indx]
 
-        assert( temp_srt[0] > temp_srt[1] ) # Make sure the sorting is correct
+        if self.limit == "hte":
+            assert( temp_srt[0] > temp_srt[1] ) # Make sure the sorting is correct
+        else:
+            assert( temp_srt[0] < temp_srt[1] )
         return np.array(temp_srt), np.array( energy_srt)
 
     def get( self, temperature, internal_energy ):
