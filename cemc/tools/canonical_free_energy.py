@@ -27,8 +27,8 @@ class CanonicalFreeEnergy( object ):
             beta = 1.0/(kB*T)
             ref_energy = infinite_temp_value + energy*beta
         else:
-            beta = 1.0/(kB*T[0])
-            ref_energy = beta * energy[0]
+            beta = 1.0/(kB*T)
+            ref_energy = beta * energy
         return ref_energy
 
     def inf_temperature_entropy(self):
