@@ -73,7 +73,6 @@ class ActivitySampler(Montecarlo):
             self.num_computed_moves[key] = 0
             self.singlet_changes[key] = []
 
-        self.eci_singlets = np.zeros(len(self.symbols) - 1)
         self.find_singlet_changes()
         self.required_tables = None
         self.required_fields = None
@@ -112,11 +111,6 @@ class ActivitySampler(Montecarlo):
             for bf in bfs:
                 self.singlet_changes[key].append(bf[move[1]] - bf[move[0]])
             self.singlet_changes[key] = np.array(self.singlet_changes[key])
-
-        # Update the corresponding ECIs
-        for name, value in self.atoms._calc.eci.items():
-            if (name.startswith("c1")):
-                self.eci_singlets[int(name[-1])] = value
 
     def reset(self):
         """
