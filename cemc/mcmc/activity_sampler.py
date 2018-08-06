@@ -50,6 +50,9 @@ class ActivitySampler(Montecarlo):
 
         super(ActivitySampler, self).__init__(atoms, temp, **kwargs)
 
+        # Filter out impossible moves
+        self.insertion_moves = self._filter_by_possible_moves()
+
         self.averager_track = {}
         self.raw_insertion_energy = {}
         self.boltzmann_weight_ins_energy = {}
@@ -89,6 +92,15 @@ class ActivitySampler(Montecarlo):
         for move in self.insertion_moves:
             new_moves.append((move[1], move[0]))
         self.insertion_moves += new_moves
+
+    def _filter_by_possible_moves(self):
+        """Filter out the moves that are not possible due to missing atoms."""
+        filtered_moves = []
+        at_count = self.count_atoms()
+        for move in self.insertion_moves:
+            if move[0] in at_count.keys():
+                filtered_moves.append(move)
+        return filtered_moves
 
     def find_singlet_changes(self):
         """
