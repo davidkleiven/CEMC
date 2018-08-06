@@ -5,7 +5,6 @@ try:
     from cemc import CE
     from ase.ce import BulkCrystal
     from ase.ce import CorrFunction
-    from mpi4py import MPI
     available = True
     reason = ""
 except Exception as exc:
@@ -13,7 +12,7 @@ except Exception as exc:
     print(reason)
     available = False
 
-
+from mpi4py import MPI
 comm = MPI.COMM_WORLD
 
 
