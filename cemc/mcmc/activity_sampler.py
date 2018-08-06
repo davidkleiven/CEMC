@@ -35,7 +35,7 @@ class ActivitySampler(Montecarlo):
                 if (symb not in self.symbols):
                     self.symbols.append(symb)
 
-        self.prob_insert_move = 0.1
+        self.prob_insert_move = 1.0 / len(atoms)
         if ("prob_insert_move" in kwargs.keys()):
             self.prob_insert_move = kwargs.pop("prob_insert_move")
 
