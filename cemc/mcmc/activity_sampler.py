@@ -2,7 +2,6 @@ from cemc.mcmc import Montecarlo
 from cemc.mcmc.mc_observers import MCObserver
 from ase.units import kB
 import numpy as np
-import dataset
 
 
 class TrialEnergyObserver(MCObserver):
