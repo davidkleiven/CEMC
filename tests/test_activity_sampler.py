@@ -5,6 +5,7 @@ try:
     from cemc import CE
     from ase.ce import BulkCrystal
     from ase.ce import CorrFunction
+    from mpi4py import MPI
     available = True
     reason = ""
 except Exception as exc:
@@ -13,6 +14,7 @@ except Exception as exc:
     available = False
 
 
+comm = MPI.COMM_WORLD
 class TestActivitySampler(unittest.TestCase):
     def test_no_throw(self):
         no_throw = True
@@ -47,7 +49,7 @@ class TestActivitySampler(unittest.TestCase):
             comp = {"Mg": c_mg, "Al": 1.0-c_mg}
             calc.set_composition(comp)
             act_sampler = ActivitySampler(ceBulk.atoms, T,
-                                          moves=[("Al", "Mg")])
+                                          moves=[("Al", "Mg")], mpicomm=comm)
             act_sampler.runMC(mode="fixed", steps=1000)
             act_sampler.get_thermodynamic()
         except Exception as exc:

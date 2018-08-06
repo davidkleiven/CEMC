@@ -16,6 +16,15 @@ class TrialEnergyObserver(MCObserver):
                 self.activity_sampler.current_energy
             beta = 1.0 / (kB * self.activity_sampler.T)
             self.activity_sampler.averager_track[key] += np.exp(-beta * dE)
+
+            self.activity_sampler.raw_insertion_energy[key] += dE
+
+            self.activity_sampler.boltzmann_weight_ins_energy[key] += \
+                dE*np.exp(-beta * dE)
+
+            self.activity_sampler.boltzmann_weight_ins_eng_eq[key] += \
+                dE**2 * np.exp(-beta * dE)
+
             self.activity_sampler.num_computed_moves[key] += 1
 
 
@@ -42,6 +51,9 @@ class ActivitySampler(Montecarlo):
         self.check_user_arguments()
 
         self.averager_track = {}
+        self.raw_insertion_energy ={}
+        self.boltzmann_weight_ins_energy = {}
+        self.boltzmann_weight_ins_eng_eq = {}
         self.num_possible_moves = {}
         self.num_computed_moves = {}
         self.singlet_changes = {}
@@ -51,6 +63,9 @@ class ActivitySampler(Montecarlo):
         for move in self.insertion_moves:
             key = self.get_key(move[0], move[1])
             self.averager_track[key] = 0.0
+            self.raw_insertion_energy[key] = 0.0
+            self.boltzmann_weight_ins_energy[key] = 0.0
+            self.boltzmann_weight_ins_eng_eq[key] = 0.0
             self.num_possible_moves[key] = at_count[move[0]]
             self.num_computed_moves[key] = 0
             self.singlet_changes[key] = []
@@ -105,6 +120,9 @@ class ActivitySampler(Montecarlo):
 
         for key in self.averager_track.keys():
             self.averager_track[key] = 0.0
+            self.raw_insertion_energy[key] = 0.0
+            self.boltzmann_weight_ins_energy[key] = 0.0
+            self.boltzmann_weight_ins_eng_eq[key] = 0.0
             self.num_computed_moves[key] = 0
         self.current_move_type = "regular"
         self.current_move = None
@@ -151,26 +169,45 @@ class ActivitySampler(Montecarlo):
         if (self.mpicomm is None):
             return
 
-        keys = self.averager_track.keys()
+        keys = list(self.averager_track.keys())
         # Broadcast keys from master process to ensure that all processes
         # put the values in the same order
         keys = self.mpicomm.bcast(keys, root=0)
         num_computed = np.zeros(len(keys))
         averages = np.zeros(len(keys))
+        raw_energies = np.zeros_like(averages)
+        boltzmann_eng = np.zeros_like(averages)
+        boltzmann_eng_sq = np.zeros_like(averages)
         for i, key in enumerate(keys):
             averages[i] = self.averager_track[key]
             num_computed[i] = self.num_computed_moves[key]
+            raw_energies[i] = self.raw_insertion_energy[key]
+            boltzmann_eng[i] = self.boltzmann_weight_ins_energy[key]
+            boltzmann_eng_sq[i] = self.boltzmann_weight_ins_eng_eq[key]
 
         recv_buf = np.zeros_like(averages)
         self.mpicomm.Allreduce(averages, recv_buf)
         averages[:] = recv_buf
+
         self.mpicomm.Allreduce(num_computed, recv_buf)
         num_computed[:] = recv_buf
+
+        self.mpicomm.Allreduce(raw_energies, recv_buf)
+        raw_energies[:] = recv_buf
+
+        self.mpicomm.Allreduce(boltzmann_eng, recv_buf)
+        boltzmann_eng[:] = recv_buf
+
+        self.mpicomm.Allreduce(boltzmann_eng_sq, recv_buf)
+        boltzmann_eng_sq[:] = recv_buf
 
         # Distribute back into the original datastructures
         for i, key in enumerate(keys):
             self.averager_track[key] = averages[i]
             self.num_computed_moves[key] = num_computed[i]
+            self.raw_insertion_energy[key] = raw_energies[i]
+            self.boltzmann_weight_ins_energy[key] = boltzmann_eng[i]
+            self.boltzmann_weight_ins_eng_eq[key] = boltzmann_eng_sq[i]
 
     def get_thermodynamic(self):
         """
@@ -184,6 +221,17 @@ class ActivitySampler(Montecarlo):
         for move in self.insertion_moves:
             key = self.get_key(move[0], move[1])
             name = "insert_energy_{}".format(key)
-            res[name] = self.averager_track[key] / \
-                self.num_computed_moves[key]
+            N = self.num_computed_moves[key]
+            res[name] = self.averager_track[key] / N
+
+            name = "raw_insert_energy_{}".format(key)
+            res[name] = self.raw_insertion_energy[key] / N
+
+            name = "boltzmann_avg_insert_energy_{}".format(key)
+            res[name] = self.boltzmann_weight_ins_energy[key] / \
+                self.averager_track[key]
+
+            name = "boltzmann_avg_insert_energy_sq_{}".format(key)
+            res[name] = self.boltzmann_weight_ins_eng_eq[key] / \
+                self.averager_track[key]
         return res
