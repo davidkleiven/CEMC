@@ -31,6 +31,7 @@ class TrialEnergyObserver(MCObserver):
 class ActivitySampler(Montecarlo):
     def __init__(self, atoms, temp, **kwargs):
         self.insertion_moves = kwargs.pop("moves")
+        self._expand_moves_with_inverse()
         self.symbols = []
         for move in self.insertion_moves:
             if (len(move) != 2):
@@ -48,10 +49,9 @@ class ActivitySampler(Montecarlo):
             self.prob_insert_move = kwargs.pop("prob_insert_move")
 
         super(ActivitySampler, self).__init__(atoms, temp, **kwargs)
-        self.check_user_arguments()
 
         self.averager_track = {}
-        self.raw_insertion_energy ={}
+        self.raw_insertion_energy = {}
         self.boltzmann_weight_ins_energy = {}
         self.boltzmann_weight_ins_eng_eq = {}
         self.num_possible_moves = {}
@@ -83,18 +83,12 @@ class ActivitySampler(Montecarlo):
         self.log("==                DEVELOPERS BEFORE USE                  ==")
         self.log("===========================================================")
 
-    def check_user_arguments(self):
-        """
-        Verify that the move argument given by the user is valid
-        """
-        ref_atom = self.insertion_moves[0][0]
+    def _expand_moves_with_inverse(self):
+        """Expand all the moves given by the user with the inverse moves."""
+        new_moves = []
         for move in self.insertion_moves:
-            if (move[0] != ref_atom):
-                msg = "All insertions moves needs to have the same reference\n"
-                msg += "atom! That is the first element has to be the same "
-                msg += "in all trial moves\n."
-                msg += "Given: {}".format(self.insertion_moves)
-                raise ValueError(msg)
+            new_moves.append((move[1], move[0]))
+        self.insertion_moves += new_moves
 
     def find_singlet_changes(self):
         """
