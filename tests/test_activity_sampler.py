@@ -15,6 +15,8 @@ except Exception as exc:
 
 
 comm = MPI.COMM_WORLD
+
+
 class TestActivitySampler(unittest.TestCase):
     def test_no_throw(self):
         no_throw = True
