@@ -210,13 +210,14 @@ class ActivitySampler(Montecarlo):
         self.collect_results()
         res = {}
         res = Montecarlo.get_thermodynamic(self)
+        at_count = self.count_atoms()
 
         # Inser the insertion enegies
         for move in self.insertion_moves:
             key = self.get_key(move[0], move[1])
             name = "insert_energy_{}".format(key)
             N = self.num_computed_moves[key]
-            res[name] = self.averager_track[key] / N
+            res[name] = self.averager_track[key] * at_count[move[0]] / N
 
             name = "raw_insert_energy_{}".format(key)
             res[name] = self.raw_insertion_energy[key] / N
