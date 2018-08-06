@@ -687,6 +687,11 @@ class Montecarlo(object):
         quantities["heat_capacity"] = (mean_sq-quantities["energy"]**2)/(units.kB*self.T**2)
         quantities["energy_std"] = np.sqrt(self._get_var_average_energy())
         quantities["temperature"] = self.T
+        at_count = self.count_atoms()
+        for key, value in at_count.items():
+            name = "{}_conc".format(key)
+            conc = float(value) / len(self.atoms)
+            quantities[name] = conc
         return quantities
 
     def _get_trial_move( self ):
@@ -731,6 +736,15 @@ class Montecarlo(object):
         probability = np.exp(-energy_diff/kT)
         return np.random.rand() <= probability
 
+    def count_atoms(self):
+        """
+        Count the number of each species
+        """
+        atom_count = {key: 0 for key in self.symbols}
+        for atom in self.atoms:
+            atom_count[atom.symbol] += 1
+        return atom_count
+
     def _mc_step(self, verbose = False ):
         """
         Make one Monte Carlo step by swithing two atoms
@@ -749,33 +763,7 @@ class Montecarlo(object):
             msg = "Did not manage to produce a trial move that does not "
             msg += "violate any of the constraints"
             raise CanNotFindLegalMoveError(msg)
-        """
-        new_energy = self.atoms._calc.calculate( self.atoms, ["energy"], system_changes )
 
-        if ( verbose ):
-            print(new_energy,self.current_energy,new_energy-self.current_energy)
-
-        accept = False
-        if (new_energy < self.current_energy):
-            self.current_energy = new_energy
-            accept = True
-        else:
-            kT = self.T*units.kB
-            energy_diff = new_energy-self.current_energy
-            probability = np.exp(-energy_diff/kT)
-            if ( np.random.rand() <= probability ):
-                self.current_energy = new_energy
-                accept = True
-            else:
-                # Reset the sytem back to original
-                for change in system_changes:
-                    indx = change[0]
-                    old_symb = change[1]
-                    self.atoms[indx].symbol = old_symb
-                #self.atoms[self.rand_a].symbol = symb_a
-                #self.atoms[self.rand_b].symbol = symb_b
-                accept = False
-        """
         move_accepted = self._accept( system_changes )
 
         if ( move_accepted ):

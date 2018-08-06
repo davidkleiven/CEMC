@@ -50,8 +50,6 @@ class TestActivitySampler(unittest.TestCase):
                                           moves=[("Al", "Mg")])
             act_sampler.runMC(mode="fixed", steps=1000)
             act_sampler.get_thermodynamic()
-            act_sampler.save(
-                fname="data/effective_concentration_full_range.db")
         except Exception as exc:
             msg = str(exc)
             no_throw = False
