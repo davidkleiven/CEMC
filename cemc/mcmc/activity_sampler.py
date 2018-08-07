@@ -211,7 +211,27 @@ class ActivitySampler(Montecarlo):
 
     def get_thermodynamic(self):
         """
-        Override the thermodynamics function
+        Override the thermodynamics function.
+
+        Normalization of the averagers:
+        The values in average track should represent the ratio
+        between partition functions when one have one extra of the
+        inserted atom and one less of the removed atom.
+        In the high temperature limit this is given by
+
+        Z_{n+1} = N!/((n+1)!(N-n-1)!)
+
+        and
+
+        Z_n = N!/(n!(N-n)!)
+
+        where N is the overall number of atoms of the two atoms being swapped.
+        Hence, the ratio becomes
+
+        Z_{n+1}/Z_n = (N-n)/(n+1),
+
+        the sums are normalized such that they results in this value
+        at high temperatures.
         """
         self.collect_results()
         res = {}
@@ -223,7 +243,8 @@ class ActivitySampler(Montecarlo):
             key = self.get_key(move[0], move[1])
             name = "insert_energy_{}".format(key)
             N = self.num_computed_moves[key]
-            res[name] = self.averager_track[key] * at_count[move[0]] / N
+            inf_temp = float(at_count[move[0]])/(at_count[move[1]]+1)
+            res[name] = self.averager_track[key] * inf_temp / N
 
             name = "raw_insert_energy_{}".format(key)
             res[name] = self.raw_insertion_energy[key] / N
