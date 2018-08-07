@@ -13,9 +13,20 @@ class CanonicalFreeEnergy(object):
     :param composition: Dictionary with compositions
     """
 
-    def __init__(self, composition, limit="hte"):
+    def __init__(self, composition, limit="hte", weights=None):
         self.comp = composition
+        if isinstance(self.comp, dict):
+            self.comp = [self.comp]  # Convert to a list with length 1
         self.limit = limit
+
+        self.weights = weights
+        if weights is None:
+            self.weights = np.zeros(len(self.comp)) + 1.0/len(self.comp)
+
+        if len(self.weights) != len(self.comp):
+            msg = "The number of sublattices given compositions "
+            msg += "and the number given in weights don't match!"
+            raise ValueError(msg)
 
     def reference_energy(self, T, energy):
         """
@@ -37,8 +48,12 @@ class CanonicalFreeEnergy(object):
         """
         Return the entropy at infinite temperature
         """
-        concs = np.array([value for key, value in self.comp.items()])
-        infinite_temp_value = np.sum(concs * np.log(concs))
+        entropy_per_lattice = []
+        for comp in self.comp:
+            concs = np.array([value for key, value in self.comp.items()])
+            infinite_temp_value = np.sum(concs * np.log(concs))
+            entropy_per_lattice.append(infinite_temp_value)
+        infinite_temp_value = self.weights.dot(entropy_per_lattice)
         return -infinite_temp_value
 
     def sort(self, temperature, internal_energy):
