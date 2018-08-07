@@ -17,7 +17,7 @@ class CanonicalFreeEnergy(object):
             self.comp = [self.comp]  # Convert to a list with length 1
         self.limit = limit
 
-        self.weights = weights
+        self.weights = np.array(weights)
         if weights is None:
             self.weights = np.ones(len(self.comp))
 
@@ -48,7 +48,7 @@ class CanonicalFreeEnergy(object):
         """
         entropy_per_lattice = []
         for comp in self.comp:
-            concs = np.array([value for key, value in self.comp.items()])
+            concs = np.array([v for key, v in comp.items() if v > 0.0])
             infinite_temp_value = np.sum(concs * np.log(concs))
             entropy_per_lattice.append(infinite_temp_value)
         infinite_temp_value = self.weights.dot(entropy_per_lattice)
