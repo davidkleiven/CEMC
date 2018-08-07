@@ -1,21 +1,32 @@
 import numpy as np
 from ase.units import kB
 from scipy.integrate import cumtrapz
-from scipy.interpolate import UnivariateSpline
-from scipy.optimize import minimize
 
-class CanonicalFreeEnergy( object ):
+
+class CanonicalFreeEnergy(object):
     """
     Compute the Free Enery in the Canonical Ensemble (fixed composition)
     by thermodynamic integration
 
     :param composition: Dictionary with compositions
     """
-    def __init__( self, composition, limit="hte" ):
+
+    def __init__(self, composition, limit="hte", weights=None):
         self.comp = composition
+        if isinstance(self.comp, dict):
+            self.comp = [self.comp]  # Convert to a list with length 1
         self.limit = limit
 
-    def reference_energy( self, T, energy ):
+        self.weights = np.array(weights)
+        if weights is None:
+            self.weights = np.ones(len(self.comp))
+
+        if len(self.weights) != len(self.comp):
+            msg = "The number of sublattices given compositions "
+            msg += "and the number given in weights don't match!"
+            raise ValueError(msg)
+
+    def reference_energy(self, T, energy):
         """
         Computes the reference energy
 
@@ -24,10 +35,10 @@ class CanonicalFreeEnergy( object ):
         """
         if self.limit == "hte":
             infinite_temp_value = -self.inf_temperature_entropy()
-            beta = 1.0/(kB*T)
-            ref_energy = infinite_temp_value + energy*beta
+            beta = 1.0 / (kB * T)
+            ref_energy = infinite_temp_value + energy * beta
         else:
-            beta = 1.0/(kB*T)
+            beta = 1.0 / (kB * T)
             ref_energy = beta * energy
         return ref_energy
 
@@ -35,11 +46,15 @@ class CanonicalFreeEnergy( object ):
         """
         Return the entropy at infinite temperature
         """
-        concs = np.array( [value for key,value in self.comp.items()] )
-        infinite_temp_value = np.sum( concs*np.log(concs) )
+        entropy_per_lattice = []
+        for comp in self.comp:
+            concs = np.array([v for key, v in comp.items() if v > 0.0])
+            infinite_temp_value = np.sum(concs * np.log(concs))
+            entropy_per_lattice.append(infinite_temp_value)
+        infinite_temp_value = self.weights.dot(entropy_per_lattice)
         return -infinite_temp_value
 
-    def sort( self, temperature, internal_energy ):
+    def sort(self, temperature, internal_energy):
         """
         Sort the value such that the largerst temperature goes first
 
@@ -54,23 +69,24 @@ class CanonicalFreeEnergy( object ):
         energy_srt = [internal_energy[indx] for indx in srt_indx]
 
         if self.limit == "hte":
-            assert( temp_srt[0] > temp_srt[1] ) # Make sure the sorting is correct
+            # Make sure the sorting is correct
+            assert(temp_srt[0] > temp_srt[1])
         else:
-            assert( temp_srt[0] < temp_srt[1] )
-        return np.array(temp_srt), np.array( energy_srt)
+            assert(temp_srt[0] < temp_srt[1])
+        return np.array(temp_srt), np.array(energy_srt)
 
-    def get( self, temperature, internal_energy ):
+    def get(self, temperature, internal_energy):
         """
         Compute the Helholtz Free Energy
 
         :param temperature: Temperature in kelvin
         :param internal_energy: Internal energy (per atom)
         """
-        temperature, internal_energy = self.sort( temperature, internal_energy )
-        betas = 1.0/(kB*temperature)
-        ref_energy = self.reference_energy( temperature[0], internal_energy[0] )
+        temperature, internal_energy = self.sort(temperature, internal_energy)
+        betas = 1.0 / (kB * temperature)
+        ref_energy = self.reference_energy(temperature[0], internal_energy[0])
         free_energy = np.zeros(len(temperature))
-        free_energy = cumtrapz(internal_energy,x=betas,initial=0.0)
+        free_energy = cumtrapz(internal_energy, x=betas, initial=0.0)
         free_energy += ref_energy
-        free_energy *= kB*temperature
+        free_energy *= kB * temperature
         return temperature, internal_energy, free_energy
