@@ -19,7 +19,7 @@ class CanonicalFreeEnergy(object):
 
         self.weights = weights
         if weights is None:
-            self.weights = np.zeros(len(self.comp)) + 1.0/len(self.comp)
+            self.weights = np.ones(len(self.comp))
 
         if len(self.weights) != len(self.comp):
             msg = "The number of sublattices given compositions "
