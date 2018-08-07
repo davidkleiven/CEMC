@@ -1,8 +1,6 @@
 import numpy as np
 from ase.units import kB
 from scipy.integrate import cumtrapz
-from scipy.interpolate import UnivariateSpline
-from scipy.optimize import minimize
 
 
 class CanonicalFreeEnergy(object):
