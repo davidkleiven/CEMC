@@ -1,6 +1,6 @@
 import unittest
 import os
-msg = ""
+na_msg = ""
 try:
     from cemc.mcmc import DamageSpreadingMC
     from ase.ce import BulkCrystal
@@ -9,7 +9,7 @@ try:
     available = True
 except ImportError as exc:
     print(str(exc))
-    msg = str(exc)
+    na_msg = str(exc)
     available = False
 
 ecis = {
@@ -38,7 +38,7 @@ class TestDMMC(unittest.TestCase):
     def test_no_throw(self):
         """Test that the code runs without throwing errors."""
         if not available:
-            self.skipTest(msg)
+            self.skipTest(na_msg)
 
         no_throw = True
         msg = ""
