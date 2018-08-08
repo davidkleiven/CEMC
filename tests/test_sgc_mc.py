@@ -8,23 +8,26 @@ try:
     from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
     from cemc import CE
     from cemc.mcmc import PairConstraint, FixedElement
-    from helper_functions import get_max_cluster_dia_name, get_example_network_name
+    from helper_functions import get_max_cluster_dia_name
+    from helper_functions import get_example_network_name
     has_ase_with_ce = True
 except Exception as exc:
-    print (str(exc))
+    print(str(exc))
     has_ase_with_ce = False
 
 ecis = {
-    "c1_0":-0.1,
-    "c1_1":0.1,
+    "c1_0": -0.1,
+    "c1_1": 0.1,
 }
 
 db_name = "test_sgc.db"
+
+
 class TestSGCMC(unittest.TestCase):
     def init_bulk_crystal(self):
         conc_args = {
-            "conc_ratio_min_1":[[2,1,1]],
-            "conc_ratio_max_1":[[0,2,2]],
+            "conc_ratio_min_1": [[2, 1, 1]],
+            "conc_ratio_max_1": [[0, 2, 2]],
         }
         max_dia_name = get_max_cluster_dia_name()
         size_arg = {max_dia_name: 4.05}
@@ -56,7 +59,7 @@ class TestSGCMC(unittest.TestCase):
         except Exception as exc:
             msg = str(exc)
             no_throw = False
-        self.assertTrue( no_throw, msg=msg )
+        self.assertTrue(no_throw, msg=msg)
 
     def test_no_throw_mpi(self):
         if has_ase_with_ce:
@@ -65,75 +68,87 @@ class TestSGCMC(unittest.TestCase):
             try:
                 ceBulk = self.init_bulk_crystal()
                 chem_pots = {
-                    "c1_0":0.02,
-                    "c1_1":-0.03
+                    "c1_0": 0.02,
+                    "c1_1": -0.03
                 }
                 T = 600.0
                 comm = MPI.COMM_WORLD
                 mc = SGCMonteCarlo(
                     ceBulk.atoms, T, symbols=["Al", "Mg", "Si"], mpicomm=comm)
                 mc.runMC(steps=100, chem_potential=chem_pots)
-                thermo = mc.get_thermodynamic()
+                mc.get_thermodynamic()
             except Exception as exc:
                 msg = str(exc)
                 no_throw = False
-            self.assertTrue( no_throw, msg=msg )
+            self.assertTrue(no_throw, msg=msg)
 
-    def test_no_throw_prec_mode( self ):
-        if ( not has_ase_with_ce ):
-            self.skipTest( "ASE version does not have CE" )
+    def test_no_throw_prec_mode(self):
+        if not has_ase_with_ce:
+            self.skipTest("ASE version does not have CE")
             return
         no_throw = True
         msg = ""
         try:
             ceBulk = self.init_bulk_crystal()
             chem_pots = {
-                "c1_0":0.02,
-                "c1_1":-0.03
+                "c1_0": 0.02,
+                "c1_1": -0.03
             }
             T = 600.0
-            mc = SGCMonteCarlo( ceBulk.atoms, T, symbols=["Al","Mg","Si"], plot_debug=False )
-            mc.runMC( chem_potential=chem_pots, mode="prec", prec_confidence=0.05, prec=10.0 )
-            thermo = mc.get_thermodynamic()
+            mc = SGCMonteCarlo(ceBulk.atoms, T, symbols=["Al", "Mg", "Si"],
+                               plot_debug=False)
+            mc.runMC(chem_potential=chem_pots, mode="prec",
+                     prec_confidence=0.05, prec=10.0)
+            mc.get_thermodynamic()
 
-            eci_vib={"c1_0":0.0}
+            eci_vib = {"c1_0": 0.0}
             vib_corr = lvc.LinearVibCorrection(eci_vib)
             mc.linear_vib_correction = vib_corr
-            mc.runMC(chem_potential=chem_pots, mode="prec", prec_confidence=0.05, prec=10.0)
-            thermo = mc.get_thermodynamic()
+            mc.runMC(chem_potential=chem_pots, mode="prec",
+                     prec_confidence=0.05, prec=10.0)
+            mc.get_thermodynamic()
         except Exception as exc:
             msg = str(exc)
             no_throw = False
-        self.assertTrue( no_throw, msg=msg )
+        self.assertTrue(no_throw, msg=msg)
 
     def test_constraints(self):
-        if ( not has_ase_with_ce ):
-            self.skipTest( "ASE version does not have CE" )
+        if not has_ase_with_ce:
+            self.skipTest("ASE version does not have CE")
             return
         no_throw = True
         msg = ""
         try:
             ceBulk = self.init_bulk_crystal()
             chem_pots = {
-                "c1_0":0.02,
-                "c1_1":-0.03
+                "c1_0": 0.02,
+                "c1_1": -0.03
             }
             name = get_example_network_name(ceBulk)
-            constraint = PairConstraint(calc=ceBulk.atoms._calc, cluster_name=name, elements=["Al","Si"])
-            fixed_element = FixedElement(element="Cu") # Just an element that is not present to avoid long trials
+            constraint = PairConstraint(
+                calc=ceBulk.atoms._calc,
+                cluster_name=name,
+                elements=[
+                    "Al",
+                    "Si"])
+            # Just an element that is not present to avoid long trials
+            fixed_element = FixedElement(element="Cu")
             T = 600.0
-            mc = SGCMonteCarlo( ceBulk.atoms, T, symbols=["Al","Mg","Si"], plot_debug=False )
+            mc = SGCMonteCarlo(
+                ceBulk.atoms, T, symbols=[
+                    "Al", "Mg", "Si"], plot_debug=False)
             mc.add_constraint(constraint)
             mc.add_constraint(fixed_element)
             mc.runMC(chem_potential=chem_pots, mode="fixed", steps=10)
         except Exception as exc:
             msg = str(exc)
             no_throw = False
-        self.assertTrue( no_throw, msg=msg )
+        self.assertTrue(no_throw, msg=msg)
 
-    def __del__( self ):
-        if ( os.path.isfile(db_name) ):
-            os.remove( db_name )
+    def __del__(self):
+        if (os.path.isfile(db_name)):
+            os.remove(db_name)
+
 
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
