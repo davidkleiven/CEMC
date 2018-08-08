@@ -13,16 +13,18 @@ except ImportError as exc:
     available = False
 
 ecis = {
-    "c1_0":-0.1,
-    "c1_1":0.1,
+    "c1_0": -0.1,
+    "c1_1": 0.1,
 }
 
 db_name = "dm_mc.db"
+
+
 class TestDMMC(unittest.TestCase):
     def init_bulk_crystal(self):
         conc_args = {
-            "conc_ratio_min_1":[[2,1,1]],
-            "conc_ratio_max_1":[[0,2,2]],
+            "conc_ratio_min_1": [[2, 1, 1]],
+            "conc_ratio_max_1": [[0, 2, 2]],
         }
         max_dia_name = get_max_cluster_dia_name()
         size_arg = {max_dia_name: 4.05}
@@ -47,7 +49,7 @@ class TestDMMC(unittest.TestCase):
             bc2 = self.init_bulk_crystal()
 
             dm_mc = DamageSpreadingMC(bc1.atoms, bc2.atoms, 300,
-                symbols=["Al", "Mg", "Si"])
+                                      symbols=["Al", "Mg", "Si"])
 
             chem_pot = {"c1_0": 0.0, "c1_1": 1.0}
             dm_mc.runMC(chem_pot)
