@@ -18,3 +18,4 @@ from cemc.mcmc.activity_sampler import ActivitySampler
 from cemc.mcmc.collective_jump_move import CollectiveJumpMove
 from cemc.mcmc.mc_constraints import MCConstraint, PairConstraint, FixedElement
 from cemc.mcmc.transition_path_relaxer import TransitionPathRelaxer
+from cemc.mcmc.damage_spreading_mc import DamageSpreadingMC

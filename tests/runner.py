@@ -20,6 +20,7 @@ import test_sgc_mc
 import test_strain_energy
 import test_transition_path
 import test_wang_landau_init
+import test_damage_spreading_mc
 
 try:
     os.mkdir("data")
@@ -51,6 +52,7 @@ suite.addTests(loader.loadTestsFromModule(test_sgc_mc))
 suite.addTests(loader.loadTestsFromModule(test_strain_energy))
 suite.addTests(loader.loadTestsFromModule(test_transition_path))
 suite.addTests(loader.loadTestsFromModule(test_wang_landau_init))
+suite.addTests(loader.loadTestsFromModule(test_damage_spreading_mc))
 
 runner = TimeLoggingTestRunner()
 result = runner.run(suite)
