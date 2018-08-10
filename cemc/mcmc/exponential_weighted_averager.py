@@ -15,7 +15,7 @@ class ExponentialWeightedAverager(object):
         self.T = temp
         self.ref_value = 0.0
         self._average = 0.0
-        self._num_samples = 0
+        self.num_samples = 0
         self.beta = 1.0/(kB*temp)
         self.order = order
 
@@ -29,17 +29,22 @@ class ExponentialWeightedAverager(object):
         else:
             diff = value - self.ref_value
             self._average += np.exp(-self.beta * diff) * value**self.order
-        self._num_samples += 1
+        self.num_samples += 1
 
     @property
     def average(self):
-        return self._average/self._num_samples
+        return self._average/self.num_samples
+
+    def set_average(self, avg, num_samples):
+        """Set the values of the object."""
+        self._average = avg * num_samples
+        self.num_samples = num_samples
 
     def reset(self):
         """Reset the reference function."""
         self.ref_value = 0.0
         self._average = 0.0
-        self._num_samples = 0
+        self.num_samples = 0
 
     def __iadd__(self, other):
         """Add two averaging objects."""
@@ -57,7 +62,7 @@ class ExponentialWeightedAverager(object):
             self.ref_value = other.ref_value
             self._average *= np.exp(self.beta * diff)
         self._average += other._average
-        self._num_samples += other._num_samples
+        self.num_samples += other.num_samples
         return self
 
     def __add__(self, other):
