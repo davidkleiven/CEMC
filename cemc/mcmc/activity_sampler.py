@@ -1,5 +1,6 @@
 from cemc.mcmc import Montecarlo
 from cemc.mcmc.mc_observers import MCObserver
+from cemc.mcmc.exponential_weighted_averager import ExponentialWeightedAverager
 from ase.units import kB
 import numpy as np
 
@@ -14,17 +15,11 @@ class TrialEnergyObserver(MCObserver):
             key = self.activity_sampler.current_move
             dE = self.activity_sampler.new_energy - \
                 self.activity_sampler.current_energy
-            beta = 1.0 / (kB * self.activity_sampler.T)
-            self.activity_sampler.averager_track[key] += np.exp(-beta * dE)
 
+            self.activity_sampler.averager_track[key].add(dE)
             self.activity_sampler.raw_insertion_energy[key] += dE
-
-            self.activity_sampler.boltzmann_weight_ins_energy[key] += \
-                dE*np.exp(-beta * dE)
-
-            self.activity_sampler.boltzmann_weight_ins_eng_eq[key] += \
-                dE**2 * np.exp(-beta * dE)
-
+            self.activity_sampler.boltzmann_weight_ins_energy[key].add(dE)
+            self.activity_sampler.boltzmann_weight_ins_eng_eq[key].add(dE)
             self.activity_sampler.num_computed_moves[key] += 1
 
 
@@ -65,10 +60,14 @@ class ActivitySampler(Montecarlo):
         self.current_move = None
         for move in self.insertion_moves:
             key = self.get_key(move[0], move[1])
-            self.averager_track[key] = 0.0
+            self.averager_track[key] = \
+                ExponentialWeightedAverager(self.T, order=0)
+
             self.raw_insertion_energy[key] = 0.0
-            self.boltzmann_weight_ins_energy[key] = 0.0
-            self.boltzmann_weight_ins_eng_eq[key] = 0.0
+            self.boltzmann_weight_ins_energy[key] = \
+                ExponentialWeightedAverager(self.T, order=1)
+            self.boltzmann_weight_ins_eng_eq[key] = \
+                ExponentialWeightedAverager(self.T, order=2)
             self.num_possible_moves[key] = at_count[move[0]]
             self.num_computed_moves[key] = 0
             self.singlet_changes[key] = []
