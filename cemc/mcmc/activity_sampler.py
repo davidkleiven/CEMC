@@ -198,14 +198,15 @@ class ActivitySampler(Montecarlo):
                         continue
                     for key in avg[i].keys():
                         self.averager_track[key] += avg[i][key]
-                        self.boltzmann_weight_ins_energy += boltz_avg[i][key]
-                        self.boltzmann_weight_ins_eng_sq += \
+                        self.boltzmann_weight_ins_energy[key] += boltz_avg[i][key]
+                        self.boltzmann_weight_ins_eng_sq[key] += \
                             boltz_avg_sq[i][key]
             except Exception as exc:
                 msg = str(exc)
                 error_occured = True
 
         error_occured = self.mpicomm.bcast(error_occured, root=0)
+        msg = self.mpicomm.bcast(msg, root=0)
         if error_occured:
             # Raise runtime error on all nodes
             raise RuntimeError(msg)
