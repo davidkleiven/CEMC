@@ -1,11 +1,19 @@
 import unittest
-from cemc.mcmc.exponential_weighted_averager import ExponentialWeightedAverager
 from ase.units import kB
 import numpy as np
+avail_msg = ""
+try:
+    from cemc.mcmc.exponential_weighted_averager import ExponentialWeightedAverager
+    available = True
+except ImportError exc:
+    avail_msg = str(exc)
+    available = False
 
 
 class TestExpAverager(unittest.TestCase):
     def test_sum(self):
+        if not available:
+            self.skipTest(avail_msg)
         E = -np.linspace(0.0, 10., 200)
         T = 200
         exp_avg_0 = ExponentialWeightedAverager(T, order=0)
@@ -22,6 +30,8 @@ class TestExpAverager(unittest.TestCase):
         self.assertAlmostEqual(exact_1, exp_avg_1.average, places=5)
 
     def test_add(self):
+        if not available:
+            self.skipTest(avail_msg)
         T = 200
         beta = 1.0 / (kB * T)
         exp_avg_0 = ExponentialWeightedAverager(T, order=0)
