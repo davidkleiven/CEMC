@@ -55,7 +55,17 @@ class TestSGCMC(unittest.TestCase):
             T = 600.0
             mc = SGCMonteCarlo(ceBulk.atoms, T, symbols=["Al", "Mg", "Si"])
             mc.runMC(steps=100, chem_potential=chem_pots)
-            mc.get_thermodynamic()
+            E = mc.get_thermodynamic()["energy"]
+
+            # Try with recycling
+            mc = SGCMonteCarlo(ceBulk.atoms, T, symbols=["Al", "Mg", "Si"],
+                               recycle_waste=True)
+            mc.runMC(steps=100, chem_potential=chem_pots)
+            E2 = mc.get_thermodynamic()["energy"]
+            rel_diff = abs(E2 - E)/abs(E)
+            # Make sure that there is less than 10% difference to rule
+            # out obvious bugs
+            self.assertLess(rel_diff, 0.1)
         except Exception as exc:
             msg = str(exc)
             no_throw = False

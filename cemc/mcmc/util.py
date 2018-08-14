@@ -58,8 +58,6 @@ def waste_recycled_accept_prob(energies, T):
 
 def get_new_state(weights):
     """Select a new state according to the weights."""
-    srt_indx = np.argsort(weights)
-    srt_weights = np.sort(weights)
+    cum_sum = np.cumsum(weights)
     rand_num = np.random.rand()
-    indx = np.searchsorted(srt_weights, rand_num)
-    return srt_indx[indx]
+    return np.searchsorted(cum_sum, rand_num)

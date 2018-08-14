@@ -13,41 +13,46 @@ class SGCMonteCarlo( mc.Montecarlo ):
 
     See docstring of :py:class:`cemc.mcmc.Montecarlo`
     """
-    def __init__( self, atoms, temp, indeces=None, symbols=None, mpicomm=None, logfile="", plot_debug=False, min_acc_rate=0.0 ):
-        mc.Montecarlo.__init__( self, atoms, temp, indeces=indeces, mpicomm=mpicomm, logfile=logfile, plot_debug=plot_debug, \
-        min_acc_rate=min_acc_rate )
-        if ( not symbols is None ):
+    def __init__(self, atoms, temp, indeces=None, symbols=None, mpicomm=None,
+                 logfile="", plot_debug=False, min_acc_rate=0.0, recycle_waste=False):
+        mc.Montecarlo.__init__(self, atoms, temp, indeces=indeces,
+                              mpicomm=mpicomm, logfile=logfile,
+                              plot_debug=plot_debug, min_acc_rate=min_acc_rate,
+                              recycle_waste=recycle_waste)
+        if not symbols is None:
             # Override the symbols function in the main class
             self.symbols = symbols
 
         if len(self.symbols) <= 1:
             raise ValueError("At least 2 symbols have to be specified")
-        self.averager = SGCObserver( self.atoms._calc, self, len(self.symbols)-1 )
+        self.averager = SGCObserver(self.atoms._calc, self, len(self.symbols)-1)
         self.chem_pots = []
         self.chem_pot_names = []
         self.has_attached_avg = False
         self.name = "SGCMonteCarlo"
         self._chemical_potential = None
         self.chem_pot_in_ecis = False
-        self.composition_correlation_time = np.zeros( len(self.symbols)-1 )
+        self.composition_correlation_time = np.zeros(len(self.symbols)-1)
+        self.current_singlets = None
 
         has_attached_obs = False
         for obs in self.observers:
-            if ( obs.name == "SGCObserver" ):
+            if obs.name == "SGCObserver":
                 has_attached_obs = True
                 self.averager = obs
                 break
-        if ( not has_attached_obs ):
-            self.attach( self.averager )
+        if not has_attached_obs:
+            self.attach(self.averager)
 
-    def _get_trial_move( self ):
+    def _get_trial_move(self):
         """
         Generate a trial move by flipping the symbol of one atom
         """
-        indx = np.random.randint( low=0, high=len(self.atoms) )
+        self.current_singlets = self.atoms.get_calculator().get_singlets()
+        indx = np.random.randint(low=0, high=len(self.atoms))
         old_symb = self.atoms[indx].symbol
         new_symb = old_symb
-        while( new_symb == old_symb ):
+        while new_symb == old_symb:
             new_symb = self.symbols[np.random.randint(low=0,high=len(self.symbols))]
         system_changes = [(indx,old_symb,new_symb)]
         return system_changes
@@ -416,7 +421,7 @@ class SGCMonteCarlo( mc.Montecarlo ):
         quantities["energy"] = self.averager.energy.mean
         for i in range( len(self.chem_pots) ):
             quantities["energy"] += self.chem_pots[i]*singlets[i]*len(self.atoms)
-            
+
         quantities["temperature"] = self.T
         quantities["n_mc_steps"] = self.averager.counter
         # Add singlets and chemical potential to the dictionary

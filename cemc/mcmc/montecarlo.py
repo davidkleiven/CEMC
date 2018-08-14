@@ -14,7 +14,7 @@ from cemc.mcmc import mpi_tools
 from cemc.mcmc.exponential_filter import ExponentialFilter
 from cemc.mcmc.averager import Averager
 from cemc.mcmc.util import waste_recycled_average, waste_recycled_accept_prob
-from cemc.util import get_new_state
+from cemc.mcmc.util import get_new_state
 
 
 class DidNotReachEquillibriumError(Exception):
@@ -826,8 +826,10 @@ class Montecarlo(object):
         Returns True if the trial step is accepted
         """
         self.last_energies[0] = self.current_energy
+
         self.new_energy = self.atoms._calc.calculate(
             self.atoms, ["energy"], system_changes)
+
         self.last_energies[1] = self.new_energy
 
         if (self.is_first):

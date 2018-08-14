@@ -9,6 +9,7 @@ from cemc.ce_updater import ce_updater
 from ase.data import atomic_numbers
 import time
 from cemc.mcmc.averager import Averager
+from cemc.mcmc.util import waste_recycled_average
 
 highlight_elements = ["Li","Be","B","C","N","O","F","Ne","Na","Mg","Al","Si","P","S","Cl","Ar"]
 class MCObserver( object ):
@@ -170,13 +171,14 @@ class SGCObserver(MCObserver):
         self.name = "SGCObersver"
         self.ce_calc = ce_calc
         self.mc = mc_obj
+        self.recycle_waste = self.mc.recycle_waste
 
         self.quantities = {
-            "singlets":np.zeros( n_singlets, dtype=np.float64 ),
-            "singlets_sq":np.zeros( n_singlets, dtype=np.float64 ),
+            "singlets":np.zeros(n_singlets, dtype=np.float64),
+            "singlets_sq":np.zeros(n_singlets, dtype=np.float64),
             "energy":Averager(ref_value=ce_calc.get_energy()),
             "energy_sq":Averager(ref_value=ce_calc.get_energy()),
-            "singl_eng":np.zeros( n_singlets, dtype=np.float64 ),
+            "singl_eng":np.zeros(n_singlets, dtype=np.float64),
             "counter":0
         }
 
@@ -218,14 +220,44 @@ class SGCObserver(MCObserver):
         Updates all SGC parameters
         """
         self.quantities["counter"] += 1
-        new_singlets = np.zeros_like( self.singlets )
-        self.ce_calc.get_singlets(  new_singlets )
+        new_singlets = np.zeros_like(self.singlets)
+        self.ce_calc.get_singlets(new_singlets)
 
-        self.quantities["singlets"] += new_singlets
-        self.quantities["singlets_sq"] += new_singlets**2
-        self.quantities["energy"] += self.mc.current_energy_without_vib()
-        self.quantities["energy_sq"] += self.mc.current_energy_without_vib()**2
-        self.quantities["singl_eng"] += new_singlets*self.mc.current_energy_without_vib()
+        if self.recycle_waste:
+            avg_singl = np.zeros_like(self.singlets)
+            avg_sq = np.zeros_like(self.singlets)
+            avg_corr = np.zeros_like(self.singlets)
+            for i in range(len(new_singlets)):
+                singl = np.array(
+                    [self.mc.current_singlets[i], new_singlets[i]])
+
+                avg_singl[i] = waste_recycled_average(
+                    singl, self.mc.last_energies, self.mc.T)
+                avg_sq[i] = waste_recycled_average(
+                    singl**2, self.mc.last_energies, self.mc.T)
+
+                singl_en = np.array(
+                    [self.mc.current_singlets[i] * self.mc.last_energies[0],
+                     new_singlets[i] * self.mc.last_energies[1]])
+
+                avg_corr[i] = waste_recycled_average(
+                    singl_en, self.mc.last_energies, self.mc.T)
+
+            E = waste_recycled_average(
+                self.mc.last_energies, self.mc.last_energies, self.mc.T)
+            E_sq = waste_recycled_average(
+                self.mc.last_energies**2, self.mc.last_energies, self.mc.T)
+            self.quantities["energy"] += E
+            self.quantities["energy_sq"] += E_sq
+            self.quantities["singlets"] += avg_singl
+            self.quantities["singlets_sq"] += avg_sq
+            self.quantities["singl_eng"] += avg_corr
+        else:
+            self.quantities["singlets"] += new_singlets
+            self.quantities["singlets_sq"] += new_singlets**2
+            self.quantities["energy"] += self.mc.current_energy_without_vib()
+            self.quantities["energy_sq"] += self.mc.current_energy_without_vib()**2
+            self.quantities["singl_eng"] += new_singlets*self.mc.current_energy_without_vib()
 
         """
         self.singlets += new_singlets
