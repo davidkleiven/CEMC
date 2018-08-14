@@ -58,15 +58,6 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
         if "save_last_state" in kwargs.keys():
             self.save_last_state_in_window = kwargs.pop("save_last_state")
 
-        self.scheme = "classical"
-        if "scheme" in kwargs.keys():
-            self.scheme = kwargs.pop("scheme")
-
-        allowed_schemes = ["classical", "random_walk"]
-        if self.scheme not in allowed_schemes:
-            msg = "scheme has to be one of {}".format(allowed_schemes)
-            raise ValueError(msg)
-
         self.n_windows = n_windows
         self.n_bins = n_bins
         self.min_singlet = min_singlet
@@ -188,59 +179,6 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
         """Check if the current state is inside the window."""
         min_allowed, max_allowed = self._get_window_limits(self.current_window)
         return singlet >= min_allowed and singlet < max_allowed
-
-    def _random_walk(self):
-        """Perform a random walk in the window."""
-        max_length = 100
-        energies = np.zeros(max_length)
-        singlets = np.zeros(max_length)
-        calc = self.atoms.get_calculator()
-        energies[0] = calc.get_energy()
-        singlets[0] = calc.get_singlets()[0]
-        for i in range(1, max_length):
-            syst_change = self._get_trial_move()
-
-            # Ensure moves are consistent with the constraints
-            while not self._no_constraint_violations(syst_change):
-                syst_change = self._get_trial_move()
-
-            energy = calc.calculate(
-                self.atoms, ["energy"], syst_change)
-            singl = calc.get_singlets()[0]
-            if self._is_inside_window(singl):
-                energies[i] = energy
-                singlets[i] = singl
-            else:
-                # Undo the last step
-                calc.undo_changes(1)
-                break
-        return energies[:i], singlets[:i]
-
-    def _update_records_rnd_walk(self, energies, singlets):
-        """Update the histogram with the values."""
-        if len(energies) == 0:
-            return
-        E0 = np.min(energies)
-        dE = energies - E0
-        beta = 1.0 / (kB * self.T)
-        w = np.exp(-beta * dE)
-        for i in range(0, len(singlets)):
-            indx = self._get_window_indx(self.current_window, singlets[i])
-            self.data[self.current_window][indx] += w[i]
-            self.energydata[self.current_window][indx] += energies[i] * w[i]
-
-    def _select_state(self, energies):
-        """Select a state based on all the energy visited."""
-        if len(energies) == 0:
-            # Nothing has been done, just stay in the current state
-            return
-        w = waste_recycled_accept_prob(energies, self.T)
-        state = get_new_state(w)
-
-        # Need to undo a given number of steps
-        n_undo = len(energies) - state - 1
-        calc = self.atoms.get_calculator()
-        calc.undo_changes(int(n_undo))
 
     def _get_merged_records(self):
         """
@@ -379,19 +317,14 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
                     now = time.time()
 
                 # Run MC step
-                if self.scheme is "classical":
-                    self._mc_step()
-                    self._update_records()
-                    self.log(
-                        "Acceptance rate in window {}: {}".format(
-                            self.current_window, float(
-                                self.num_accepted) / self.current_step))
-                else:
-                    en, singl = self._random_walk()
-                    self._update_records_rnd_walk(en, singl)
-                    self._select_state(en)
+                self._mc_step()
+                self._update_records()
                 self.averager.reset()
 
+            self.log(
+                "Acceptance rate in window {}: {}".format(
+                    self.current_window, float(
+                        self.num_accepted) / self.current_step))
             self.log("Final chemical formula: {}".format(
                 self.atoms.get_chemical_formula()))
             self.reset()
