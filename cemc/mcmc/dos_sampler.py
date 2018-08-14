@@ -97,7 +97,7 @@ class SGCCompositionFreeEnergy(object):
             assert sgc_sampler.averager.counter == 1
             # singets_array = [singlets[key] for key in self.dim_names]
             self.update_histogram(singlets)
-            if (counter % check_conv_every == 0):
+            if counter % check_conv_every == 0:
                 max_std = self.get_max_std()
                 if max_std < max_rel_unc and counter > min_num_steps:
                     msg = "Composition Free Energy converged!."
@@ -107,7 +107,7 @@ class SGCCompositionFreeEnergy(object):
                         return CompositionDOS(self.hist_limits, self.histogram)
                     else:
                         return self.hist_limits, self.histogram
-            if time.time()-last_time > output_every:
+            if time.time() - last_time > output_every:
                 msg = "Current number of steps: {}. ".format(counter)
                 msg += "Max std: {}.".format(max_std)
                 print(msg)
