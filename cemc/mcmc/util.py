@@ -18,6 +18,7 @@ def unique_cluster_indices(cluster_indx):
                             unique_indx.append(indx)
     return unique_indx
 
+
 def trans_matrix2listdict(BC):
     """
     Converts the translation matrix to a list of dictionaries
