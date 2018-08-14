@@ -1,3 +1,5 @@
+from ase.units import kB
+import numpy as np
 
 
 def unique_cluster_indices(cluster_indx):
@@ -34,3 +36,30 @@ def trans_matrix2listdict(BC):
         for indx in unique_indx:
             listdict[refindx][indx] = matrix[refindx, indx]
     return listdict
+
+
+def waste_recycled_average(observable, energies, T):
+    """Compute average by using all energy values."""
+    E0 = np.min(energies)
+    dE = energies - E0
+    beta = 1.0/(kB*T)
+    w = np.exp(-beta*dE)
+    return observable.dot(w)/np.sum(w)
+
+
+def waste_recycled_accept_prob(energies, T):
+    """Compute acceptance probability in the weight recycled scheme."""
+    E0 = np.min(energies)
+    dE = energies - E0
+    beta = 1.0/(kB*T)
+    w = np.exp(-beta * dE)
+    return w/np.sum(w)
+
+
+def get_new_state(weights):
+    """Select a new state according to the weights."""
+    srt_indx = np.argsort(weights)
+    srt_weights = np.sort(weights)
+    rand_num = np.random.rand()
+    indx = np.searchsorted(srt_weights, rand_num)
+    return srt_indx[indx]

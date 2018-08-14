@@ -13,6 +13,8 @@ from ase.units import kJ, mol
 from cemc.mcmc import mpi_tools
 from cemc.mcmc.exponential_filter import ExponentialFilter
 from cemc.mcmc.averager import Averager
+from cemc.mcmc.util import waste_recycled_average, waste_recycled_accept_prob
+from cemc.util import get_new_state
 
 
 class DidNotReachEquillibriumError(Exception):
@@ -40,6 +42,8 @@ class Montecarlo(object):
     :param mpicomm: MPI communicator object
     :param logfile: Filename for logging (default is logging to console)
     :param plot_debug: If True it will create some diagnositc plots during equilibration
+    :param recycle_waste: If True also rejected states will be used to estimate
+                          averages
     """
 
     def __init__(
@@ -50,11 +54,12 @@ class Montecarlo(object):
             mpicomm=None,
             logfile="",
             plot_debug=False,
-            min_acc_rate=0.0):
+            min_acc_rate=0.0, recycle_waste=False):
         self.name = "MonteCarlo"
         self.atoms = atoms
         self.T = temp
         self.min_acc_rate = min_acc_rate
+        self.recycle_waste = recycle_waste
         if indeces is None:
             self.indeces = range(len(self.atoms))
         else:
@@ -75,6 +80,9 @@ class Montecarlo(object):
         E0 = self.atoms.get_calculator().get_energy()
         self.current_energy = E0
         self.new_energy = self.current_energy
+
+        # Keep the energy of old and trial state
+        self.last_energies = np.zeros(2)
         self.mean_energy = Averager(ref_value=E0)
         self.energy_squared = Averager(ref_value=E0)
         self.mpicomm = mpicomm
@@ -712,8 +720,17 @@ class Montecarlo(object):
         self.reset()
         while(self.current_step < steps):
             en, accept = self._mc_step(verbose=verbose)
-            self.mean_energy += self.current_energy_without_vib()
-            self.energy_squared += self.current_energy_without_vib()**2
+
+            if self.recycle_waste:
+                E = waste_recycled_average(
+                    self.last_energies, self.last_energies, self.T)
+                E_sq = waste_recycled_average(
+                    self.last_energies**2, self.last_energies, self.T)
+            else:
+                E = self.current_energy_without_vib()
+                E_sq = self.current_energy_without_vib()**2
+            self.mean_energy += E
+            self.energy_squared += E_sq
 
             if (time.time() - start > self.status_every_sec):
                 ms_per_step = 1000.0 * self.status_every_sec / \
@@ -808,18 +825,35 @@ class Montecarlo(object):
         """
         Returns True if the trial step is accepted
         """
+        self.last_energies[0] = self.current_energy
         self.new_energy = self.atoms._calc.calculate(
             self.atoms, ["energy"], system_changes)
+        self.last_energies[1] = self.new_energy
+
         if (self.is_first):
             self.is_first = False
             return True
 
-        if (self.new_energy < self.current_energy):
-            return True
-        kT = self.T * units.kB
-        energy_diff = self.new_energy - self.current_energy
-        probability = np.exp(-energy_diff / kT)
-        return np.random.rand() <= probability
+        if self.recycle_waste:
+            """
+            Update according to
+
+            Frenkel, Daan.
+            "Speed-up of Monte Carlo simulations by sampling of
+            rejected states."
+            Proceedings of the National Academy of Sciences 101.51 (2004)
+            """
+            p = waste_recycled_accept_prob(self.last_energies, self.T)
+            indx = get_new_state(p)
+            return indx == 1
+        else:
+            # Standard Metropolis acceptance criteria
+            if (self.new_energy < self.current_energy):
+                return True
+            kT = self.T * units.kB
+            energy_diff = self.new_energy - self.current_energy
+            probability = np.exp(-energy_diff / kT)
+            return np.random.rand() <= probability
 
     def count_atoms(self):
         """
@@ -836,6 +870,7 @@ class Montecarlo(object):
         """
         self.current_step += 1
         number_of_atoms = len(self.atoms)
+        self.last_energies[0] = self.current_energy
 
         system_changes = self._get_trial_move()
         counter = 0
@@ -849,6 +884,9 @@ class Montecarlo(object):
             raise CanNotFindLegalMoveError(msg)
 
         move_accepted = self._accept(system_changes)
+
+        # At this point the new energy is calculated in the _accept function
+        self.last_energies[1] = self.new_energy
 
         if (move_accepted):
             self.current_energy = self.new_energy
