@@ -353,15 +353,27 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
 
 void CEUpdater::undo_changes()
 {
+  unsigned int buf_size = history->history_size();
+  undo_changes(buf_size-1);
+}
+
+void CEUpdater::undo_changes(int num_steps)
+{
   if ( tracker != nullptr )
   {
-    undo_changes_tracker();
+    undo_changes_tracker(num_steps);
     return;
   }
 
   unsigned int buf_size = history->history_size();
+
+  if (num_steps > buf_size-1)
+  {
+    throw invalid_argument("Can't reset history beyond the buffer size!");
+  }
+
   SymbolChange *last_changes;
-  for ( unsigned int i=0;i<buf_size-1;i++ )
+  for ( unsigned int i=0;i<num_steps;i++ )
   {
     history->pop( &last_changes );
     //cout <<"Undo changing " << last_changes->indx << " from " << symbols[last_changes->indx] << " to " << last_changes->old_symb << endl;
@@ -382,13 +394,13 @@ void CEUpdater::undo_changes()
   }
 }
 
-void CEUpdater::undo_changes_tracker()
+void CEUpdater::undo_changes_tracker(int num_steps)
 {
   //cout << "Undoing changes, keep track\n";
   SymbolChange *last_change;
   SymbolChange *first_change;
   tracker_t& trk = *tracker;
-  while( history->history_size() > 1 )
+  for (unsigned int i=0;i<num_steps;i++)
   {
     history->pop(&last_change);
     history->pop(&first_change);

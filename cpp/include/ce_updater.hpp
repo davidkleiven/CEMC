@@ -84,6 +84,9 @@ public:
   double calculate( swap_move &system_changes );
   double calculate( std::vector<swap_move> &sequence );
 
+  /** Undo given number of steps */
+  void undo_changes(int num_steps);
+
   /** Resets all changes */
   void undo_changes();
 
@@ -161,7 +164,7 @@ private:
   LinearVibCorrection *vibs{nullptr};
 
   /** Undos the latest changes keeping the tracker CE tracker updated */
-  void undo_changes_tracker();
+  void undo_changes_tracker(int num_steps);
 
   /** Extracts the decoration number from cluster names */
   int get_decoration_number( const std::string &cluster_name ) const;

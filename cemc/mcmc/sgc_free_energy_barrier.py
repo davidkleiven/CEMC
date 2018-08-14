@@ -8,6 +8,7 @@ import copy
 from scipy import stats
 import mpi_tools
 """
+from ase.units import kB
 from cemc.mcmc import SGCMonteCarlo
 from cemc.mcmc.mc_observers import SGCObserver
 import numpy as np
@@ -15,8 +16,9 @@ from matplotlib import pyplot as plt
 from ase.visualize import view
 import json
 import time
+from cemc.mcmc.util import get_new_state, waste_recycled_accept_prob
 
-class SGCFreeEnergyBarrier( SGCMonteCarlo ):
+class SGCFreeEnergyBarrier(SGCMonteCarlo):
     """
     Class for computing the free energy as a function of composition
     It applies umbrella sampling to force the system to also visit
@@ -29,7 +31,7 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
         * *max_singlet* Maximum value of singlet term
         * mpicomm* MPI communicator object
     """
-    def __init__( self, atoms, T, **kwargs):
+    def __init__(self, atoms, T, **kwargs):
         n_windows = 60
         n_bins = 5
         min_singlet = -1.0
@@ -46,6 +48,9 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
             max_singlet = kwargs.pop("max_singlet")
         if ( "mpicomm" in kwargs.keys() ):
             self.free_eng_mpi = kwargs.pop("mpicomm")
+        self.recycle_waste = False
+        if "recycle_waste" in kwargs.keys():
+            self.recycle_waste = kwargs.pop("recycle_wast")
         self.n_windows = n_windows
         self.n_bins = n_bins
         self.min_singlet = min_singlet
@@ -78,7 +83,7 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
 
         :param window: Index of window
         """
-        if ( window == 0 ):
+        if window == 0:
             min_limit = self.min_singlet
         else:
             min_limit = window*self.window_singletrange - self.bin_singletrange
@@ -88,7 +93,7 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
         max_limit = self.min_singlet + abs(self.window_singletrange)*(window+1)
         return min_limit, max_limit
 
-    def _get_window_indx( self, window, value ):
+    def _get_window_indx(self, window, value):
         """
         Returns the bin index of value in the current window
 
@@ -120,24 +125,24 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
         size = self.free_eng_mpi.Get_size()
         for i in range(len(self.data)):
             recv_buf = np.zeros_like(self.data[i])
-            self.free_eng_mpi.Allreduce( self.data[i], recv_buf )
+            self.free_eng_mpi.Allreduce(self.data[i], recv_buf)
             recv_buf = recv_buf.astype(np.float64)
             temp_data.append(np.copy(recv_buf/size))
-            self.free_eng_mpi.Allreduce( self.energydata[i], recv_buf )
-            temp_energy.append( np.copy(recv_buf/size) )
+            self.free_eng_mpi.Allreduce(self.energydata[i], recv_buf)
+            temp_energy.append(np.copy(recv_buf/size))
         self.data = temp_data
         self.energydata = temp_energy
 
-    def _update_records( self ):
-        """
-        Update the data arrays
-        """
-        singlet = self.averager.singlets[0]
-        indx = self._get_window_indx( self.current_window, singlet )
-        self.data[self.current_window][indx] += 1
-        self.energydata[self.current_window][indx] += self.current_energy
+    # def _update_records(self):
+    #     """
+    #     Update the data arrays
+    #     """
+    #     singlet = self.averager.singlets[0]
+    #     indx = self._get_window_indx(self.current_window, singlet)
+    #     self.data[self.current_window][indx] += 1
+    #     self.energydata[self.current_window][indx] += self.current_energy
 
-    def _accept( self, system_changes ):
+    def _accept(self, system_changes):
         """
         Return True if the trial move was accepted, False otherwise
 
@@ -146,18 +151,77 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
 
         # Check if move accepted by SGCMonteCarlo
         move_accepted = SGCMonteCarlo._accept(self, system_changes)
+
         # Now check if the move keeps us in same window
         new_singlets = np.zeros_like(self.averager.singlets)
-        self.atoms._calc.get_singlets( new_singlets )
+        self.atoms._calc.get_singlets(new_singlets)
         singlet = new_singlets[0]
         # Set in_window to True and check if it should be False instead
         in_window = True
-        min_allowed,max_allowed = self._get_window_limits(self.current_window)
+        min_allowed, max_allowed = self._get_window_limits(self.current_window)
 
         if (singlet < min_allowed or singlet >= max_allowed):
             in_window = False
         # Now system will return to previous state if not inside window
         return move_accepted and in_window
+
+    def _is_inside_window(self, singlet):
+        """Check if the current state is inside the window."""
+        min_allowed, max_allowed = self._get_window_limits(self.current_window)
+        return singlet >= min_allowed and singlet < max_allowed
+
+    def _random_walk(self):
+        """Perform a random walk in the window."""
+        max_length = 100
+        energies = np.zeros(max_length)
+        singlets = np.zeros(max_length)
+        calc = self.atoms.get_calculator()
+        energies[0] = calc.get_energy()
+        singlets[0] = calc.get_singlets()[0]
+        for i in range(1, max_length):
+            syst_change = self._get_trial_move()
+            
+            # Ensure moves are consistent with the constraints
+            while not self._no_constraint_violations(syst_change):
+                syst_change = self._get_trial_move()
+
+            energy = calc.calculate(
+                self.atoms, ["energy"], syst_change)
+            singl = calc.get_singlets()[0]
+            if self._is_inside_window(singl):
+                energies[i] = energy
+                singlets[i] = singl
+            else:
+                # Undo the last step
+                calc.undo_changes(1)
+                break
+        return energies[:i], singlets[:i]
+
+    def _update_records(self, energies, singlets):
+        """Update the histogram with the values."""
+        if len(energies) == 0:
+            return
+        E0 = np.min(energies)
+        dE = energies - E0
+        beta = 1.0/(kB*self.T)
+        w = np.exp(-beta * dE)
+        for i in range(0, len(singlets)):
+            indx = self._get_window_indx(self.current_window, singlets[i])
+            self.data[self.current_window][indx] += w[i]
+            self.energydata[self.current_window][indx] += energies[i] * w[i]
+
+    def _select_state(self, energies):
+        """Select a state based on all the energy visited."""
+        if len(energies) == 0:
+            # Nothing has been done, just stay in the current state
+            return
+        w = waste_recycled_accept_prob(energies, self.T)
+        state = get_new_state(w)
+
+        # Need to undo a given number of steps
+        n_undo = len(energies) - state - 1
+        calc = self.atoms.get_calculator()
+        calc.undo_changes(int(n_undo))
 
     def _get_merged_records( self ):
         """
@@ -276,11 +340,13 @@ class SGCFreeEnergyBarrier( SGCMonteCarlo ):
                     now = time.time()
 
                 # Run MC step
-                self._mc_step()
-                self._update_records()
+                # self._mc_step()
+                en, singl = self._random_walk()
+                self._update_records(en, singl)
+                self._select_state(en)
                 self.averager.reset()
-            self.log( "Acceptance rate in window {}: {}".format(
-                self.current_window,float(self.num_accepted)/self.current_step) )
+            # self.log( "Acceptance rate in window {}: {}".format(
+            #     self.current_window,float(self.num_accepted)/self.current_step) )
             self.log("Final chemical formula: {}".format(
                 self.atoms.get_chemical_formula()))
             self.reset()
