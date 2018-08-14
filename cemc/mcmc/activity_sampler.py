@@ -1,5 +1,6 @@
 from cemc.mcmc import Montecarlo
 from cemc.mcmc.mc_observers import MCObserver
+from cemc.mcmc.exponential_weighted_averager import ExponentialWeightedAverager
 from ase.units import kB
 import numpy as np
 
@@ -14,18 +15,11 @@ class TrialEnergyObserver(MCObserver):
             key = self.activity_sampler.current_move
             dE = self.activity_sampler.new_energy - \
                 self.activity_sampler.current_energy
-            beta = 1.0 / (kB * self.activity_sampler.T)
-            self.activity_sampler.averager_track[key] += np.exp(-beta * dE)
 
+            self.activity_sampler.averager_track[key].add(dE)
             self.activity_sampler.raw_insertion_energy[key] += dE
-
-            self.activity_sampler.boltzmann_weight_ins_energy[key] += \
-                dE*np.exp(-beta * dE)
-
-            self.activity_sampler.boltzmann_weight_ins_eng_eq[key] += \
-                dE**2 * np.exp(-beta * dE)
-
-            self.activity_sampler.num_computed_moves[key] += 1
+            self.activity_sampler.boltzmann_weight_ins_energy[key].add(dE)
+            self.activity_sampler.boltzmann_weight_ins_eng_sq[key].add(dE)
 
 
 class ActivitySampler(Montecarlo):
@@ -56,21 +50,23 @@ class ActivitySampler(Montecarlo):
         self.averager_track = {}
         self.raw_insertion_energy = {}
         self.boltzmann_weight_ins_energy = {}
-        self.boltzmann_weight_ins_eng_eq = {}
+        self.boltzmann_weight_ins_eng_sq = {}
         self.num_possible_moves = {}
-        self.num_computed_moves = {}
         self.singlet_changes = {}
         at_count = self.count_atoms()
         self.current_move_type = "regular"
         self.current_move = None
         for move in self.insertion_moves:
             key = self.get_key(move[0], move[1])
-            self.averager_track[key] = 0.0
+            self.averager_track[key] = \
+                ExponentialWeightedAverager(self.T, order=0)
+
             self.raw_insertion_energy[key] = 0.0
-            self.boltzmann_weight_ins_energy[key] = 0.0
-            self.boltzmann_weight_ins_eng_eq[key] = 0.0
+            self.boltzmann_weight_ins_energy[key] = \
+                ExponentialWeightedAverager(self.T, order=1)
+            self.boltzmann_weight_ins_eng_sq[key] = \
+                ExponentialWeightedAverager(self.T, order=2)
             self.num_possible_moves[key] = at_count[move[0]]
-            self.num_computed_moves[key] = 0
             self.singlet_changes[key] = []
 
         self.find_singlet_changes()
@@ -119,11 +115,10 @@ class ActivitySampler(Montecarlo):
         super(ActivitySampler, self).reset()
 
         for key in self.averager_track.keys():
-            self.averager_track[key] = 0.0
+            self.averager_track[key].reset()
             self.raw_insertion_energy[key] = 0.0
-            self.boltzmann_weight_ins_energy[key] = 0.0
-            self.boltzmann_weight_ins_eng_eq[key] = 0.0
-            self.num_computed_moves[key] = 0
+            self.boltzmann_weight_ins_energy[key].reset()
+            self.boltzmann_weight_ins_eng_sq[key].reset()
         self.current_move_type = "regular"
         self.current_move = None
 
@@ -173,41 +168,54 @@ class ActivitySampler(Montecarlo):
         # Broadcast keys from master process to ensure that all processes
         # put the values in the same order
         keys = self.mpicomm.bcast(keys, root=0)
-        num_computed = np.zeros(len(keys))
-        averages = np.zeros(len(keys))
-        raw_energies = np.zeros_like(averages)
-        boltzmann_eng = np.zeros_like(averages)
-        boltzmann_eng_sq = np.zeros_like(averages)
+        raw_energies = np.zeros(len(keys))
         for i, key in enumerate(keys):
-            averages[i] = self.averager_track[key]
-            num_computed[i] = self.num_computed_moves[key]
             raw_energies[i] = self.raw_insertion_energy[key]
-            boltzmann_eng[i] = self.boltzmann_weight_ins_energy[key]
-            boltzmann_eng_sq[i] = self.boltzmann_weight_ins_eng_eq[key]
-
-        recv_buf = np.zeros_like(averages)
-        self.mpicomm.Allreduce(averages, recv_buf)
-        averages[:] = recv_buf
-
-        self.mpicomm.Allreduce(num_computed, recv_buf)
-        num_computed[:] = recv_buf
+        recv_buf = np.zeros_like(raw_energies)
 
         self.mpicomm.Allreduce(raw_energies, recv_buf)
         raw_energies[:] = recv_buf
 
-        self.mpicomm.Allreduce(boltzmann_eng, recv_buf)
-        boltzmann_eng[:] = recv_buf
-
-        self.mpicomm.Allreduce(boltzmann_eng_sq, recv_buf)
-        boltzmann_eng_sq[:] = recv_buf
-
         # Distribute back into the original datastructures
         for i, key in enumerate(keys):
-            self.averager_track[key] = averages[i]
-            self.num_computed_moves[key] = num_computed[i]
             self.raw_insertion_energy[key] = raw_energies[i]
-            self.boltzmann_weight_ins_energy[key] = boltzmann_eng[i]
-            self.boltzmann_weight_ins_eng_eq[key] = boltzmann_eng_sq[i]
+
+        # Collect the averaging objects
+        avg = self.mpicomm.gather(self.averager_track, root=0)
+        boltz_avg = self.mpicomm.gather(self.boltzmann_weight_ins_energy,
+                                        root=0)
+        boltz_avg_sq = self.mpicomm.gather(self.boltzmann_weight_ins_eng_sq,
+                                           root=0)
+        error_occured = False
+        msg = ""
+        if self.rank == 0:
+            try:
+                for i in range(len(avg)):
+                    if i == 0:
+                        self.averager_track = avg[i]
+                        self.boltzmann_weight_ins_energy = boltz_avg[i]
+                        self.boltzmann_weight_ins_eng_sq = boltz_avg_sq[i]
+                        continue
+                    for key in avg[i].keys():
+                        self.averager_track[key] += avg[i][key]
+                        self.boltzmann_weight_ins_energy[key] += boltz_avg[i][key]
+                        self.boltzmann_weight_ins_eng_sq[key] += \
+                            boltz_avg_sq[i][key]
+            except Exception as exc:
+                msg = str(exc)
+                error_occured = True
+
+        error_occured = self.mpicomm.bcast(error_occured, root=0)
+        msg = self.mpicomm.bcast(msg, root=0)
+        if error_occured:
+            # Raise runtime error on all nodes
+            raise RuntimeError(msg)
+
+        self.averager_track = self.mpicomm.bcast(self.averager_track, root=0)
+        self.boltzmann_weight_ins_energy = \
+            self.mpicomm.bcast(self.boltzmann_weight_ins_energy, root=0)
+        self.boltzmann_weight_ins_eng_sq = \
+            self.mpicomm.bcast(self.boltzmann_weight_ins_eng_sq, root=0)
 
     def get_thermodynamic(self):
         """
@@ -242,18 +250,21 @@ class ActivitySampler(Montecarlo):
         for move in self.insertion_moves:
             key = self.get_key(move[0], move[1])
             name = "insert_energy_{}".format(key)
-            N = self.num_computed_moves[key]
+            N = self.averager_track[key].num_samples
             inf_temp = float(at_count[move[0]])/(at_count[move[1]]+1)
-            res[name] = self.averager_track[key] * inf_temp / N
+            E0 = self.averager_track[key].ref_value
+
+            res[name] = E0 - kB * self.T * \
+                np.log(self.averager_track[key].average * inf_temp)
 
             name = "raw_insert_energy_{}".format(key)
             res[name] = self.raw_insertion_energy[key] / N
 
             name = "boltzmann_avg_insert_energy_{}".format(key)
-            res[name] = self.boltzmann_weight_ins_energy[key] / \
-                self.averager_track[key]
+            res[name] = self.boltzmann_weight_ins_energy[key].average / \
+                self.averager_track[key].average
 
             name = "boltzmann_avg_insert_energy_sq_{}".format(key)
-            res[name] = self.boltzmann_weight_ins_eng_eq[key] / \
-                self.averager_track[key]
+            res[name] = self.boltzmann_weight_ins_eng_sq[key].average / \
+                self.averager_track[key].average
         return res
