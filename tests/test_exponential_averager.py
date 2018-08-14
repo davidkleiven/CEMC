@@ -5,7 +5,7 @@ avail_msg = ""
 try:
     from cemc.mcmc.exponential_weighted_averager import ExponentialWeightedAverager
     available = True
-except ImportError exc:
+except ImportError as exc:
     avail_msg = str(exc)
     available = False
 
