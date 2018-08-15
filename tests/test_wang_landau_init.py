@@ -1,4 +1,5 @@
 import unittest
+import os
 from ase.build import bulk
 try:
     from ase.ce import BulkCrystal
@@ -36,6 +37,10 @@ class TestInitWLSim( unittest.TestCase ):
         if not has_CE:
             self.skipTest("ASE version does not have CE")
 
+        try:
+            os.remove("temp_db.db")
+        except Exception:
+            pass
         msg = ""
         eci = get_eci()
         try:

@@ -1,4 +1,5 @@
 import unittest
+import os
 try:
     from cemc.mcmc import NucleationSampler,SGCNucleation, CanonicalNucleationMC, FixedNucleusMC
     from ase.ce import BulkCrystal
@@ -45,7 +46,8 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             cf = cf.get_cf(ceBulk.atoms)
 
             ecis = {key: 0.001 for key in cf.keys()}
-            calc = get_ce_calc(ceBulk, kwargs, ecis, size=[5, 5, 5])
+            calc = get_ce_calc(ceBulk, kwargs, ecis, size=[5, 5, 5],
+                               db_name="sc5x5x5.db")
             ceBulk = calc.BC
             ceBulk.atoms.set_calculator(calc)
 
@@ -76,6 +78,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             mc = FixedNucleusMC(ceBulk.atoms, 300, size=6,
                                 network_name=nn_name, network_element="Mg")
             mc.run(nsteps=2)
+            os.remove("sc5x5x5.db")
         except Exception as exc:
             msg = str(exc)
             no_throw = False
