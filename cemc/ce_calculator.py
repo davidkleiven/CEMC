@@ -135,8 +135,8 @@ class CE(Calculator):
         self.corrFunc = CorrFunction(self.BC)
         cf_names = list(eci.keys())
         if initial_cf is None:
-            msg = "Calculating {} correlation functions from "
-            msg += "scratch".format(len(cf_names))
+            msg = "Calculating {} correlation ".format(len(cf_names))
+            msg += "functions from scratch"
             print(msg)
             self.cf = self.corrFunc.get_cf_by_cluster_names(self.BC.atoms,
                                                             cf_names)
