@@ -50,12 +50,13 @@ pip install -e .
 ```
 instead.
 
-2. **Equations does not render properly when viewing the examples**
-try to convert the jupyter notebook locally
+2. **Compilation fails**
+During development of this package it has mainly been compiled with GCC,
+so if compilation fail it can be worth testing
 ```bash
-jupyter nbconvert --to html test_sgc_mc.ipynb
+env CC=gcc CXX=g++ pip install -e .
 ```
-and open the resulting html file in a browser.
+note that a GCC version supporting openMP is required.
 
 # Guidelines
 Any code that is in this repository should have *at least* one unittest
@@ -70,5 +71,6 @@ All examples should be written as python notebooks and located in the
 At any time *ALL* tests in the *tests* folder should pass, meaning that
 ```bash
 python -m unittest discover tests/
+python tests/runner.py
 ```
 should give no errors.
