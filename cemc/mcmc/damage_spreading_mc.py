@@ -116,10 +116,10 @@ class DamageSpreadingMC(object):
         now = time.time()
         self.sgc1.chemical_potential = chem_pot
         self.sgc2.chemical_potential = chem_pot
-        for _ in range(self.track_time-1):
+        for _ in range(self.track_time - 1):
             if time.time() - now > self.output_every:
-                self._log("On step {} of {}".format(
-                    self.current_time, self.track_time))
+                self._log("On step {} of {}".format(self.current_time,
+                                                    self.track_time))
                 now = time.time()
             self._update_systems()
 
