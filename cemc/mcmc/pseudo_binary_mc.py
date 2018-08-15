@@ -11,7 +11,7 @@ class PseudoBinarySGC(SGCMonteCarlo):
     :param T: Temperature
     :param kwargs: See :py:class:`cemc.mcmc.SGCMonteCarlo`
         Special key word arguments for this class
-        * group: The pseudo binary groups [{"Al": 2}, {"Mg": 1, "Si": 1}],
+        * groups: The pseudo binary groups [{"Al": 2}, {"Mg": 1, "Si": 1}],
                  will allow for inserting MgSi for 2 Al atoms
         * insert_prob: Probability to try an insertion of the pseudo binary
                        groups
@@ -19,14 +19,14 @@ class PseudoBinarySGC(SGCMonteCarlo):
     """
 
     def __init__(self, atoms, T, **kwargs):
-        self._groups = kwargs.pop("group")
+        self._groups = kwargs.pop("groups")
         self._check_group()
         self._chem_pot = kwargs.pop("chem_pot")
-        self._chem_pot_dict = self._get_eci_chem_pot()
         self._ins_prob = 0.1
         if "insert_prob" in kwargs.keys():
             self._ins_prob = kwargs.pop("insert_prob")
         SGCMonteCarlo.__init__(self, atoms, T, **kwargs)
+        self._chem_pot_dict = self._get_eci_chem_pot()
 
         # This class needs to track the positions of the elemsnts,
         # but since the number of elements of each symbol is not constant,
@@ -90,6 +90,14 @@ class PseudoBinarySGC(SGCMonteCarlo):
             chem_pot_dict["c1_{}".format(i)] = mu_vec
         return chem_pot_dict
 
+    def _symbs_in_group_in_random_order(self, grp):
+        """Return the symbols of a group in random order."""
+        symbs = []
+        for key, num in grp.items():
+            symbs += [key] * num
+        shuffle(symbs)
+        return symbs
+
     def _insert_trial_move(self):
         """Trial move consisting of inserting a new unit of pseudo binary."""
         syst_changes = []
@@ -97,20 +105,16 @@ class PseudoBinarySGC(SGCMonteCarlo):
         shuffle(grp_indx)
         grp1 = self._groups[grp_indx[0]]
         grp2 = self._groups[grp_indx[1]]
+        symbs2 = self._symbs_in_group_in_random_order(grp2)
 
         # Find indices of elements in the first group
+        count = 0
         for key, num in grp1.items():
             indices = self._get_random_index(key, num=num)
             for indx in indices:
-                syst_changes.append((indx, key, None))
-
-        # Update with symbols from the other group
-        sys_ch = 0
-        for key, num in grp2.items():
-            for _ in range(num):
-                syst_changes[sys_ch][2] = key
-                sys_ch += 1
-        return sys_ch
+                syst_changes.append((indx, key, symbs2[count]))
+                count += 1
+        return syst_changes
 
     def _get_random_index(self, symbol, num=1):
         """Get a random index of an atom with given symbol."""
@@ -125,17 +129,27 @@ class PseudoBinarySGC(SGCMonteCarlo):
 
     def _swap_trial_move(self):
         """Swap two atoms."""
-        symb1 = choice(self.symbols)
+        indx1 = np.random.randint(low=0, high=len(self.atoms))
+        symb1 = self.atoms[indx1].symbol
         symb2 = symb1
-        while symb2 == symb1:
-            symb2 = choice(self.symbol)
+        max_attempts = 1000
+        count = 0
+        while symb2 == symb1 and count < max_attempts:
+            symb2 = choice(self.symbols)
+            try:
+                indx2 = self._get_random_index(symb2)[0]
+            except KeyError:
+                symb2 = symb1
+            count += 1
+
+        # Should never go into this function if swap moves
+        # are not possible!
+        assert count < max_attempts
 
         syst_changes = []
-        indx = self._get_random_index(symb1)[0]
-        syst_changes.append((indx, symb1, symb2))
+        syst_changes.append((indx1, symb1, symb2))
 
-        indx = self._get_random_index(symb2)[0]
-        syst_changes.append((indx, symb2, symb1))
+        syst_changes.append((indx2, symb2, symb1))
         return syst_changes
 
     def _update_tracker(self, changes):
@@ -147,23 +161,47 @@ class PseudoBinarySGC(SGCMonteCarlo):
             self.atoms_indx[old_symb].remove(indx)
             self.atoms_indx[new_symb].add(indx)
 
+    def _only_one_type(self):
+        """Return true if there exists more than one atom type."""
+        num_larger_than_1 = 0
+        for symb, indices in self.atoms_indx.items():
+            if len(indices) > 0:
+                num_larger_than_1 += 1
+        return num_larger_than_1 <= 1
+
     def _get_trial_move(self):
         """Calculate a trial move."""
         max_attempts = 1000
-        if np.random.rand() < self._ins_prob:
-            try:
-                change = self._insert_trial_move()
-                count = 0
-                while (not self._no_constraint_violations(change)
-                       and count < max_attempts):
-                    change = self._insert_trial_move()
-                    count += 1
+        one_type = self._only_one_type()
+        if np.random.rand() < self._ins_prob or one_type:
 
-                if count < max_attempts:
-                    return change
-            except KeyError:
-                # Could not generate an insertion move
-                pass
+            change = None
+            count = 0
+            while count < max_attempts:
+                try:
+                    change = self._insert_trial_move()
+                    break
+                except KeyError:
+                    pass
+                count += 1
+
+            count = 0
+            while (not self._no_constraint_violations(change)
+                   and count < max_attempts):
+                try:
+                    change = self._insert_trial_move()
+                except KeyError:
+                    pass
+                count += 1
+
+            if count < max_attempts:
+                return change
+            elif one_type:
+                msg = "Could not find any insert moves in "
+                msg += "{} attempts\n".format(max_attempts)
+                msg += "and it is not possible to perform swap moves\n"
+                msg += "as the atoms object has only one element type!"
+                raise RuntimeError(msg)
 
         change = self._swap_trial_move()
         count = 0

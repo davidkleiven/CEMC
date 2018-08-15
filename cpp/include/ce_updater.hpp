@@ -83,6 +83,7 @@ public:
   double calculate( PyObject *system_changes );
   double calculate( swap_move &system_changes );
   double calculate( std::vector<swap_move> &sequence );
+  double calculate( std::vector<SymbolChange> &sequence );
 
   /** Undo given number of steps */
   void undo_changes(int num_steps);
@@ -186,6 +187,9 @@ private:
 
   /** Reads the translation matrix */
   void read_trans_matrix( PyObject* py_trans_mat );
+
+  /** Check if a move is a swap move */
+  bool is_swap_move(const swap_move &move) const;
 
   /** Sort indices according to order */
   static void sort_indices(std::vector<int> &indx, const std::vector<int> &order);

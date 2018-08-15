@@ -431,31 +431,38 @@ double CEUpdater::calculate( PyObject *system_changes )
     }
     return get_energy();
   }
-  else if ( size == 2 )
+
+  if ( size%2 == 0 )
   {
-    array<SymbolChange,2> changes;
-    py_tuple_to_symbol_change( PyList_GetItem(system_changes,0), changes[0] );
-    py_tuple_to_symbol_change( PyList_GetItem(system_changes,1), changes[1] );
-    return calculate(changes);
-  }
-  else if ( size%2 == 0 )
-  {
-    // The size is larger than 2 and an even number.
-    // Assume that this is a sequence of swap moves
+    bool sequence_arbitrary_moves = false;
     vector<swap_move> sequence;
     for ( unsigned int i=0;i<size/2;i++ )
     {
       swap_move changes;
       py_tuple_to_symbol_change( PyList_GetItem(system_changes,2*i), changes[0] );
       py_tuple_to_symbol_change( PyList_GetItem(system_changes,2*i+1), changes[1] );
+
+      if (!is_swap_move(changes))
+      {
+        sequence_arbitrary_moves = true;
+        break;
+      }
       sequence.push_back(changes);
     }
-    return calculate(sequence);
+
+    if (!sequence_arbitrary_moves)
+    {
+      return calculate(sequence);
+    }
   }
-  else
+
+  // Last option is that this is a sequence of arbitrary moves
+  vector<SymbolChange> changes(size);
+  for (unsigned int i=0;i<size;i++)
   {
-    throw runtime_error( "Swaps of more than 2 atoms is not supported!" );
+    py_tuple_to_symbol_change(PyList_GetItem(system_changes, i), changes[i]);
   }
+  return calculate(changes);
 }
 
 double CEUpdater::calculate( swap_move &system_changes )
@@ -778,6 +785,15 @@ double CEUpdater::calculate( vector<swap_move> &sequence )
   return get_energy();
 }
 
+double CEUpdater::calculate(vector<SymbolChange> &sequence)
+{
+  for (auto &change : sequence)
+  {
+    update_cf(change);
+  }
+  return get_energy();
+}
+
 
 void CEUpdater::verify_clusters_only_exits_in_one_symm_group()
 {
@@ -908,4 +924,10 @@ void CEUpdater::sort_indices(vector<int> &indices, const vector<int> &order)
     sorted[i] = indices[order[i]];
   }
   indices = sorted;
+}
+
+bool CEUpdater::is_swap_move(const swap_move &move) const
+{
+  return (move[0].old_symb == move[1].new_symb) &&
+         (move[1].new_symb == move[1].old_symb);
 }
