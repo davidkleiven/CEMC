@@ -1,4 +1,5 @@
 import unittest
+import os
 try:
     from cemc import TimeLoggingTestRunner
     from ase.ce.settings_bulk import BulkCrystal
@@ -144,7 +145,8 @@ class TestCE(unittest.TestCase):
 
         ceBulk = BulkCrystal(**kwargs)
         ceBulk.reconfigure_settings()
-        calc = get_ce_calc(ceBulk, kwargs, eci, size=[4, 4, 4])
+        calc = get_ce_calc(ceBulk, kwargs, eci, size=[4, 4, 4],
+                           db_name="sc4x4x.db")
         ceBulk = calc.BC
         ceBulk.atoms.set_calculator(calc)
         corr_func = CorrFunction(template_supercell_bc)
@@ -156,6 +158,7 @@ class TestCE(unittest.TestCase):
 
             for key, value in brute_force.items():
                 self.assertAlmostEqual(value, updated_cf[key])
+        os.remove("sc4x4x.db")
 
     def test_double_swaps_ternary( self ):
         if ( not has_ase_with_ce ): # Disable this test
