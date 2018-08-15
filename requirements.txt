@@ -2,8 +2,7 @@ numpy
 scipy
 matplotlib
 mpi4py
-jupyter
-pytest-ipynb
 ase
 h5py
 dataset
+spglib
