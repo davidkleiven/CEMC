@@ -26,7 +26,8 @@ class PseudoBinarySGC(SGCMonteCarlo):
         if "insert_prob" in kwargs.keys():
             self._ins_prob = kwargs.pop("insert_prob")
         SGCMonteCarlo.__init__(self, atoms, T, **kwargs)
-        self._chem_pot_dict = self._get_eci_chem_pot()
+        # self._chem_pot_dict = self._get_eci_chem_pot()
+        self.chemical_potential = self._get_eci_chem_pot()
 
         # This class needs to track the positions of the elemsnts,
         # but since the number of elements of each symbol is not constant,
@@ -87,7 +88,7 @@ class PseudoBinarySGC(SGCMonteCarlo):
 
         chem_pot_dict = {}
         for i in range(len(mu_vec)):
-            chem_pot_dict["c1_{}".format(i)] = mu_vec
+            chem_pot_dict["c1_{}".format(i)] = mu_vec[i]
         return chem_pot_dict
 
     def _symbs_in_group_in_random_order(self, grp):
@@ -222,5 +223,4 @@ class PseudoBinarySGC(SGCMonteCarlo):
         """
         if "chem_potential" in kwargs.keys():
             kwargs.pop("chem_potential")
-        kwargs["chem_potential"] = self._chem_pot_dict
         SGCMonteCarlo.runMC(self, **kwargs)
