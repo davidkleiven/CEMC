@@ -3,6 +3,7 @@ import numpy as np
 import time
 import h5py as h5
 import os
+import sys
 
 
 class ReactionPathSampler(object):
@@ -18,6 +19,7 @@ class ReactionPathSampler(object):
         self.mpicomm = mc_obj.mpicomm
         mc_obj.mpicomm = None
         self.rank = 0
+        mc_obj.rank = 0  # All MC object should think they have rank 0
         if self.mpicomm is not None:
             self.rank = self.mpicomm.Get_rank()
 
@@ -92,8 +94,7 @@ class ReactionPathSampler(object):
         all_data = self.data[0].tolist()
         for i in range(1, len(self.data)):
             ratio = float(all_data[-1]) / self.data[i][0]
-            self.data[i] *= ratio
-            all_data += self.data[i][1:].tolist()
+            all_data += (self.data[i][1:] * ratio).tolist()
 
         all_data = np.array(all_data)
         all_data /= all_data[0]
@@ -123,6 +124,7 @@ class ReactionPathSampler(object):
         """Log messages."""
         if self.rank == 0:
             print(msg)
+        sys.stdout.flush()
 
     def run(self, nsteps=10000):
         """
@@ -134,6 +136,8 @@ class ReactionPathSampler(object):
         output_every = 30
         # For all windows
         for i in range(self.n_windows):
+            if self.mpicomm is not None:
+                self.mpicomm.barrier()
             self.current_window = i
             # We are inside a new window, update to start with concentration in
             # the middle of this window
@@ -176,11 +180,10 @@ class ReactionPathSampler(object):
         """
         if (self.mpicomm is None):
             return
-        temp_data = []
         for i in range(len(self.data)):
             recv_buf = np.zeros_like(self.data[i])
             self.mpicomm.Allreduce(self.data[i], recv_buf)
-        self.data = temp_data
+            self.data[i][:] = recv_buf
 
     def _update_data_entry(self, grp, data):
         """Update one data entry."""
