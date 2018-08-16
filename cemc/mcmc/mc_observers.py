@@ -2,10 +2,8 @@ import matplotlib as mpl
 from matplotlib import pyplot as plt
 import copy
 import numpy as np
-from ase.io.trajectory import TrajectoryWriter
 from cemc.ce_updater import ce_updater
-from ase.data import atomic_numbers
-import time
+from ase.io.trajectory import TrajectoryWriter
 from cemc.mcmc.averager import Averager
 from cemc.mcmc.util import waste_recycled_average
 
@@ -17,6 +15,7 @@ highlight_elements = ["Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na", "Mg",
 
 class MCObserver(object):
     """Base class for all MC observers."""
+
     def __init__(self):
         self.name = "GenericObserver"
 
@@ -45,6 +44,7 @@ class CorrelationFunctionTracker(MCObserver):
 
     :param ce_calc: Instance of the CE calculator attached to the atoms object
     """
+
     def __init__(self, ce_calc):
         self.cf = []
         self.ce_calc = ce_calc
@@ -72,6 +72,7 @@ class CorrelationFunctionTracker(MCObserver):
 
 class PairCorrelationObserver(MCObserver):
     """Compute the average value of all the ECIs."""
+
     def __init__(self, ce_calc):
         self.cf = {}
         self.cf_squared = {}
@@ -120,6 +121,7 @@ class LowestEnergyStructure(MCObserver):
     :param ce_calc: Instance of the CE calculator
     :param mc_obj: Monte Carlo object
     """
+
     def __init__(self, ce_calc, mc_obj, verbose=False):
         self.ce_calc = ce_calc
         self.mc_obj = mc_obj
@@ -164,6 +166,7 @@ class SGCObserver(MCObserver):
     :param ce_calc: CE calculator
     :param mc_obj: Instance of the Monte Carlo object
     """
+
     def __init__(self, ce_calc, mc_obj, n_singlets):
         super(SGCObserver, self).__init__()
         self.name = "SGCObersver"
@@ -180,21 +183,6 @@ class SGCObserver(MCObserver):
             "counter": 0
         }
 
-        """
-        # Track average value of the singlet terms
-        self.singlets = np.zeros( n_singlets, dtype=np.float64 )
-
-        # Track average value of the energy
-        self.energy = 0.0
-
-        # Track average value of energy squared
-        self.energy_sq = 0.0
-
-        # Track average value of particle-energy correlation
-        self.singl_eng = np.zeros_like( self.singlets )
-        self.counter = 0
-        """
-
     def reset(self):
         """
         Resets all variables to zero
@@ -205,13 +193,6 @@ class SGCObserver(MCObserver):
         self.quantities["energy_sq"].clear()
         self.quantities["singl_eng"][:] = 0.0
         self.quantities["counter"] = 0
-        """
-        self.singlets[:] = 0.0
-        self.energy = 0.0
-        self.energy_sq = 0.0
-        self.singl_eng[:] = 0.0
-        self.counter = 0
-        """
 
     def __call__(self, system_changes):
         """
@@ -262,13 +243,6 @@ class SGCObserver(MCObserver):
             self.quantities["singl_eng"] += \
                 new_singlets*self.mc.current_energy_without_vib()
 
-        """
-        self.singlets += new_singlets
-        self.energy += self.mc.current_energy
-        self.energy_sq += self.mc.current_energy**2
-        self.singl_eng += new_singlets*self.mc.current_energy
-        """
-
     @property
     def energy(self):
         return self.quantities["energy"]
@@ -297,6 +271,7 @@ class Snapshot(MCObserver):
     :param trajfile: Filename of the trajectory file
     :param atoms: Instance of the atoms objected modofied by the MC object
     """
+
     def __init__(self, trajfile="default.traj", atoms=None):
         super(Snapshot, self).__init__()
         self.name = "Snapshot"
@@ -327,6 +302,7 @@ class NetworkObserver(MCObserver):
         distribution of cluster sizes
     :param mpicomm: MPI communicator
     """
+
     def __init__(self, calc=None, cluster_name=None, element=None, nbins=30,
                  mpicomm=None):
         if calc is None:
@@ -484,7 +460,7 @@ class NetworkObserver(MCObserver):
         if self.mpicomm is None:
             return
         recv_buf = np.zeros_like(self.size_histogram)
-        self.mpicomm.Allreduce(self.size_histogram, recv_buf, op=MPI.SUM)
+        self.mpicomm.Allreduce(self.size_histogram, recv_buf)
         self.size_histogram[:] = recv_buf[:]
 
         # Find the maximum cluster
