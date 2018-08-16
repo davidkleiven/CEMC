@@ -38,23 +38,18 @@ class Montecarlo(object):
 
     :param atoms: ASE atoms object (with CE calculator attached!)
     :param temp: Temperature of Monte Carlo simulation in Kelvin
-    :param indeces: List of atoms involved Monte Carlo swaps. default is all atoms (currently this has no effect!).
+    :param indeces: List of atoms involved Monte Carlo swaps. default is all
+                    atoms (currently this has no effect!).
     :param mpicomm: MPI communicator object
     :param logfile: Filename for logging (default is logging to console)
-    :param plot_debug: If True it will create some diagnositc plots during equilibration
+    :param plot_debug: If True it will create some diagnositc plots during
+                       equilibration
     :param recycle_waste: If True also rejected states will be used to estimate
                           averages
     """
 
-    def __init__(
-            self,
-            atoms,
-            temp,
-            indeces=None,
-            mpicomm=None,
-            logfile="",
-            plot_debug=False,
-            min_acc_rate=0.0, recycle_waste=False):
+    def __init__(self, atoms, temp, indeces=None, mpicomm=None, logfile="",
+                 plot_debug=False, min_acc_rate=0.0, recycle_waste=False):
         self.name = "MonteCarlo"
         self.atoms = atoms
         self.T = temp
@@ -65,8 +60,9 @@ class Montecarlo(object):
         else:
             self.indeces = indeces
 
-        self.observers = []  # List of observers that will be called every n-th step
+        # List of observers that will be called every n-th step
         # similar to the ones used in the optimization routines
+        self.observers = []
 
         self.constraints = []
         self.max_allowed_constraint_pass_attempts = 10000
@@ -94,7 +90,7 @@ class Montecarlo(object):
             self.rank = self.mpicomm.Get_rank()
         self.logger = logging.getLogger("MonteCarlo")
         self.logger.setLevel(logging.DEBUG)
-        if (logfile == ""):
+        if logfile == "":
             ch = logging.StreamHandler()
             ch.setLevel(logging.INFO)
             self.flush_log = ch.flush
@@ -102,7 +98,7 @@ class Montecarlo(object):
             ch = logging.FileHandler(logfile)
             ch.setLevel(logging.INFO)
             self.flush_log = ch.emit
-        if (not self.logger.handlers):
+        if not self.logger.handlers:
             self.logger.addHandler(ch)
 
         # Some member variables used to update the atom tracker, only relevant
@@ -111,15 +107,17 @@ class Montecarlo(object):
         self.rand_b = 0
         self.selected_a = 0
         self.selected_b = 0
-        self.corrtime_energies = []  # Array of energies used to estimate the correlation time
+        # Array of energies used to estimate the correlation time
+        self.corrtime_energies = []
         self.correlation_info = None
         self.plot_debug = plot_debug
         # Set to false if pyplot should not block when plt.show() is called
         self.pyplot_block = True
         self._linear_vib_correction = None
         self.is_first = True
-        self.filter = ExponentialFilter(
-            min_time=0.2 * len(self.atoms), max_time=20 * len(self.atoms), n_subfilters=10)
+        self.filter = ExponentialFilter(min_time=0.2*len(self.atoms),
+                                        max_time=20*len(self.atoms),
+                                        n_subfilters=10)
         self.accept_first_trial_move_after_reset = True
 
     @property
@@ -160,14 +158,14 @@ class Montecarlo(object):
         Logs the message as info
         """
         allowed_modes = ["info", "warning"]
-        if (mode not in allowed_modes):
+        if mode not in allowed_modes:
             raise ValueError("Mode has to be one of {}".format(allowed_modes))
 
-        if (self.rank != 0):
+        if self.rank != 0:
             return
-        if (mode == "info"):
+        if mode == "info":
             self.logger.info(msg)
-        elif (mode == "warning"):
+        elif mode == "warning":
             self.logger.warning(msg)
 
     def _no_constraint_violations(self, system_changes):
@@ -194,7 +192,7 @@ class Montecarlo(object):
         self.num_accepted = 0
         self.mean_energy.clear()
         self.energy_squared.clear()
-        #self.correlation_info = None
+        # self.correlation_info = None
         self.corrtime_energies = []
         if (self.accept_first_trial_move_after_reset):
             self.is_first = True
@@ -241,7 +239,8 @@ class Montecarlo(object):
         and receives information of which atoms get swapped
 
         :param obs: Instance of the MCObserver class
-        :param interval: the obs.__call__ method is called at mc steps separated by interval
+        :param interval: the obs.__call__ method is called at mc steps
+                         separated by interval
         """
         if (callable(obs)):
             self.observers.append((interval, obs))
@@ -250,7 +249,7 @@ class Montecarlo(object):
 
     def _get_var_average_energy(self):
         """
-        Returns the variance of the average energy, taking into account
+        Return the variance of the average energy, taking into account
         the auto correlation time
         """
 
@@ -264,34 +263,30 @@ class Montecarlo(object):
             nproc = self.mpicomm.Get_size()
 
         if (var < 0.0):
-            self.log(
-                "Variance of energy is smaller than zero. (Probably due to numerical precission)",
-                mode="warning")
+            self.log("Variance of energy is smaller than zero. "
+                     + "(Probably due to numerical precission)",
+                     mode="warning")
             self.log("Variance of energy : {}".format(var))
             var = np.abs(var)
 
-        if (
-                self.correlation_info is None or not self.correlation_info["correlation_time_found"]):
+        if (self.correlation_info is None or
+                not self.correlation_info["correlation_time_found"]):
             return var / (self.current_step * nproc)
 
         tau = self.correlation_info["correlation_time"]
-        if (tau < 1.0):
+        if tau < 1.0:
             tau = 1.0
         return 2.0 * var * tau / (self.current_step * nproc)
 
     def current_energy_without_vib(self):
-        """
-        Returns the current energy without the contribution from vibrations
-        """
+        """Return current energy without the contribution from vibrations"""
         return self.current_energy - \
             self.atoms._calc.vib_energy(self.T) * len(self.atoms)
 
     def _estimate_correlation_time(self, window_length=1000, restart=False):
-        """
-        Estimates the correlation time
-        """
+        """Estimates the correlation time."""
         self.log("*********** Estimating correlation time ***************")
-        if (restart):
+        if restart:
             self.corrtime_energies = []
         for i in range(window_length):
             self._mc_step()
@@ -304,14 +299,13 @@ class Montecarlo(object):
         auto_corr = auto_corr[int(len(auto_corr) / 2):]
 
         # Find the point where the ratio between var and auto_corr is 1/2
-        self.correlation_info = {
-            "correlation_time_found": False,
-            "correlation_time": 0.0,
-            "msg": ""
-        }
+        self.correlation_info = {"correlation_time_found": False,
+                                 "correlation_time": 0.0,
+                                 "msg": ""}
 
-        if (var == 0.0):
-            self.correlation_info["msg"] = "Zero variance leads to infinite correlation time"
+        if var == 0.0:
+            msg = "Zero variance leads to infinite correlation time"
+            self.correlation_info["msg"] = msg
             self.log(self.correlation_info["msg"])
             self.correlation_info["correlation_time_found"] = True
             self.correlation_info["correlation_time"] = window_length
@@ -319,15 +313,16 @@ class Montecarlo(object):
 
         auto_corr /= (window_length * var)
         if (np.min(auto_corr) > 0.5):
-            self.correlation_info["msg"] = "Window is too short. Add more samples"
+            msg = "Window is too short. Add more samples"
+            self.correlation_info["msg"] = msg
             self.log(self.correlation_info["msg"])
             self.correlation_info["correlation_time"] = window_length
             return self.correlation_info
 
         # See:
         # Van de Walle, A. & Asta, M.
-        # Self-driven lattice-model Monte Carlo simulations of alloy thermodynamic properties and
-        # phase diagrams Modelling and Simulation
+        # Self-driven lattice-model Monte Carlo simulations of alloy
+        # thermodynamic properties and phase diagrams Modelling and Simulation
         # in Materials Science and Engineering, IOP Publishing, 2002, 10, 521
         # for details on  the notation
         indx = 0
@@ -354,11 +349,8 @@ class Montecarlo(object):
             plt.show(block=self.pyplot_block)
         return self.correlation_info
 
-    def _composition_reached_equillibrium(
-            self,
-            prev_composition,
-            var_prev,
-            confidence_level=0.05):
+    def _composition_reached_equillibrium(self, prev_composition, var_prev,
+                                          confidence_level=0.05):
         """
         Returns True if the composition reached equillibrium.
         Default the simulation runs at fixed composition so
@@ -370,14 +362,10 @@ class Montecarlo(object):
         """
         return True, prev_composition, var_prev, 0.0
 
-    def _equillibriate(
-            self,
-            window_length="auto",
-            confidence_level=0.05,
-            maxiter=1000,
-            mode="stat_equiv"):
+    def _equillibriate(self, window_length="auto", confidence_level=0.05,
+                       maxiter=1000, mode="stat_equiv"):
         """
-        Runs the MC until equillibrium is reached
+        Run MC until equillibrium is reached.
 
         :param window_length: the length of the window used to compare averages
                      if window_lenth='auto' then the length of window is set to
@@ -411,7 +399,7 @@ class Montecarlo(object):
         if (window_length == "auto"):
             window_length = 10 * len(self.atoms)
         nproc = 1
-        if (self.mpicomm is not None):
+        if self.mpicomm is not None:
             nproc = self.mpicomm.Get_size()
 
         self.reset()
@@ -459,45 +447,49 @@ class Montecarlo(object):
                 self._mc_step()
                 self.mean_energy += self.current_energy_without_vib()
                 self.energy_squared += self.current_energy_without_vib()**2
-                if (self.plot_debug):
+                if self.plot_debug:
                     all_energies.append(
                         self.current_energy_without_vib() / len(self.atoms))
             self._collect_energy()
             E_new = self.mean_energy.mean
             means.append(E_new)
             var_E_new = self._get_var_average_energy()
-            comp_conv, composition, var_comp, comp_quant = self._composition_reached_equillibrium(
-                composition, var_comp, confidence_level=confidence_level)
-            if (E_prev is None):
+            comp_conv, composition, var_comp, comp_quant = \
+                self._composition_reached_equillibrium(
+                    composition, var_comp, confidence_level=confidence_level)
+            if E_prev is None:
                 E_prev = E_new
                 var_E_prev = var_E_new
                 continue
 
             var_diff = var_E_new + var_E_prev
             diff = E_new - E_prev
-            if (var_diff < 1E-6):
+            if var_diff < 1E-6:
                 self.log("Zero variance. System does not move.")
                 z_diff = 0.0
                 comp_conv = True
             else:
                 z_diff = diff / np.sqrt(var_diff)
 
-            if (len(composition) == 0):
-                self.log(
-                    "{:10.2f} {:10.6f} {:10.6f} {:10.2f}".format(
-                        E_new, var_E_new, diff, z_diff))
+            if len(composition) == 0:
+                self.log("{:10.2f} ".format(E_new)
+                         + "{:10.6f} ".format(var_E_new)
+                         + "{:10.6f} ".format(diff)
+                         + "{:10.2f}".format(z_diff))
             else:
-                self.log("{:10.2f} {:10.6f} {:10.6f} {:10.2f} {} {:10.2f}".format(
-                    E_new, var_E_new, diff, z_diff, composition, comp_quant))
-            # self.logger.handlers[0].flush()
-            # self.flush_log()
-            #print ("{:10.2f} {:10.6f} {:10.6f} {:10.2f}".format(E_new,var_E_new,diff, z_diff))
-            if((z_diff < max_percentile) and (z_diff > min_percentile)):
+                self.log("{:10.2f} ".format(E_new)
+                         + "{:10.6f} ".format(var_E_new)
+                         + "{:10.6f} ".format(diff)
+                         + "{:10.2f} ".format(z_diff)
+                         + "{} ".format(composition)
+                         + "{:10.2f}".format(comp_quant))
+
+            if z_diff < max_percentile and z_diff > min_percentile:
                 energy_conv = True
 
             # Allreduce use the max value which should yield True if any is
             # True
-            if (self.mpicomm is not None):
+            if self.mpicomm is not None:
                 eng_conv = np.array(energy_conv, dtype=np.uint8)
                 eng_conv_recv = np.zeros(1, dtype=np.uint8)
                 self.mpicomm.Allreduce(eng_conv, eng_conv_recv, op=MPI.MAX)
@@ -517,11 +509,11 @@ class Montecarlo(object):
                 self.energy_squared.clear()
                 self.current_step = 0
 
-                if (len(composition) > 0):
-                    self.log(
-                        "Singlet values at equillibrium: {}".format(composition))
+                if len(composition) > 0:
+                    self.log("Singlet values at equillibrium: "
+                             "{}".format(composition))
 
-                if (self.plot_debug):
+                if self.plot_debug:
                     fig = plt.figure()
                     ax = fig.add_subplot(1, 1, 1)
                     ax.plot(np.array(all_energies) * mol / kJ)
@@ -530,10 +522,8 @@ class Montecarlo(object):
                         ax.plot([start, start + window_length],
                                 [means[i], means[i]], color="#fc8d62")
                         ax.plot(start, means[i], "o", color="#fc8d62")
-                        ax.axvline(
-                            x=start + window_length,
-                            color="#a6d854",
-                            ls="--")
+                        ax.axvline(x=start + window_length, color="#a6d854",
+                                   ls="--")
                         start += window_length
                     ax.set_xlabel("Number of MC steps")
                     ax.set_ylabel("Energy (kJ/mol)")
@@ -546,26 +536,20 @@ class Montecarlo(object):
         raise DidNotReachEquillibriumError(
             "Did not manage to reach equillibrium!")
 
-    def _has_converged_prec_mode(
-            self,
-            prec=0.01,
-            confidence_level=0.05,
-            log_status=False):
-        """
-        Returns True if the simulation has converged in the precission mode
-        """
+    def _has_converged_prec_mode(self, prec=0.01, confidence_level=0.05,
+                                 log_status=False):
+        """Return True if the simulation has converged in the precision mode"""
         percentile = stats.norm.ppf(1.0 - confidence_level)
         var_E = self._get_var_average_energy()
         converged = (var_E < (prec * len(self.atoms) / percentile)**2)
 
-        if (log_status):
+        if log_status:
             std_E = np.sqrt(var_E)
             criteria = prec * len(self.atoms) / percentile
-            self.log(
-                "Current energy std: {}. Convergence criteria: {}".format(
-                    std_E, criteria))
+            self.log("Current energy std: {}. ".format(std_E)
+                     + "Convergence criteria: {}".format(criteria))
 
-        if (self.mpicomm is not None):
+        if self.mpicomm is not None:
             # Make sure that all processors has the same converged flag
             send_buf = np.zeros(1)
             recv_buf = np.zeros(1)
@@ -581,8 +565,8 @@ class Montecarlo(object):
         U = self.mean_energy.mean
         var_E = self._get_var_average_energy()
         self.log("Total number of MC steps: {}".format(self.current_step))
-        self.log("Final mean energy: {} +- {}%".format(U,
-                                                       np.sqrt(var_E) / np.abs(U)))
+        self.log("Final mean energy: {} +- {}%".format(
+            U, np.sqrt(var_E) / np.abs(U)))
         self.log(self.filter.status_msg(
             std_value=np.sqrt(var_E * len(self.atoms))))
         exp_extrapolate = self.filter.exponential_extrapolation()
@@ -621,27 +605,20 @@ class Montecarlo(object):
 
         :param reached_equil: Flag True if equillibrium was reached. False otherwise
         """
-        if (self.mpicomm is None):
+        if self.mpicomm is None:
             return reached_equil
 
         all_equils = self.mpicomm.gather(reached_equil, root=0)
         at_least_one = False
-        if (self.rank == 0):
-            if (np.any(all_equils)):
+        if self.rank == 0:
+            if np.any(all_equils):
                 at_least_one = True
         # Send the result to the other processors
         at_least_one = self.mpicomm.bcast(at_least_one, root=0)
         return at_least_one
 
-    def runMC(
-            self,
-            mode="fixed",
-            steps=10,
-            verbose=False,
-            equil=True,
-            equil_params={},
-            prec=0.01,
-            prec_confidence=0.05):
+    def runMC(self, mode="fixed", steps=10, verbose=False, equil=True,
+              equil_params={}, prec=0.01, prec_confidence=0.05):
         """Run Monte Carlo simulation
 
         :param steps: Number of steps in the MC simulation
@@ -663,7 +640,7 @@ class Montecarlo(object):
         if (self.mpicomm is not None):
             self.mpicomm.barrier()
         allowed_modes = ["fixed", "prec"]
-        if (mode not in allowed_modes):
+        if mode not in allowed_modes:
             raise ValueError("Mode has to be one of {}".format(allowed_modes))
 
         # Include vibrations in the ECIS, does nothing if no vibration ECIs are
@@ -694,8 +671,8 @@ class Montecarlo(object):
             except DidNotReachEquillibriumError:
                 reached_equil = False
 
-            at_lest_one_proc_reached_equil = self._atleast_one_reached_equillibrium(
-                reached_equil)
+            at_lest_one_proc_reached_equil = \
+                self._atleast_one_reached_equillibrium(reached_equil)
             # This exception is MPI safe, as the function _atleast_one_reached_equillibrium broadcasts
             # the result to all the other processors
             if (not at_lest_one_proc_reached_equil):
@@ -714,7 +691,7 @@ class Montecarlo(object):
                 self.correlation_info["correlation_time"]
             next_convergence_check = check_convergence_every
 
-        #print ( "Proc: {} - {}".format(self.rank,check_convergence_every) )
+        # print ( "Proc: {} - {}".format(self.rank,check_convergence_every) )
         # self.current_step gets updated in the _mc_step function
         log_status_conv = True
         self.reset()
