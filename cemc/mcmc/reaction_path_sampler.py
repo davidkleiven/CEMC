@@ -70,10 +70,7 @@ class ReactionPathSampler(object):
             msg += "Got value: {}".format(value)
             raise ValueError(msg)
 
-        if (window == 0):
-            N = self.n_bins
-        else:
-            N = self.n_bins + 1
+        N = self.n_bins + 1
         indx = (value - min_lim) * N / (max_lim - min_lim)
         indx = (value - min_lim) / self.bin_range
         return int(indx)
@@ -84,6 +81,10 @@ class ReactionPathSampler(object):
         """
         reac_crd = self.initializer.get(self.mc.atoms)
         indx = self._get_window_indx(self.current_window, reac_crd)
+
+        # Add a safety in case it is marginally larger
+        if indx >= len(self.data[self.current_window]):
+            indx -= 1
         self.data[self.current_window][indx] += 1
 
     def _get_merged_records(self):
@@ -126,6 +127,15 @@ class ReactionPathSampler(object):
             print(msg)
         sys.stdout.flush()
 
+    def log_window_statistics(self, window):
+        """Print logging message concerning the sampling window."""
+        max = np.max(self.data[window])
+        min = np.min(self.data[window])
+        mean = np.mean(self.data[window])
+        msg = "Window: {}. Min: {} Max: {} ".format(window, min, max)
+        msg += "Mean: {}".format(mean)
+        self.log(msg)
+
     def run(self, nsteps=10000):
         """
         Run MC simulation in all windows
@@ -160,6 +170,7 @@ class ReactionPathSampler(object):
                 # Run MC step
                 self.mc._mc_step()
                 self._update_records()
+            self.log_window_statistics(self.current_window)
 
             self.log(
                 "Acceptance rate in window {}: {}".format(
