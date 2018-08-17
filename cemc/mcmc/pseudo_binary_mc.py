@@ -26,7 +26,6 @@ class PseudoBinarySGC(SGCMonteCarlo):
         if "insert_prob" in kwargs.keys():
             self._ins_prob = kwargs.pop("insert_prob")
         SGCMonteCarlo.__init__(self, atoms, T, **kwargs)
-        # self._chem_pot_dict = self._get_eci_chem_pot()
         self.chemical_potential = self._get_eci_chem_pot()
 
         # This class needs to track the positions of the elemsnts,
