@@ -11,7 +11,7 @@ class ReactionPathSampler(object):
 
     def __init__(self, mc_obj=None, react_crd=[0.0, 1.0],
                  react_crd_init=None, react_crd_range_constraint=None,
-                 n_windows=10, n_bins=10):
+                 n_windows=10, n_bins=10, data_file="reaction_path.h5"):
         self.mc = mc_obj
         self.react_crd = react_crd
         self.n_windows = n_windows
@@ -20,6 +20,7 @@ class ReactionPathSampler(object):
         mc_obj.mpicomm = None
         self.rank = 0
         mc_obj.rank = 0  # All MC object should think they have rank 0
+        self.fname = data_file
         if self.mpicomm is not None:
             self.rank = self.mpicomm.Get_rank()
 
@@ -87,15 +88,14 @@ class ReactionPathSampler(object):
             indx -= 1
         self.data[self.current_window][indx] += 1
 
-    def _get_merged_records(self):
+    def _get_merged_records(self, data):
         """
         Merge the records into a one array
         """
-        self._collect_results()
-        all_data = self.data[0].tolist()
-        for i in range(1, len(self.data)):
-            ratio = float(all_data[-1]) / self.data[i][0]
-            all_data += (self.data[i][1:] * ratio).tolist()
+        all_data = data[0].tolist()
+        for i in range(1, len(data)):
+            ratio = float(all_data[-1]) / data[i][0]
+            all_data += (data[i][1:] * ratio).tolist()
 
         all_data = np.array(all_data)
         all_data /= all_data[0]
@@ -135,6 +135,26 @@ class ReactionPathSampler(object):
         msg = "Window: {}. Min: {} Max: {} ".format(window, min, max)
         msg += "Mean: {}".format(mean)
         self.log(msg)
+
+    def save_current_window(self):
+        """Save result of current window to file."""
+        self._collect_results(self.current_window)
+        if os.path.exists(self.fname):
+            flag = "r+"
+        else:
+            flag = "w"
+
+        with h5.File(self.fname, flag) as hfile:
+            grp_name = ReactionPathSampler.dset_name(self.current_window)
+            try:
+                grp = hfile[grp_name]
+            except KeyError:
+                # The group does not exist
+                grp = hfile.create_group(grp_name)
+            data = {
+                "hist": self.data[self.current_window]
+            }
+            self._update_data_entry(grp, data)
 
     def run(self, nsteps=10000):
         """
@@ -179,22 +199,23 @@ class ReactionPathSampler(object):
             self.log("Final chemical formula: {}".format(
                 self.mc.atoms.get_chemical_formula()))
             self.mc.reset()
+            self.save_current_window()
+        self.save()
 
     @staticmethod
     def dset_name(window):
         """Return a dataset name."""
         return "window{}".format(window)
 
-    def _collect_results(self):
+    def _collect_results(self, window):
         """
         Collects the results from all processors
         """
-        if (self.mpicomm is None):
+        if self.mpicomm is None:
             return
-        for i in range(len(self.data)):
-            recv_buf = np.zeros_like(self.data[i])
-            self.mpicomm.Allreduce(self.data[i], recv_buf)
-            self.data[i][:] = recv_buf
+        recv_buf = np.zeros_like(self.data[window])
+        self.mpicomm.Allreduce(self.data[window], recv_buf)
+        self.data[window][:] = recv_buf
 
     def _update_data_entry(self, grp, data):
         """Update one data entry."""
@@ -208,28 +229,29 @@ class ReactionPathSampler(object):
                 # The field does not exist
                 grp.create_dataset(key, data=value)
 
-    def save(self, fname="reaction_path.h5"):
+    def get_free_energy(self):
+        """Read from file and create free energy curve."""
+        # Load content
+        data = []
+        with h5.File(self.fname, "r") as infile:
+            for i in range(0, len(self.data)):
+                name = "window{}".format(i)
+                full_name = name + "/hist"
+                data.append(np.array(infile[full_name]))
+
+        merged = self._get_merged_records(data)
+        return merged
+
+    def save(self):
         """Save data to HDF5 file."""
-        res = self._get_merged_records()
+        res = self.get_free_energy()
 
         if self.rank == 0:
-            # Write the histograms
-            if os.path.exists(fname):
+            if os.path.exists(self.fname):
                 flag = "r+"
             else:
                 flag = "w"
-            with h5.File(fname, flag) as hfile:
-                for w in range(self.n_windows):
-                    grp_name = ReactionPathSampler.dset_name(w)
-                    try:
-                        grp = hfile[grp_name]
-                    except KeyError:
-                        # The group does not exist
-                        grp = hfile.create_group(grp_name)
-                    data = {
-                        "hist": self.data[w]
-                    }
-                    self._update_data_entry(grp, data)
+            with h5.File(self.fname, flag) as hfile:
                 for key, value in res.items():
                     try:
                         data = hfile[key]
