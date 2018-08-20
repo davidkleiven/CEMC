@@ -15,6 +15,7 @@ except ImportError as exc:
     print(avail_msg)
     available = False
 
+
 class TestPseudoBinary(unittest.TestCase):
     def test_no_throw(self):
         if not available:
@@ -69,7 +70,8 @@ class TestPseudoBinary(unittest.TestCase):
                 conc_init = PseudoBinaryConcInitializer(mc)
                 reac_crd = np.linspace(0.0, 1.0, 10)
                 bias_pot = reac_crd**2
-                bias = PseudoBinaryFreeEnergyBias(conc_init, reac_crd, bias_pot)
+                bias = PseudoBinaryFreeEnergyBias(conc_init, reac_crd,
+                                                  bias_pot)
                 mc.add_bias(bias)
                 mc.runMC(mode="fixed", steps=100, equil=False)
                 os.remove("test_db_ternary.db")
@@ -77,6 +79,7 @@ class TestPseudoBinary(unittest.TestCase):
                 msg = "{}: {}".format(type(exc).__name__, str(exc))
                 no_throw = False
             self.assertTrue(no_throw, msg)
+
 
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
