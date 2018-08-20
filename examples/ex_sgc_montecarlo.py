@@ -46,7 +46,8 @@ ceBulk.reconfigure_settings()  # Nessecary for the unittest to pass
 mc_cell_size = [10, 10, 10]
 from cemc import get_ce_calc
 
-calc = get_ce_calc( ceBulk, kwargs, eci=eci, size=mc_cell_size )
+calc = get_ce_calc(ceBulk, kwargs, eci=eci, size=mc_cell_size,
+                   db_name="sgc_large.db")
 
 # Now er are finished with the template BulkCrystal
 ceBulk = calc.BC
@@ -75,3 +76,8 @@ mc.runMC( steps=100, chem_potential=chem_pot, equil=equillibriate)
 
 # To extract the thermo dynamic properties from the simulations
 thermo_prop = mc.get_thermodynamic()
+
+# Remove the database
+# NOTE: don't do this if you intend to rerun a similar calculation
+import os
+os.remove("sgc_large.db")
