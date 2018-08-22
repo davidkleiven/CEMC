@@ -10,9 +10,16 @@ class PseudoBinaryReactPath(ReactionPathSampler):
         if not isinstance(mc_obj, PseudoBinarySGC):
             raise TypeError("mc_obj has to be of type PseudoBinarySGC")
 
-        cnst = PseudoBinaryConcRange(mc_obj)
-        init = PseudoBinaryConcInitializer(mc_obj)
+        self.cnst = PseudoBinaryConcRange(mc_obj)
+        self.init = PseudoBinaryConcInitializer(mc_obj)
         ReactionPathSampler.__init__(
-            self, mc_obj=mc_obj, react_crd=react_crd, react_crd_init=init,
-            react_crd_range_constraint=cnst, n_windows=n_windows,
+            self, mc_obj=mc_obj, react_crd=react_crd, react_crd_init=self.init,
+            react_crd_range_constraint=self.cnst, n_windows=n_windows,
             n_bins=n_bins, data_file=data_file)
+        self.update_bias_potentials()
+
+    def update_bias_potentials(self):
+        """Update some bias potentials."""
+        for bias in self.mc.bias_potentials:
+            if bias.__class__.__name__ == "PseudoBinaryFreeEnergyBias":
+                bias.conc_init = self.init
