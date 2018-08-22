@@ -43,6 +43,24 @@ class PseudoBinaryFreeEnergyBias(BiasPotential):
         self.bias_intep = interp1d(self.reac_crd, self.free_eng,
                                    fill_value="extrapolate")
 
+    def save(self, fname="pseudo_binary_free_energy.pkl"):
+        """Save the computed bias potential to a file."""
+        import pickle
+        with open(fname, 'wb') as outfile:
+            pickle.dump(self, outfile)
+
+    @staticmethod
+    def load(fname="pseudo_binary_free_energy.pkl"):
+        """
+        Load a bias potential from pickle file.
+        Assume that this file has been stored with the save method
+        of this class
+        """
+        import pickle
+        with open(fname, 'rb') as infile:
+            obj = pickle.load(infile)
+        return obj
+
     def __call__(self, system_changes):
         """Evaluate the bias potential."""
         # We can pass None  in this case
