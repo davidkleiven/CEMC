@@ -96,6 +96,15 @@ class PseudoBinaryConcInitializer(ReactionCrdInitializer):
         num_per_unit = self.mc.groups[1][self.target_symb]
         return float(len(self.mc.atoms_indx[self.target_symb])) / num_per_unit
 
+    @property
+    def number_of_units(self):
+        return float(len(self.mc.atoms_indx[self.target_symb])) / \
+            self.num_per_unit
+
+    @property
+    def num_per_unit(self):
+        return self.mc.groups[1][self.target_symb]
+
 
 class PseudoBinaryConcRange(ReactionCrdRangeConstraint):
     def __init__(self, mc_obj):
@@ -104,15 +113,20 @@ class PseudoBinaryConcRange(ReactionCrdRangeConstraint):
         self.mc = mc_obj
         self.target_symb = list(self.mc.groups[1].keys())[0]
 
+    @property
+    def number_of_units(self):
+        return float(len(self.mc.atoms_indx[self.target_symb])) / \
+            self.num_per_unit
+
+    @property
+    def num_per_unit(self):
+        return self.mc.groups[1][self.target_symb]
+
     def __call__(self, syst_changes):
-        num_per_unit = self.mc.groups[1][self.target_symb]
-
-        # Find the current number of units of group 2
-        n_un = float(len(self.mc.atoms_indx[self.target_symb])) / num_per_unit
-
+        n_un = self.number_of_units
         for change in syst_changes:
             if change[2] == self.target_symb:
-                n_un += 1.0 / num_per_unit
+                n_un += 1.0 / self.num_per_unit
             elif change[1] == self.target_symb:
-                n_un -= 1.0 / num_per_unit
+                n_un -= 1.0 / self.num_per_unit
         return n_un >= self.range[0] and n_un < self.range[1]
