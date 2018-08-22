@@ -144,17 +144,18 @@ class ReactionPathSampler(object):
         else:
             flag = "w"
 
-        with h5.File(self.fname, flag) as hfile:
-            grp_name = ReactionPathSampler.dset_name(self.current_window)
-            try:
-                grp = hfile[grp_name]
-            except KeyError:
-                # The group does not exist
-                grp = hfile.create_group(grp_name)
-            data = {
-                "hist": self.data[self.current_window]
-            }
-            self._update_data_entry(grp, data)
+        if self.rank == 0:
+            with h5.File(self.fname, flag) as hfile:
+                grp_name = ReactionPathSampler.dset_name(self.current_window)
+                try:
+                    grp = hfile[grp_name]
+                except KeyError:
+                    # The group does not exist
+                    grp = hfile.create_group(grp_name)
+                data = {
+                    "hist": self.data[self.current_window]
+                }
+                self._update_data_entry(grp, data)
 
     def run(self, nsteps=10000):
         """
@@ -258,3 +259,12 @@ class ReactionPathSampler(object):
                         data[...] = value
                     except KeyError:
                         hfile.create_dataset(key, data=value)
+                for bias in self.mc.bias_potentials:
+                    if hasattr(bias, "get"):
+                        values = bias.get_reac_crd(res["x"])
+                        key = str(bias.__class__.__name__)
+                        try:
+                            data = hfile[key]
+                            data[...] = values
+                        except KeyError:
+                            hfile.create_dataset(key, data=values)
