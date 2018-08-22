@@ -11,37 +11,50 @@ class BiasPotential(object):
 
 class PseudoBinaryFreeEnergyBias(BiasPotential):
     def __init__(self, pseudo_bin_conc_init=None, reac_crd=[], free_eng=[]):
-        from cemc.mcmc import PseudoBinaryConcInitializer
         from scipy.interpolate import interp1d
-        if not isinstance(pseudo_bin_conc_init, PseudoBinaryConcInitializer):
-            raise TypeError("pseudo_bin_conc_init has to be of type "
-                            "PseudoBinaryConcInitializer!")
-        self.conc_init = pseudo_bin_conc_init
+        self._conc_init = pseudo_bin_conc_init
         self.reac_crd = reac_crd
         self.free_eng = free_eng
-        self.bias_intep = interp1d(self.reac_crd, self.free_eng,
-                                   fill_value="extrapolate")
+        self.bias_interp = interp1d(self.reac_crd, self.free_eng,
+                                    fill_value="extrapolate")
 
     def fit_smoothed_curve(self, smooth_length=11, show=False):
         """Fit a smoothed curve to the data."""
         if smooth_length % 2 == 0:
             raise ValueError("smooth_length has to be an odd number!")
         from scipy.signal import savgol_filter
-        self.free_eng = savgol_filter(self.free_eng, smooth_length, 3)
+        smoothed = savgol_filter(self.free_eng, smooth_length, 3)
+
+        # Update the interpolator
+        from scipy.interpolate import interp1d
+        self.bias_interp = interp1d(self.reac_crd, smoothed,
+                                    fill_value="extrapolate")
 
         if show:
             from matplotlib import pyplot as plt
             fig = plt.figure()
             ax = fig.add_subplot(1, 1, 1)
-            ax.plot(self.reac_crd, self.free_eng)
+            ax.plot(self.reac_crd, self.free_eng, 'o', mfc="none")
+            ax.plot(self.reac_crd, self.bias_interp(self.reac_crd))
             ax.set_xlabel("Reaction coordinate")
             ax.set_ylabel("Bias potential")
             plt.show()
 
-        # Update the interpolator
-        from scipy.interpolate import interp1d
-        self.bias_intep = interp1d(self.reac_crd, self.free_eng,
-                                   fill_value="extrapolate")
+    @property
+    def conc_init(self):
+        from cemc.mcmc import PseudoBinaryConcInitializer
+        if not isinstance(self._conc_init, PseudoBinaryConcInitializer):
+            raise TypeError("pseudo_bin_conc_init has to be of type "
+                            "PseudoBinaryConcInitializer!")
+        return self._conc_init
+
+    @conc_init.setter
+    def conc_init(self, init):
+        from cemc.mcmc import PseudoBinaryConcInitializer
+        if not isinstance(init, PseudoBinaryConcInitializer):
+            raise TypeError("pseudo_bin_conc_init has to be of type "
+                            "PseudoBinaryConcInitializer!")
+        self._conc_init = init
 
     def save(self, fname="pseudo_binary_free_energy.pkl"):
         """Save the computed bias potential to a file."""
@@ -68,4 +81,14 @@ class PseudoBinaryFreeEnergyBias(BiasPotential):
         # We can pass None  in this case
         # PseudoBinaryConcInitializer should track the atoms object itself
         q = self.conc_init.get(None)
+        symb = self.conc_init.target_symb
+        for change in system_changes:
+            if change[1] == symb:
+                q -= 1.0 / self.conc_init.num_per_unit
+            elif change[2] == symb:
+                q += 1.0 / self.conc_init.num_per_unit
         return self.bias_interp(q)
+
+    def get(self, reac_crd):
+        """Get the bias potential as a function of reaction coordinate."""
+        return self.bias_interp(reac_crd)
