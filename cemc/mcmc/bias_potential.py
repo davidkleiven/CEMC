@@ -48,6 +48,8 @@ class PseudoBinaryFreeEnergyBias(BiasPotential):
         import pickle
         with open(fname, 'wb') as outfile:
             pickle.dump(self, outfile)
+        print("Pseudo binary free energy bias potential written to "
+              "{}".format(fname))
 
     @staticmethod
     def load(fname="pseudo_binary_free_energy.pkl"):
