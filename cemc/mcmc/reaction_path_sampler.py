@@ -234,13 +234,18 @@ class ReactionPathSampler(object):
         """Read from file and create free energy curve."""
         # Load content
         data = []
-        with h5.File(self.fname, "r") as infile:
-            for i in range(0, len(self.data)):
-                name = "window{}".format(i)
-                full_name = name + "/hist"
-                data.append(np.array(infile[full_name]))
+        merged = []
+        if self.rank == 0:
+            with h5.File(self.fname, "r") as infile:
+                for i in range(0, len(self.data)):
+                    name = "window{}".format(i)
+                    full_name = name + "/hist"
+                    data.append(np.array(infile[full_name]))
 
-        merged = self._get_merged_records(data)
+            merged = self._get_merged_records(data)
+        if self.mpicomm is not None:
+            data = self.mpicomm.bcast(data, root=0)
+            merged = self.mpicomm.bcast(merged, root=0)
         return merged
 
     def save(self):
@@ -259,9 +264,10 @@ class ReactionPathSampler(object):
                         data[...] = value
                     except KeyError:
                         hfile.create_dataset(key, data=value)
+
                 for bias in self.mc.bias_potentials:
                     if hasattr(bias, "get"):
-                        values = bias.get_reac_crd(res["x"])
+                        values = bias.get(res["x"])
                         key = str(bias.__class__.__name__)
                         try:
                             data = hfile[key]
