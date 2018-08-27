@@ -37,6 +37,8 @@ MCMC
   fixednuc_mc
   nucleation_barrier
   monte_carlo_constraints
+  reaction_path_sampler
+  reaction_path_util
 
 Tools
 =======
