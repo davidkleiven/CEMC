@@ -4,6 +4,19 @@ from cemc.mcmc import PseudoBinarySGC
 
 
 class PseudoBinaryReactPath(ReactionPathSampler):
+    """
+    Class for calculating the free energy as a function of number of units
+    of pseudo binary group 2.
+
+    :param mc_obj: Instance of
+                   :py:class:`cemc.mcmc.pseudo_binary_mc.PseudoBinarySGC`
+    :param reac_crd: Bounds [min, max) (Lower and Upper bound for the
+                     reaction coordinate)
+    :param n_window: Number of windows used for Umbrella sampling
+    :param n_bins: Number of bins inside each window
+    :param data_file: Datafile where backup will be stored
+    """
+
     def __init__(self, mc_obj=None, react_crd=[0.0, 1.0], n_windows=10,
                  n_bins=10, data_file="reaction_path.h5"):
 
