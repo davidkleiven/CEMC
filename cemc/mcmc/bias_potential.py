@@ -1,3 +1,6 @@
+import numpy as np
+
+
 class BiasPotential(object):
     """
     Potential that can be used to manipulate the states visited.
@@ -13,8 +16,8 @@ class PseudoBinaryFreeEnergyBias(BiasPotential):
     def __init__(self, pseudo_bin_conc_init=None, reac_crd=[], free_eng=[]):
         from scipy.interpolate import interp1d
         self._conc_init = pseudo_bin_conc_init
-        self.reac_crd = reac_crd
-        self.free_eng = free_eng
+        self.reac_crd = np.array(reac_crd)
+        self.free_eng = np.array(free_eng)
         self.bias_interp = interp1d(self.reac_crd, self.free_eng,
                                     fill_value="extrapolate")
 
@@ -31,14 +34,31 @@ class PseudoBinaryFreeEnergyBias(BiasPotential):
                                     fill_value="extrapolate")
 
         if show:
-            from matplotlib import pyplot as plt
-            fig = plt.figure()
-            ax = fig.add_subplot(1, 1, 1)
-            ax.plot(self.reac_crd, self.free_eng, 'o', mfc="none")
-            ax.plot(self.reac_crd, self.bias_interp(self.reac_crd))
-            ax.set_xlabel("Reaction coordinate")
-            ax.set_ylabel("Bias potential")
-            plt.show()
+            self.show()
+
+    def show(self):
+        """Create a plot of the bias potential"""
+        from matplotlib import pyplot as plt
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1)
+        ax.plot(self.reac_crd, self.free_eng, 'o', mfc="none")
+        ax.plot(self.reac_crd, self.bias_interp(self.reac_crd))
+        ax.set_xlabel("Reaction coordinate")
+        ax.set_ylabel("Bias potential")
+        plt.show()
+
+    def __iadd__(self, other):
+        from scipy.interpolate import interp1d
+        self.free_eng += other.get(self.reac_crd)
+        self.bias_interp = interp1d(self.reac_crd, self.free_eng,
+                                    fill_value="extrapolate")
+        return self
+
+    def __add__(self, other):
+        from copy import deepcopy
+        new_obj = deepcopy(self)
+        new_obj += other
+        return new_obj
 
     @property
     def conc_init(self):
