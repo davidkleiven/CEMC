@@ -38,7 +38,7 @@ ceBulk.reconfigure_settings()  # Nessecary for the unittests to pass
 mc_cell_size = [10,10,10]
 from cemc import get_ce_calc
 
-calc = get_ce_calc( ceBulk, kwargs, eci=eci, size=mc_cell_size )
+calc = get_ce_calc( ceBulk, kwargs, eci=eci, size=mc_cell_size, db_name="mc_obs.db")
 ceBulk = calc.BC
 ceBulk.atoms.set_calculator(calc)
 
@@ -99,3 +99,8 @@ surf = network_obs.surface()
 
 # Get the average number of sites changed and the standard deviation
 avg_changed, std_changed = site_order.get_average()
+
+# Remove the database
+# NOTE: don't do this if you intend to rerun a similar calculation
+import os
+os.remove("mc_obs.db")

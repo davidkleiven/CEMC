@@ -134,7 +134,7 @@ class TestCE(unittest.TestCase):
             "conc_args": conc_args,
             "db_name": db_name,
             "max_cluster_size": 3,
-            "max_cluster_dist": 4.05
+            "max_cluster_dia": 4.05
         }
 
         kwargs_template = copy.deepcopy(kwargs)

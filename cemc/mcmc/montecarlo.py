@@ -15,6 +15,7 @@ from cemc.mcmc.exponential_filter import ExponentialFilter
 from cemc.mcmc.averager import Averager
 from cemc.mcmc.util import waste_recycled_average, waste_recycled_accept_prob
 from cemc.mcmc.util import get_new_state
+from cemc.mcmc import BiasPotential
 
 
 class DidNotReachEquillibriumError(Exception):
@@ -66,6 +67,8 @@ class Montecarlo(object):
 
         self.constraints = []
         self.max_allowed_constraint_pass_attempts = 10000
+
+        self.bias_potentials = []
 
         self.current_step = 0
         self.num_accepted = 0
@@ -232,6 +235,12 @@ class Montecarlo(object):
         :param constraint: Instance of :py:class:`cemc.mcmc.mc_constraints.MCConstraint`
         """
         self.constraints.append(constraint)
+
+    def add_bias(self, potential):
+        """Add a new bias potential."""
+        if not isinstance(potential, BiasPotential):
+            raise TypeError("potential has to be of type BiasPotential")
+        self.bias_potentials.append(potential)
 
     def attach(self, obs, interval=1):
         """
@@ -806,6 +815,8 @@ class Montecarlo(object):
 
         self.new_energy = self.atoms._calc.calculate(
             self.atoms, ["energy"], system_changes)
+        for bias in self.bias_potentials:
+            self.new_energy += bias(system_changes)
 
         self.last_energies[1] = self.new_energy
 

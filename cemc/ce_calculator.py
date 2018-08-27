@@ -50,49 +50,58 @@ def get_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
     :param size: The atoms in small_bc will be extended by this amount
     :param db_name: Database to store info in for the large cell
     """
-    rank = MPI.COMM_WORLD.Get_rank()
+    nproc = MPI.COMM_WORLD.Get_size()
     unknown_type = False
-    large_bc = small_bc  # Just for the other processes
+    large_bc = small_bc
     init_cf = None
     error_happened = False
     msg = ""
-    if rank == 0:
-        try:
-            max_size_eci = get_max_size_eci(eci)
-            if max_size_eci > bc_kwargs["max_cluster_size"]:
+
+    if not os.path.exists(db_name) and nproc > 1:
+        raise IOError("The database has to be prepared prior to calling "
+                      "get_ce_calc")
+    try:
+        max_size_eci = get_max_size_eci(eci)
+        if "max_cluster_dia" in bc_kwargs.keys():
+            if max_size_eci > bc_kwargs["max_cluster_dia"]:
                 msg = "ECI specifies a cluster size larger than "
                 msg += "ClusterExpansionSetting tracks!"
                 raise ValueError(msg)
             print("Initializing calculator with small BC")
 
-            calc1 = CE(small_bc, eci)
-            print("Initialization finished")
-            init_cf = calc1.get_cf()
-            min_length = small_bc.max_cluster_dist
-            bc_kwargs["size"] = size
-            size_name = get_max_dia_name()
-            bc_kwargs[size_name] = min_length
-            bc_kwargs["db_name"] = db_name
+        calc1 = CE(small_bc, eci)
+        print("Initialization finished")
+        init_cf = calc1.get_cf()
+        min_length = small_bc.max_cluster_dia
+        bc_kwargs["size"] = size
+        size_name = get_max_dia_name()
+        bc_kwargs[size_name] = min_length
+        bc_kwargs["db_name"] = db_name
 
-            if isinstance(small_bc, BulkCrystal):
-                large_bc = BulkCrystal(**bc_kwargs)
-            elif isinstance(small_bc, BulkSpacegroup):
-                large_bc = BulkSpacegroup(**bc_kwargs)
-            else:
-                unknown_type = True
-        except MemoryError:
-            # No default error message here
-            error_happened = True
-            msg = "Memory Error. Most likely went out "
-            msg += " of memory when initializing an array"
-        except Exception as exc:
-            error_happened = True
-            msg = str(exc)
-            print(msg)
+        if isinstance(small_bc, BulkCrystal):
+            large_bc = BulkCrystal(**bc_kwargs)
+        elif isinstance(small_bc, BulkSpacegroup):
+            large_bc = BulkSpacegroup(**bc_kwargs)
+        else:
+            unknown_type = True
+    except MemoryError:
+        # No default error message here
+        error_happened = True
+        msg = "Memory Error. Most likely went out "
+        msg += " of memory when initializing an array"
+    except Exception as exc:
+        error_happened = True
+        msg = str(exc)
+        print(msg)
 
     # Broad cast the error flag and raise error on all processes
-    error_happened = MPI.COMM_WORLD.bcast(error_happened, root=0)
-    msg = MPI.COMM_WORLD.bcast(msg, root=0)
+    error_happened = MPI.COMM_WORLD.allreduce(error_happened)
+    all_msg = MPI.COMM_WORLD.allgather(msg)
+    for item in all_msg:
+        if item != "":
+            msg = item
+            break
+
     if error_happened:
         raise RuntimeError(msg)
 
@@ -101,8 +110,8 @@ def get_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
         msg = "The small_bc argument has to by of type "
         msg += "BulkCrystal or BulkSpacegroup"
         raise TypeError(msg)
-    large_bc = MPI.COMM_WORLD.bcast(large_bc, root=0)
-    init_cf = MPI.COMM_WORLD.bcast(init_cf, root=0)
+    # large_bc = MPI.COMM_WORLD.bcast(large_bc, root=0)
+    # init_cf = MPI.COMM_WORLD.bcast(init_cf, root=0)
     calc2 = CE(large_bc, eci, initial_cf=init_cf)
     return calc2
 
@@ -135,8 +144,8 @@ class CE(Calculator):
         self.corrFunc = CorrFunction(self.BC)
         cf_names = list(eci.keys())
         if initial_cf is None:
-            msg = "Calculating {} correlation functions from "
-            msg += "scratch".format(len(cf_names))
+            msg = "Calculating {} correlation ".format(len(cf_names))
+            msg += "functions from scratch"
             print(msg)
             self.cf = self.corrFunc.get_cf_by_cluster_names(self.BC.atoms,
                                                             cf_names)
@@ -197,6 +206,8 @@ class CE(Calculator):
         if len(self.BC.atoms) != n_sites:
             msg = "The number of atoms and the dimension of the translation "
             msg += "matrix is inconsistent\n"
+            msg += "Num atoms: {}. ".format(len(self.BC.atoms))
+            msg += "Num row trans mat: {}".format(n_sites)
             raise ValueError(msg)
 
     def get_full_cluster_names(self, cnames):

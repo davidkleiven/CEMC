@@ -31,11 +31,14 @@ MCMC
 
   montecarlo
   sgc_montecarlo
+  pseudo_binary_mc
   mc_observers
   sgc_free_energy_barrier
   fixednuc_mc
   nucleation_barrier
   monte_carlo_constraints
+  reaction_path_sampler
+  reaction_path_util
 
 Tools
 =======
