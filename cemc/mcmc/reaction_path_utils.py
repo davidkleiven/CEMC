@@ -6,6 +6,10 @@ class CannotInitSysteError(Exception):
 
 
 class ReactionCrdRangeConstraint(MCConstraint):
+    """
+    Generic class for range constraint. Parent of all other
+    range constraints.
+    """
     def __init__(self):
         MCConstraint.__init__(self)
         self.name = "GenericReactionCrdRangeConstraint"
@@ -29,17 +33,27 @@ class ReactionCrdInitializer(object):
         pass
 
     def set(self, atoms, value):
-        """Bring the atoms into a state with given value of reaction crd."""
+        """Bring the atoms into a state with given value of reaction crd.
+
+        :param atoms: An atoms object
+        :param value: Value of the reaction coordinate
+        """
         raise NotImplementedError("Has to be implemented in derived classes!")
 
     def get(self, atoms):
-        """Get the current value of the reaction coordinate."""
+        """Get the current value of the reaction coordinate.
+
+        :param atoms: An atoms object
+        """
         raise NotImplementedError("Has to be implemented in derived classes!")
 
 
 class PseudoBinaryConcInitializer(ReactionCrdInitializer):
     """
     Sets an arbitrary concentration of the pseudo binary group 2
+
+    :param pseudo_mc: Instance of
+                      :py:class:`cemc.mcmc.pseudo_binary_mc.PseudoBinarySGC`
     """
 
     def __init__(self, pseudo_mc):
@@ -49,7 +63,11 @@ class PseudoBinaryConcInitializer(ReactionCrdInitializer):
         self.target_symb = list(self.mc.groups[1].keys())[0]
 
     def set(self, atoms, number):
-        """Introduce a given number of pseudo binary elements."""
+        """Introduce a given number of pseudo binary elements.
+
+        :param atoms: An atoms object
+        :param number: Number of units of pseudo binary group 2
+        """
         group = self.mc.groups
         num_units = float(len(self.mc.atoms_indx[self.target_symb])) / \
             group[1][self.target_symb]
@@ -66,7 +84,7 @@ class PseudoBinaryConcInitializer(ReactionCrdInitializer):
         while num_inserted < abs(num_insert) and count < max_attempts:
             try:
                 change = self.mc.insert_trial_move()
-            except KeyError as exc:
+            except KeyError:
                 count += 1
                 continue
             count += 1
@@ -92,7 +110,10 @@ class PseudoBinaryConcInitializer(ReactionCrdInitializer):
             raise CannotInitSysteError(msg)
 
     def get(self, atoms):
-        """Get the number of formula units of group 2."""
+        """Get the number of formula units of group 2.
+
+        :param atoms: An atoms object
+        """
         num_per_unit = self.mc.groups[1][self.target_symb]
         return float(len(self.mc.atoms_indx[self.target_symb])) / num_per_unit
 
@@ -107,6 +128,13 @@ class PseudoBinaryConcInitializer(ReactionCrdInitializer):
 
 
 class PseudoBinaryConcRange(ReactionCrdRangeConstraint):
+    """
+    Range constraint for the number of units of pseudo binary group 2.
+
+    :param mc_obj: Instance of
+                   :py:class:`cemc.mcmc.pseudo_binary_mc.PseudoBinarySGC`
+    """
+
     def __init__(self, mc_obj):
         ReactionCrdRangeConstraint.__init__(self)
         self.name = "PseudoBinaryConcRange"
@@ -123,6 +151,13 @@ class PseudoBinaryConcRange(ReactionCrdRangeConstraint):
         return self.mc.groups[1][self.target_symb]
 
     def __call__(self, syst_changes):
+        """
+        Check if the system is inside the concentration range.
+
+        :param system_changes: List of tuples describing the system changes.
+                               See
+                               :py:class:`cemc.mcmc.mc_observers.MCObservers`
+        """
         n_un = self.number_of_units
         for change in syst_changes:
             if change[2] == self.target_symb:
