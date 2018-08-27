@@ -9,10 +9,30 @@ class BiasPotential(object):
     """
 
     def __call__(self, system_changes):
+        """Calculate the bias potential.
+        :param system_changes: List of tuples describing the changes
+                               see
+                               :py:method:`cemc.mcmc.mc_observers.MCObserver`
+        """
         raise NotImplementedError("Has to be implemented in child classes!")
 
 
 class PseudoBinaryFreeEnergyBias(BiasPotential):
+    """
+    Class for a bias potential based on the free energy curve.
+    It is intended for use when the reaction coordinate is the composition
+    of one of the pseudobinary groups.
+    NOTE: In the future this can in principle be extended to handle the
+    case of arbitrary reaction paths
+
+    :param pseudo_bin_conc_init: Instance of PseudoBinaryConcInitializer,
+                                 can be None if __call__ is not called
+                                 (i.e.) for fitting a smoothed curve etc.
+    :param reac_crd: Value of the reaction coordinate
+    :param free_eng: Value of the free energy corresponding to the reac_crd
+                     array
+    """
+
     def __init__(self, pseudo_bin_conc_init=None, reac_crd=[], free_eng=[]):
         from scipy.interpolate import interp1d
         self._conc_init = pseudo_bin_conc_init
@@ -22,7 +42,12 @@ class PseudoBinaryFreeEnergyBias(BiasPotential):
                                     fill_value="extrapolate")
 
     def fit_smoothed_curve(self, smooth_length=11, show=False):
-        """Fit a smoothed curve to the data."""
+        """Fit a smoothed curve to the data.
+
+        :param smooth_length: Window length of the Savitzky-Golay filter.
+                              Has to be odd.
+        :param show: If True, a plot of the resulting curve will be shown.
+        """
         if smooth_length % 2 == 0:
             raise ValueError("smooth_length has to be an odd number!")
         from scipy.signal import savgol_filter
@@ -77,7 +102,11 @@ class PseudoBinaryFreeEnergyBias(BiasPotential):
         self._conc_init = init
 
     def save(self, fname="pseudo_binary_free_energy.pkl"):
-        """Save the computed bias potential to a file."""
+        """Save the computed bias potential to a file.
+
+        :param fname: Filename where a serialized version of this object
+                      will be stored.
+        """
         import pickle
         with open(fname, 'wb') as outfile:
             pickle.dump(self, outfile)
@@ -90,6 +119,8 @@ class PseudoBinaryFreeEnergyBias(BiasPotential):
         Load a bias potential from pickle file.
         Assume that this file has been stored with the save method
         of this class
+
+        :param fname: Filename of a serialized version of this objeckt
         """
         import pickle
         with open(fname, 'rb') as infile:
@@ -97,7 +128,10 @@ class PseudoBinaryFreeEnergyBias(BiasPotential):
         return obj
 
     def __call__(self, system_changes):
-        """Evaluate the bias potential."""
+        """Evaluate the bias potential.
+
+        see :py:method:`cemc.mcmc.mc_observers_MCObserver.__call__`
+        """
         # We can pass None  in this case
         # PseudoBinaryConcInitializer should track the atoms object itself
         q = self.conc_init.get(None)
@@ -110,5 +144,8 @@ class PseudoBinaryFreeEnergyBias(BiasPotential):
         return self.bias_interp(q)
 
     def get(self, reac_crd):
-        """Get the bias potential as a function of reaction coordinate."""
+        """Get the bias potential as a function of reaction coordinate.
+
+        :param reac_crd: Reaction coordinate
+        """
         return self.bias_interp(reac_crd)
