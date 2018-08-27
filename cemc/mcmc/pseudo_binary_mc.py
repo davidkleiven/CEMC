@@ -5,17 +5,18 @@ from random import choice, shuffle
 
 class PseudoBinarySGC(SGCMonteCarlo):
     """
-    Class that can assign a chemical potential to a group of atoms
+    Class that can assign a chemical potential to a group of atoms.
 
     :param atoma: Atoms object
     :param T: Temperature
     :param kwargs: See :py:class:`cemc.mcmc.SGCMonteCarlo`
         Special key word arguments for this class
         * groups: The pseudo binary groups [{"Al": 2}, {"Mg": 1, "Si": 1}],
-                 will allow for inserting MgSi for 2 Al atoms
+        will allow for inserting MgSi for 2 Al atoms.
         * insert_prob: Probability to try an insertion of the pseudo binary
-                       groups
+        groups
         * chem_pot: Chemical potential associated with the pseudo-binary groups
+
     """
 
     def __init__(self, atoms, T, **kwargs):
@@ -218,7 +219,7 @@ class PseudoBinarySGC(SGCMonteCarlo):
 
     def runMC(self, **kwargs):
         """Run Monte Carlo simulation.
-          See :py:func:`cemc.mcmc.SGCMonteCarlo.runMC`
+        See :py:func:`cemc.mcmc.SGCMonteCarlo.runMC`
         """
         if "chem_potential" in kwargs.keys():
             kwargs.pop("chem_potential")
