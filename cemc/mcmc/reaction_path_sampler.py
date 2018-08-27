@@ -7,7 +7,25 @@ import sys
 
 
 class ReactionPathSampler(object):
-    """Class for sampling the free energy along some path."""
+    """Generic class for sampling the free energy along some path.
+
+    :param mc_obj: Instance of :py:class:`cemc.mcmc.monteccarlo.Montecarlo`
+    :param reac_crd: Array [lower, upper). Maximum and minimum limits of the
+                     range of the reaction coordinate
+    :param react_crd_init: Instance of
+                           :py:class:`cemc.mcmc.reaction_path_utils.ReactionCrdInitializer`
+                           Has to be able to generate an atoms object
+                           corresponding to an arbitrary reaction coordinate
+    :param react_crd_range_constraint: Instance of
+                                       :py:class:`cemc.mcmc.reaction_path_utils.ReactionCrdRangeConstraint`
+                                       Given a set of changes it has to return
+                                       True if the object is still inside the
+                                       range, and False otherwise
+    :param n_window: Number of windows used for Umbrella sampling
+    :param n_bins: Number of bins inside each window
+    :param data_file: HDF5-file where all data acquired during the run
+                      is stored
+    """
 
     def __init__(self, mc_obj=None, react_crd=[0.0, 1.0],
                  react_crd_init=None, react_crd_range_constraint=None,
@@ -91,6 +109,9 @@ class ReactionPathSampler(object):
     def _get_merged_records(self, data):
         """
         Merge the records into a one array
+
+        :param data: List of histograms containing the number of visits in
+                     each window
         """
         all_data = data[0].tolist()
         for i in range(1, len(data)):
@@ -122,13 +143,19 @@ class ReactionPathSampler(object):
         self.mc.add_constraint(self.constraint)
 
     def log(self, msg):
-        """Log messages."""
+        """Log messages.
+
+        :param msg: Message to log
+        """
         if self.rank == 0:
             print(msg)
         sys.stdout.flush()
 
     def log_window_statistics(self, window):
-        """Print logging message concerning the sampling window."""
+        """Print logging message concerning the sampling window.
+
+        :param window: Int, window to log statistics from.
+        """
         max = np.max(self.data[window])
         min = np.min(self.data[window])
         mean = np.mean(self.data[window])
@@ -205,7 +232,10 @@ class ReactionPathSampler(object):
 
     @staticmethod
     def dset_name(window):
-        """Return a dataset name."""
+        """Return a dataset name.
+
+        :param window: Int. Number of the window
+        """
         return "window{}".format(window)
 
     def _collect_results(self, window):
