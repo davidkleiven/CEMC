@@ -76,7 +76,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             sampler.save(fname="test_nucl_canonical.h5")
 
             mc = FixedNucleusMC(ceBulk.atoms, 300, size=6,
-                                network_name=nn_name, network_element="Mg")
+                                network_name=[nn_name], network_element=["Mg"])
             mc.run(nsteps=2)
             os.remove("sc5x5x5.db")
         except Exception as exc:
