@@ -8,7 +8,6 @@ import logging
 
 import numpy as np
 from scipy.interpolate import UnivariateSpline
-from matplotlib import pyplot as plt
 from mpi4py import MPI
 import h5py as h5
 from ase.units import kB
@@ -16,9 +15,6 @@ from ase.units import kB
 from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
 from cemc.tools.phase_track_utils import PhaseBoundarySolution
 from cemc.tools.phase_track_utils import CECalculators
-
-# With this backend one does not need a screen (useful for clusters)
-plt.switch_backend("Agg")
 
 COMM = MPI.COMM_WORLD
 
@@ -520,6 +516,9 @@ def predict_composition(
     :param target_temp: Temperature where the composition should be predicted
     :param target_temp: Computed composition
     """
+    # With this backend one does not need a screen (useful for clusters)
+    from matplotlib import pyplot as plt
+    plt.switch_backend("Agg")
     if len(comp) == 0:
         return target_comp, None
     elif len(comp) <= 2:
