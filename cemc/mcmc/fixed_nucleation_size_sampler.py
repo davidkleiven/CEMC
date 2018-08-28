@@ -23,22 +23,33 @@ class FixedNucleusMC(Montecarlo):
         self.network_element = kwargs.pop("network_element")
         self.network_name = kwargs.pop("network_name")
 
-        super(FixedNucleusMC,self).__init__(atoms, T, **kwargs)
-        self.network = NetworkObserver(calc=self.atoms._calc,
-                                       cluster_name=self.network_name,
-                                       element=self.network_element)
+        super(FixedNucleusMC, self).__init__(atoms, T, **kwargs)
+
+        self.networks = self._init_networks()
         self.bc = self.atoms._calc.BC
-        self.network_clust_indx = None
-        self.find_cluster_indx()
+        self.network_clust_indx = self.find_cluster_indx()
+
+    def _init_networks(self):
+        """Initialize the network observers."""
+        networks = []
+        for name, elm in zip(self.network_name, self.network_element):
+            network = NetworkObserver(
+                calc=self.atoms._calc, cluster_name=name, element=elm)
+            networks.append(network)
+        return networks
 
     def find_cluster_indx(self):
         """
         Find the cluster indices corresponding to the current network name
         """
-        clusters = self.bc.cluster_info_by_name(self.network_name)
-        if len(clusters) > 1:
-            raise NotImplementedError("Currently this only work for symm grp.")
-        self.network_clust_indx = clusters[0]["indices"]
+        network_indx = []
+        for name in self.network_name:
+            clusters = self.bc.cluster_info_by_name(name)
+            new_indx = []
+            for clst in clusters["indices"]:
+                network_indx.append(clst[0])
+            network_indx += new_indx
+        return np.unique(network_indx)
 
     def _get_trial_move(self):
         """Generate a trial move."""
