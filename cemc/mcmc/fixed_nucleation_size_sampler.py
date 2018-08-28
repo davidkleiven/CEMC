@@ -14,10 +14,14 @@ class FixedNucleusMC(Montecarlo):
 
     :Keyword arguments:
         * *size* Network size
-        * *network_element* Element in the network see :py:class:`cemc.mcmc.mc_observers.NetworkObserver`
-        * *cluster_name* Name of clusters see :py:class:`cemc.mcmc.mc_observers.NetworkObserver`
-        * In addition all keyword arguments of :py:class:`cemc.mcmc.Montecarlo` can be given
+        * *network_element* Element in the network see
+        :py:class:`cemc.mcmc.mc_observers.NetworkObserver`
+        * *cluster_name* Name of clusters see
+        :py:class:`cemc.mcmc.mc_observers.NetworkObserver`
+        * In addition all keyword arguments of
+        :py:class:`cemc.mcmc.Montecarlo` can be given
     """
+    
     def __init__(self, atoms, T, **kwargs):
         self.size = kwargs.pop("size")
         self.network_element = kwargs.pop("network_element")
