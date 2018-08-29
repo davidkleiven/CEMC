@@ -4,8 +4,11 @@ try:
     from cemc.mcmc import NucleationSampler,SGCNucleation, CanonicalNucleationMC, FixedNucleusMC
     from ase.ce import BulkCrystal
     from ase.ce import CorrFunction
+    from cemc.mcmc import InertiaCrdInitializer
+    from cemc import CE
     from cemc import get_ce_calc
     from helper_functions import flatten_cluster_names
+    from helper_functions import get_ternary_BC, get_example_ecis
     import os
     available = True
 except Exception as exc:
@@ -17,6 +20,7 @@ def get_network_name(cnames):
         if int(name[1]) == 2:
             return name
     raise RuntimeError("No pair cluster found!")
+
 
 class TestNuclFreeEnergy( unittest.TestCase ):
     def test_no_throw(self):
@@ -64,7 +68,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
                 network_name=nn_name,  network_element="Mg",
                 symbols=["Al", "Mg"], chem_pot=chem_pot)
 
-            mc.run(nsteps=2)
+            mc.runMC(steps=2)
             sampler.save(fname="test_nucl.h5")
 
             mc = CanonicalNucleationMC(
@@ -72,17 +76,43 @@ class TestNuclFreeEnergy( unittest.TestCase ):
                 network_name=nn_name,  network_element="Mg",
                 concentration={"Al": 0.8, "Mg": 0.2}
                 )
-            mc.run(nsteps=2)
+            mc.runMC(steps=2)
             sampler.save(fname="test_nucl_canonical.h5")
             elements = {"Mg": 6}
+            calc.set_composition({"Al": 1.0, "Mg": 0.0})
             mc = FixedNucleusMC(ceBulk.atoms, 300,
                                 network_name=[nn_name], network_element=["Mg"])
-            mc.run(nsteps=2)
+            mc.insert_symbol_random_places("Mg", num=1, swap_symbs=["Al"])
+            mc.runMC(steps=2, elements=elements)
             os.remove("sc5x5x5.db")
         except Exception as exc:
             msg = str(exc)
             no_throw = False
         self.assertTrue(no_throw, msg=msg)
+
+    def test_with_inertia_reac_crd(self):
+        if not available:
+            self.skipTest("ASE version does not have CE!")
+
+        bc = get_ternary_BC()
+        ecis = get_example_ecis(bc=bc)
+        calc = CE(bc, eci=ecis)
+        bc.atoms.set_calculator(calc)
+
+        T = 200
+        nn_names = [name for name in bc.cluster_family_names if int(name[1]) == 2]
+        mc = FixedNucleusMC(
+            bc.atoms, T, network_name=nn_names, network_element=["Mg", "Si"])
+        conc_init = InertiaCrdInitializer(
+            fixed_nucl_mc=mc, matrix_element="Al",
+            cluster_elements=["Mg", "Si"])
+        elements = {"Mg": 4, "Si": 4}
+        mc.insert_symbol_random_places("Mg", num=4, swap_symbs=["Al"])
+        mc.insert_symbol_random_places("Si", num=4, swap_symbs=["Al"])
+        mc.runMC(steps=100, elements=elements)
+
+        print(conc_init.normalized_principal_inertia)
+        self.assertTrue(True)
 
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner

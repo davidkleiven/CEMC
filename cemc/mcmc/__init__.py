@@ -26,3 +26,4 @@ ReactionCrdInitializer, PseudoBinaryConcRange, PseudoBinaryConcInitializer
 from cemc.mcmc.reaction_path_sampler import ReactionPathSampler
 from cemc.mcmc.pseudo_binary_react_path import PseudoBinaryReactPath
 from cemc.mcmc.bias_potential import BiasPotential, PseudoBinaryFreeEnergyBias
+from cemc.mcmc.inertia_reaction_crd import InertiaCrdInitializer
