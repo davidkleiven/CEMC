@@ -31,7 +31,6 @@ class FixedNucleusMC(Montecarlo):
         self.networks = self._init_networks()
         self.bc = self.atoms._calc.BC
         self.network_clust_indx = self.find_cluster_indx()
-        self._check_nucleation_site_exists()
 
     def _init_networks(self):
         """Initialize the network observers."""
@@ -41,6 +40,9 @@ class FixedNucleusMC(Montecarlo):
                 calc=self.atoms._calc, cluster_name=name, element=elm)
             networks.append(network)
         return networks
+
+    def get_translated_indx(self, ref_indx, clst_indx):
+        return self.bc.trans_matrix[ref_indx][clst_indx]
 
     def find_cluster_indx(self):
         """
@@ -66,7 +68,6 @@ class FixedNucleusMC(Montecarlo):
         # Shuffle the network indices
         shuffle(self.network_clust_indx)
         symb_b = ref_element
-
         while symb_b == ref_element:
             new_ref_element = choice(self.network_element)
             Nb = len(self.atoms_indx[new_ref_element])
@@ -76,10 +77,9 @@ class FixedNucleusMC(Montecarlo):
                 self.rand_b = self.bc.trans_matrix[ref_indx][indx]
                 symb_b = self.atoms[self.rand_b].symbol
 
+        # TODO: Make the next line more efficient (avoid search!)
+        self.selected_b = self.atoms_indx[symb_b].index(self.rand_b)
 
-        # self.selected_b = self.atoms_indx[symb_b].index(self.rand_b)
-        # Breaks the cluster tracker but it is not needed here
-        self.selected_b = 0
         symb_a = self.atoms[self.rand_a].symbol
         assert symb_a == ref_element
         system_changes = [(self.rand_a, symb_a, symb_b),
@@ -125,7 +125,7 @@ class FixedNucleusMC(Montecarlo):
             if atom.symbol == self.network_element[0]:
                 return
         elm = self.network_element[0]
-        raise ValueError("At least one element of {}"
+        raise ValueError("At least one element of {} "
                          "has to be present".format(elm))
 
     def _get_initial_site(self):
@@ -138,9 +138,16 @@ class FixedNucleusMC(Montecarlo):
         """Grow a cluster of a certain size."""
         from random import choice, shuffle
         all_elems = []
+        at_count = self.count_atoms()
         for symb, num in elements.items():
-            for _ in range(num):
+            if symb in at_count.keys():
+                num_insert = num - at_count[symb]
+            else:
+                num_insert = num
+
+            for _ in range(num_insert):
                 all_elems.append(symb)
+
 
         ref_site = self._get_initial_site()
         while all_elems:
@@ -149,15 +156,23 @@ class FixedNucleusMC(Montecarlo):
             element = choice(all_elems)
             for net_indx in self.network_clust_indx:
                 indx = self.bc.trans_matrix[ref_site][net_indx]
-                system_changes = [(indx, self.atoms[indx].symbol, element)]
+                system_changes = (indx, self.atoms[indx].symbol, element)
 
-                if self._no_constraint_violations(system_changes):
+                if self._no_constraint_violations([system_changes]):
                     self.atoms.get_calculator().update_cf(system_changes)
-                    all_elems.pop(indx)
+                    all_elems.remove(element)
                     break
             ref_site = indx
         self._build_atoms_list()
         self.atoms.get_calculator().clear_history()
+
+        # Verify that the construction was fine
+        at_count = self.count_atoms()
+        for k, target_num in elements.items():
+            if at_count[k] != target_num:
+                raise ValueError("Inconsistent size!\n"
+                                 "Should be: {}\n"
+                                 "Contains: {}".format(elements, at_count))
 
     def get_atoms(self, atoms=None, prohib_elem=[]):
         """
@@ -187,19 +202,20 @@ class FixedNucleusMC(Montecarlo):
         atoms.wrap()
         return atoms, atoms[indices]
 
-    def runMC(self, nsteps=100000, init_cluster=True, elements={}):
+    def runMC(self, steps=100000, init_cluster=True, elements={}):
         """
         Run Monte Carlo for fixed nucleus size
 
-        :param nsteps: Number of Monte Carlo steps
+        :param steps: Number of Monte Carlo steps
         :param init_cluster: If True initialize a cluster, If False it is
             assumed that a cluster of the correct size already exists in the
             system
         """
         if init_cluster:
+            self._check_nucleation_site_exists()
             self._grow_cluster(elements)
         step = 0
-        while step < nsteps:
+        while step < steps:
             step += 1
             self._mc_step()
         accpt_rate = float(self.num_accepted) / self.current_step
