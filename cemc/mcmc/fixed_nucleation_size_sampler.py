@@ -187,7 +187,7 @@ class FixedNucleusMC(Montecarlo):
         atoms.wrap()
         return atoms, atoms[indices]
 
-    def run(self, nsteps=100000, init_cluster=True, elements={}):
+    def runMC(self, nsteps=100000, init_cluster=True, elements={}):
         """
         Run Monte Carlo for fixed nucleus size
 
