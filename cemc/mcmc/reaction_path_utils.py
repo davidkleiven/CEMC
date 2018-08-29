@@ -115,7 +115,7 @@ class PseudoBinaryConcInitializer(ReactionCrdInitializer):
         :param atoms: An atoms object
         """
         num_per_unit = self.mc.groups[1][self.target_symb]
-        return float(len(self.mc.atoms_indx[self.PseudoBinaryConcInitializertarget_symb])) / num_per_unit
+        return float(len(self.mc.atoms_indx[self.target_symb])) / num_per_unit
 
     @property
     def number_of_units(self):
