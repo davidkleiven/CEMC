@@ -132,6 +132,61 @@ class Montecarlo(object):
         self._linear_vib_correction = linvib
         self.atoms._calc.linear_vib_correction = linvib
 
+    def insert_symbol(self, symb, indices):
+        """Insert symbols on a predefined set of indices.
+
+        :param symb: Symbol to be inserted
+        :param indices: Indices where symb should be inserted
+        """
+        calc = self.atoms.get_calculator()
+        for indx in indices:
+            system_changes = (indx, self.atoms[indx].symbol, symb)
+
+            if not self._no_constraint_violations([system_changes]):
+                raise ValueError("The indices given results in an update "
+                                 "that violate one or more constraints!")
+            calc.update_cf(system_changes)
+        self._build_atoms_list()
+        calc.clear_history()
+
+    def insert_symbol_random_places(self, symbol, num=1, swap_symbs=[]):
+        """Insert random symbol.
+
+        :param symbol: Symbol to insert
+        :param num: Number of sites
+        :param swap_symbs: If given, will insert replace symbol with sites
+                          having symbols in this list
+        """
+        from random import choice
+        if not swap_symbs:
+            swap_symbs = list(self.atoms_indx.keys())
+        num_inserted = 0
+        max_attempts = 10 * len(self.atoms)
+
+        calc = self.atoms.get_calculator()
+        attempts = 0
+        while num_inserted < num and attempts < max_attempts:
+            attempts += 1
+            old_symb = choice(swap_symbs)
+            if old_symb == symbol:
+                continue
+            indx = choice(self.atoms_indx[old_symb])
+            if self.atoms[indx].symbol not in swap_symbs:
+                # This can happen because the atom_indx is inconsistent
+                # until after all the atoms have been inserted
+                continue
+
+            system_changes = (indx, old_symb, symbol)
+            if not self._no_constraint_violations([system_changes]):
+                continue
+            calc.update_cf(system_changes)
+            num_inserted += 1
+        self._build_atoms_list()
+        calc.clear_history()
+
+        if attempts == max_attempts:
+            raise RuntimeError("Could insert {} {} atoms!".format(num, symbol))
+
     def _check_symbols(self):
         """
         Checks that there is at least to different symbols
