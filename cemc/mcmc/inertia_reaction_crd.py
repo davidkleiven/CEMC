@@ -20,8 +20,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         self.num_matrix_atoms_surface = num_matrix_atoms_surface
 
     @property
-    def principal_inertia(self):
-        """Calculate the inertia of the atoms in cluster elements"""
+    def inertia_tensor(self):
         include = self.indices_in_cluster
         cluster = self.fixed_nucl_mc.atoms[include]
         cluster.center()
@@ -37,7 +36,12 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
             inertia_tensor[i1, i2] = np.sum(pos[:, i1] * pos[:, i2])
         inertia_tensor += inertia_tensor.T
         inertia_tensor *= 0.5
-        eigv = np.linalg.eigvals(inertia_tensor)
+        return inertia_tensor
+
+    @property
+    def principal_inertia(self):
+        """Calculate the inertia of the atoms in cluster elements"""
+        eigv = np.linalg.eigvals(self.inertia_tensor)
         return eigv
 
     @property
@@ -97,6 +101,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
         should_increase_value = current_diff < value
         shoud_decrease_value = not should_increase_value
+        mc = self.fixed_nucl_mc
         while attempt < max_attempts:
             attempt += 1
             surf_atoms = self.surface_atoms()
@@ -105,16 +110,15 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
             shuffle(neighbors)
             found_swap_candidate = False
             for indx in neighbors:
-                t_indx = self.fixed_nucl_mc.get_translated_indx(
-                    rand_surf_atom2, indx)
-                symb = self.fixed_nucl_mc.atoms[t_indx].symbol
+                t_indx = mc.get_translated_indx(rand_surf_atom2, indx)
+                symb = mc.atoms[t_indx].symbol
                 if symb == self.matrix_element:
-                    old_symb = self.fixed_nucl_mc.atoms[rand_surf_atom].symbol
+                    old_symb = mc.atoms[rand_surf_atom].symbol
                     ch1 = (rand_surf_atom, old_symb, symb)
                     ch2 = (t_indx, symb, old_symb)
                     system_changes = [ch1, ch2]
 
-                    if self.fixed_nucl_mc._no_constraint_violations(system_changes):
+                    if mc._no_constraint_violations(system_changes):
                         calc.calculate(atoms, ["energy"], system_changes)
                         found_swap_candidate = True
                         break
@@ -131,7 +135,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
                 # target value, so we accept this move
                 current_diff = new_diff
                 calc.clear_history()
-                self.fixed_nucl_mc._update_tracker(system_changes)
+                self.mc._update_tracker(system_changes)
             else:
                 calc.undo_changes()
 
@@ -144,3 +148,25 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
             raise CouldNotFindValidStateError("Did not manage to find a state "
                                               "with reaction coordinate "
                                               "{}!".format(value))
+
+
+class InertiaRangeConstraint(ReactionCrdRangeConstraint):
+    def __init__(self, fixed_nuc_mc=None, range=[0.0, 1.0], inertia_init=None):
+        super(InertiaCrdInitializer, self).__init__(self)
+        self.update_range(range)
+        self.mc = fixed_nuc_mc
+        self._inertia_init = inertia_init
+
+    def __call__(self, system_changes):
+        # This is not the most efficient way to to things, but it should work
+        orig_atoms = self.mc.atoms.copy()
+
+        for change in system_changes:
+            orig_symb = self.mc.atoms[change[0]].symbol
+            assert orig_symb == change[1]
+            self.mc.atoms[change[0]].symbol = change[2]
+        new_val = self._insertia_init.get(None)
+
+        # Reset the atoms object
+        self.mc.atoms = orig_atoms
+        return new_val >= self.range[0] and new_val < self.range[1]
