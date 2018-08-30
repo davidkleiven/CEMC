@@ -139,15 +139,21 @@ class FixedNucleusMC(Montecarlo):
         from random import choice, shuffle
         all_elems = []
         at_count = self.count_atoms()
+        unique_solute_elements = list(elements.keys())
         for symb, num in elements.items():
             if symb in at_count.keys():
                 num_insert = num - at_count[symb]
             else:
                 num_insert = num
 
+            if num_insert < 0:
+                raise ValueError("There are too many solute atoms in the "
+                                 "system for the requested cluster size!\n"
+                                 "Requested: {}\n"
+                                 "At. count: {}".format(elements, at_count))
+
             for _ in range(num_insert):
                 all_elems.append(symb)
-
 
         ref_site = self._get_initial_site()
         while all_elems:
@@ -156,7 +162,10 @@ class FixedNucleusMC(Montecarlo):
             element = choice(all_elems)
             for net_indx in self.network_clust_indx:
                 indx = self.bc.trans_matrix[ref_site][net_indx]
-                system_changes = (indx, self.atoms[indx].symbol, element)
+                old_symb = self.atoms[indx].symbol
+                if old_symb in unique_solute_elements:
+                    continue
+                system_changes = (indx, old_symb, element)
 
                 if self._no_constraint_violations([system_changes]):
                     self.atoms.get_calculator().update_cf(system_changes)
