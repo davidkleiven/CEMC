@@ -16,26 +16,43 @@ class BiasPotential(object):
         """
         raise NotImplementedError("Has to be implemented in child classes!")
 
+    def save(self, fname="pseudo_binary_free_energy.pkl"):
+        """Save the computed bias potential to a file.
 
-class PseudoBinaryFreeEnergyBias(BiasPotential):
+        :param fname: Filename where a serialized version of this object
+                      will be stored.
+        """
+        import pickle
+        with open(fname, 'wb') as outfile:
+            pickle.dump(self, outfile)
+        print("Pseudo binary free energy bias potential written to "
+              "{}".format(fname))
+
+    @staticmethod
+    def load(fname="bias_potential.pkl"):
+        """
+        Load a bias potential from pickle file.
+        Assume that this file has been stored with the save method
+        of this class
+
+        :param fname: Filename of a serialized version of this object
+        """
+        import pickle
+        with open(fname, 'rb') as infile:
+            obj = pickle.load(infile)
+        return obj
+
+
+class SampledBiasPotential(BiasPotential):
     """
-    Class for a bias potential based on the free energy curve.
-    It is intended for use when the reaction coordinate is the composition
-    of one of the pseudobinary groups.
-    NOTE: In the future this can in principle be extended to handle the
-    case of arbitrary reaction paths
+    Class for bias potentials that are sampled.
 
-    :param pseudo_bin_conc_init: Instance of PseudoBinaryConcInitializer,
-                                 can be None if __call__ is not called
-                                 (i.e.) for fitting a smoothed curve etc.
-    :param reac_crd: Value of the reaction coordinate
-    :param free_eng: Value of the free energy corresponding to the reac_crd
-                     array
+    :param reac_crd: Array with reaction coordinates
+    :param free_eng: Array with energies
     """
 
-    def __init__(self, pseudo_bin_conc_init=None, reac_crd=[], free_eng=[]):
+    def __init__(self, reac_crd=[], free_eng=[]):
         from scipy.interpolate import interp1d
-        self._conc_init = pseudo_bin_conc_init
         self.reac_crd = np.array(reac_crd)
         self.free_eng = np.array(free_eng)
         self.bias_interp = interp1d(self.reac_crd, self.free_eng,
@@ -85,6 +102,27 @@ class PseudoBinaryFreeEnergyBias(BiasPotential):
         new_obj += other
         return new_obj
 
+
+class PseudoBinaryFreeEnergyBias(SampledBiasPotential):
+    """
+    Class for a bias potential based on the free energy curve.
+    It is intended for use when the reaction coordinate is the composition
+    of one of the pseudobinary groups.
+    NOTE: In the future this can in principle be extended to handle the
+    case of arbitrary reaction paths
+
+    :param pseudo_bin_conc_init: Instance of PseudoBinaryConcInitializer,
+                                 can be None if __call__ is not called
+                                 (i.e.) for fitting a smoothed curve etc.
+    :param reac_crd: Value of the reaction coordinate
+    :param free_eng: Value of the free energy corresponding to the reac_crd
+                     array
+    """
+
+    def __init__(self, pseudo_bin_conc_init=None, reac_crd=[], free_eng=[]):
+        self._conc_init = pseudo_bin_conc_init
+        super(PseudoBinaryFreeEnergyBias, self).__init__(reac_crd, free_eng)
+
     @property
     def conc_init(self):
         from cemc.mcmc import PseudoBinaryConcInitializer
@@ -100,32 +138,6 @@ class PseudoBinaryFreeEnergyBias(BiasPotential):
             raise TypeError("pseudo_bin_conc_init has to be of type "
                             "PseudoBinaryConcInitializer!")
         self._conc_init = init
-
-    def save(self, fname="pseudo_binary_free_energy.pkl"):
-        """Save the computed bias potential to a file.
-
-        :param fname: Filename where a serialized version of this object
-                      will be stored.
-        """
-        import pickle
-        with open(fname, 'wb') as outfile:
-            pickle.dump(self, outfile)
-        print("Pseudo binary free energy bias potential written to "
-              "{}".format(fname))
-
-    @staticmethod
-    def load(fname="pseudo_binary_free_energy.pkl"):
-        """
-        Load a bias potential from pickle file.
-        Assume that this file has been stored with the save method
-        of this class
-
-        :param fname: Filename of a serialized version of this objeckt
-        """
-        import pickle
-        with open(fname, 'rb') as infile:
-            obj = pickle.load(infile)
-        return obj
 
     def __call__(self, system_changes):
         """Evaluate the bias potential.
