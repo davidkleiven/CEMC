@@ -157,7 +157,7 @@ class InertiaRangeConstraint(ReactionCrdRangeConstraint):
         self.mc = fixed_nuc_mc
         self._inertia_init = inertia_init
 
-    def __call__(self, system_changes):
+    def get_new_value(self, system_changes):
         # This is not the most efficient way to to things, but it should work
         orig_atoms = self.mc.atoms.copy()
 
@@ -169,4 +169,8 @@ class InertiaRangeConstraint(ReactionCrdRangeConstraint):
 
         # Reset the atoms object
         self.mc.atoms = orig_atoms
+        return new_val
+
+    def __call__(self, system_changes):
+        new_val = self.get_new_value(system_changes)
         return new_val >= self.range[0] and new_val < self.range[1]

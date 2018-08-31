@@ -161,3 +161,32 @@ class PseudoBinaryFreeEnergyBias(SampledBiasPotential):
         :param reac_crd: Reaction coordinate
         """
         return self.bias_interp(reac_crd)
+
+
+class InertiaBiasPotential(SampledBiasPotential):
+    def __init__(self, inertia_range=None, reac_crd=[], free_eng=[]):
+        super(InertiaBiasPotential, self).__init__(reac_crd, free_eng)
+        self._inertia_range = inertia_range
+
+    @property
+    def inertia_range(self):
+        from cemc.mcmc import InertiaRangeConstraint
+        if not isinstance(self._init_range, InertiaRangeConstraint):
+            raise TypeError("init_range has to be of type "
+                            "InertiaRangeConstraint")
+        return self._init_range
+
+    @inertia_range.setter
+    def init_range(self, obj):
+        self._init_range = obj
+
+    def __call__(self, system_changes):
+        reac_crd = self.inertia_range.get_new_value(system_changes)
+        return self.bias_interp(reac_crd)
+
+    def get(self, reac_crd):
+        """Get the bias as a function reaction coordinate.abs
+
+        :param reac_crd: Reaction coordinate
+        """
+        return self.bias_interp(reac_crd)
