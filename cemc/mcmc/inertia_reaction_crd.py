@@ -23,7 +23,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
     def inertia_tensor(self):
         include = self.indices_in_cluster
         cluster = self.fixed_nucl_mc.atoms[include]
-        cluster.center()
+        cluster = InertiaCrdInitializer.center_atoms(cluster)
         pos = cluster.get_positions()
         com = np.sum(pos, axis=0) / pos.shape[0]
         assert len(com) == 3
@@ -37,6 +37,19 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         inertia_tensor += inertia_tensor.T
         inertia_tensor *= 0.5
         return inertia_tensor
+
+    @staticmethod
+    def center_atoms(atoms):
+        """Center the atoms in the cell."""
+        cell = atoms.get_cell()
+        diag = 0.5 * (cell[0, :] + cell[1, :] + cell[2, :])
+        indx = list(range(1, len(atoms)))
+        com = np.sum(atoms.get_distances(0, indx, mic=True, vector=True),
+                     axis=0)/len(atoms)
+        com += atoms[0].position
+        atoms.translate(diag - com)
+        atoms.wrap()
+        return atoms
 
     @property
     def principal_inertia(self):
@@ -62,7 +75,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         from ase.visualize import view
         include = self.indices_in_cluster
         cluster = self.fixed_nucl_mc.atoms[include]
-        cluster.center()
+        cluster = InertiaCrdInitializer.center_atoms(cluster)
         view(cluster)
 
     def get(self, atoms):
