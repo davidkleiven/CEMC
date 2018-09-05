@@ -92,23 +92,38 @@ class TestNuclFreeEnergy( unittest.TestCase ):
         self.assertTrue(no_throw, msg=msg)
 
     def _spherical_nano_particle_matches(self, conc_init):
-        """Check the inertial tensor of a fixed nano particle is conserved."""
-        # Test some inertia calculation
+        # Construct a spherical nano particle
         from ase.cluster.cubic import FaceCenteredCubic
         from random import choice
-        from ase.build import bulk
-        from itertools import product
-        from ase.ce.tools import wrap_and_sort_by_position
-
-        # Construct a spherical nano particle
         surfaces = [(1, 0, 0), (1, 1, 0), (1, 1, 1)]
         layers = [6, 9, 5]
         lc = 4.05
         nanoparticle = FaceCenteredCubic('Al', surfaces, layers,
                                          latticeconstant=lc)
+        nanoparticle.info = {"lc": lc}
         symbs = ["Mg", "Si"]
         for atom in nanoparticle:
             atom.symbol = choice(symbs)
+        inert1, inert2 = self._nano_particle_matches(conc_init, nanoparticle)
+        match, msg = self._two_inertia_tensors_matches(inert1, inert2)
+        return match, msg
+
+    def _two_inertia_tensors_matches(self, inert1, inert2):
+        if not np.allclose(inert1, inert2, rtol=1E-4):
+            msg = "Inertia tensor does not match\n"
+            msg += "Original: {}\n".format(inert1)
+            msg += "Calculated from bulk: {}\n".format(inert2)
+            return False, msg
+        return True, ""
+
+    def _nano_particle_matches(self, conc_init, nanoparticle):
+        """Check the inertial tensor of a fixed nano particle is conserved."""
+        # Test some inertia calculation
+        from ase.build import bulk
+        from itertools import product
+        from ase.ce.tools import wrap_and_sort_by_position
+
+        lc = nanoparticle.info["lc"]
         pos = nanoparticle.get_positions()
         com = np.sum(pos, axis=0) / pos.shape[0]
         nanoparticle.translate(-com)
@@ -120,10 +135,11 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             orig_inertia[i1, i2] = np.sum(pos[:, i1] * pos[:, i2])
 
         if not np.allclose(orig_inertia, orig_inertia.T):
-            return False, "Intertia tensor of nano particle is not symmetric!"
+            raise ValueError("Intertia tensor of nano particle is not "
+                             "symmetric!")
         orig_principal = np.linalg.eigvalsh(orig_inertia)
 
-        # Now find the atom in the nanoparticle closest to the origin
+        # Now find the atom in the nanopartorig_principalicle closest to the origin
         # and put it exactly at the origin
         lengths = np.sum(pos**2, axis=1)
         indx = np.argmin(lengths)
@@ -146,7 +162,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             lengths = np.sqrt(np.sum(diff**2, axis=1))
             indx = np.argmin(lengths)
             if indx in used_sites:
-                return False, "Two symbols have the same closest atom!"
+                raise RuntimeError("Two symbols have the same closest atom!")
             blk[indx].symbol = atom.symbol
             used_sites.append(indx)
 
@@ -154,18 +170,14 @@ class TestNuclFreeEnergy( unittest.TestCase ):
         trans = 1.2 * diag
         blk.translate(trans)
         blk = wrap_and_sort_by_position(blk)
+
         # Manually alter the atoms object and rebuild the atoms list
         conc_init.fixed_nucl_mc.atoms = blk
         conc_init.fixed_nucl_mc._build_atoms_list()
 
         # Inertia tensor
         inertia_tens = conc_init.principal_inertia
-        if not np.allclose(inertia_tens, orig_principal, rtol=1E-4):
-            msg = "Inertia tensor does not match\n"
-            msg += "Original: {}\n".format(orig_principal)
-            msg += "Calculated from bulk: {}\n".format(inertia_tens)
-            return False, msg
-        return True, ""
+        return inertia_tens, orig_principal
 
 
     def test_with_inertia_reac_crd(self):
