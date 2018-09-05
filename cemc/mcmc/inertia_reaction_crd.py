@@ -1,6 +1,6 @@
 from cemc.mcmc import ReactionCrdInitializer, ReactionCrdRangeConstraint
 import numpy as np
-from itertools import combinations_with_replacement
+from itertools import product
 
 
 class CouldNotFindValidStateError(Exception):
@@ -30,12 +30,15 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
         inertia_tensor = np.zeros((3, 3))
         pos -= com
-        for comb in combinations_with_replacement(list(range(3)), 2):
+        for comb in product(list(range(3)), repeat=2):
             i1 = comb[0]
             i2 = comb[1]
             inertia_tensor[i1, i2] = np.sum(pos[:, i1] * pos[:, i2])
-        inertia_tensor += inertia_tensor.T
-        inertia_tensor *= 0.5
+
+        if not np.allclose(inertia_tensor, inertia_tensor.T):
+            msg = "Inertia tensor is not symmetric!\n"
+            msg += "Inertia tensor: {}\n".format(inertia_tensor)
+            raise RuntimeError(msg)
         return inertia_tensor
 
     @staticmethod
