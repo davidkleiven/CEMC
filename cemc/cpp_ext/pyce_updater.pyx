@@ -1,5 +1,4 @@
 # distutils: language = c++
-# distutils: sources = cpp/src/ce_updater.cpp
 
 from cemc.cpp_ext.ce_updater cimport CEUpdater
 

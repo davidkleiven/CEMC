@@ -6,11 +6,6 @@ from cemc.cpp_ext.ce_updater cimport CEUpdater
 from libcpp.string cimport string
 from cython.operator cimport dereference as deref
 
-# Forward declaraction
-cdef class PyCEUpdater:
-    cdef CEUpdater* _cpp_class
-
-
 cdef class PyClusterTracker:
     cdef ClusterTracker *_clust_track
 

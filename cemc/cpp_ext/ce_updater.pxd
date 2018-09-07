@@ -1,5 +1,8 @@
 # distutils: language = c++
 
+cdef extern from "init_numpy.hpp":
+  pass
+
 cdef extern from "ce_updater.hpp":
   cdef cppclass CEUpdater:
       CEUpdater() except +
