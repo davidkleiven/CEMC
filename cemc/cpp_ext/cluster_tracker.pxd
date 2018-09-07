@@ -1,6 +1,7 @@
 # distutils: language = c++
-from libcpp cimport string
-from cemc.cpp_ext cimport CEUpdater
+
+from libcpp.string cimport string
+from cemc.cpp_ext.ce_updater cimport CEUpdater
 
 cdef extern from "cluster_tracker.hpp":
   cdef cppclass ClusterTracker:

@@ -1,12 +1,20 @@
 # distutils: language = c++
+# distutils: sources = cpp/src/ce_updater.cpp
 
 from cemc.cpp_ext.ce_updater cimport CEUpdater
+
 
 cdef class PyCEUpdater:
     """
     Cython wrapper for the C++ class
     """
-    cdef CEUpdater _cpp_class
+    cdef CEUpdater *_cpp_class
+
+    def __cinit__(self):
+        self._cpp_class = new CEUpdater()
+
+    def __dealloc__(self):
+        del self._cpp_class
 
     def __init__(self, bc, corr_func, eci):
         self._cpp_class.init(bc, corr_func, eci)

@@ -16,10 +16,11 @@ from cemc.mcmc import linear_vib_correction as lvc
 from inspect import getargspec
 from cemc.mcmc.util import trans_matrix2listdict
 import gc
+from cemc.cpp_ext import PyCEUpdater
 
 from mpi4py import MPI
 try:
-    from cemc.ce_updater import ce_updater as ce_updater
+    # from cemc.ce_updater import ce_updater as ce_updater
     use_cpp = True
 except Exception as exc:
     use_cpp = False
@@ -175,7 +176,7 @@ class CE(Calculator):
         self.updater = None
         if use_cpp:
             print("Initializing C++ calculator...")
-            self.updater = ce_updater.CEUpdater()
+            self.updater = PyCEUpdater()
             self.updater.init(self.BC, self.cf, self.eci)
             print("C++ module initialized...")
 
