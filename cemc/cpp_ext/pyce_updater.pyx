@@ -27,6 +27,9 @@ cdef class PyCEUpdater:
     def update_cf(self, system_changes):
         self._cpp_class.update_cf(system_changes)
 
+    def calculate(self, system_changes):
+        return self._cpp_class.calculate(system_changes)
+
     def add_linear_vib_correction(self, value):
         self._cpp_class.add_linear_vib_correction(value)
 

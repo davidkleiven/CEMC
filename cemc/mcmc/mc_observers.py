@@ -2,7 +2,7 @@ import matplotlib as mpl
 from matplotlib import pyplot as plt
 import copy
 import numpy as np
-from cemc.cpp_ext import PyClusterTracker
+from cemc_cpp_code import PyClusterTracker
 from ase.io.trajectory import TrajectoryWriter
 from cemc.mcmc.averager import Averager
 from cemc.mcmc.util import waste_recycled_average
