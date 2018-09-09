@@ -1,9 +1,7 @@
 #include "wang_landau_sampler.hpp"
 #include "additional_tools.hpp"
 #include "adaptive_windows.hpp"
-#define NO_IMPORT_ARRAY
-#define PY_ARRAY_UNIQUE_SYMBOL CE_UPDATER_ARRAY_API
-#include "numpy/arrayobject.h"
+#include "use_numpy.hpp"
 #include <omp.h>
 #include <cstdlib>
 #include <ctime>

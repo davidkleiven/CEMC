@@ -1,8 +1,5 @@
 # distutils: language = c++
 
-cdef extern from "init_numpy.hpp":
-  pass
-
 cdef extern from "eshelby_tensor.hpp":
     cdef cppclass EshelbyTensor:
         EshelbyTensor(double a, double b, double c, double poisson)

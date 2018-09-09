@@ -34,4 +34,3 @@ cdef extern from "ce_updater.hpp":
       void set_ecis(object ecis)
 
       object get_singlets()
-      void get_singlets(object array)

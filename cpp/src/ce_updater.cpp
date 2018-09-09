@@ -1,8 +1,6 @@
 #include "ce_updater.hpp"
 #include <iostream>
-#define NO_IMPORT_ARRAY
-#define PY_ARRAY_UNIQUE_SYMBOL CE_UPDATER_ARRAY_API
-#include "numpy/arrayobject.h"
+#include "use_numpy.hpp"
 #include "additional_tools.hpp"
 #include <iostream>
 #include <sstream>

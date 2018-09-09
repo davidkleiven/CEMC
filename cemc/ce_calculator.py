@@ -20,7 +20,6 @@ from cemc_cpp_code import PyCEUpdater
 
 from mpi4py import MPI
 try:
-    # from cemc.ce_updater import ce_updater as ce_updater
     use_cpp = True
 except Exception as exc:
     use_cpp = False
@@ -247,8 +246,7 @@ class CE(Calculator):
         if self.updater is not None:
             # This just initialize a LinearVibCorrection object, it does not
             # change the ECIs
-            self.updater.add_linear_vib_correction(
-                ce_updater.map_str_dbl(linvib.eci_per_kbT))
+            self.updater.add_linear_vib_correction(linvib.eci_per_kbT)
 
     def include_linvib_in_ecis(self, T):
         """
@@ -337,21 +335,11 @@ class CE(Calculator):
         if (self.updater is not None):
             self.updater.set_ecis(self.eci)
 
-    def get_singlets(self, array=None):
+    def get_singlets(self):
         """
         Return the singlets
         """
-        if self.updater is None:
-            singlets = []
-            for key, value in self.cf.items():
-                if (key.startswith("c1")):
-                    singlets.append(value)
-            array = np.array(singlets)
-            return array
-        else:
-            if array is None:
-                return self.updater.get_singlets()
-            return self.updater.get_singlets(array)
+        return self.updater.get_singlets()
 
     def set_composition(self, comp):
         """

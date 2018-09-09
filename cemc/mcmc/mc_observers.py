@@ -199,8 +199,7 @@ class SGCObserver(MCObserver):
         Updates all SGC parameters
         """
         self.quantities["counter"] += 1
-        new_singlets = np.zeros_like(self.singlets)
-        self.ce_calc.get_singlets(new_singlets)
+        new_singlets = self.ce_calc.get_singlets()
 
         if self.recycle_waste:
             avg_singl = np.zeros_like(self.singlets)

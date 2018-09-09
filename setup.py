@@ -38,7 +38,7 @@ ce_updater_sources = ["ce_updater.cpp", "cf_history_tracker.cpp",
                       "named_array.cpp",
                       "row_sparse_struct_matrix.cpp", "pair_constraint.cpp",
                       "eshelby_tensor.cpp", "eshelby_sphere.cpp",
-                      "eshelby_cylinder.cpp"]
+                      "eshelby_cylinder.cpp", "init_numpy_api.cpp"]
 #
 # ce_updater_sources = ["ce_updater.cpp", "cf_history_tracker.cpp",
 #                       "additional_tools.cpp",

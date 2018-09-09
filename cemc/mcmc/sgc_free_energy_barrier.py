@@ -163,8 +163,7 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
         move_accepted = SGCMonteCarlo._accept(self, system_changes)
 
         # Now check if the move keeps us in same window
-        new_singlets = np.zeros_like(self.averager.singlets)
-        self.atoms._calc.get_singlets(new_singlets)
+        new_singlets = self.atoms._calc.get_singlets()
         singlet = new_singlets[0]
         # Set in_window to True and check if it should be False instead
         in_window = True

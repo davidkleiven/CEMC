@@ -2,7 +2,6 @@
 
 from cemc.cpp_ext.ce_updater cimport CEUpdater
 
-
 cdef class PyCEUpdater:
     """
     Cython wrapper for the C++ class
@@ -33,7 +32,7 @@ cdef class PyCEUpdater:
     def add_linear_vib_correction(self, value):
         self._cpp_class.add_linear_vib_correction(value)
 
-    def vid_energy(self, T):
+    def vib_energy(self, T):
         return self._cpp_class.vib_energy(T)
 
     def get_cf(self):
@@ -45,5 +44,5 @@ cdef class PyCEUpdater:
     def get_singlets(self):
         return self._cpp_class.get_singlets()
 
-    def get_singlets(self, array):
-        self._cpp_class.get_singlets(array)
+    def get_energy(self):
+        return self._cpp_class.get_energy()
