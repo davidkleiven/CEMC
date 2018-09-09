@@ -27,7 +27,7 @@ class PairConstraint(MCConstraint):
     """
 
     def __init__(self, calc=None, cluster_name=None, elements=None):
-        from cemc.ce_updater.ce_updater import PairConstraint as PairConstCpp
+        from cemc_cpp_code import PyPairConstraint
         super(PairConstraint, self).__init__()
         self.name = "PairConstraint"
 
@@ -54,7 +54,7 @@ class PairConstraint(MCConstraint):
         elem1 = str(self.elements[0])
         elem2 = str(self.elements[1])
         cname = str(self.cluster_name)
-        self.cpp_constraint = PairConstCpp(calc.updater, cname, elem1, elem2)
+        self.cpp_constraint = PyPairConstraint(calc.updater, cname, elem1, elem2)
 
     def __call__(self, system_changes):
         """
