@@ -3,11 +3,9 @@ language: python
 python:
   - "2.7"
   - "3.5"
-  
+
 install:
   - sudo apt-get -qq update
-  - sudo apt-get install swig3.0
-  - sudo ln -s /usr/bin/swig3.0 /usr/bin/swig
   - sudo apt-get install g++
   - sudo apt-get install mpich2
   - pip install -r requirements.txt
