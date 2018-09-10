@@ -5,7 +5,7 @@ C++ Cluster Expansion Calculator
   After the atoms object have been attached to this calculator it must not
   be altered, except via the calculator's methods. So if you for instance
   want to change the composition, use
-  :py:meth:`cemc.wanglandau.ce_calculator.set_composition`, not change
+  :py:meth:`cemc.CE.set_composition`, not change
   the elements manually.
 
 .. autoclass:: cemc.ce_calculator.CE
