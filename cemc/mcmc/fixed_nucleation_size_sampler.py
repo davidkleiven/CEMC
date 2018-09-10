@@ -47,6 +47,14 @@ class FixedNucleusMC(Montecarlo):
     def get_translated_indx(self, ref_indx, clst_indx):
         return self.bc.trans_matrix[ref_indx][clst_indx]
 
+    @property
+    def num_clusters(self):
+        self.network.reset()
+        self.network(system_changes)
+        stat = self._get_network_statistics()
+        self.network.reset()
+        return stat["number_of_clusters"]
+
     def find_cluster_indx(self):
         """
         Find the cluster indices corresponding to the current network name
@@ -106,11 +114,8 @@ class FixedNucleusMC(Montecarlo):
     def _accept(self, system_changes):
         """Accept trial move."""
         move_accepted = Montecarlo._accept(self, system_changes)
-        self.network.reset()
-        self.network(system_changes)
-        stat = self._get_network_statistics()
-        self.network.reset()
-        if stat["number_of_clusters"] != 1:
+
+        if self.num_clusters != 1:
             return False
         return move_accepted
 

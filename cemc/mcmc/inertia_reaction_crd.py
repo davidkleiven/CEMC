@@ -168,7 +168,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
             new_value = self.get(atoms)
             new_diff = abs(new_value - value)
 
-            if new_diff < current_diff:
+            if new_diff < current_diff and mc.num_clusters == 1:
                 # The candidate trial moves brings the system closer to the
                 # target value, so we accept this move
                 current_diff = new_diff
