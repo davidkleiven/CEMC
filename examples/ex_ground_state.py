@@ -74,3 +74,19 @@ for T in temps:
 
 # The Ground State Atoms object can now be obtained
 gs_atoms = obs.lowest_energy_atoms
+
+
+# A simpler approach that essentially follow exactly the same procedure
+# as above is to use the GSFinder class
+from cemc.tools import GSFinder
+gs_search = GSFinder()
+gs = gs_search.get_gs(bc, eci, temps=temps, n_steps_per_temp=100)
+
+"""
+gs is now a dictionary with the following form
+{
+    "atoms": the structure having the lowest energy
+    "energy": Energy of that structure
+    "cf": The correlation functions of the structure with the lowest energy
+}
+"""
