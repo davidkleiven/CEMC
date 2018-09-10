@@ -204,8 +204,8 @@ class TestNuclFreeEnergy( unittest.TestCase ):
                 fixed_nucl_mc=mc, matrix_element="Al",
                 cluster_elements=["Mg", "Si"])
             elements = {"Mg": 4, "Si": 4}
-            mc.insert_symbol_random_places("Mg", num=4, swap_symbs=["Al"])
-            mc.insert_symbol_random_places("Si", num=4, swap_symbs=["Al"])
+            mc.insert_symbol_random_places("Mg", num=1, swap_symbs=["Al"])
+            # mc.insert_symbol_random_places("Si", num=4, swap_symbs=["Al"])
             mc.runMC(steps=100, elements=elements)
 
             match, match_msg = self._spherical_nano_particle_matches(conc_init)

@@ -194,8 +194,19 @@ class FixedNucleusMC(Montecarlo):
         stat = self.network.get_statistics()
 
         if stat["number_of_clusters"] != 1:
+            print("Cluster statistics:")
+            print(stat)
+            indices = []
+            for atom in self.atoms:
+                if atom.symbol in unique_solute_elements:
+                    indices.append(atom.index)
+            cluster = self.atoms[indices]
+            from ase.io import write
+            fname = "invalide_cluster{}.xyz".format(self.rank)
+            write(fname, cluster)
             raise RuntimeError("There are {} clusters present! "
-                               "".format(stat["number_of_clusters"]))
+                               "Initial structure written to {}\n"
+                               "".format(stat["number_of_clusters"], fname))
 
     def get_atoms(self, atoms=None, prohib_elem=[]):
         """

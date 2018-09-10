@@ -507,20 +507,11 @@ class NetworkObserver(MCObserver):
         x = np.linspace(3, self.max_size_hist, self.nbins)
         return x, self.size_histogram
 
-    def grow_cluster(self, size):
-        """
-        Grow a cluster of the given size
-
-        :param size: Target size
-        """
-        self.fast_cluster_tracker.grow_cluster(size)
-
     def surface(self):
         """
         Computes the surface of a cluster
         """
         return self.fast_cluster_tracker.surface_python()
-
 
 class SiteOrderParameter(MCObserver):
     """
