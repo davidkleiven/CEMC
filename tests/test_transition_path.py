@@ -34,7 +34,7 @@ class TestTransitionPath(unittest.TestCase):
             T = 500
             network_name = get_example_network_name(ceBulk)
             mc = SGCNucleation( ceBulk.atoms, T, nucleation_sampler=sampler, \
-            network_name=network_name,  network_element="Mg", symbols=["Al","Mg"], \
+            network_name=[network_name],  network_element=["Mg"], symbols=["Al","Mg"], \
             chem_pot=chem_pot, allow_solutes=True )
 
             try:

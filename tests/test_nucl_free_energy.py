@@ -66,7 +66,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
 
             mc = SGCNucleation(
                 ceBulk.atoms, 300, nucleation_sampler=sampler,
-                network_name=nn_name,  network_element="Mg",
+                network_name=[nn_name],  network_element=["Mg"],
                 symbols=["Al", "Mg"], chem_pot=chem_pot)
 
             mc.runMC(steps=2)
@@ -74,7 +74,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
 
             mc = CanonicalNucleationMC(
                 ceBulk.atoms, 300, nucleation_sampler=sampler,
-                network_name=nn_name,  network_element="Mg",
+                network_name=[nn_name],  network_element=["Mg"],
                 concentration={"Al": 0.8, "Mg": 0.2}
                 )
             mc.runMC(steps=2)

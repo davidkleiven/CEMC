@@ -75,7 +75,7 @@ snapshot = Snapshot( trajfile="demo.traj", atoms=ceBulk.atoms )
 low_en = LowestEnergyStructure( calc, mc_obj )
 
 # This observer tracks networks of a certain atom type
-network_obs = NetworkObserver( calc=calc, cluster_name=get_example_network_name(ceBulk), element="Mg" )
+network_obs = NetworkObserver( calc=calc, cluster_name=[get_example_network_name(ceBulk)], element=["Mg"])
 
 # This tracks the average number of sites that where the symbol as changed
 site_order = SiteOrderParameter(ceBulk.atoms)

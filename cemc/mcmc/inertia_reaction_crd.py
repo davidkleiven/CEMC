@@ -81,6 +81,28 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         cluster = InertiaCrdInitializer.center_atoms(cluster)
         view(cluster)
 
+    @property
+    def dist_all_to_all(self):
+        """Get distance between all atoms."""
+        indx = self.indices_in_cluster
+        cluster = self.fixed_nucl_mc.atoms[indx]
+        all_distances = []
+        for indx in range(len(cluster)):
+            all_indx = list(range(len(cluster)))
+            del all_indx[indx]
+            dists = cluster.get_distances(indx, all_indx, mic=True)
+            all_distances.append(dists)
+        return all_distances
+
+    @property
+    def dist_all_to_all_flattened(self):
+        """Get a flattened list of all distances."""
+        dists = self.dist_all_to_all
+        flat_list = []
+        for sublist in dists:
+            flat_list += list(sublist)
+        return flat_list
+
     def get(self, atoms):
         """Get the inertial reaction coordinate.
 

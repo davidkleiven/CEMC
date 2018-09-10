@@ -4,6 +4,7 @@
 from cemc.cpp_ext.cluster_tracker cimport ClusterTracker
 from cemc.cpp_ext.ce_updater cimport CEUpdater
 from libcpp.string cimport string
+from libcpp.vector cimport vector
 from cython.operator cimport dereference as deref
 
 cdef class PyClusterTracker:
@@ -12,7 +13,7 @@ cdef class PyClusterTracker:
     def __cinit__(self):
         self._clust_track = NULL
 
-    def __init__(self, PyCEUpdater upd, string cname, string element):
+    def __init__(self, PyCEUpdater upd, vector[string] cname, vector[string] element):
         self._clust_track = new ClusterTracker(deref(upd._cpp_class), cname, element)
 
     def __dealloc__(PyClusterTracker self):
@@ -27,9 +28,6 @@ cdef class PyClusterTracker:
 
     def atomic_clusters2group_indx_python(self):
         return self._clust_track.get_cluster_statistics_python()
-
-    def grow_cluster(self, size):
-        self._clust_track.grow_cluster(size)
 
     def surface_python(self):
         self._clust_track.surface_python()

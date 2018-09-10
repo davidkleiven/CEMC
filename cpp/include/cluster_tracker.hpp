@@ -6,10 +6,11 @@
 #include <Python.h>
 #include "ce_updater.hpp"
 
+typedef std::vector<std::string> vecstr;
 class ClusterTracker
 {
 public:
-  ClusterTracker( CEUpdater &updater, const std::string &cname, const std::string &element );
+  ClusterTracker(CEUpdater &updater, const vecstr &cnames, const vecstr &elements);
 
   /** Search through the symbol list of CEupdater and identifies atomic clusters */
   void find_clusters();
@@ -24,9 +25,6 @@ public:
 
   /** Verifies that the cluster name provided exists */
   void verify_cluster_name_exists() const;
-
-  /** Grow a cluster of with a certain size */
-  void grow_cluster( unsigned int size );
 
   /** Get all the members of the largest cluster */
   void get_members_of_largest_cluster( std::vector<int> &members );
@@ -46,9 +44,12 @@ public:
   /** Compute the surface of the clusters and return the result in a Python dict */
   PyObject* surface_python() const;
 private:
-  std::string element;
-  std::string cname;
+  vecstr elements;
+  vecstr cnames;
   CEUpdater *updater; // Do not own this
   std::vector<int> atomic_clusters;
+
+  /** Check if the curent element is one of the cluster elements */
+  bool is_cluster_element(const std::string &elm) const;
 };
 #endif

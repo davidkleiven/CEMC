@@ -387,8 +387,9 @@ class NetworkObserver(MCObserver):
         element of the atoms in the cluster to *highlight_element*
         """
         if self.atoms_max_cluster is None:
+            from ase.build import bulk
             print("No clusters was detected!")
-            return None
+            return bulk("Al")
         group_indx_count = self.get_cluster_count()
 
         elems_in_atoms_obj = []

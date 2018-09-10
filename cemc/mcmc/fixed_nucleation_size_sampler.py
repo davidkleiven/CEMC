@@ -1,7 +1,6 @@
 from cemc.mcmc import Montecarlo
 from cemc.mcmc import NetworkObserver
 import numpy as np
-import random
 
 
 class FixedNucleusMC(Montecarlo):
@@ -25,21 +24,25 @@ class FixedNucleusMC(Montecarlo):
     def __init__(self, atoms, T, **kwargs):
         self.network_element = kwargs.pop("network_element")
         self.network_name = kwargs.pop("network_name")
+
+        if type(self.network_element) == str:
+            self.network_element = [self.network_element]
+        if type(self.network_name) == str:
+            self.network_name = [self.network_name]
+
         self.size = None
         super(FixedNucleusMC, self).__init__(atoms, T, **kwargs)
 
-        self.networks = self._init_networks()
+        self.network = self._init_networks()
         self.bc = self.atoms._calc.BC
         self.network_clust_indx = self.find_cluster_indx()
 
     def _init_networks(self):
         """Initialize the network observers."""
-        networks = []
-        for name, elm in zip(self.network_name, self.network_element):
-            network = NetworkObserver(
-                calc=self.atoms._calc, cluster_name=name, element=elm)
-            networks.append(network)
-        return networks
+        network = NetworkObserver(
+            calc=self.atoms._calc, cluster_name=self.network_name,
+            element=self.network_element)
+        return network
 
     def get_translated_indx(self, ref_indx, clst_indx):
         return self.bc.trans_matrix[ref_indx][clst_indx]
@@ -86,17 +89,9 @@ class FixedNucleusMC(Montecarlo):
                           (self.rand_b, symb_b, symb_a)]
         return system_changes
 
-    def _reset_networks(self):
-        """Reset all the networks."""
-        for network in self.networks:
-            network.reset()
-
     def _get_network_statistics(self):
         """Retrieve statistics from all networks."""
-        stat = []
-        for network in self.networks:
-            stat.append(network.get_statistics())
-        return stat
+        return self.network.get_statistics()
 
     def _size_ok(self, stat):
         """Check if the sizes are OK."""
@@ -111,12 +106,12 @@ class FixedNucleusMC(Montecarlo):
     def _accept(self, system_changes):
         """Accept trial move."""
         move_accepted = Montecarlo._accept(self, system_changes)
-        # self._reset_networks()
-        # self.network(system_changes)
-        # stat = self._get_network_statistics()
-        # self._reset_networks()
-        # if not self._size_ok(stat):
-        #     return False
+        self.network.reset()
+        self.network(system_changes)
+        stat = self._get_network_statistics()
+        self.network.reset()
+        if stat["number_of_clusters"] != 1:
+            return False
         return move_accepted
 
     def _check_nucleation_site_exists(self):
@@ -156,10 +151,12 @@ class FixedNucleusMC(Montecarlo):
                 all_elems.append(symb)
 
         ref_site = self._get_initial_site()
+        inserted_indices = []
         while all_elems:
             shuffle(self.network_clust_indx)
 
             element = choice(all_elems)
+            found_place_to_insert = False
             for net_indx in self.network_clust_indx:
                 indx = self.bc.trans_matrix[ref_site][net_indx]
                 old_symb = self.atoms[indx].symbol
@@ -170,8 +167,17 @@ class FixedNucleusMC(Montecarlo):
                 if self._no_constraint_violations([system_changes]):
                     self.atoms.get_calculator().update_cf(system_changes)
                     all_elems.remove(element)
+                    found_place_to_insert = True
+                    inserted_indices.append(indx)
                     break
-            ref_site = indx
+            if found_place_to_insert:
+                # Store the site that was inserted as a candidate to
+                # the next reference site
+                new_candidate_ref_site = indx
+            else:
+                # Did not manage to insert a new element with the current
+                # reference site, so try another reference site
+                ref_site = new_candidate_ref_site
         self._build_atoms_list()
         self.atoms.get_calculator().clear_history()
 
@@ -182,6 +188,14 @@ class FixedNucleusMC(Montecarlo):
                 raise ValueError("Inconsistent size!\n"
                                  "Should be: {}\n"
                                  "Contains: {}".format(elements, at_count))
+
+        self.network.reset()
+        self.network(None)
+        stat = self.network.get_statistics()
+
+        if stat["number_of_clusters"] != 1:
+            raise RuntimeError("There are {} clusters present! "
+                               "".format(stat["number_of_clusters"]))
 
     def get_atoms(self, atoms=None, prohib_elem=[]):
         """
@@ -194,11 +208,8 @@ class FixedNucleusMC(Montecarlo):
             self.atoms._calc.set_symbols(symbs)
             atoms = self.atoms
 
-        indices = []
-        for network in self.networks():
-            network.reset()
-            network(None)
-            indices += network.get_indices_of_largest_cluster()
+        self.network.reset()
+        indices = self.network.get_indices_of_largest_cluster()
 
         ref_atom = indices[0]
         pos = atoms.get_positions()

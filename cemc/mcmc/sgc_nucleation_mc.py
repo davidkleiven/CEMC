@@ -321,7 +321,8 @@ class SGCNucleation( SGCMonteCarlo ):
         reference_path_file = folder+"/reference_path{}.json".format(self.rank)
 
         self.network.reset()
-        self.network.grow_cluster( initial_cluster_size )
+        print("Warning! Cluster initialization does not work at the moment!")
+        # self.network.grow_cluster( initial_cluster_size )
 
         init_symbols = [atom.symbol for atom in self.atoms]
         target = "both"
@@ -392,6 +393,8 @@ class SGCNucleation( SGCMonteCarlo ):
         """
         Adds info to atoms object
         """
+        if atoms is None:
+            return
         atoms.info["is_product"] = self.is_product()
         atoms.info["is_reactant"] = self.is_reactant()
         atoms.info["cluster_size"] = self.network.max_size

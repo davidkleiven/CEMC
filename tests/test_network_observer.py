@@ -66,7 +66,7 @@ class TestNetworkObs( unittest.TestCase ):
                 if info["size"] == 2:
                     net_name = name
                     break
-            obs = NetworkObserver( calc=calc, cluster_name=net_name, element="Mg" )
+            obs = NetworkObserver( calc=calc, cluster_name=[net_name], element=["Mg"])
 
             # Several hard coded tests
             calc.update_cf( (0,"Al","Mg") )

@@ -7,8 +7,8 @@
 
 using namespace std;
 
-ClusterTracker::ClusterTracker( CEUpdater &updater, const std::string &cname, const std::string &element ): \
-updater(&updater),cname(cname),element(element)
+ClusterTracker::ClusterTracker(CEUpdater &updater, const vecstr &cname, const vecstr &elements): \
+updater(&updater),cnames(cname),elements(elements)
 {
   verify_cluster_name_exists();
 };
@@ -21,13 +21,14 @@ void ClusterTracker::find_clusters()
   {
     atomic_clusters[i] = -1; // All atoms are initially a root site
   }
+
   const vector< map<string,Cluster> >& clusters = updater->get_clusters();
   const auto& trans_mat = updater->get_trans_matrix();
 
   for ( unsigned int i=0;i<symbs.size();i++ )
   {
     // If the element does not match, do not do anything
-    if ( symbs[i] != element )
+    if ( !is_cluster_element(symbs[i]) )
     {
       continue;
     }
@@ -42,23 +43,27 @@ void ClusterTracker::find_clusters()
     // Loop over all symmetries
     for ( unsigned int trans_group=0;trans_group<clusters.size();trans_group++ )
     {
-      if ( clusters[trans_group].find(cname) == clusters[trans_group].end() )
+      for (const string &cname : cnames )
       {
-        // Cluster does not exist in this translattional symmetry group
-        continue;
-      }
-
-      const std::vector< std::vector<int> >& members = clusters[trans_group].at(cname).get();
-      for ( int subgroup=0;subgroup<members.size();subgroup++ )
-      {
-        int indx = trans_mat(i,members[subgroup][0]);
-
-        if ( symbs[indx] == element )
+        if ( clusters[trans_group].find(cname) == clusters[trans_group].end() )
         {
-          int root = root_indx(indx);
-          if ( root != current_root_indx )
+          // Cluster does not exist in this translattional symmetry group
+          continue;
+        }
+
+        const std::vector< std::vector<int> >& members = clusters[trans_group].at(cname).get();
+        for ( int subgroup=0;subgroup<members.size();subgroup++ )
+        {
+          int indx = trans_mat(i, members[subgroup][0]);
+
+          //if ( symbs[indx] == element )
+          if (is_cluster_element(symbs[indx]))
           {
-            atomic_clusters[root] = current_root_indx;
+            int root = root_indx(indx);
+            if ( root != current_root_indx )
+            {
+              atomic_clusters[root] = current_root_indx;
+            }
           }
         }
       }
@@ -181,21 +186,23 @@ void ClusterTracker::verify_cluster_name_exists() const
   vector<string> all_names;
   for ( unsigned int i=0;i<clusters.size();i++ )
   {
-    if ( clusters[i].find(cname) != clusters[i].end() )
+    for (const string &cname : cnames )
     {
-      return;
-    }
-    for ( auto iter=clusters[0].begin(); iter != clusters[0].end(); ++iter )
-    {
-      all_names.push_back( iter->first );
+      if ( clusters[i].find(cname) == clusters[i].end() )
+      {
+        for ( auto iter=clusters[0].begin(); iter != clusters[0].end(); ++iter )
+        {
+          all_names.push_back( iter->first );
+        }
+        stringstream ss;
+        ss << "There are no correlation functions corresponding to the cluster name given!\n";
+        ss << "Given: " << cnames << "\n";
+        ss << "Available names:\n";
+        ss << all_names;
+        throw invalid_argument( ss.str() );
+      }
     }
   }
-  stringstream ss;
-  ss << "There are no correlation functions corresponding to the cluster name given!\n";
-  ss << "Given: " << cname << "\n";
-  ss << "Available names:\n";
-  ss << all_names;
-  throw invalid_argument( ss.str() );
 }
 
 unsigned int ClusterTracker::root_indx_largest_cluster() const
@@ -238,89 +245,6 @@ unsigned int ClusterTracker::root_indx( unsigned int indx ) const
   return root;
 }
 
-void ClusterTracker::grow_cluster( unsigned int size )
-{
-  // Reset all atoms to a different atom
-  const vector<string> &symbs = updater->get_symbols();
-  string reset_element;
-  for ( unsigned int i=0;i<symbs.size();i++ )
-  {
-    if ( symbs[i] != element )
-    {
-      reset_element = symbs[i];
-      break;
-    }
-  }
-
-  // Reset all symbols
-  for ( unsigned int i=0;i<symbs.size();i++ )
-  {
-    SymbolChange symb_change;
-    symb_change.new_symb = reset_element;
-    symb_change.old_symb = symbs[i];
-    symb_change.indx = i;
-    updater->update_cf(symb_change);
-  }
-  updater->clear_history();
-
-  if ( size == 0 ) return;
-
-  // Start to grow a cluster from element 0
-  SymbolChange symb_change;
-  symb_change.new_symb = element;
-  symb_change.old_symb = symbs[0];
-  symb_change.indx = 0;
-  updater->update_cf( symb_change );
-
-  unsigned int num_inserted = 0;
-  const vector< map<string,Cluster> >& clusters = updater->get_clusters();
-  const auto& trans_mat = updater->get_trans_matrix();
-  unsigned int start_indx = 0;
-  unsigned int max_attempts = 200000;
-  unsigned int number_of_attempts = 0;
-  vector<int> cluster_members;
-  cluster_members.push_back(start_indx);
-  while( (num_inserted < size-1) && (number_of_attempts < max_attempts) )
-  {
-    start_indx = cluster_members[rand()%cluster_members.size()];
-    number_of_attempts++;
-    bool finished = false;
-    for ( unsigned int trans_group=0;trans_group<clusters.size();trans_group++ )
-    {
-      if ( clusters[trans_group].find(cname) == clusters[trans_group].end() )
-      {
-        // Cluster does not exist in this translattional symmetry group
-        continue;
-      }
-
-      const std::vector< std::vector<int> >& members = clusters[trans_group].at(cname).get();
-      for ( int subgroup=0;subgroup<members.size();subgroup++ )
-      {
-        int indx = trans_mat(start_indx,members[subgroup][0]);
-        if ( symbs[indx] != element )
-        {
-          SymbolChange symb_change;
-          symb_change.old_symb = symbs[indx];
-          symb_change.new_symb = element;
-          symb_change.indx = indx;
-          updater->update_cf( symb_change );
-          num_inserted++;
-          finished =  num_inserted >= size-1;
-          cluster_members.push_back(indx);
-        }
-        if ( finished ) break;
-      }
-      if ( finished ) break;
-  }
-}
-updater->clear_history();
-
-if ( number_of_attempts == max_attempts )
-{
-  throw runtime_error( "Did not manage to grow a cluster with the specified size!" );
-}
-}
-
 void ClusterTracker::surface( map<int,int> &surf ) const
 {
   const vector<string>& symbs = updater->get_symbols();
@@ -340,19 +264,22 @@ void ClusterTracker::surface( map<int,int> &surf ) const
 
       for ( unsigned int symm_group=0;symm_group<clusters.size();symm_group++ )
       {
-        if ( clusters[symm_group].find(cname) == clusters[symm_group].end() )
-        {
-          // Cluster does not exist in this translattional symmetry group
-          continue;
-        }
 
-        const vector< vector<int> >& members = clusters[symm_group].at(cname).get();
-        for ( int subgroup=0;subgroup<members.size();subgroup++ )
+        for (const string &cname : cnames )
         {
-          int indx = trans_mat( i,members[subgroup][0] );
-          if ( symbs[indx] != element )
+          if ( clusters[symm_group].find(cname) == clusters[symm_group].end() )
           {
-            surf[root] += 1;
+            // Cluster does not exist in this translattional symmetry group
+            continue;
+          }
+          const vector< vector<int> >& members = clusters[symm_group].at(cname).get();
+          for ( int subgroup=0;subgroup<members.size();subgroup++ )
+          {
+            int indx = trans_mat( i,members[subgroup][0] );
+            if (!is_cluster_element(symbs[indx]))
+            {
+              surf[root] += 1;
+            }
           }
         }
       }
@@ -374,4 +301,13 @@ PyObject* ClusterTracker::surface_python() const
     Py_DECREF(py_int_surf);
   }
   return dict;
+}
+
+bool ClusterTracker::is_cluster_element(const string &element) const
+{
+  for (const string &item : elements)
+  {
+    if (item == element) return true;
+  }
+  return false;
 }
