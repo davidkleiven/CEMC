@@ -22,7 +22,7 @@ from matplotlib import pyplot as plt
 from ase import units
 from cemc import CE
 try:
-    from cemc.ce_updater.ce_updater import WangLandauSampler
+    from cemc_cpp_code import PyWangLandauSampler
     has_fast_wl_sampler = True
 except Exception as exc:
     print (str(exc))
@@ -460,7 +460,7 @@ class WangLandau( object ):
         corrFunc = self.atoms._calc.updater.get_cf()
         ecis = self.atoms._calc.eci
 
-        fast_wl_sampler = WangLandauSampler(BC, corrFunc, ecis, self)
+        fast_wl_sampler = PyWangLandauSampler(BC, corrFunc, ecis, self)
 
         if ( mode == "adaptive_windows" ):
             fast_wl_sampler.use_adaptive_windows( minimum_window_width )
