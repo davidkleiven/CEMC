@@ -173,7 +173,7 @@ class NucleationSampler(object):
 
         if mc_obj.name == "SGCMonteCarlo":
             new_singlets = np.zeros_like(mc_obj.averager.singlets)
-            mc_obj.atoms._calc.get_singlets(new_singlets)
+            new_singlets = mc_obj.atoms._calc.get_singlets()
             self.singlets[self.current_window][indx, :] += new_singlets
 
     def _collect_results(self):

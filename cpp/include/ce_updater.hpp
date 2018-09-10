@@ -130,6 +130,7 @@ public:
 
   /** Adds a term that tracks the contribution from lattice vibrations */
   void add_linear_vib_correction( const std::map<std::string,double> &eci_per_kbT );
+  void add_linear_vib_correction(PyObject *dict);
 
   /** Converts a system change encoded as a python tuple to a SymbolChange object */
   static SymbolChange& py_tuple_to_symbol_change( PyObject *single_change, SymbolChange &symb_change );

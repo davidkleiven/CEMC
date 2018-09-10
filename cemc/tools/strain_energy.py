@@ -1,6 +1,6 @@
 """Class for calculating the strain energy of ellipsoidal inclusions."""
 import numpy as np
-from cemc.ce_updater import EshelbyTensor, EshelbySphere
+from cemc_cpp_code import PyEshelbyTensor, PyEshelbySphere
 from cemc.tools import rot_matrix, rotate_tensor, to_voigt, to_full_tensor
 from itertools import product
 from scipy.optimize import minimize
@@ -24,9 +24,9 @@ class StrainEnergy(object):
         """Return the Eshelby tensor."""
         tol = 1E-6
         if np.all(np.abs(aspect-aspect[0]) < tol):
-            eshelby = EshelbySphere(aspect[0], poisson)
+            eshelby = PyEshelbySphere(aspect[0], aspect[0], aspect[0], poisson)
         else:
-            eshelby = EshelbyTensor(aspect[0], aspect[1], aspect[2],
+            eshelby = PyEshelbyTensor(aspect[0], aspect[1], aspect[2],
                                     poisson)
         return eshelby
 

@@ -1,7 +1,7 @@
 """Unittest for the Eshelby tensor."""
 try:
     import unittest
-    from cemc.ce_updater import EshelbyTensor, EshelbySphere
+    from cemc_cpp_code import PyEshelbyTensor, PyEshelbySphere
     from itertools import product
     import numpy as np
     available = True
@@ -18,7 +18,7 @@ class TestEshelby(unittest.TestCase):
         """Test that the Eshelby tensor exhibt minor symmetry."""
         if not available:
             self.skipTest(reason)
-        e_tensor = EshelbyTensor(6.0, 5.0, 4.0, 0.3)
+        e_tensor = PyEshelbyTensor(6.0, 5.0, 4.0, 0.3)
 
         for indx in product([0, 1, 2], repeat=4):
             val1 = e_tensor(indx[0], indx[1], indx[2], indx[3])
@@ -36,7 +36,7 @@ class TestEshelby(unittest.TestCase):
         """Test constency of the Eshelby sphere class."""
         if not available:
             self.skipTest(reason)
-        E = EshelbyTensor(3.0, 1.2, 0.25, 0.27)
+        E = PyEshelbyTensor(3.0, 1.2, 0.25, 0.27)
 
         mmtensor = np.loadtxt("tests/test_data/mmtensor_ellipse.txt")
         voigt = np.array(E.aslist())
@@ -46,7 +46,7 @@ class TestEshelby(unittest.TestCase):
         """Test consistency with MM Tensor for spherical inclusion."""
         if not available:
             self.skipTest(reason)
-        E = EshelbySphere(6.0, 0.27)
+        E = PyEshelbySphere(6.0, 6.0, 6.0, 0.27)
         voigt = E.aslist()
         mmtensor = np.loadtxt("tests/test_data/mmtensor_sphere.txt")
         voigt = np.array(voigt)
@@ -56,7 +56,7 @@ class TestEshelby(unittest.TestCase):
         """Test consistency with MM Tensor for oblate sphere."""
         if not available:
             self.skipTest(reason)
-        E = EshelbyTensor(6.0, 6.0, 2.0, 0.27)
+        E = PyEshelbyTensor(6.0, 6.0, 2.0, 0.27)
         voigt = E.aslist()
         voigt = np.array(voigt)
         mmtensor = np.loadtxt("tests/test_data/mmtensor_oblate.txt")
@@ -66,7 +66,7 @@ class TestEshelby(unittest.TestCase):
         """Test consistency with MM Tensor for oblate sphere."""
         if not available:
             self.skipTest(reason)
-        E = EshelbyTensor(6.0, 4.0, 4.0, 0.27)
+        E = PyEshelbyTensor(6.0, 4.0, 4.0, 0.27)
         voigt = E.aslist()
         voigt = np.array(voigt)
         mmtensor = np.loadtxt("tests/test_data/mmtensor_prolate.txt")

@@ -1,7 +1,5 @@
 #include "histogram.hpp"
-#define NO_IMPORT_ARRAY
-#define PY_ARRAY_UNIQUE_SYMBOL CE_UPDATER_ARRAY_API
-#include "numpy/ndarrayobject.h"
+#include "use_numpy.hpp"
 #include <iostream>
 #include "additional_tools.hpp"
 #include <fstream>

@@ -4,7 +4,8 @@ from ase.build import bulk
 try:
     from ase.ce import BulkCrystal
     from ase.ce import CorrFunction
-    from cemc.wanglandau import WangLandauInit, WangLandau, WangLandauDBManager, AtomExistsError
+    from cemc.wanglandau import WangLandauInit, WangLandau, WangLandauDBManager
+    from cemc.wanglandau import AtomExistsError
     has_CE = True
 except Exception as exc:
     print (exc)
@@ -31,7 +32,7 @@ def get_eci():
     eci = {key: 0.001 for key in cf.keys()}
     return eci
 
-class TestInitWLSim( unittest.TestCase ):
+class TestInitWLSim(unittest.TestCase):
     def test_no_throw(self):
         no_throw = True
         if not has_CE:

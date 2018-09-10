@@ -1,8 +1,6 @@
 #include "ce_updater.hpp"
 #include <iostream>
-#define NO_IMPORT_ARRAY
-#define PY_ARRAY_UNIQUE_SYMBOL CE_UPDATER_ARRAY_API
-#include "numpy/arrayobject.h"
+#include "use_numpy.hpp"
 #include "additional_tools.hpp"
 #include <iostream>
 #include <sstream>
@@ -930,4 +928,17 @@ bool CEUpdater::is_swap_move(const swap_move &move) const
 {
   return (move[0].old_symb == move[1].new_symb) &&
          (move[1].new_symb == move[1].old_symb);
+}
+
+void CEUpdater::add_linear_vib_correction(PyObject *dict)
+{
+  map<string, double> linvib_corr;
+  Py_ssize_t pos = 0;
+  PyObject *key;
+  PyObject *value;
+  while( PyDict_Next(dict, &pos, &key, &value) )
+  {
+    linvib_corr[py2string(key)] = PyFloat_AS_DOUBLE(value);
+  }
+  add_linear_vib_correction(linvib_corr);
 }

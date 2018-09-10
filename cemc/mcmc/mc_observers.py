@@ -2,7 +2,7 @@ import matplotlib as mpl
 from matplotlib import pyplot as plt
 import copy
 import numpy as np
-from cemc.ce_updater import ce_updater
+from cemc_cpp_code import PyClusterTracker
 from ase.io.trajectory import TrajectoryWriter
 from cemc.mcmc.averager import Averager
 from cemc.mcmc.util import waste_recycled_average
@@ -199,8 +199,7 @@ class SGCObserver(MCObserver):
         Updates all SGC parameters
         """
         self.quantities["counter"] += 1
-        new_singlets = np.zeros_like(self.singlets)
-        self.ce_calc.get_singlets(new_singlets)
+        new_singlets = self.ce_calc.get_singlets()
 
         if self.recycle_waste:
             avg_singl = np.zeros_like(self.singlets)
@@ -312,9 +311,12 @@ class NetworkObserver(MCObserver):
             raise ValueError("No cluster name given!")
         if element is None:
             raise ValueError("No element given!")
-        self.fast_cluster_tracker = ce_updater.ClusterTracker(calc.updater,
-                                                              cluster_name,
-                                                              element)
+        # self.fast_cluster_tracker = ce_updater.ClusterTracker(calc.updater,
+        #                                                       cluster_name,
+        #                                                       element)
+        self.fast_cluster_tracker = PyClusterTracker(calc.updater,
+                                                     cluster_name,
+                                                     element)
         super(NetworkObserver, self).__init__()
         self.name = "NetworkObserver"
         self.calc = calc
