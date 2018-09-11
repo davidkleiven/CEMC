@@ -2,7 +2,6 @@ from scipy.stats import linregress
 from scipy import interpolate
 import numpy as np
 from scipy.misc import derivative
-from matplotlib import pyplot as plt
 
 class SGCToCanonicalConverter(object):
     def __init__( self, wl_analyzers, natoms ):
@@ -128,6 +127,7 @@ class SGCToCanonicalConverter(object):
         """
         Plots a binary phase diagram
         """
+        from matplotlib import pyplot as plt
         helm_holtz_energies = {}
         comps = []
         free_energies = []

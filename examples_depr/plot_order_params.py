@@ -1,12 +1,8 @@
 import numpy as np
-import matplotlib as mpl
-mpl.rcParams["svg.fonttype"] = "none"
-mpl.rcParams["font.size"] = 18
-mpl.rcParams["axes.unicode_minus"] = False
-from matplotlib import pyplot as plt
 import json
 
 def main():
+    from matplotlib import pyplot as plt
     fname = "data/pair_corrfuncs_tempdependent_gsAl7200Mg800.json"
     with open(fname,'r') as infile:
         data = json.load(infile)

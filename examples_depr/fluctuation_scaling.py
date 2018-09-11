@@ -1,16 +1,12 @@
 import numpy as np
 from scipy.stats import linregress
-import matplotlib as mpl
-mpl.rcParams["axes.unicode_minus"] = False
-mpl.rcParams["svg.fonttype"] = "none"
-mpl.rcParams["font.size"] = 18
-from matplotlib import pyplot as plt
 
 lnf = [1.3550,0.6775,0.3387,0.1693,0.0846,0.04930001,0.02110001,0.00529296875,0.002646484375,0.0013232421875,0.00066162109375,0.000330810546875,0.000165405273437,
 8.27026367187e-05,4.13513183594e-05,2.06756591797e-05]
 N = 10
 
 def var_scaling():
+    from matplotlib import pyplot as plt
     base_name = "data/HistFluct/histogram"
 
     flucts = []
@@ -34,6 +30,7 @@ def var_scaling():
     plt.show()
 
 def plot_ex_hist():
+    from matplotlib import pyplot as plt
     data = np.loadtxt( "data/examplehist.txt" )
     fig = plt.figure()
     x = np.arange(len(data))
@@ -50,6 +47,7 @@ def plot_ex_hist():
     plt.show()
 
 def conv_time_scaling():
+    from matplotlib import pyplot as plt
     lnf = [2.71,1.3550,0.6775,0.3387,0.1693,0.0846,0.04930001,0.02110001,0.0105859,0.00529296875,0.002646484375,0.0013232421875,0.00066162109375,0.000330810546875,0.000165405273437,
     8.27026367187e-05,4.13513183594e-05,2.06756591797e-05,1.03378e-05]
     fname = "data/convergence_times.csv"
@@ -91,6 +89,7 @@ def corr_plot( data ):
     """
     Create a figure of the correlation
     """
+    from matplotlib import pyplot as plt
     shifted = np.roll(data,1,axis=1)
     data = data[:,1:]
     shifted = shifted[:,1:]

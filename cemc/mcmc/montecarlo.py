@@ -8,7 +8,6 @@ import time
 import logging
 from mpi4py import MPI
 from scipy import stats
-from matplotlib import pyplot as plt
 from ase.units import kJ, mol
 from cemc.mcmc import mpi_tools
 from cemc.mcmc.exponential_filter import ExponentialFilter
@@ -401,6 +400,7 @@ class Montecarlo(object):
         self.log("Estimated correlation time: {}".format(tau))
 
         if (self.plot_debug):
+            from matplotlib import pyplot as plt
             gr_spec = {"hspace": 0.0}
             fig, ax = plt.subplots(nrows=2, gridspec_kw=gr_spec, sharex=True)
             x = np.arange(len(self.corrtime_energies))
@@ -578,6 +578,7 @@ class Montecarlo(object):
                              "{}".format(composition))
 
                 if self.plot_debug:
+                    from matplotlib import pyplot as plt
                     fig = plt.figure()
                     ax = fig.add_subplot(1, 1, 1)
                     ax.plot(np.array(all_energies) * mol / kJ)

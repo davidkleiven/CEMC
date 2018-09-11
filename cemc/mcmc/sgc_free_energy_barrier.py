@@ -8,14 +8,11 @@ import copy
 from scipy import stats
 import mpi_tools
 """
-from ase.units import kB
 from cemc.mcmc import SGCMonteCarlo
 import numpy as np
-from matplotlib import pyplot as plt
 from ase.io import write
 import json
 import time
-from cemc.mcmc.util import get_new_state, waste_recycled_accept_prob
 
 
 class SGCFreeEnergyBarrier(SGCMonteCarlo):
@@ -341,6 +338,7 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
 
         :param fname: Filename of the data file
         """
+        from matplotlib import pyplot as plt
         with open(fname, 'r') as infile:
             result = json.load(infile)
         print("Temperature: {}K".format(result["temperature"]))

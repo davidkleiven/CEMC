@@ -4,8 +4,6 @@ from cemc_cpp_code import PyEshelbyTensor, PyEshelbySphere
 from cemc.tools import rot_matrix, rotate_tensor, to_voigt, to_full_tensor
 from itertools import product
 from scipy.optimize import minimize
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import pyplot as plt
 
 
 class StrainEnergy(object):
@@ -202,6 +200,7 @@ class StrainEnergy(object):
 
     def plot_explore_result(self, explore_result, latex=False):
         """Plot a diagonistic plot over the exploration result."""
+        from matplotlib import pyplot as plt
         energies = []
         x_val = []
         for res in explore_result:
@@ -230,7 +229,7 @@ class StrainEnergy(object):
 
     def plot(self, scale_factor, elast_matrix, rot_seq=None, latex=False):
         """Create a plot of the energy as different aspect ratios."""
-
+        from matplotlib import pyplot as plt
         a_over_c = np.logspace(0, 3, 100)
         b_over_c = [1, 2, 5, 10, 50, 100]
 
@@ -284,6 +283,7 @@ class StrainEnergy(object):
 
     def show_ellipsoid(self, ellipsoid, rot_seq):
         """Show the ellipsoid at given orientation."""
+        from matplotlib import pyplot as plt
         matrix = rot_matrix(rot_seq)
         coefs = np.array(ellipsoid["aspect"])
 

@@ -2,12 +2,11 @@ from __future__ import print_function
 from cemc.mcmc import SGCNucleation
 import json
 import numpy as np
-from ase.units import kB
 from ase.io.trajectory import TrajectoryWriter
 import copy
-from matplotlib import pyplot as plt
 from ase.calculators.singlepoint import SinglePointCalculator
 import time
+
 
 class TransitionPathRelaxer(object):
     def __init__( self, nuc_mc=None ):
@@ -309,6 +308,7 @@ class TransitionPathRelaxer(object):
         """
         Create a plot to asses convergence of all the paths in the Transition Path Ensemble
         """
+        from matplotlib import pyplot as plt
         with open(path_file,'r') as infile:
             data = json.load(infile)
         try:

@@ -50,7 +50,7 @@ class FixedNucleusMC(Montecarlo):
     @property
     def num_clusters(self):
         self.network.reset()
-        self.network(system_changes)
+        self.network(None)
         stat = self._get_network_statistics()
         self.network.reset()
         return stat["number_of_clusters"]
