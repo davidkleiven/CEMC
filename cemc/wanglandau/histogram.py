@@ -3,7 +3,7 @@ from scipy import interpolate
 from cemc.wanglandau.wltools import convert_array, adapt_array
 import sqlite3 as sq
 import time
-from matplotlib import pyplot as plt
+
 
 class Histogram( object ):
     """
@@ -216,6 +216,7 @@ class Histogram( object ):
         """
         Plots the histogram, DOS and growth variance
         """
+        from matplotlib import pyplot as plt
         E = np.linspace( self.Emin, self.Emax, self.Nbins )
         fig_hist = plt.figure()
         ax_hist = fig_hist.add_subplot(1,1,1)

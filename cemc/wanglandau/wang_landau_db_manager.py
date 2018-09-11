@@ -1,17 +1,11 @@
-import sys
 import sqlite3 as sq
 import numpy as np
 from cemc.wanglandau.wl_analyzer import WangLandauSGCAnalyzer
 from cemc.wanglandau import wltools
 from ase.db import connect
 import ase.units
-from scipy import special
-import matplotlib as mpl
-mpl.rcParams["axes.unicode_minus"] = False
-mpl.rcParams["font.size"] = 18
-mpl.rcParams["svg.fonttype"] = "none"
-from matplotlib import pyplot as plt
 import copy
+
 
 class WangLandauDBManager( object ):
     def __init__( self, db_name ):

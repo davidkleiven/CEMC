@@ -4,7 +4,6 @@ from ase.build import bulk
 from ase.ce.settings import BulkCrystal
 from wanglandau.sa_sgc import SimmualtedAnnealingSGC
 from ase.visualize import view
-from matplotlib import pyplot as plt
 from mcmc import montecarlo as mc
 from mcmc import mc_observers as mc_obs
 from ase.units import kB
@@ -161,7 +160,6 @@ def main( run ):
         gs_finder.show_visit_stat()
         gs_finder.show_compositions()
     view( ceBulk.atoms )
-    #plt.show()
 
 if __name__ == "__main__":
     #run = sys.argv[1] # Run is WL or MC

@@ -2,20 +2,10 @@ from ase.calculators.calculator import Calculator
 from ase.ce.corrFunc import CorrFunction
 from ase.ce import BulkCrystal
 from ase.ce import BulkSpacegroup
-from ase.build import bulk
-import unittest
-from itertools import product, combinations
 import os
 import numpy as np
-import copy
-import matplotlib as mpl
-mpl.rcParams["svg.fonttype"] = "none"
-from matplotlib import pyplot as plt
-from ase.visualize import view
 from cemc.mcmc import linear_vib_correction as lvc
 from inspect import getargspec
-from cemc.mcmc.util import trans_matrix2listdict
-import gc
 from cemc_cpp_code import PyCEUpdater
 
 from mpi4py import MPI

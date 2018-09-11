@@ -2,7 +2,6 @@
 import numpy as np
 import pickle as pkl
 import ase.units as units
-from matplotlib import pyplot as plt
 from scipy import interpolate
 import copy
 import json
@@ -18,7 +17,6 @@ from cemc.wanglandau.settings import SimulationState
 import logging
 import time
 from cemc.wanglandau.histogram import Histogram
-from matplotlib import pyplot as plt
 from ase import units
 from cemc import CE
 try:
@@ -496,6 +494,7 @@ class WangLandau( object ):
         self.logger.info( "Simulation ended with a modification factor of {}".format(self.f) )
 
     def plot_dos( self ):
+        from matplotlib import pyplot as plt
         fig = plt.figure()
         ax = fig.add_subplot(1,1,1)
         ax.plot( self.E, self.dos, ls="steps" )
@@ -505,6 +504,7 @@ class WangLandau( object ):
         return fig
 
     def plot_histogram( self ):
+        from matplotlib import pyplot as plt
         fig = plt.figure()
         ax = fig.add_subplot(1,1,1)
         ax.plot( self.E, self.histogram, ls="steps" )
@@ -516,6 +516,7 @@ class WangLandau( object ):
         """
         Creates a plot of the growth fluctuation
         """
+        from matplotlib import pyplot as plt
         fig = plt.figure()
         ax = fig.add_subplot(1,1,1)
         ax.plot( self.E, self.get_growth_fluctuation(), ls="steps" )

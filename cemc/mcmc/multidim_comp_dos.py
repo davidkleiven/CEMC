@@ -1,4 +1,3 @@
-from matplotlib import pyplot as plt
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 
@@ -22,6 +21,7 @@ class CompositionDOS(object):
 
     def plot1D(self):
         """Plot free energy as a function of composition."""
+        from matplotlib import pyplot as plt
         fig = plt.figure()
         ax = fig.add_subplot(1, 1, 1)
         ax.plot(self.conc, self.hist, ls="steps")

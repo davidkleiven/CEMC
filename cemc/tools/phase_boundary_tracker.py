@@ -517,8 +517,15 @@ def predict_composition(
     :param target_temp: Computed composition
     """
     # With this backend one does not need a screen (useful for clusters)
-    from matplotlib import pyplot as plt
-    plt.switch_backend("Agg")
+    has_matplotlib = True
+    try:
+        from matplotlib import pyplot as plt
+        plt.switch_backend("Agg")
+    except ImportError as exc:
+        has_matplotlib = False
+        print(str(exc))
+        print("Waring! Cannot produce convregence plots without matplotlib!")
+
     if len(comp) == 0:
         return target_comp, None
     elif len(comp) <= 2:
@@ -551,9 +558,9 @@ def predict_composition(
     spl = UnivariateSpline(temperatures, comp, k=k, w=weights, s=smoothing)
     predicted_comp = spl(target_temp)
 
-    rgbimage = None
+    rgbimage = np.zeros(1)
     rank = COMM.Get_rank()
-    if rank == 0:
+    if rank == 0 and has_matplotlib:
         # Create a plot of how the spline performs
         fig = plt.figure()
         axis = fig.add_subplot(1, 1, 1)

@@ -4,6 +4,10 @@ import os
 import sys
 try:
     from ase.ce import BulkCrystal
+
+    # Import matplotlib as the examples should only be run if matplotlib
+    # is present
+    from matplotlib import pyplot as plt
     has_CE = True
 except Exception as exc:
     print (exc)

@@ -1,5 +1,4 @@
 import numpy as np
-from matplotlib import pyplot as plt
 import warnings
 warnings.simplefilter("ignore",np.RankWarning)
 
@@ -11,6 +10,7 @@ class SequencePredicter(object):
         """
         Visualize the result of the prediction
         """
+        from matplotlib import pyplot as plt
         fig = plt.figure()
         ax = fig.add_subplot(1,1,1)
         xfit = np.linspace(x[0],x[-1],100)

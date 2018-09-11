@@ -3,9 +3,7 @@ import ase.units
 from ase.db import connect
 from cemc import CE
 import time
-import matplotlib as mpl
-mpl.rcParams["svg.fonttype"] = "none"
-from matplotlib import pyplot as plt
+
 
 class SimmualtedAnnealingSGC( object ):
     def __init__( self, atoms, db_name, chem_pot=None ):
@@ -115,6 +113,7 @@ class SimmualtedAnnealingSGC( object ):
         Creates a histogram over the number of times each atom have been
         visited
         """
+        from matplotlib import pyplot as plt
         fig = plt.figure()
         ax = fig.add_subplot(1,1,1)
         ax.plot( self.visiting_statistics, ls="steps" )
@@ -126,6 +125,7 @@ class SimmualtedAnnealingSGC( object ):
         """
         Plots how the composition changes during the simmulated annealing
         """
+        from matplotlib import pyplot as plt
         fig = plt.figure()
         ax = fig.add_subplot(1,1,1)
         for key in self.comps.keys():

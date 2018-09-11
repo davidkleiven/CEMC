@@ -1,6 +1,5 @@
 from ase import units
 import numpy as np
-from matplotlib import pyplot as plt
 from scipy.stats import linregress
 from cemc.wanglandau.wltools import get_formula
 from scipy.stats import linregress
@@ -105,6 +104,7 @@ class WangLandauSGCAnalyzer( object ):
         """
         Plots the density of states
         """
+        from matplotlib import pyplot as plt
         x = 1000.0*self.E/self.n_atoms
         if ( fig is None ):
             fig = plt.figure()
@@ -214,6 +214,7 @@ class WangLandauSGCAnalyzer( object ):
         Gives an estimate plot on how much each bin contributes to the partition
         function for each contribution
         """
+        from matplotlib import pyplot as plt
         fig = plt.figure()
         ax = fig.add_subplot(1,1,1)
         low = None
