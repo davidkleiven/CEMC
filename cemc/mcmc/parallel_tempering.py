@@ -47,7 +47,7 @@ class ParallelTempering(object):
     def _init_temperature_scheme(self, target_accept=0.2):
         """Initialize the temperature scheme."""
 
-        if self._init_temperature_scheme():
+        if self._init_temperature_scheme_from_file():
             # Temperature scheme was initialized from file
             self._log("Temperature schedule was initialized from file {}"
                       "".format(self.temperature_schedule_fname))
@@ -74,7 +74,7 @@ class ParallelTempering(object):
     def _find_next_temperature(self, current_mc_obj, target_accept=0.2):
         """Find the text temperature given a target acceptance ratio."""
         from copy import deepcopy
-        nsteps = 10 * len(self.mc_obj[0].atoms)
+        nsteps = 10 * self.natoms
         current_temp = current_mc_obj.T
 
         trial_temp = current_temp/2.0
