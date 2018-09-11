@@ -311,6 +311,13 @@ class TestCE(unittest.TestCase):
         for key,value in brute_force.items():
             self.assertAlmostEqual( value, updated_cf[key] )
 
+    def test_pickle(self):
+        import pickle
+        calc, ceBulk, eci = self.get_calc("fcc")
+        pkl_str = pickle.dumps(calc)
+        pkl_load_calc = pickle.loads(pkl_str)
+        self.assertTrue(calc.eci == pkl_load_calc.eci)
+
 
 
 
