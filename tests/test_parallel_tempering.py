@@ -37,7 +37,7 @@ class TestParallelTempering(unittest.TestCase):
 
         ceBulk = self.init_bulk_crystal()
         mc = Montecarlo(ceBulk.atoms, 1000.0)
-        par_temp = ParallelTempering(mc_obj=mc, Tmax=1000.0, Tmin=100.0)
+        # par_temp = ParallelTempering(mc_obj=mc, Tmax=1000.0, Tmin=100.0)
 
 
 if __name__ == "__main__":
