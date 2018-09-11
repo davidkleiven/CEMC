@@ -28,31 +28,51 @@ CEUpdater::~CEUpdater()
 
 void CEUpdater::init(PyObject *BC, PyObject *corrFunc, PyObject *pyeci)
 {
-  //import_array();
+  if (BC == nullptr)
+  {
+    throw invalid_argument("BulkCrystal object is nullptr!");
+  }
+
   #ifdef CE_DEBUG
     cerr << "Getting symbols from BC object\n";
   #endif
   // Initialize the symbols
   atoms = PyObject_GetAttrString( BC, "atoms" );
-  if ( atoms == NULL )
+  if ( atoms == nullptr )
   {
-    status = Status_t::INIT_FAILED;
-    return;
+    throw invalid_argument("BC atoms returned NULL!");
   }
 
-  unsigned int n_atoms = PyObject_Length( atoms );
+  int n_atoms = PyObject_Length( atoms );
+  if (n_atoms < 0)
+  {
+    throw invalid_argument("Could not retrieve the length of the atoms object!");
+  }
+  
   for ( unsigned int i=0;i<n_atoms;i++ )
   {
     PyObject *pyindx = int2py(i);
-    PyObject *atom = PyObject_GetItem(atoms,pyindx);
-    symbols.push_back(py2string( PyObject_GetAttrString(atom,"symbol")) );
+    PyObject *atom = PyObject_GetItem(atoms, pyindx);
+    PyObject *pysymb = PyObject_GetAttrString(atom, "symbol");
+
+    if (pysymb == nullptr)
+    {
+      throw invalid_argument("Could not get symbol from atom!");
+    }
+    symbols.push_back(py2string(pysymb));
     Py_DECREF(pyindx);
     Py_DECREF(atom);
+    Py_DECREF(pysymb);
   }
   trans_symm_group.resize(n_atoms);
 
   // Build read the translational sites
   PyObject* py_trans_symm_group = PyObject_GetAttrString( BC, "index_by_trans_symm" );
+
+  if (py_trans_symm_group == nullptr)
+  {
+    throw invalid_argument("index_by_trans_symm is nullptr!");
+  }
   build_trans_symm_group( py_trans_symm_group );
   Py_DECREF( py_trans_symm_group );
 
@@ -62,21 +82,22 @@ void CEUpdater::init(PyObject *BC, PyObject *corrFunc, PyObject *pyeci)
 
   // Read cluster names
   create_cname_with_dec( corrFunc );
-  // PyObject *clist = PyObject_GetAttrString( BC, "cluster_names" );
-  // PyObject *clst_indx = PyObject_GetAttrString( BC, "cluster_indx" );
-  // PyObject *clst_order = PyObject_GetAttrString(BC, "cluster_order");
-  // PyObject *clst_equiv_sites = PyObject_GetAttrString(BC, "cluster_eq_sites");
+
   PyObject *py_num_elements = PyObject_GetAttrString(BC, "num_unique_elements");
+
+  if (py_num_elements == nullptr)
+  {
+    throw invalid_argument("num_unique_elements is nullptr!");
+  }
   int num_bfs = py2int(py_num_elements)-1;
   Py_DECREF(py_num_elements);
 
-  // if ( clist == NULL )
-  // {
-  //   status = Status_t::INIT_FAILED;
-  //   return;
-  // }
-
   PyObject* cluster_info = PyObject_GetAttrString(BC, "cluster_info");
+
+  if (cluster_info == nullptr)
+  {
+    throw invalid_argument("cluster_info is nullptr!");
+  }
   unsigned int num_trans_symm = PyList_Size(cluster_info);
 
   for (unsigned int i=0;i<num_trans_symm;i++)
