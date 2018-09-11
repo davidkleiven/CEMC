@@ -180,6 +180,16 @@ class CE(Calculator):
         self.set_symbols(symbols)
         self._linear_vib_correction = None
 
+    def copy(self):
+        """Create a copy of the calculator."""
+        from copy import deepcopy
+        self.atoms.set_calculator(None)
+        new_bc = deepcopy(self.BC)
+        self.atoms.set_calculator(self)
+        new_calc = CE(new_bc, eci=self.eci, initial_cf=self.get_cf())
+        new_calc.atoms.set_calculator(new_calc)
+        return new_calc
+
     def _check_trans_mat_dimensions(self):
         """
         Check that dimension of the trans matrix matches the number of atoms
