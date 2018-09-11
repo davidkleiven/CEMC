@@ -23,9 +23,6 @@ cdef class PyCEUpdater:
         self.eci = eci
         self._cpp_class.init(bc, corr_func, eci)
 
-    def __reduce__(self):
-        return (self.__class__, (self.bc, self.corr_func, self.eci))
-
     def clear_history(self):
         self._cpp_class.clear_history()
 
