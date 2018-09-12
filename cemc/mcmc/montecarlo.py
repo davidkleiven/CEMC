@@ -205,6 +205,11 @@ class Montecarlo(object):
         if attempts == max_attempts:
             raise RuntimeError("Could insert {} {} atoms!".format(num, symbol))
 
+    def set_symbols(self, symbs):
+        """Set the symbols of this Monte Carlo run."""
+        self.atoms.get_calculator().set_symbols(symbs)
+        self._build_atoms_list()
+        
     def _check_symbols(self):
         """
         Checks that there is at least to different symbols
