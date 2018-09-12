@@ -190,7 +190,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
 class InertiaRangeConstraint(ReactionCrdRangeConstraint):
     def __init__(self, fixed_nuc_mc=None, range=[0.0, 1.0], inertia_init=None):
-        super(InertiaCrdInitializer, self).__init__(self)
+        super(InertiaCrdInitializer, self).__init__()
         self.update_range(range)
         self.mc = fixed_nuc_mc
         self._inertia_init = inertia_init
