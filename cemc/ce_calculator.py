@@ -496,12 +496,19 @@ class CE(Calculator):
             json.dump(self.backup_dict(), outfile, indent=2,
                       separators=(",", ": "))
 
+    def __reduce__(self):
+        return (CE.load_from_dict, (self.backup_dict(),))
+
     @staticmethod
     def load(fname):
         import json
-        from ase.ce import BulkCrystal, BulkSpacegroup
         with open(fname, 'r') as infile:
             backup_data = json.load(infile)
+        return CE.load_from_dict(backup_data)
+
+    @staticmethod
+    def load_from_dict(backup_data):
+        from ase.ce import BulkCrystal, BulkSpacegroup
 
         classtype = backup_data["setting_kwargs"].pop("classtype")
         if classtype == "BulkCrystal":

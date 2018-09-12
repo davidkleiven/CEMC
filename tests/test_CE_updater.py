@@ -325,6 +325,13 @@ class TestCE(unittest.TestCase):
         self.assertEqual(calc.eci, calc2.eci)
         self.assertEqual(calc.get_cf(), calc2.get_cf())
 
+        # Test to pickle a calculator
+        import pickle
+        pickled_string = pickle.dumps(calc)
+        calc2 = pickle.loads(pickled_string)
+        self.assertEqual(calc.BC.cluster_info, calc2.BC.cluster_info)
+        self.assertEqual(calc.eci, calc2.eci)
+        self.assertEqual(calc.get_cf(), calc2.get_cf())
 
 if __name__ == "__main__":
     unittest.main(testRunner=TimeLoggingTestRunner)

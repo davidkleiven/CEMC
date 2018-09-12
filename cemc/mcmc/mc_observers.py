@@ -309,6 +309,9 @@ class NetworkObserver(MCObserver):
         # self.fast_cluster_tracker = ce_updater.ClusterTracker(calc.updater,
         #                                                       cluster_name,
         #                                                       element)
+        self.calc = calc
+        self.cluster_name = cluster_name
+        self.element = element
         self.fast_cluster_tracker = PyClusterTracker(calc.updater,
                                                      cluster_name,
                                                      element)
@@ -334,6 +337,10 @@ class NetworkObserver(MCObserver):
         self.num_clusters = 0
         self.nbins = nbins
         self.size_histogram = np.zeros(self.nbins)
+
+    def __reduce__(self):
+        args = (self.calc, self.cluster_name, self.element, self.nbins)
+        return (self.__class__, args)
 
     def __call__(self, system_changes):
         self.n_calls += 1

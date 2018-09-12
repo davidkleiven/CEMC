@@ -30,7 +30,10 @@ class PairConstraint(MCConstraint):
         from cemc_cpp_code import PyPairConstraint
         super(PairConstraint, self).__init__()
         self.name = "PairConstraint"
-
+        self.calc = calc
+        self.cluster_name = cluster_name
+        self.elements = elements
+        
         if calc is None:
             raise ValueError("No calculator object given!")
         elif cluster_name is None:
@@ -55,6 +58,9 @@ class PairConstraint(MCConstraint):
         elem2 = str(self.elements[1])
         cname = str(self.cluster_name)
         self.cpp_constraint = PyPairConstraint(calc.updater, cname, elem1, elem2)
+
+    def __reduce__(self):
+        return (self.__class__, (self.calc, self.cluster_name, self.elements))
 
     def __call__(self, system_changes):
         """
