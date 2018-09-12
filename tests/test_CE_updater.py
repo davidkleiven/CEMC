@@ -311,6 +311,27 @@ class TestCE(unittest.TestCase):
         for key,value in brute_force.items():
             self.assertAlmostEqual( value, updated_cf[key] )
 
+    def test_save_load_calculator(self):
+        if not has_ase_with_ce:
+            self.skipTest("ASE does not have CE")
+
+        calc, ceBulk, eci = self.get_calc("fcc")
+        calc_fname = "calculator.json"
+        calc.save(calc_fname)
+        calc2 = CE.load(calc_fname)
+        os.remove(calc_fname)
+
+        self.assertEqual(calc.BC.cluster_info, calc2.BC.cluster_info)
+        self.assertEqual(calc.eci, calc2.eci)
+        self.assertEqual(calc.get_cf(), calc2.get_cf())
+
+        # Test to pickle a calculator
+        import pickle
+        pickled_string = pickle.dumps(calc)
+        calc2 = pickle.loads(pickled_string)
+        self.assertEqual(calc.BC.cluster_info, calc2.BC.cluster_info)
+        self.assertEqual(calc.eci, calc2.eci)
+        self.assertEqual(calc.get_cf(), calc2.get_cf())
 
 if __name__ == "__main__":
     unittest.main(testRunner=TimeLoggingTestRunner)

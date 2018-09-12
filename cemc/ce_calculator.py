@@ -131,6 +131,8 @@ class CE(Calculator):
     def __init__(self, BC, eci=None, initial_cf=None):
         Calculator.__init__(self)
         self.BC = BC
+        self.BC._info_entries_to_list() # NOTE: This should be handled in the
+                                        # CE code
         self.corrFunc = CorrFunction(self.BC)
         cf_names = list(eci.keys())
         if initial_cf is None:
@@ -474,10 +476,49 @@ class CE(Calculator):
         conc = self.singlet2comp(singlets)
         self.set_composition(conc)
 
-    def write(self, fname):
+    def backup_dict(self):
+        """Return a dictionary containing all arguments for backup."""
+        backup_data = {}
+        backup_data["cf"] = self.get_cf()
+        backup_data["symbols"] = [atom.symbol for atom in self.atoms]
+        backup_data["setting_kwargs"] = self.BC.kwargs
+        backup_data["setting_kwargs"]["classtype"] = type(self.BC).__name__
+        backup_data["eci"] = self.eci
+        return backup_data
+
+    def save(self, fname):
         """
         Stores all nessecary information required to restart the calculation
         from the state it ended
         """
-        backup_data = {}
-        backup_data["cf"] = self.get_cf()
+        import json
+        with open(fname, 'w') as outfile:
+            json.dump(self.backup_dict(), outfile, indent=2,
+                      separators=(",", ": "))
+
+    def __reduce__(self):
+        return (CE.load_from_dict, (self.backup_dict(),))
+
+    @staticmethod
+    def load(fname):
+        import json
+        with open(fname, 'r') as infile:
+            backup_data = json.load(infile)
+        return CE.load_from_dict(backup_data)
+
+    @staticmethod
+    def load_from_dict(backup_data):
+        from ase.ce import BulkCrystal, BulkSpacegroup
+
+        classtype = backup_data["setting_kwargs"].pop("classtype")
+        if classtype == "BulkCrystal":
+            bc = BulkCrystal(**backup_data["setting_kwargs"])
+        elif classtype == "BulkSpacegroup":
+            bc = BulkSpacegroup(**backup_data["setting_kwargs"])
+        else:
+            raise ValueError("Unknown setting classtype: {}"
+                             "".format(backup_data["setting_kwargs"]))
+
+        for symb in backup_data["symbols"]:
+            bc.atoms.symbol = symb
+        return CE(bc, eci=backup_data["eci"], initial_cf=backup_data["cf"])

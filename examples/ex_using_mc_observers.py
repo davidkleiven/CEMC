@@ -100,7 +100,14 @@ surf = network_obs.surface()
 # Get the average number of sites changed and the standard deviation
 avg_changed, std_changed = site_order.get_average()
 
+# If we want to store an Monte carlo object and read it back later
+mc_obj.save("montecarlo.pkl")
+
+# To read it back again
+mc_obj = Montecarlo.load("montecarlo.pkl")
+
 # Remove the database
 # NOTE: don't do this if you intend to rerun a similar calculation
 import os
 os.remove("mc_obs.db")
+os.remove("montecarlo.pkl")

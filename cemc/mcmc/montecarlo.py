@@ -90,18 +90,11 @@ class Montecarlo(object):
 
         if (self.mpicomm is not None):
             self.rank = self.mpicomm.Get_rank()
-        self.logger = logging.getLogger("MonteCarlo")
-        self.logger.setLevel(logging.DEBUG)
-        if logfile == "":
-            ch = logging.StreamHandler()
-            ch.setLevel(logging.INFO)
-            self.flush_log = ch.flush
-        else:
-            ch = logging.FileHandler(logfile)
-            ch.setLevel(logging.INFO)
-            self.flush_log = ch.emit
-        if not self.logger.handlers:
-            self.logger.addHandler(ch)
+
+        self.logfile = logfile
+        self.logger = None
+        self.flush_log = None
+        self._init_loggers()
 
         # Some member variables used to update the atom tracker, only relevant
         # for canonical MC
@@ -120,7 +113,22 @@ class Montecarlo(object):
         self.filter = ExponentialFilter(min_time=0.2*len(self.atoms),
                                         max_time=20*len(self.atoms),
                                         n_subfilters=10)
+
         self.accept_first_trial_move_after_reset = True
+
+    def _init_loggers(self):
+        self.logger = logging.getLogger("MonteCarlo")
+        self.logger.setLevel(logging.DEBUG)
+        if self.logfile == "":
+            ch = logging.StreamHandler()
+            ch.setLevel(logging.INFO)
+            self.flush_log = ch.flush
+        else:
+            ch = logging.FileHandler(logfile)
+            ch.setLevel(logging.INFO)
+            self.flush_log = ch.emit
+        if not self.logger.handlers:
+            self.logger.addHandler(ch)
 
     @property
     def linear_vib_correction(self):
@@ -209,7 +217,7 @@ class Montecarlo(object):
         """Set the symbols of this Monte Carlo run."""
         self.atoms.get_calculator().set_symbols(symbs)
         self._build_atoms_list()
-        
+
     def _check_symbols(self):
         """
         Checks that there is at least to different symbols
@@ -1000,3 +1008,33 @@ class Montecarlo(object):
                 obs(system_changes)
         self.filter.add(self.current_energy)
         return self.current_energy, move_accepted
+
+    def save(self, fname):
+        """Save the current state such that we can continue later.
+
+        For easy storage of observers, constraints etc. we are going
+        to pickle the class. There are however, some members that
+        are not serializable which need special care.
+        """
+        self.logger = None
+        self.flush_log = None
+        import dill
+        with open(fname, 'wb') as outfile:
+            dill.dump(self, outfile)
+
+    @staticmethod
+    def load(fname):
+        """
+        Load from a pickled file
+
+        :param fname: Filename
+        NOTE: If some observers or constraints are not serializable, they
+              are not included and has to be added!
+        """
+        import dill
+        with open(fname, 'rb') as infile:
+            mc = dill.load(infile)
+
+        # Initialize the loggers
+        mc._init_loggers()
+        return mc

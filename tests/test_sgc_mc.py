@@ -66,6 +66,10 @@ class TestSGCMC(unittest.TestCase):
             # Make sure that there is less than 10% difference to rule
             # out obvious bugs
             self.assertLess(rel_diff, 0.1)
+
+            # Try to pickle
+            import dill
+            dill.pickles(mc)
         except Exception as exc:
             msg = str(exc)
             no_throw = False

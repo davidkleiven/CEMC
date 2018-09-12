@@ -7,3 +7,4 @@ h5py
 dataset
 spglib
 cython
+dill
