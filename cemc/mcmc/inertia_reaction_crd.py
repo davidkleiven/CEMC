@@ -1,6 +1,10 @@
 from cemc.mcmc import ReactionCrdInitializer, ReactionCrdRangeConstraint
 import numpy as np
 from itertools import product
+import time
+from mpi4py import MPI
+
+comm = MPI.COMM_WORLD
 
 
 class CouldNotFindValidStateError(Exception):
@@ -9,7 +13,10 @@ class CouldNotFindValidStateError(Exception):
 
 class InertiaCrdInitializer(ReactionCrdInitializer):
     def __init__(self, fixed_nucl_mc=None, matrix_element=None,
-                 cluster_elements=[], num_matrix_atoms_surface=1):
+                 cluster_elements=[], num_matrix_atoms_surface=1,
+                 traj_file="full_system_insertia.traj",
+                 traj_file_clst="clusters_inertial.traj",
+                 output_every=10):
         if matrix_element in cluster_elements:
             raise ValueError("InertiaCrdInitializer works only when "
                              "the matrix element is not present in the "
@@ -18,6 +25,18 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         self.cluster_elements = cluster_elements
         self.fixed_nucl_mc = fixed_nucl_mc
         self.num_matrix_atoms_surface = num_matrix_atoms_surface
+        self.output_every = output_every
+
+        size = comm.Get_size()
+        rank = comm.Get_rank()
+        if size > 1:
+            # Rename the trajectory file writer one for each process
+            fname_base = traj_file.rpartition(".")
+            traj_file = fname_base + str(rank) + ".traj"
+            fname_base = traj_file_clst.rpartition(".")
+            traj_file_clst = fname_base + str(rank) + ".traj"
+        self.traj_file = traj_file
+        self.traj_file_clst = traj_file_clst
 
     @property
     def inertia_tensor(self):
@@ -73,13 +92,17 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         princ_inertia = self.principal_inertia
         return princ_inertia / np.max(princ_inertia)
 
-    def view_cluster(self):
-        """View the cluster used for for inertial calculation."""
-        from ase.visualize import view
+    def get_cluster(self):
+        """Get atoms object with only the cluster."""
         include = self.indices_in_cluster
         cluster = self.fixed_nucl_mc.atoms[include]
         cluster = InertiaCrdInitializer.center_atoms(cluster)
-        view(cluster)
+        return cluster
+
+    def view_cluster(self):
+        """View the cluster used for for inertial calculation."""
+        from ase.visualize import view
+        view(self.get_cluster())
 
     @property
     def dist_all_to_all(self):
@@ -126,9 +149,29 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
                     num_matrix_atoms[j] += 1
         return indx[num_matrix_atoms >= self.num_matrix_atoms_surface]
 
+    def log(self, msg):
+        print(msg)
+
+    def init_from_file(self, value):
+        from ase.io.trajectory import TrajectoryReader
+        try:
+            traj = TrajectoryReader(self.traj_file)
+            for atoms in traj:
+                if len(atoms) != len(self.fixed_nucl_mc.atoms):
+                    self.log("Seems to be an old inconsistent traj. file!")
+                    return
+            values = np.array([atoms.info["inertia_crd"] for atoms in traj])
+            closest = np.argmin(np.abs(values - value))
+            symbs = [atom.symbol for atom in traj[closest]]
+            self.fixed_nucl_mc.set_symbols(symbs)
+        except IOError:
+            self.log("Could not open trajectory file. Using current state.")
+
     def set(self, atoms, value):
         """Create an atoms object with the correct reaction coordinate."""
         from random import choice, shuffle
+        from ase.io.trajectory import TrajectoryWriter
+        self.init_from_file(value)
         max_attempts = 1000 * len(self.fixed_nucl_mc.atoms)
         attempt = 0
         neighbors = self.fixed_nucl_mc.network_clust_indx
@@ -140,9 +183,17 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         should_increase_value = current_diff < value
         shoud_decrease_value = not should_increase_value
         mc = self.fixed_nucl_mc
+        mc.selected_a = None
+        mc.selected_b = None
+        mc.rand_a = None
+        mc.rand_b = None
+        output_every = 15
+        now = time.time()
+        traj_full = TrajectoryWriter(self.traj_file, mode="a")
+        traj_clst = TrajectoryWriter(self.traj_file_clst, mode="a")
         while attempt < max_attempts:
             attempt += 1
-            surf_atoms = self.surface_atoms()
+            surf_atoms = self.surface_atoms
             rand_surf_atom = choice(surf_atoms)
             rand_surf_atom2 = choice(surf_atoms)
             shuffle(neighbors)
@@ -165,17 +216,39 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
             if not found_swap_candidate:
                 continue
 
+            # Get bases its calculation on the atom tracker
+            mc._update_tracker(system_changes)
             new_value = self.get(atoms)
             new_diff = abs(new_value - value)
 
-            if new_diff < current_diff and mc.num_clusters == 1:
+            if time.time() - now > output_every:
+                self.log("Current value: {} Target value: {}"
+                         "".format(new_value, value))
+                now = time.time()
+                atoms = mc.atoms
+                info = {"inertia_crd": new_value}
+                atoms.info = info
+                traj_full.write(atoms)
+                cluster = self.get_cluster()
+                cluster.info = info
+                traj_clst.write(cluster)
+                print(atoms.get_calculator())
+                atoms.set_calculator(calc)
+
+            if new_diff < current_diff and mc.move_ok():
                 # The candidate trial moves brings the system closer to the
                 # target value, so we accept this move
                 current_diff = new_diff
                 calc.clear_history()
-                self.mc._update_tracker(system_changes)
             else:
                 calc.undo_changes()
+
+                # If rejected we have to revert the tracker
+                opposite_change = []
+                for change in system_changes:
+                    new_change = (change[0], change[2], change[1])
+                    opposite_change.append(new_change)
+                mc._update_tracker(opposite_change)
 
             if should_increase_value and new_value > value:
                 break
@@ -190,7 +263,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
 class InertiaRangeConstraint(ReactionCrdRangeConstraint):
     def __init__(self, fixed_nuc_mc=None, range=[0.0, 1.0], inertia_init=None):
-        super(InertiaCrdInitializer, self).__init__()
+        super(InertiaRangeConstraint, self).__init__()
         self.update_range(range)
         self.mc = fixed_nuc_mc
         self._inertia_init = inertia_init
@@ -203,7 +276,7 @@ class InertiaRangeConstraint(ReactionCrdRangeConstraint):
             orig_symb = self.mc.atoms[change[0]].symbol
             assert orig_symb == change[1]
             self.mc.atoms[change[0]].symbol = change[2]
-        new_val = self._insertia_init.get(None)
+        new_val = self._inertia_init.get(None)
 
         # Reset the atoms object
         self.mc.atoms = orig_atoms

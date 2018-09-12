@@ -36,6 +36,7 @@ class FixedNucleusMC(Montecarlo):
         self.network = self._init_networks()
         self.bc = self.atoms._calc.BC
         self.network_clust_indx = self.find_cluster_indx()
+        self.initial_num_atoms_in_cluster = 0
 
     def _init_networks(self):
         """Initialize the network observers."""
@@ -54,6 +55,22 @@ class FixedNucleusMC(Montecarlo):
         stat = self._get_network_statistics()
         self.network.reset()
         return stat["number_of_clusters"]
+
+    @property
+    def num_atoms_in_cluster(self):
+        self.network.reset()
+        self.network(None)
+        stat = self._get_network_statistics()
+        self.network.reset()
+        return stat["n_atoms_in_cluster"]
+
+    @property
+    def cluster_stat(self):
+        self.network.reset()
+        self.network(None)
+        stat = self._get_network_statistics()
+        self.network.reset()
+        return stat
 
     def find_cluster_indx(self):
         """
@@ -111,11 +128,19 @@ class FixedNucleusMC(Montecarlo):
             self.size = full_size
         return full_size == self.size
 
+    def move_ok(self):
+        """Check if the move is OK concenerning the cluster constraint."""
+        stat = self.cluster_stat
+        n_in_clst = stat["n_atoms_in_cluster"]
+        mv_ok = n_in_clst == self.initial_num_atoms_in_cluster
+        mv_ok = mv_ok and stat["number_of_clusters"] == 1
+        return mv_ok
+
     def _accept(self, system_changes):
         """Accept trial move."""
         move_accepted = Montecarlo._accept(self, system_changes)
 
-        if self.num_clusters != 1:
+        if not self.move_ok():
             return False
         return move_accepted
 
@@ -134,9 +159,20 @@ class FixedNucleusMC(Montecarlo):
         indx = self.atoms_indx[element][0]
         return indx
 
-    def grow_cluster(self, elements):
+    def _indices_in_spherical_neighborhood(self, radius, root):
+        """Return a list with indices in a spherical neighbor hood."""
+        indices = list(range(len(self.atoms)))
+        del indices[root]
+        dists = self.atoms.get_distances(root, indices, mic=True)
+        return [indx for indx, d in zip(indices, dists) if d < radius]
+
+    def grow_cluster(self, elements, shape="arbitrary", radius=10.0):
         """Grow a cluster of a certain size."""
         from random import choice, shuffle
+        valid_shapes = ["arbitrary", "sphere"]
+        if shape not in valid_shapes:
+            raise ValueError("shape has to be one of {}".format(valid_shapes))
+
         all_elems = []
         at_count = self.count_atoms()
         unique_solute_elements = list(elements.keys())
@@ -156,33 +192,54 @@ class FixedNucleusMC(Montecarlo):
                 all_elems.append(symb)
 
         ref_site = self._get_initial_site()
-        inserted_indices = []
-        while all_elems:
-            shuffle(self.network_clust_indx)
+        inserted_indices = [ref_site]
 
+        if shape == "arbitrary":
+            candidate_indices = list(range(len(self.atoms)))
+        elif shape == "sphere":
+            candidate_indices = self._indices_in_spherical_neighborhood(
+                radius, ref_site
+            )
+
+        if len(candidate_indices) < len(all_elems):
+            raise ValueError("The allowed indices to insert things, is "
+                             "smaller than the number of elements to insert! "
+                             "Num allowed: {} "
+                             "Num to insert: {}"
+                             "".format(len(candidate_indices), len(all_elems)))
+
+        max_attemps = 10 * len(self.atoms)
+        attempt = 0
+        while all_elems and attempt < max_attemps:
+            attempt += 1
+            shuffle(inserted_indices)
+            shuffle(self.network_clust_indx)
             element = choice(all_elems)
             found_place_to_insert = False
-            for net_indx in self.network_clust_indx:
-                indx = self.bc.trans_matrix[ref_site][net_indx]
-                old_symb = self.atoms[indx].symbol
-                if old_symb in unique_solute_elements:
-                    continue
-                system_changes = (indx, old_symb, element)
+            for ref_site in inserted_indices:
+                for net_indx in self.network_clust_indx:
+                    indx = self.bc.trans_matrix[ref_site][net_indx]
+                    old_symb = self.atoms[indx].symbol
+                    if old_symb in unique_solute_elements:
+                        continue
+                    system_changes = (indx, old_symb, element)
 
-                if self._no_constraint_violations([system_changes]):
-                    self.atoms.get_calculator().update_cf(system_changes)
-                    all_elems.remove(element)
-                    found_place_to_insert = True
-                    inserted_indices.append(indx)
+                    valid = indx in candidate_indices
+                    no_violations = self._no_constraint_violations(
+                        [system_changes])
+
+                    if no_violations and valid:
+                        self.atoms.get_calculator().update_cf(system_changes)
+                        all_elems.remove(element)
+                        found_place_to_insert = True
+                        inserted_indices.append(indx)
+                        break
+                if found_place_to_insert:
                     break
-            if found_place_to_insert:
-                # Store the site that was inserted as a candidate to
-                # the next reference site
-                new_candidate_ref_site = indx
-            else:
-                # Did not manage to insert a new element with the current
-                # reference site, so try another reference site
-                ref_site = new_candidate_ref_site
+
+        if attempt == max_attemps:
+            raise RuntimeError("Did not manage to create a valid cluster "
+                               "in {} inertion attempts".format(max_attemps))
         self._build_atoms_list()
         self.atoms.get_calculator().clear_history()
 
@@ -197,6 +254,7 @@ class FixedNucleusMC(Montecarlo):
         self.network.reset()
         self.network(None)
         stat = self.network.get_statistics()
+        self.initial_num_atoms_in_cluster = stat["n_atoms_in_cluster"]
 
         if stat["number_of_clusters"] != 1:
             print("Cluster statistics:")

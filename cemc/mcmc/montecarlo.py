@@ -137,7 +137,7 @@ class Montecarlo(object):
     @linear_vib_correction.setter
     def linear_vib_correction(self, linvib):
         self._linear_vib_correction = linvib
-        self.atoms._calc.linear_vib_correction = linvib
+        self.atoms.get_calculator().linear_vib_correction = linvib
 
     def copy(self):
         """Create a copy of this object."""
@@ -290,7 +290,7 @@ class Montecarlo(object):
         """
         Includes the vibrational ECIs in the CE ECIs
         """
-        self.atoms._calc.include_linvib_in_ecis(self.T)
+        self.atoms.get_calculator().include_linvib_in_ecis(self.T)
 
     def _build_atoms_list(self):
         """
@@ -311,8 +311,22 @@ class Montecarlo(object):
         """
         symb_a = system_changes[0][1]
         symb_b = system_changes[1][1]
-        self.atoms_indx[symb_a][self.selected_a] = self.rand_b
-        self.atoms_indx[symb_b][self.selected_b] = self.rand_a
+        rand_a = system_changes[0][0]
+        rand_b = system_changes[1][0]
+
+        if self.selected_a is None:
+            # We have not excplicitly tracked where in the datastructure
+            # the swapped elements are. We need to search for it
+            sa = self.atoms_indx[symb_a].index(rand_a)
+            sb = self.atoms_indx[symb_b].index(rand_b)
+        else:
+            sa = self.selected_a
+            sb = self.selected_b
+        # self.atoms_indx[symb_a][sa] = self.rand_b
+        # self.atoms_indx[symb_b][sb] = self.rand_a
+
+        self.atoms_indx[symb_a][sa] = rand_b
+        self.atoms_indx[symb_b][sb] = rand_a
 
     def add_constraint(self, constraint):
         """
@@ -376,7 +390,7 @@ class Montecarlo(object):
     def current_energy_without_vib(self):
         """Return current energy without the contribution from vibrations"""
         return self.current_energy - \
-            self.atoms._calc.vib_energy(self.T) * len(self.atoms)
+            self.atoms.get_calculator().vib_energy(self.T) * len(self.atoms)
 
     def _estimate_correlation_time(self, window_length=1000, restart=False):
         """Estimates the correlation time."""
@@ -901,7 +915,7 @@ class Montecarlo(object):
         """
         self.last_energies[0] = self.current_energy
 
-        self.new_energy = self.atoms._calc.calculate(
+        self.new_energy = self.atoms.get_calculator().calculate(
             self.atoms, ["energy"], system_changes)
         for bias in self.bias_potentials:
             self.new_energy += bias(system_changes)
@@ -978,15 +992,15 @@ class Montecarlo(object):
                 self.atoms[indx].symbol = old_symb
 
         # TODO: Wrap this functionality into a cleaning object
-        if (hasattr(self.atoms._calc, "clear_history")
-                and hasattr(self.atoms._calc, "undo_changes")):
+        if (hasattr(self.atoms.get_calculator(), "clear_history")
+                and hasattr(self.atoms.get_calculator(), "undo_changes")):
             # The calculator is a CE calculator which support clear_history and
             # undo_changes
             pass
         if (move_accepted):
-            self.atoms._calc.clear_history()
+            self.atoms.get_calculator().clear_history()
         else:
-            self.atoms._calc.undo_changes()
+            self.atoms.get_calculator().undo_changes()
 
         if (move_accepted):
             # Update the atom_indices
