@@ -22,6 +22,7 @@ import test_transition_path
 import test_wang_landau_init
 import test_damage_spreading_mc
 import test_pseudo_binary_sgc
+import test_parallel_tempering
 
 try:
     os.mkdir("data")
@@ -55,6 +56,7 @@ suite.addTests(loader.loadTestsFromModule(test_transition_path))
 suite.addTests(loader.loadTestsFromModule(test_wang_landau_init))
 suite.addTests(loader.loadTestsFromModule(test_damage_spreading_mc))
 suite.addTests(loader.loadTestsFromModule(test_pseudo_binary_sgc))
+suite.addTests(loader.loadTestsFromModule(test_parallel_tempering))
 
 runner = TimeLoggingTestRunner()
 result = runner.run(suite)

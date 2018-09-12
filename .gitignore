@@ -19,3 +19,4 @@ cemc/__pycache__/*
 tests/__pycache__/*
 tests/test_data/example_path_relaxed.json
 relaxed_path.traj
+*.csv

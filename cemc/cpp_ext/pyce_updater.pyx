@@ -7,7 +7,9 @@ cdef class PyCEUpdater:
     Cython wrapper for the C++ class
     """
     cdef CEUpdater *_cpp_class
-    cdef dict __dict__
+    cdef object bc
+    cdef object corr_func
+    cdef object eci
 
     def __cinit__(self):
         self._cpp_class = new CEUpdater()
@@ -16,11 +18,10 @@ cdef class PyCEUpdater:
         del self._cpp_class
 
     def __init__(self, bc, corr_func, eci):
-        self.args = (bc, corr_func, eci)
+        self.bc = bc
+        self.corr_func = corr_func
+        self.eci = eci
         self._cpp_class.init(bc, corr_func, eci)
-
-    def __reduce__(self):
-        return (rebuild_py_ce_updater, self.args)
 
     def clear_history(self):
         self._cpp_class.clear_history()
@@ -51,6 +52,3 @@ cdef class PyCEUpdater:
 
     def get_energy(self):
         return self._cpp_class.get_energy()
-
-def rebuild_py_ce_updater(bc, corr_func, eci):
-    return PyCEUpdater(bc, corr_func, eci)

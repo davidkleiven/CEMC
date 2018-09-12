@@ -131,6 +131,25 @@ class Montecarlo(object):
         self._linear_vib_correction = linvib
         self.atoms._calc.linear_vib_correction = linvib
 
+    def copy(self):
+        """Create a copy of this object."""
+        from copy import deepcopy
+        cls = self.__class__
+        other = cls.__new__(cls)
+        shallow_copies = ["mpicomm", "logger", "flush_log"]
+        for k, v in self.__dict__.items():
+            if k == "atoms":
+                # Need special handling to to the C-extension in the
+                # calculator
+                new_calc = self.atoms.get_calculator().copy()
+                setattr(other, "atoms", new_calc.atoms)
+            elif k in shallow_copies:
+                # MPI communicator will not be deep copied
+                setattr(other, k, v)
+            else:
+                setattr(other, k, deepcopy(v))
+        return other
+
     def insert_symbol(self, symb, indices):
         """Insert symbols on a predefined set of indices.
 
@@ -186,6 +205,11 @@ class Montecarlo(object):
         if attempts == max_attempts:
             raise RuntimeError("Could insert {} {} atoms!".format(num, symbol))
 
+    def set_symbols(self, symbs):
+        """Set the symbols of this Monte Carlo run."""
+        self.atoms.get_calculator().set_symbols(symbs)
+        self._build_atoms_list()
+        
     def _check_symbols(self):
         """
         Checks that there is at least to different symbols
