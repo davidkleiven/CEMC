@@ -134,7 +134,7 @@ class FixedNucleusMC(Montecarlo):
         indx = self.atoms_indx[element][0]
         return indx
 
-    def _grow_cluster(self, elements):
+    def grow_cluster(self, elements):
         """Grow a cluster of a certain size."""
         from random import choice, shuffle
         all_elems = []
@@ -249,7 +249,7 @@ class FixedNucleusMC(Montecarlo):
         """
         if init_cluster:
             self._check_nucleation_site_exists()
-            self._grow_cluster(elements)
+            self.grow_cluster(elements)
         step = 0
         while step < steps:
             step += 1
