@@ -474,10 +474,39 @@ class CE(Calculator):
         conc = self.singlet2comp(singlets)
         self.set_composition(conc)
 
+    def backup_dict(self):
+        """Return a dictionary containing all arguments for backup."""
+        backup_data = {}
+        backup_data["cf"] = self.get_cf()
+        backup_data["symbols"] = [atom.symbol for atom in self.atoms]
+        backup_data["setting_kwargs"] = self.BC.kwargs
+        backup_data["eci"] = self.eci
+        return backup_data
+
     def write(self, fname):
         """
         Stores all nessecary information required to restart the calculation
         from the state it ended
         """
-        backup_data = {}
-        backup_data["cf"] = self.get_cf()
+        import json
+        with open(fname, 'w') as outfile:
+            json.dump(self.backup_dict(), outfile, indent=2,
+                      separators=(": ", ","))
+
+    @staticmethod
+    def load(fname):
+        import json
+        from ase.ce import BulkCrystal, BulkSpacegroup
+        with open(fname, 'w') as infile:
+            backup_data = json.load(infile)
+        if backup_data["setting_kwargs"]["classtype"] == "BulkCrystal":
+            bc = BulkCrystal.load(backup_data["setting_kwargs"])
+        elif backup_data["setting_kwargs"]["classtype"] == "BulkSpacegroup":
+            bc = BulkSpacegroup.load(backup_data["setting_kwargs"])
+        else:
+            raise ValueError("Unknown setting classtype: {}"
+                             "".format(backup_data["setting_kwargs"]))
+
+        for symb in backup_data["symbols"]:
+            bc.atoms.symbol = symb
+        return CE(bc, eci=backup_data["eci"], initial_cf=backup_data["cf"])
