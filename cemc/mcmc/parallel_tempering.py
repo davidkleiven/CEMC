@@ -31,15 +31,15 @@ class ParallelTempering(object):
 
     def _init_temperature_scheme_from_file(self):
         """Initialize temperature scheme from file."""
-        from copy import deepcopy
         try:
             data = np.loadtxt(self.temperature_schedule_fname, delimiter=',')
-            data = data.tolist()
+            data = data[:, 0].tolist()
         except IOError:
             return False
 
         for T in data:
-            new_mc = deepcopy(self.mc_objs[-1])
+            new_mc = self.mc_objs[-1].copy()
+            new_mc.reset()
             new_mc.T = T
             self.mc_objs.append(new_mc)
         return True
@@ -56,32 +56,43 @@ class ParallelTempering(object):
         lowest_T = self.Tmax
         replica_count = 1
         self._log("Initializing temperature scheme")
+        self.mc_objs[0].runMC(steps=10*self.natoms, equil=False)
+
+        acceptance_ratios = [0.0]
         while lowest_T > self.Tmin:
             current_mc_obj = self.mc_objs[-1]
             self._log("{}: Temperature: {}K".format(replica_count,
                                                     current_mc_obj.T))
-            new_mc = self._find_next_temperature(
+            new_mc, new_accept = self._find_next_temperature(
                 current_mc_obj, target_accept=target_accept)
+            if new_mc is None:
+                break
+            lowest_T = new_mc.T
+            acceptance_ratios.append(new_accept)
             self.mc_objs.append(new_mc)
+            replica_count += 1
         self._log("Temperature scheme initialized...")
 
         # Save temperature scheme
         temps = self.temperature_scheme
-        np.savetxt(self.temperature_schedule_fname, temps, delimiter=",")
+        data = np.vstack((temps, acceptance_ratios)).T
+        np.savetxt(self.temperature_schedule_fname, data, delimiter=",",
+                   header="Temperature (K), Acceptance probabability")
         self._log("Temperature scheme saved to {}"
                   "".format(self.temperature_schedule_fname))
 
     def _find_next_temperature(self, current_mc_obj, target_accept=0.2):
         """Find the text temperature given a target acceptance ratio."""
-        from copy import deepcopy
         nsteps = 10 * self.natoms
         current_temp = current_mc_obj.T
 
         trial_temp = current_temp/2.0
         accept_prob = 1.0
-        new_mc_obj = deepcopy(current_mc_obj)
+        new_mc_obj = current_mc_obj.copy()
+        new_mc_obj.reset()
         cur_E = current_mc_obj.get_thermodynamic()["energy"]
         found_candidate_temp = False
+
         while accept_prob > target_accept and trial_temp > self.Tmin:
             new_mc_obj.T = trial_temp
             new_mc_obj.runMC(steps=nsteps, equil=False)
@@ -93,16 +104,16 @@ class ParallelTempering(object):
             trial_temp /= 2.0
 
         if not found_candidate_temp:
-            new_mc_obj.T = self.Tmin
-            return new_mc_obj
+            return None, 0.0
 
-        self._log("New candidate temperature: {}K".format(trial_temp))
+        self._log("New candidate temperature: {}K. Accept rate: {}"
+                  "".format(trial_temp, accept_prob))
 
         # Apply bisection method to refine the trial temperature
         converged = False
         upper_limit = current_temp
         lower_limit = trial_temp
-        min_dT = 10.0
+        min_dT = 1E-4
         while not converged:
             new_T = 0.5 * (upper_limit + lower_limit)
             new_mc_obj.T = new_T
@@ -110,6 +121,7 @@ class ParallelTempering(object):
             new_E = new_mc_obj.get_thermodynamic()["energy"]
             new_accept = self._accept_probability(cur_E, new_E,
                                                   current_temp, new_T)
+            print(new_accept)
             if new_accept > target_accept:
                 # Temperatures are too close --> lower the upper limit
                 upper_limit = new_T
@@ -121,12 +133,12 @@ class ParallelTempering(object):
                 converged = True
             elif upper_limit - lower_limit < min_dT:
                 converged = True
-        return new_mc_obj
+        return new_mc_obj, new_accept
 
     def _accept_probability(self, E1, E2, T1, T2):
         """Return the acceptance probability."""
-        dE = E2 - E1
+        dE = E1 - E2
         b1 = 1.0 / (kB * T1)
         b2 = 1.0 / (kB * T2)
-        db = b2 - b1
+        db = b1 - b2
         return np.exp(db * dE)

@@ -36,8 +36,10 @@ class TestParallelTempering(unittest.TestCase):
             self.skipTest(import_msg)
 
         ceBulk = self.init_bulk_crystal()
-        mc = Montecarlo(ceBulk.atoms, 1000.0)
-        # par_temp = ParallelTempering(mc_obj=mc, Tmax=1000.0, Tmin=100.0)
+        mc = Montecarlo(ceBulk.atoms, 100.0)
+        mc.insert_symbol_random_places("Mg", num=5, swap_symbs=["Al"])
+        mc.insert_symbol_random_places("Si", num=5, swap_symbs=["Al"])
+        par_temp = ParallelTempering(mc_obj=mc, Tmax=100.0, Tmin=0.001)
 
 
 if __name__ == "__main__":
