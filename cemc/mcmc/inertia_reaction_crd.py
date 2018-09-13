@@ -272,27 +272,40 @@ class InertiaRangeConstraint(ReactionCrdRangeConstraint):
         self.mc.selected_a = None
         self.mc.selected_b = None
 
-        # Introduce the changes to the atoms object
-        for change in system_changes:
-            orig_symb = self.mc.atoms[change[0]].symbol
-            assert orig_symb == change[1]
-            self.mc.atoms[change[0]].symbol = change[2]
-        self.mc._update_tracker(system_changes)
+        # This function can be called on various states of a MC run
+        # Sometimes the proposed move have been performed by another
+        # operation, in that case we don't alter the atoms object
+        # In other cases it has not been performed. In that case
+        # introduce the change, and reverse it at the end
+        orig_symb = self.mc.atoms[system_changes[0][0]].symbol
+        move_has_been_performed = (orig_symb != system_changes[0][1])
+
+        if not move_has_been_performed:
+            # Introduce the changes to the atoms object
+            for change in system_changes:
+                orig_symb = self.mc.atoms[change[0]].symbol
+                assert orig_symb == change[1]
+                self.mc.atoms[change[0]].symbol = change[2]
+            self.mc._update_tracker(system_changes)
+        else:
+            # Just make sure that nothing wrong happened
+            assert orig_symb == system_changes[0][2]
 
         # Get the new value of the observer
         new_val = self._inertia_init.get(None)
 
-        # Construct the opposite change
-        opposite_change = []
-        for change in system_changes:
-            new_change = (change[0], change[2], change[1])
-            opposite_change.append(new_change)
+        if not move_has_been_performed:
+            # Construct the opposite change
+            opposite_change = []
+            for change in system_changes:
+                new_change = (change[0], change[2], change[1])
+                opposite_change.append(new_change)
 
-        # Undo the changes
-        for change in opposite_change:
-            assert self.mc.atoms[change[0]].symbol == change[1]
-            self.mc.atoms[change[0]].symbol = change[2]
-        self.mc._update_tracker(opposite_change)
+            # Undo the changes
+            for change in opposite_change:
+                assert self.mc.atoms[change[0]].symbol == change[1]
+                self.mc.atoms[change[0]].symbol = change[2]
+            self.mc._update_tracker(opposite_change)
         return new_val
 
     def __call__(self, system_changes):

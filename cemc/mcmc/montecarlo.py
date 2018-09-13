@@ -886,8 +886,12 @@ class Montecarlo(object):
         """
         self.last_energies[0] = self.current_energy
 
+        # NOTE: Calculate updates the system
         self.new_energy = self.atoms.get_calculator().calculate(
             self.atoms, ["energy"], system_changes)
+
+        # NOTE: As this is called after calculate, the changes has
+        # already been introduced to the system
         for bias in self.bias_potentials:
             self.new_energy += bias(system_changes)
 

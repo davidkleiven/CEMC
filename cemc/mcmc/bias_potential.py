@@ -22,9 +22,9 @@ class BiasPotential(object):
         :param fname: Filename where a serialized version of this object
                       will be stored.
         """
-        import pickle
+        import dill
         with open(fname, 'wb') as outfile:
-            pickle.dump(self, outfile)
+            dill.dump(self, outfile)
         print("Pseudo binary free energy bias potential written to "
               "{}".format(fname))
 
@@ -37,9 +37,9 @@ class BiasPotential(object):
 
         :param fname: Filename of a serialized version of this object
         """
-        import pickle
+        import dill
         with open(fname, 'rb') as infile:
-            obj = pickle.load(infile)
+            obj = dill.load(infile)
         return obj
 
 
@@ -87,7 +87,7 @@ class SampledBiasPotential(BiasPotential):
         ax.plot(self.reac_crd, self.bias_interp(self.reac_crd))
         ax.set_xlabel("Reaction coordinate")
         ax.set_ylabel("Bias potential")
-        plt.show()
+        return fig
 
     def __iadd__(self, other):
         from scipy.interpolate import interp1d
@@ -171,14 +171,14 @@ class InertiaBiasPotential(SampledBiasPotential):
     @property
     def inertia_range(self):
         from cemc.mcmc import InertiaRangeConstraint
-        if not isinstance(self._init_range, InertiaRangeConstraint):
-            raise TypeError("init_range has to be of type "
+        if not isinstance(self._inertia_range, InertiaRangeConstraint):
+            raise TypeError("inertia_range has to be of type "
                             "InertiaRangeConstraint")
-        return self._init_range
+        return self._inertia_range
 
     @inertia_range.setter
-    def init_range(self, obj):
-        self._init_range = obj
+    def inertia_range(self, obj):
+        self._inertia_range = obj
 
     def __call__(self, system_changes):
         reac_crd = self.inertia_range.get_new_value(system_changes)
