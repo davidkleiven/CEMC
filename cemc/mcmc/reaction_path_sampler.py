@@ -202,6 +202,7 @@ class ReactionPathSampler(object):
             min, max = self._get_window_limits(self.current_window)
             self.constraint.update_range([min, max])
             self._bring_system_into_window()
+
             # Now we are in the middle of the current window, start MC
             current_step = 0
             now = time.time()

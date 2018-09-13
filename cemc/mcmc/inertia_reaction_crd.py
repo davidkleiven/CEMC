@@ -269,17 +269,30 @@ class InertiaRangeConstraint(ReactionCrdRangeConstraint):
         self._inertia_init = inertia_init
 
     def get_new_value(self, system_changes):
-        # This is not the most efficient way to to things, but it should work
-        orig_atoms = self.mc.atoms.copy()
-
+        self.mc.selected_a = None
+        self.mc.selected_b = None
+        
+        # Introduce the changes to the atoms object
         for change in system_changes:
             orig_symb = self.mc.atoms[change[0]].symbol
             assert orig_symb == change[1]
             self.mc.atoms[change[0]].symbol = change[2]
+        self.mc._update_tracker(system_changes)
+
+        # Get the new value of the observer
         new_val = self._inertia_init.get(None)
 
-        # Reset the atoms object
-        self.mc.atoms = orig_atoms
+        # Construct the opposite change
+        opposite_change = []
+        for change in system_changes:
+            new_change = (change[0], change[2], change[1])
+            opposite_change.append(new_change)
+
+        # Undo the changes
+        for change in opposite_change:
+            assert self.mc.atoms[change[0]].symbol == change[1]
+            self.mc.atoms[change[0]].symbol = change[2]
+        self.mc._update_tracker(opposite_change)
         return new_val
 
     def __call__(self, system_changes):

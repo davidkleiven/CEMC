@@ -32,9 +32,8 @@ class FixedNucleusMC(Montecarlo):
 
         self.size = None
         super(FixedNucleusMC, self).__init__(atoms, T, **kwargs)
-
         self.network = self._init_networks()
-        self.bc = self.atoms._calc.BC
+        self.bc = self.atoms.get_calculator().BC
         self.network_clust_indx = self.find_cluster_indx()
         self.initial_num_atoms_in_cluster = 0
 
