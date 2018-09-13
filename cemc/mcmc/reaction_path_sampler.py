@@ -136,8 +136,21 @@ class ReactionPathSampler(object):
         # constraint when moving from a window
         self.mc.constraints.remove(self.constraint)
 
-        # Bring the system into the new window
-        self.initializer.set(self.mc.atoms, val)
+        raised_exception = Exception("Arbitrary exception")
+        error_occured = 0
+        try:
+            # Bring the system into the new window
+            self.initializer.set(self.mc.atoms, val)
+        except Exception as exc:
+            raised_exception = exc
+            error_occured = 1
+
+        if self.mpicomm is not None:
+            error_occured = self.mpicomm.allreduce(error_occured)
+
+        # Raise exception on all processes
+        if error_occured > 0:
+            raise raised_exception
 
         # Now add the constraint again
         self.mc.add_constraint(self.constraint)
@@ -202,6 +215,10 @@ class ReactionPathSampler(object):
             min, max = self._get_window_limits(self.current_window)
             self.constraint.update_range([min, max])
             self._bring_system_into_window()
+
+            # Wait until all processor has a structure in a valid state
+            if self.mpicomm is not None:
+                self.mpicomm.barrier()
 
             # Now we are in the middle of the current window, start MC
             current_step = 0

@@ -31,9 +31,9 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         rank = comm.Get_rank()
         if size > 1:
             # Rename the trajectory file writer one for each process
-            fname_base = traj_file.rpartition(".")
+            fname_base = traj_file.rpartition(".")[0]
             traj_file = fname_base + str(rank) + ".traj"
-            fname_base = traj_file_clst.rpartition(".")
+            fname_base = traj_file_clst.rpartition(".")[0]
             traj_file_clst = fname_base + str(rank) + ".traj"
         self.traj_file = traj_file
         self.traj_file_clst = traj_file_clst
