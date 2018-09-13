@@ -83,7 +83,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
     def indices_in_cluster(self):
         include = []
         for symb in self.cluster_elements:
-            include += self.fixed_nucl_mc.atoms_indx[symb]
+            include += self.fixed_nucl_mc.atoms_tracker.tracker[symb]
         return include
 
     @property
@@ -271,7 +271,7 @@ class InertiaRangeConstraint(ReactionCrdRangeConstraint):
     def get_new_value(self, system_changes):
         self.mc.selected_a = None
         self.mc.selected_b = None
-        
+
         # Introduce the changes to the atoms object
         for change in system_changes:
             orig_symb = self.mc.atoms[change[0]].symbol

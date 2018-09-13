@@ -137,8 +137,9 @@ class ActivitySampler(Montecarlo):
             # Try to introduce another atom
             move = self.insertion_moves[np.random.randint(
                 low=0, high=len(self.insertion_moves))]
-            indices = self.atoms_indx[move[0]]
-            indx = indices[np.random.randint(low=0, high=len(indices))]
+            # indices = self.atoms_indx[move[0]]
+            # indx = indices[np.random.randint(low=0, high=len(indices))]
+            indx = self.atoms_tracker.get_random_indx_of_symbol(move[0])
             system_changes = [(indx, move[0], move[1])]
             self.current_move = self.get_key(move[0], move[1])
             return system_changes

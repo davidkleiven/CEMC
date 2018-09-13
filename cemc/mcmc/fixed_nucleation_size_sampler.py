@@ -87,30 +87,24 @@ class FixedNucleusMC(Montecarlo):
         """Generate a trial move."""
         from random import choice, shuffle
         ref_element = choice(self.network_element)
-        Na = len(self.atoms_indx[ref_element])
-        # max_rand = len(self.network_clust_indx)
-        self.selected_a = np.random.randint(low=0, high=Na)
-        self.rand_a = self.atoms_indx[ref_element][self.selected_a]
+        rand_a = self.atoms_tracker.get_random_indx_of_symbol(ref_element)
 
         # Shuffle the network indices
         shuffle(self.network_clust_indx)
         symb_b = ref_element
         while symb_b == ref_element:
             new_ref_element = choice(self.network_element)
-            Nb = len(self.atoms_indx[new_ref_element])
-            temp_rand_num_b = np.random.randint(low=0, high=Nb)
-            ref_indx = self.atoms_indx[new_ref_element][temp_rand_num_b]
+            ref_indx = self.atoms_tracker.get_random_indx_of_symbol(new_ref_element)
             for indx in self.network_clust_indx:
-                self.rand_b = self.bc.trans_matrix[ref_indx][indx]
-                symb_b = self.atoms[self.rand_b].symbol
+                rand_b = self.bc.trans_matrix[ref_indx][indx]
+                symb_b = self.atoms[rand_b].symbol
+                if symb_b != ref_element:
+                    break
 
-        # TODO: Make the next line more efficient (avoid search!)
-        self.selected_b = self.atoms_indx[symb_b].index(self.rand_b)
-
-        symb_a = self.atoms[self.rand_a].symbol
+        symb_a = self.atoms[rand_a].symbol
         assert symb_a == ref_element
-        system_changes = [(self.rand_a, symb_a, symb_b),
-                          (self.rand_b, symb_b, symb_a)]
+        system_changes = [(rand_a, symb_a, symb_b),
+                          (rand_b, symb_b, symb_a)]
         return system_changes
 
     def _get_network_statistics(self):
@@ -155,7 +149,7 @@ class FixedNucleusMC(Montecarlo):
     def _get_initial_site(self):
         """Get an initial site in the correct symm group."""
         element = self.network_element[0]
-        indx = self.atoms_indx[element][0]
+        indx = self.atoms_tracker.get_random_indx_of_symbol(element)
         return indx
 
     def _indices_in_spherical_neighborhood(self, radius, root):

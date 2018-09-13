@@ -15,6 +15,7 @@ from cemc.mcmc.averager import Averager
 from cemc.mcmc.util import waste_recycled_average, waste_recycled_accept_prob
 from cemc.mcmc.util import get_new_state
 from cemc.mcmc import BiasPotential
+from cemc.mcmc.swap_move_index_tracker import SwapMoveIndexTracker
 
 
 class DidNotReachEquillibriumError(Exception):
@@ -72,7 +73,7 @@ class Montecarlo(object):
         self.current_step = 0
         self.num_accepted = 0
         self.status_every_sec = 30
-        self.atoms_indx = {}
+        self.atoms_tracker = SwapMoveIndexTracker()
         self.symbols = []
         self._build_atoms_list()
         E0 = self.atoms.get_calculator().get_energy()
@@ -185,7 +186,8 @@ class Montecarlo(object):
         """
         from random import choice
         if not swap_symbs:
-            swap_symbs = list(self.atoms_indx.keys())
+            symbs = [atom.symbol for atom in self.atoms]
+            swap_symbs = list(set(symbs))
         num_inserted = 0
         max_attempts = 10 * len(self.atoms)
 
@@ -196,7 +198,8 @@ class Montecarlo(object):
             old_symb = choice(swap_symbs)
             if old_symb == symbol:
                 continue
-            indx = choice(self.atoms_indx[old_symb])
+
+            indx = self.atoms_tracker.get_random_indx_of_symbol(old_symb)
             if self.atoms[indx].symbol not in swap_symbs:
                 # This can happen because the atom_indx is inconsistent
                 # until after all the atoms have been inserted
@@ -297,36 +300,14 @@ class Montecarlo(object):
         Creates a dictionary of the indices of each atom which is used to
         make sure that two equal atoms cannot be swapped
         """
-        self.atoms_indx = {}
-        for atom in self.atoms:
-            if (atom.symbol not in self.atoms_indx.keys()):
-                self.atoms_indx[atom.symbol] = [atom.index]
-            else:
-                self.atoms_indx[atom.symbol].append(atom.index)
-        self.symbols = list(self.atoms_indx.keys())
+        self.atoms_tracker.init_tracker(self.atoms)
+        self.symbols = self.atoms_tracker.symbols
 
     def _update_tracker(self, system_changes):
         """
         Update the atom tracker
         """
-        symb_a = system_changes[0][1]
-        symb_b = system_changes[1][1]
-        rand_a = system_changes[0][0]
-        rand_b = system_changes[1][0]
-
-        if self.selected_a is None:
-            # We have not excplicitly tracked where in the datastructure
-            # the swapped elements are. We need to search for it
-            sa = self.atoms_indx[symb_a].index(rand_a)
-            sb = self.atoms_indx[symb_b].index(rand_b)
-        else:
-            sa = self.selected_a
-            sb = self.selected_b
-        # self.atoms_indx[symb_a][sa] = self.rand_b
-        # self.atoms_indx[symb_b][sb] = self.rand_a
-
-        self.atoms_indx[symb_a][sa] = rand_b
-        self.atoms_indx[symb_b][sb] = rand_a
+        self.atoms_tracker.update_swap_move(system_changes)
 
     def add_constraint(self, constraint):
         """
@@ -893,20 +874,10 @@ class Montecarlo(object):
         while (symb_b == symb_a):
             symb_b = self.symbols[np.random.randint(0, len(self.symbols))]
 
-        Na = len(self.atoms_indx[symb_a])
-        Nb = len(self.atoms_indx[symb_b])
-        self.selected_a = np.random.randint(0, Na)
-        self.selected_b = np.random.randint(0, Nb)
-        self.rand_a = self.atoms_indx[symb_a][self.selected_a]
-        self.rand_b = self.atoms_indx[symb_b][self.selected_b]
-
-        # TODO: The MC calculator should be able to have constraints on which
-        # moves are allowed. CE requires this some elements are only allowed to
-        # occupy some sites
-        symb_a = self.atoms[self.rand_a].symbol
-        symb_b = self.atoms[self.rand_b].symbol
-        system_changes = [(self.rand_a, symb_a, symb_b),
-                          (self.rand_b, symb_b, symb_a)]
+        rand_pos_a = self.atoms_tracker.get_random_indx_of_symbol(symb_a)
+        rand_pos_b = self.atoms_tracker.get_random_indx_of_symbol(symb_b)
+        system_changes = [(rand_pos_a, symb_a, symb_b),
+                          (rand_pos_b, symb_b, symb_a)]
         return system_changes
 
     def _accept(self, system_changes):
