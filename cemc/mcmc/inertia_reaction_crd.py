@@ -12,29 +12,20 @@ class CouldNotFindValidStateError(Exception):
 
 
 class InertiaCrdInitializer(ReactionCrdInitializer):
-    """Initializer for various version of principal moment of inertia.
-
-    :param FixedNucleusMC fixed_nuc_mc: Monte Carlo object
-    :param str matrix_element: Matrix element
-    :param list cluster_elements: Elements in the clusters
-    :param int num_matrix_atoms_surface: Number of neighboring matrix atoms
-        required if a cluster atoms should be considered to be on the
-        surface
-    :param str traj_file: Trajectory file when the system is evolved towards
-        a target value for the reaction coordinate
-    :param str traj_file_clst: Trajectory file containing only the cluster
-    :param int output_every: Interval in seconds for how often status
-        messages should be printed
-    """
     def __init__(self, fixed_nucl_mc=None, matrix_element=None,
                  cluster_elements=[], num_matrix_atoms_surface=1,
                  traj_file="full_system_insertia.traj",
                  traj_file_clst="clusters_inertial.traj",
-                 output_every=10):
+                 output_every=10, formula="I1/I3"):
         if matrix_element in cluster_elements:
             raise ValueError("InertiaCrdInitializer works only when "
                              "the matrix element is not present in the "
                              "clustering element!")
+        allowed_types = ["I1/I3", "2*I1/(I2+I3)", "(I1+I2)/(2*I3)"]
+        if formula not in allowed_types:
+            raise ValueError("formula has to be one of {}"
+                             "".format(allowed_types))
+        self.formula = formula
         self.matrix_element = matrix_element
         self.cluster_elements = cluster_elements
         self.fixed_nucl_mc = fixed_nucl_mc
@@ -54,11 +45,6 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
     @property
     def inertia_tensor(self):
-        """Calculate the inertial tensor of the cluster.
-
-        :return: Inertia tensor
-        :rtype: Numpy 3x3 matrix
-        """
         include = self.indices_in_cluster
         cluster = self.fixed_nucl_mc.atoms[include]
         cluster = InertiaCrdInitializer.center_atoms(cluster)
@@ -81,13 +67,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
     @staticmethod
     def center_atoms(atoms):
-        """Center the atoms in the cell.
-
-        :param Atoms atoms: Atoms to be centered in the cell
-
-        :return: Centered atoms object
-        :rtype: Atoms
-        """
+        """Center the atoms in the cell."""
         cell = atoms.get_cell()
         diag = 0.5 * (cell[0, :] + cell[1, :] + cell[2, :])
         indx = list(range(1, len(atoms)))
@@ -100,21 +80,12 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
     @property
     def principal_inertia(self):
-        """Calculate the inertia of the atoms in cluster elements.
-
-        :return: Principal moment of inertia
-        :rtype: numpy 1D array of length 3
-        """
+        """Calculate the inertia of the atoms in cluster elements"""
         eigv = np.linalg.eigvals(self.inertia_tensor)
         return eigv
 
     @property
     def indices_in_cluster(self):
-        """Find the indices of the atoms belonding to the cluster.
-
-        :return: Indices of the atoms in the cluster
-        :rtype: list of int
-        """
         include = []
         for symb in self.cluster_elements:
             include += self.fixed_nucl_mc.atoms_tracker.tracker[symb]
@@ -122,20 +93,12 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
     @property
     def normalized_principal_inertia(self):
-        """Principal inertia normalized by the largest component.
-
-        :return: Normalized principal inertia
-        :rtype: 1D numpy array of length 3
-        """
+        """Principal inertia normalized by the largest component."""
         princ_inertia = self.principal_inertia
         return princ_inertia / np.max(princ_inertia)
 
     def get_cluster(self):
-        """Get atoms object with only the cluster.
-
-        :return: Atoms in the cluster
-        :rtype: Atoms
-        """
+        """Get atoms object with only the cluster."""
         include = self.indices_in_cluster
         cluster = self.fixed_nucl_mc.atoms[include]
         cluster = InertiaCrdInitializer.center_atoms(cluster)
@@ -148,11 +111,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
     @property
     def dist_all_to_all(self):
-        """Get distance between all atoms.
-
-        :return: All distances between atoms in the clsuter
-        :rtype: list of numpy 1D arrays
-        """
+        """Get distance between all atoms."""
         indx = self.indices_in_cluster
         cluster = self.fixed_nucl_mc.atoms[indx]
         all_distances = []
@@ -165,11 +124,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
     @property
     def dist_all_to_all_flattened(self):
-        """Get a flattened list of all distances.
-
-        :return: Flattened distance list
-        :rtype: list of float
-        """
+        """Get a flattened list of all distances."""
         dists = self.dist_all_to_all
         flat_list = []
         for sublist in dists:
@@ -179,24 +134,22 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
     def get(self, atoms):
         """Get the inertial reaction coordinate.
 
-        :param Atoms atoms: Not used. Using the atoms object of fixed_nucl_mc.
-
-        :return: The reaction coordinate
-        :rtype: float
+        :param atoms: Not used. Using the atoms object of fixed_nucl_mc.
         """
         princ = self.principal_inertia
-        return 1.0 - np.min(princ)/np.max(princ)
-        # norm_inert = self.normalized_principal_inertia
-        # norm_inert = np.sort(norm_inert) relaxation
-        # return 1.0 - 2.0 * norm_inert[0]/(norm_inert[1] + norm_inert[2])
+
+        if self.formula == "I1/I3":
+            return 1.0 - np.min(princ)/np.max(princ)
+        elif self.formula == "2*I1/(I2+I3)":
+            return 1.0 - 2.0 * princ[0]/(princ[1] + princ[2])
+        elif self.formula == "(I1+I2)/(2*I3)":
+            return 1.0 - (princ[0] + princ[1])/(2.0*princ[2])
+        else:
+            raise ValueError("Unknown formula {}".format(self.formula))
 
     @property
     def surface_atoms(self):
-        """Return a list of atoms on a surface.
-
-        :return: Indices of the atoms on the surface
-        :rtype: list of int
-        """
+        """Return a list of atoms on a surface."""
         indx = np.array(self.indices_in_cluster)
         neighbors = self.fixed_nucl_mc.network_clust_indx
         num_matrix_atoms = np.zeros(len(indx))
@@ -212,13 +165,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         print(msg)
 
     def set(self, atoms, value):
-        """Create an atoms object with the correct reaction coordinate.
-
-        :param Atoms atom: Atoms object (not used, using the one attached
-            to the MC object). Argument only included because parent class
-            has it.
-        :param float value: Target value for the reaction coordinate
-        """
+        """Create an atoms object with the correct reaction coordinate."""
         from random import choice, shuffle
         from ase.io.trajectory import TrajectoryWriter
         max_attempts = 1000 * len(self.fixed_nucl_mc.atoms)
@@ -307,13 +254,6 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
 
 class InertiaRangeConstraint(ReactionCrdRangeConstraint):
-    """Constraint to ensure that the system stays without its bounds.
-
-    :param FixedNucleusMC fixed_nuc_mc: Monte Carlo object
-    :param list range: Upper and lower bound of the reaction coordinate
-    :param InertiaCrdInitializer inertia_init: Initializer
-    """
-
     def __init__(self, fixed_nuc_mc=None, range=[0.0, 1.0], inertia_init=None):
         super(InertiaRangeConstraint, self).__init__()
         self.update_range(range)
