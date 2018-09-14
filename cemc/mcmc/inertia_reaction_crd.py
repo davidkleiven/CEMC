@@ -131,9 +131,11 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
         :param atoms: Not used. Using the atoms object of fixed_nucl_mc.
         """
-        norm_inert = self.normalized_principal_inertia
-        norm_inert = np.sort(norm_inert)
-        return 1.0 - 2.0 * norm_inert[0]/(norm_inert[1] + norm_inert[2])
+        princ = self.principal_inertia
+        return 1.0 - np.min(princ)/np.max(princ)
+        # norm_inert = self.normalized_principal_inertia
+        # norm_inert = np.sort(norm_inert)
+        # return 1.0 - 2.0 * norm_inert[0]/(norm_inert[1] + norm_inert[2])
 
     @property
     def surface_atoms(self):
