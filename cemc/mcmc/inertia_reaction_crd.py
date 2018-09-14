@@ -1,3 +1,4 @@
+import sys
 from cemc.mcmc import ReactionCrdInitializer, ReactionCrdRangeConstraint
 import numpy as np
 from itertools import product
@@ -5,7 +6,7 @@ import time
 from mpi4py import MPI
 
 comm = MPI.COMM_WORLD
-
+rank = comm.Get_rank()
 
 class CouldNotFindValidStateError(Exception):
     pass
@@ -281,8 +282,9 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
             new_diff = abs(new_value - value)
 
             if time.time() - now > output_every:
-                self.log("Current value: {} Target value: {}"
-                         "".format(new_value, value))
+                print("Rank: {} Current value: {} Target value: {}"
+                         "".format(rank, new_value, value))
+                sys.stdout.flush()
                 now = time.time()
                 atoms = mc.atoms
                 traj_full.write(atoms)
