@@ -89,7 +89,10 @@ class ActivitySampler(Montecarlo):
         self.insertion_moves += new_moves
 
     def _filter_by_possible_moves(self):
-        """Filter out the moves that are not possible due to missing atoms."""
+        """Filter out the moves that are not possible due to missing atoms.
+
+        :return: List with filtered moves
+        """
         filtered_moves = []
         at_count = self.count_atoms()
         for move in self.insertion_moves:
@@ -125,12 +128,16 @@ class ActivitySampler(Montecarlo):
     def get_key(self, move_from, move_to):
         """
         Returns the key to the dictionary
+
+        :return: str with name of the move
         """
         return "{}to{}".format(move_from, move_to)
 
     def _get_trial_move(self):
         """
         Override the parents trial move class
+
+        :return: list of tuples describing the trial move
         """
         if (np.random.rand() < self.prob_insert_move):
             self.current_move_type = "insert_move"
@@ -150,6 +157,8 @@ class ActivitySampler(Montecarlo):
     def _accept(self, system_changes):
         """
         Override parents accept function
+
+        :return: True/False if True the move will be accepted
         """
         move_accepted = super(ActivitySampler, self)._accept(system_changes)
         if (self.current_move_type == "insert_move"):
@@ -241,6 +250,8 @@ class ActivitySampler(Montecarlo):
 
         the sums are normalized such that they results in this value
         at high temperatures.
+
+        :return: dict with the thermodynamical properties
         """
         self.collect_results()
         res = {}
