@@ -10,9 +10,12 @@ class MCConstraint(object):
     def __call__(self, system_changes):
         """Return true if the trial move is valid.
 
-        :param system_changes: List of tuples with information about the
+        :param list system_changes: List of tuples with information about the
                                changes introduced. See doc string of
                                :py:class:`cemc.mcmc.mc_observers.MCObserver`
+
+        :return: True/False, if True the move is valid
+        :rtype: bool
         """
         return True
 
@@ -21,9 +24,9 @@ class PairConstraint(MCConstraint):
     """
     Prevent two atoms to be in a pair cluster
 
-    :param atoms: Atoms object in the MC simulaton
-    :param cluster_name: Name of cluster that the pair cannot enter in
-    :param elements: List of elements not supposed to enter in a cluster
+    :param Atoms atoms: Atoms object in the MC simulaton
+    :param str cluster_name: Name of cluster that the pair cannot enter in
+    :param list elements: Elements not supposed to enter in a cluster
     """
 
     def __init__(self, calc=None, cluster_name=None, elements=None):
@@ -33,7 +36,7 @@ class PairConstraint(MCConstraint):
         self.calc = calc
         self.cluster_name = cluster_name
         self.elements = elements
-        
+
         if calc is None:
             raise ValueError("No calculator object given!")
         elif cluster_name is None:
@@ -65,6 +68,11 @@ class PairConstraint(MCConstraint):
     def __call__(self, system_changes):
         """
         Check if there are any pairs of the two atoms.
+
+        :param list system_changes: Proposed changes
+
+        :return: True/False if constraint is violated
+        :rtype: bool
         """
 
         # Force the calculator to update the symbols
@@ -75,7 +83,7 @@ class FixedElement(MCConstraint):
     """
     Prevents an element to be moved
 
-    :param element: Element to fix
+    :param str element: Element to fix
     """
 
     def __init__(self, element=None):
@@ -86,6 +94,11 @@ class FixedElement(MCConstraint):
     def __call__(self, system_changes):
         """
         Check if the *element* is involved in any of the changes
+
+        :param list system_changes: Proposed changes
+
+        :return: True/False, if True, the move is valid
+        :rtype: bool
         """
         for change in system_changes:
             if change[0] == self.element or change[1] == self.element:
