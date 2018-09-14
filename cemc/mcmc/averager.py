@@ -7,7 +7,12 @@ class Averager(object):
 
     def __iadd__(self, value):
         """
-        Implement += operator
+        += Operator
+
+        :param float value: Value to be added
+
+        :return: Self
+        :rtype: Averager
         """
         if isinstance(value, Averager):
             self._mean += value._mean*(value._ref_value/self._ref_value)
@@ -19,6 +24,13 @@ class Averager(object):
         return self
 
     def __add__(self, other):
+        """Add to Averager objects.
+
+        :param Averager other: Object to be added
+
+        :return: New Averager instance
+        :rtype: Averager
+        """
         ratio = (other._ref_value/self._ref_value)
         new_obj = Averager(ref_value=self._ref_value)
         new_obj._mean = self._mean + other._mean*ratio
@@ -29,6 +41,13 @@ class Averager(object):
         return self.__idiv__(number)
 
     def __idiv__(self, number):
+        """Divide by number.
+
+        :param float number: Number to divide by
+
+        :return: self
+        :rtype: Averager
+        """
         self._mean /= float(number)
         self._n_samples /= float(number)
         return self
