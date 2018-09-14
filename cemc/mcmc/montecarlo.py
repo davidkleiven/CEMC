@@ -37,15 +37,15 @@ class Montecarlo(object):
     """
     Class for running Monte Carlo at fixed composition
 
-    :param atoms: ASE atoms object (with CE calculator attached!)
-    :param temp: Temperature of Monte Carlo simulation in Kelvin
-    :param indeces: List of atoms involved Monte Carlo swaps. default is all
+    :param Atoms atoms: ASE atoms object (with CE calculator attached!)
+    :param float temp: Temperature of Monte Carlo simulation in Kelvin
+    :param list indeces: Atoms involved Monte Carlo swaps. default is all
                     atoms (currently this has no effect!).
-    :param mpicomm: MPI communicator object
-    :param logfile: Filename for logging (default is logging to console)
-    :param plot_debug: If True it will create some diagnositc plots during
+    :param Intracomm mpicomm: MPI communicator object
+    :param str logfile: Filename for logging (default is logging to console)
+    :param bool plot_debug: If True it will create some diagnositc plots during
                        equilibration
-    :param recycle_waste: If True also rejected states will be used to estimate
+    :param bool recycle_waste: If True also rejected states will be used to estimate
                           averages
     """
 
@@ -141,7 +141,11 @@ class Montecarlo(object):
         self.atoms.get_calculator().linear_vib_correction = linvib
 
     def copy(self):
-        """Create a copy of this object."""
+        """Create a copy of this object.
+
+        :return: A new Montecarlo instance
+        :rtype: :py:class:`cemc.mcmc.Montecarlo`
+        """
         from copy import deepcopy
         cls = self.__class__
         other = cls.__new__(cls)
@@ -162,8 +166,8 @@ class Montecarlo(object):
     def insert_symbol(self, symb, indices):
         """Insert symbols on a predefined set of indices.
 
-        :param symb: Symbol to be inserted
-        :param indices: Indices where symb should be inserted
+        :param str symb: Symbol to be inserted
+        :param list indices: Indices where symb should be inserted
         """
         calc = self.atoms.get_calculator()
         for indx in indices:
@@ -179,9 +183,9 @@ class Montecarlo(object):
     def insert_symbol_random_places(self, symbol, num=1, swap_symbs=[]):
         """Insert random symbol.
 
-        :param symbol: Symbol to insert
-        :param num: Number of sites
-        :param swap_symbs: If given, will insert replace symbol with sites
+        :param str symbol: Symbol to insert
+        :param int num: Number of sites
+        :param list swap_symbs: If given, will insert replace symbol with sites
                           having symbols in this list
         """
         from random import choice
@@ -217,7 +221,11 @@ class Montecarlo(object):
             raise RuntimeError("Could insert {} {} atoms!".format(num, symbol))
 
     def set_symbols(self, symbs):
-        """Set the symbols of this Monte Carlo run."""
+        """Set the symbols of this Monte Carlo run.
+
+        :param list: Symbols to insert. Has to have the same length as the
+            attached atoms object
+        """
         self.atoms.get_calculator().set_symbols(symbs)
         self._build_atoms_list()
 
@@ -264,8 +272,11 @@ class Montecarlo(object):
         """
         Checks if the proposed moves violates any of the constraints
 
-        :param system_changes: Changes of the proposed move
+        :param list system_changes: Changes of the proposed move
             see :py:class:`cemc.mcmc.mc_observers.MCObserver`
+
+        :return: True/False if True then no constraints are violated
+        :rtype: bool
         """
         for constraint in self.constraints:
             if not constraint(system_changes):
@@ -313,12 +324,15 @@ class Montecarlo(object):
         """
         Add a new constraint to the sampler
 
-        :param constraint: Instance of :py:class:`cemc.mcmc.mc_constraints.MCConstraint`
+        :param MCConstraint constraint: Constraint
         """
         self.constraints.append(constraint)
 
     def add_bias(self, potential):
-        """Add a new bias potential."""
+        """Add a new bias potential.
+
+        :param BiasPotential potential: Potential to be added
+        """
         if not isinstance(potential, BiasPotential):
             raise TypeError("potential has to be of type BiasPotential")
         self.bias_potentials.append(potential)
@@ -328,8 +342,8 @@ class Montecarlo(object):
         Attach observers that is called on each MC step
         and receives information of which atoms get swapped
 
-        :param obs: Instance of the MCObserver class
-        :param interval: the obs.__call__ method is called at mc steps
+        :param MCObserver obs: Observer to be added
+        :param int interval: the obs.__call__ method is called at mc steps
                          separated by interval
         """
         if (callable(obs)):
@@ -341,6 +355,9 @@ class Montecarlo(object):
         """
         Return the variance of the average energy, taking into account
         the auto correlation time
+
+        :return: variance of the average energy
+        :rtype: float
         """
 
         # First collect the energies from all processors
@@ -369,7 +386,11 @@ class Montecarlo(object):
         return 2.0 * var * tau / (self.current_step * nproc)
 
     def current_energy_without_vib(self):
-        """Return current energy without the contribution from vibrations"""
+        """Ccurrent energy without the contribution from vibrations
+
+        :return: Energy where the vibrational energy has been subtracted
+        :rtype: float
+        """
         return self.current_energy - \
             self.atoms.get_calculator().vib_energy(self.T) * len(self.atoms)
 
@@ -447,9 +468,9 @@ class Montecarlo(object):
         Default the simulation runs at fixed composition so
         this function just returns True
 
-        :param prev_composition: Previous composition
-        :param var_prev: Variance of the composition
-        :param confidence_level: Confidence level used for testing
+        :param list prev_composition: Previous composition
+        :param list var_prev: Variance of the composition
+        :param float confidence_level: Confidence level used for testing
         """
         return True, prev_composition, var_prev, 0.0
 
@@ -458,10 +479,10 @@ class Montecarlo(object):
         """
         Run MC until equillibrium is reached.
 
-        :param window_length: the length of the window used to compare averages
+        :param int window_length: the length of the window used to compare averages
                      if window_lenth='auto' then the length of window is set to
                      10*len(self.atoms)
-        :param confidence_level: Confidence level used in hypothesis testing
+        :param float confidence_level: Confidence level used in hypothesis testing
                      The question asked in the hypothesis testing is:
                      Given that the two windows have the same average
                      and the variance observed (null hypothesis is correct),
@@ -478,7 +499,7 @@ class Montecarlo(object):
                      the variance is underestimated. Hence, one can
                      safely use a lower confidence level.
 
-        :param maxiter: The maximum number of windows it will try to sample.
+        :param int maxiter: The maximum number of windows it will try to sample.
             If it reaches this number of iteration the algorithm will
             raise an error
         """
@@ -630,7 +651,12 @@ class Montecarlo(object):
 
     def _has_converged_prec_mode(self, prec=0.01, confidence_level=0.05,
                                  log_status=False):
-        """Return True if the simulation has converged in the precision mode"""
+        """Return True if the simulation has converged in the precision mode.abs
+
+        :param float prec: Relative precission
+        :param float confidence_level: Confidence leve in hypothesis testing
+        :param bool log_state: Log status during run
+        """
         percentile = stats.norm.ppf(1.0 - confidence_level)
         var_E = self._get_var_average_energy()
         converged = (var_E < (prec * len(self.atoms) / percentile)**2)
@@ -695,7 +721,7 @@ class Montecarlo(object):
         The behavior is that if one processor reached equillibrium the
         simulation can continue
 
-        :param reached_equil: Flag True if equillibrium was reached. False otherwise
+        :param bool reached_equil: Flag True if equillibrium was reached.
         """
         if self.mpicomm is None:
             return reached_equil
@@ -713,15 +739,17 @@ class Montecarlo(object):
               equil_params={}, prec=0.01, prec_confidence=0.05):
         """Run Monte Carlo simulation
 
-        :param steps: Number of steps in the MC simulation
-        :param verbose: If True information is printed on each step
-        :param equil: If the True the MC steps will be performed until equillibrium is reached
-        :param equil_params: Dictionary of parameters used in the equillibriation routine
-                             See the doc-string of :py:meth:`cemc.mcmc.Montecarlo._equillibriate` for more
+        :param int steps: Number of steps in the MC simulation
+        :param bool verbose: If True information is printed on each step
+        :param bool equil: If the True the MC steps will be performed until equillibrium is reached
+        :param dict equil_params: Parameters for the equillibriation routine
+                             See the doc-string of
+                             :py:meth:`cemc.mcmc.Montecarlo._equillibriate` for more
                              information
-        :param prec: Precission of the run. The simulation terminates when
+        :param float prec: Precission of the run. The simulation terminates when
             <E>/std(E) < prec with a confidence given prec_confidence
-        :param prec_confidence: Confidence level used when determining if enough
+        :param flaot prec_confidence: Confidence level used when determining
+                          if enough
                           MC samples have been collected
         """
         #print ("Proc start MC: {}".format(self.rank))
@@ -847,6 +875,9 @@ class Montecarlo(object):
     def get_thermodynamic(self):
         """
         Compute thermodynamic quantities
+
+        :return: thermodynamic data
+        :rtype: dict
         """
         self._collect_energy()
         quantities = {}
@@ -866,6 +897,9 @@ class Montecarlo(object):
     def _get_trial_move(self):
         """
         Perform a trial move by swapping two atoms
+
+        :return: Trial move
+        :rtype: list
         """
         self.rand_a = self.indeces[np.random.randint(0, len(self.indeces))]
         self.rand_b = self.indeces[np.random.randint(0, len(self.indeces))]
@@ -883,6 +917,11 @@ class Montecarlo(object):
     def _accept(self, system_changes):
         """
         Returns True if the trial step is accepted
+
+        :param list system_changes: List with the proposed system changes
+
+        :return: True/False if the move is accepted or not
+        :rtype: bool
         """
         self.last_energies[0] = self.current_energy
 
@@ -925,6 +964,9 @@ class Montecarlo(object):
     def count_atoms(self):
         """
         Count the number of each species
+
+        :return: Number of each species
+        :rtype: dict
         """
         atom_count = {key: 0 for key in self.symbols}
         for atom in self.atoms:
@@ -1004,6 +1046,8 @@ class Montecarlo(object):
         For easy storage of observers, constraints etc. we are going
         to pickle the class. There are however, some members that
         are not serializable which need special care.
+
+        :param str fname: Filename
         """
         self.logger = None
         self.flush_log = None
@@ -1016,9 +1060,10 @@ class Montecarlo(object):
         """
         Load from a pickled file
 
-        :param fname: Filename
         NOTE: If some observers or constraints are not serializable, they
               are not included and has to be added!
+
+        :param str fname: Filename
         """
         import dill
         with open(fname, 'rb') as infile:
