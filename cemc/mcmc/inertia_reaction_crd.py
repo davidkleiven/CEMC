@@ -152,26 +152,10 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
     def log(self, msg):
         print(msg)
 
-    def init_from_file(self, value):
-        from ase.io.trajectory import TrajectoryReader
-        try:
-            traj = TrajectoryReader(self.traj_file)
-            for atoms in traj:
-                if len(atoms) != len(self.fixed_nucl_mc.atoms):
-                    self.log("Seems to be an old inconsistent traj. file!")
-                    return
-            values = np.array([atoms.info["inertia_crd"] for atoms in traj])
-            closest = np.argmin(np.abs(values - value))
-            symbs = [atom.symbol for atom in traj[closest]]
-            self.fixed_nucl_mc.set_symbols(symbs)
-        except IOError:
-            self.log("Could not open trajectory file. Using current state.")
-
     def set(self, atoms, value):
         """Create an atoms object with the correct reaction coordinate."""
         from random import choice, shuffle
         from ase.io.trajectory import TrajectoryWriter
-        self.init_from_file(value)
         max_attempts = 1000 * len(self.fixed_nucl_mc.atoms)
         attempt = 0
         neighbors = self.fixed_nucl_mc.network_clust_indx
@@ -226,13 +210,9 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
                          "".format(new_value, value))
                 now = time.time()
                 atoms = mc.atoms
-                info = {"inertia_crd": new_value}
-                atoms.info = info
                 traj_full.write(atoms)
                 cluster = self.get_cluster()
-                cluster.info = info
                 traj_clst.write(cluster)
-                print(atoms.get_calculator())
                 atoms.set_calculator(calc)
 
             if new_diff < current_diff and mc.move_ok():

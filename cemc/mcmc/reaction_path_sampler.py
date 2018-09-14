@@ -197,6 +197,14 @@ class ReactionPathSampler(object):
                 }
                 self._update_data_entry(grp, data)
 
+    @property
+    def converged_all_bins(self):
+        """Check if all bins have been covered."""
+        for dset in self.data:
+            if np.min(dset) < 1.1:
+                return False
+        return True
+
     def run(self, nsteps=10000):
         """
         Run MC simulation in all windows
@@ -246,6 +254,7 @@ class ReactionPathSampler(object):
                 self.mc.atoms.get_chemical_formula()))
             self.mc.reset()
             self.save_current_window()
+        self.log("Convered all bins: {}".format(self.converged_all_bins))
         self.save()
 
     @staticmethod
