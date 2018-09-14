@@ -11,14 +11,9 @@ class FixedNucleusMC(Montecarlo):
 
     See :py:class:`cemc.mcmc.Montecarlo`
 
-    :Keyword arguments:
-        * *size* Network size
-        * *network_element* Element in the network see
-        :py:class:`cemc.mcmc.mc_observers.NetworkObserver`
-        * *cluster_name* Name of clusters see
-        :py:class:`cemc.mcmc.mc_observers.NetworkObserver`
-        * In addition all keyword arguments of
-        :py:class:`cemc.mcmc.Montecarlo` can be given
+    :param list network_element: List of elements in the cluster
+    :param list cluster_name: List of cluster names that can links atoms
+        in a cluster
     """
 
     def __init__(self, atoms, T, **kwargs):
@@ -45,6 +40,14 @@ class FixedNucleusMC(Montecarlo):
         return network
 
     def get_translated_indx(self, ref_indx, clst_indx):
+        """Get the translated index
+
+        :param int ref_indx: Reference index
+        :param int clst_indx: Relative index
+
+        :return: The translated index
+        :rtype: int
+        """
         return self.bc.trans_matrix[ref_indx][clst_indx]
 
     @property
@@ -74,6 +77,9 @@ class FixedNucleusMC(Montecarlo):
     def find_cluster_indx(self):
         """
         Find the cluster indices corresponding to the current network name
+
+        :return: List with unique network indices (relative index)
+        :rtype: list of int
         """
         network_indx = []
         for name in self.network_name:
@@ -84,7 +90,11 @@ class FixedNucleusMC(Montecarlo):
         return np.unique(network_indx)
 
     def _get_trial_move(self):
-        """Generate a trial move."""
+        """Generate a trial move.
+
+        :return: Proposed move
+        :rtype: list of tuples
+        """
         from random import choice, shuffle
         ref_element = choice(self.network_element)
         rand_a = self.atoms_tracker.get_random_indx_of_symbol(ref_element)
@@ -108,11 +118,20 @@ class FixedNucleusMC(Montecarlo):
         return system_changes
 
     def _get_network_statistics(self):
-        """Retrieve statistics from all networks."""
+        """Retrieve statistics from all networks.
+
+        :return: Network statistics
+        :rtype: dict
+        """
         return self.network.get_statistics()
 
     def _size_ok(self, stat):
-        """Check if the sizes are OK."""
+        """Check if the sizes are OK.
+
+        :param dict stat: Network statistics
+        :return: True/False if the move is fine or not
+        :rtype: bool
+        """
         full_size = 0
         for st in stat:
             full_size += st["max_size"]
@@ -122,7 +141,12 @@ class FixedNucleusMC(Montecarlo):
         return full_size == self.size
 
     def move_ok(self):
-        """Check if the move is OK concenerning the cluster constraint."""
+        """Check if the move is OK concenerning the cluster constraint.
+
+        :return: True/False depending on if we still have only one cluster or
+            not
+        :rtype: bool
+        """
         stat = self.cluster_stat
         n_in_clst = stat["n_atoms_in_cluster"]
         mv_ok = n_in_clst == self.initial_num_atoms_in_cluster
@@ -130,7 +154,13 @@ class FixedNucleusMC(Montecarlo):
         return mv_ok
 
     def _accept(self, system_changes):
-        """Accept trial move."""
+        """Accept trial move.
+
+        :param list system_changes: Proposed changes
+
+        :return: True/False, if True the move is accepted
+        :rtype: bool
+        """
         move_accepted = Montecarlo._accept(self, system_changes)
 
         if not self.move_ok():
@@ -147,20 +177,33 @@ class FixedNucleusMC(Montecarlo):
                          "has to be present".format(elm))
 
     def _get_initial_site(self):
-        """Get an initial site in the correct symm group."""
+        """Get an initial site in the correct symm group.
+
+        :return: Initial site for growing a cluster
+        :rtype: int
+        """
         element = self.network_element[0]
         indx = self.atoms_tracker.get_random_indx_of_symbol(element)
         return indx
 
     def _indices_in_spherical_neighborhood(self, radius, root):
-        """Return a list with indices in a spherical neighbor hood."""
+        """Return a list with indices in a spherical neighbor hood.
+
+        :param float radius: Radius of the spherical neighborhood
+        :param int root: Root index
+        """
         indices = list(range(len(self.atoms)))
         del indices[root]
         dists = self.atoms.get_distances(root, indices, mic=True)
         return [indx for indx, d in zip(indices, dists) if d < radius]
 
     def grow_cluster(self, elements, shape="arbitrary", radius=10.0):
-        """Grow a cluster of a certain size."""
+        """Grow a cluster of a certain size.
+
+        :param dict elements: How many of each element that should be insreted
+        :param str shape: Shape to create (either arbitrary or spherical)
+        :param float radius: Radius of the spheres
+        """
         from random import choice, shuffle
         valid_shapes = ["arbitrary", "sphere"]
         if shape not in valid_shapes:
@@ -267,6 +310,15 @@ class FixedNucleusMC(Montecarlo):
     def get_atoms(self, atoms=None, prohib_elem=[]):
         """
         Return the atoms object with the clusters highlighted
+
+        :param atoms: Atoms object, if None the attached one will be used
+        :type atoms: Atoms or None
+        :param list prohib_elem: List of symbols that can not be used to
+            indicate atoms in the same cluster
+
+        :return: Full atoms object and an atoms object belonging to the largest
+            cluster
+        :rtype: Atoms, Atoms
         """
         if atoms is None:
             atoms = self.atoms
@@ -293,10 +345,11 @@ class FixedNucleusMC(Montecarlo):
         """
         Run Monte Carlo for fixed nucleus size
 
-        :param steps: Number of Monte Carlo steps
-        :param init_cluster: If True initialize a cluster, If False it is
+        :param int steps: Number of Monte Carlo steps
+        :param bool init_cluster: If True initialize a cluster, If False it is
             assumed that a cluster of the correct size already exists in the
             system
+        :param dict elements: Elements in the cluster
         """
         if init_cluster:
             self._check_nucleation_site_exists()
