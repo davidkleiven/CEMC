@@ -16,11 +16,16 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
                  cluster_elements=[], num_matrix_atoms_surface=1,
                  traj_file="full_system_insertia.traj",
                  traj_file_clst="clusters_inertial.traj",
-                 output_every=10):
+                 output_every=10, formula="I1/I3"):
         if matrix_element in cluster_elements:
             raise ValueError("InertiaCrdInitializer works only when "
                              "the matrix element is not present in the "
                              "clustering element!")
+        allowed_types = ["I1/I3", "2*I1/(I2+I3)", "(I1+I1)/(2*I3)"]
+        if formula not in allowed_types:
+            raise ValueError("formula has to be one of {}"
+                             "".format(allowed_types))
+        self.formula = formula
         self.matrix_element = matrix_element
         self.cluster_elements = cluster_elements
         self.fixed_nucl_mc = fixed_nucl_mc
@@ -132,10 +137,15 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         :param atoms: Not used. Using the atoms object of fixed_nucl_mc.
         """
         princ = self.principal_inertia
-        return 1.0 - np.min(princ)/np.max(princ)
-        # norm_inert = self.normalized_principal_inertia
-        # norm_inert = np.sort(norm_inert)
-        # return 1.0 - 2.0 * norm_inert[0]/(norm_inert[1] + norm_inert[2])
+
+        if self.formula == "I1/I3":
+            return 1.0 - np.min(princ)/np.max(princ)
+        elif self.formula == "2*I1/(I2+I3)":
+            return 1.0 - 2.0 * princ[0]/(princ[1] + princ[2])
+        elif self.formula == "(I1+I2)/(2*I3)":
+            return 1.0 - (princ[0] + princ[1])/(2.0*princ[2])
+        else:
+            raise ValueError("Unknown formula {}".format(self.formula))
 
     @property
     def surface_atoms(self):
