@@ -18,7 +18,7 @@ class MCObserver(object):
         """
         Gets information about the system changes and can perform some action
 
-        :param system_changes: List of system changes if indx 23 changed
+        :param list system_changes: List of system changes if indx 23 changed
             from Mg to Al this argument would be
             [(23, Mg, Al)]
             If site 26 with an Mg atom is swapped with site 12 with an Al atom
@@ -37,7 +37,8 @@ class CorrelationFunctionTracker(MCObserver):
     Track the history of the correlation function.
     Only relevant if the calculator is a CE calculator
 
-    :param ce_calc: Instance of the CE calculator attached to the atoms object
+    :param CE ce_calc: Instance of the CE calculator attached to the atoms
+        object
     """
 
     def __init__(self, ce_calc):
@@ -50,7 +51,14 @@ class CorrelationFunctionTracker(MCObserver):
         self.cf.append(copy.deepcopy(self.ce_calc.cf))
 
     def plot_history(self, max_size=10):
-        """Plot history (only if history is tracked)."""
+        """Plot history (only if history is tracked).
+
+        :param int max_size: Maximum cluster size to include
+
+        :return: Figure with the plot
+        :rtype: Figure
+        """
+        from matplotlib import pyplot as plt
         fig = plt.figure()
         ax = fig.add_subplot(1, 1, 1)
         for key in self.cf[0].keys():
@@ -66,7 +74,10 @@ class CorrelationFunctionTracker(MCObserver):
 
 
 class PairCorrelationObserver(MCObserver):
-    """Compute the average value of all the ECIs."""
+    """Compute the average value of all the ECIs.
+
+    :param CE ce_calc: CE calculator object
+    """
 
     def __init__(self, ce_calc):
         self.cf = {}
@@ -85,7 +96,10 @@ class PairCorrelationObserver(MCObserver):
                 self.cf_squared[key] = 0.0
 
     def __call__(self, system_changes):
-        """Update correlation functions."""
+        """Update correlation functions.
+
+        :param list system_changes: Last changes to the system
+        """
         new_cf = self.ce_calc.updater.get_cf()
         self.n_entries += 1
         for key in self.cf.keys():
@@ -93,14 +107,22 @@ class PairCorrelationObserver(MCObserver):
             self.cf_squared[key] += new_cf[key]**2
 
     def get_average(self):
-        """Returns the average."""
+        """Returns the average.
+
+        :return: Thermal averaged correlation functions
+        :rtype: dict
+        """
         avg_cf = copy.deepcopy(self.cf)
         for key in avg_cf.keys():
             avg_cf[key] /= self.n_entries
         return avg_cf
 
     def get_std(self):
-        """Return the standard deviation."""
+        """Return the standard deviation.
+
+        :return: Standard deviation of the correlation functions
+        :rtype: dict
+        """
         std_cf = {key: 0.0 for key in self.cf.keys()}
         for key in self.cf.keys():
             std_cf[key] = np.sqrt(self.cf_squared[key] / self.n_entries
@@ -113,8 +135,8 @@ class LowestEnergyStructure(MCObserver):
     Observer that tracks the lowest energy state visited
     during an MC run
 
-    :param ce_calc: Instance of the CE calculator
-    :param mc_obj: Monte Carlo object
+    :param CE ce_calc: Instance of the CE calculator
+    :param Montecarlo mc_obj: Monte Carlo object
     """
 
     def __init__(self, ce_calc, mc_obj, verbose=False):
@@ -132,6 +154,8 @@ class LowestEnergyStructure(MCObserver):
         """
         Checks if the current state has lower energy.
         If it has lower energy, the new state will be stored
+
+        :param list system_changes: Last changes to the system
         """
         if (self.atoms is None or self.lowest_energy_cf is None):
             self.lowest_energy_cf = self.ce_calc.get_cf()
@@ -158,8 +182,9 @@ class SGCObserver(MCObserver):
     Observer mainly intended to track additional quantities needed when
     running SGC Monte Carlo
 
-    :param ce_calc: CE calculator
-    :param mc_obj: Instance of the Monte Carlo object
+    :param CE ce_calc: CE calculator
+    :param SGCMonteCarlo mc_obj: Instance of the Monte Carlo object
+    :param int n_singlets: Number of singlet terms to track
     """
 
     def __init__(self, ce_calc, mc_obj, n_singlets):
@@ -192,6 +217,8 @@ class SGCObserver(MCObserver):
     def __call__(self, system_changes):
         """
         Updates all SGC parameters
+
+        :param list system_changes: Last changes to the system
         """
         self.quantities["counter"] += 1
         new_singlets = self.ce_calc.get_singlets()
@@ -262,8 +289,8 @@ class Snapshot(MCObserver):
     """
     Store a snapshot in a trajectory file
 
-    :param trajfile: Filename of the trajectory file
-    :param atoms: Instance of the atoms objected modofied by the MC object
+    :param str trajfile: Filename of the trajectory file
+    :param Atoms atoms: Instance of the atoms objected modofied by the MC object
     """
 
     def __init__(self, trajfile="default.traj", atoms=None):
@@ -287,14 +314,14 @@ class NetworkObserver(MCObserver):
     """
     Track networks of atoms being connected by one of the pair interactions
 
-    :param calc: Instance of the CE calculator
-    :param cluster_name: Name of the cluster (has to be a pair interaction)
-        Example c2_5p72
-    :param element: Element tracked. If a network is defined by Mg atoms
+    :param CE calc: Instance of the CE calculator
+    :param list cluster_name: Name of the cluster (has to be a pair interaction)
+        Example [c2_5p72]
+    :param list element: Element tracked. If a network is defined by Mg atoms
         connected via some pair cluster this is Mg
-    :param nbins: Number of bins used to produce statistics over the
+    :param int nbins: Number of bins used to produce statistics over the
         distribution of cluster sizes
-    :param mpicomm: MPI communicator
+    :param Intracomm mpicomm: MPI communicator
     """
 
     def __init__(self, calc=None, cluster_name=None, element=None, nbins=30,
@@ -343,6 +370,11 @@ class NetworkObserver(MCObserver):
         return (self.__class__, args)
 
     def __call__(self, system_changes):
+        """
+        Collect information about atomic clusters in the system
+
+        :param list system_changes: Last changes to the system
+        """
         self.n_calls += 1
         self.fast_cluster_tracker.find_clusters()
         new_res = self.fast_cluster_tracker.get_cluster_statistics_python()
@@ -363,7 +395,7 @@ class NetworkObserver(MCObserver):
         """
         Update the histogram
 
-        :param sizes: Cluster sizes
+        :param list sizes: Cluster sizes
         """
         for size in sizes:
             if size >= self.max_size_hist:
@@ -387,6 +419,12 @@ class NetworkObserver(MCObserver):
         """
         Return the atoms object which had the largest cluster and change the
         element of the atoms in the cluster to *highlight_element*
+
+        :param list prohibited_symbols: symbols that can not be used to
+            highlight
+
+        :return: Atoms object with clusters highlighted
+        :rtype: Atoms
         """
         if self.atoms_max_cluster is None:
             from ase.build import bulk
@@ -414,7 +452,12 @@ class NetworkObserver(MCObserver):
 
     def generate_highlight_elements_from_size(self, group_indx_count,
                                               prohibited_symbols):
-        """Create list of highlight elements based on the group index count."""
+        """Create list of highlight elements based on the group index count.
+
+        :param dict group_indx_count: Number of atoms in each cluster
+        :param list prohibited_symbols: Symbols that cannot be used to
+            highlight
+        """
         tup = []
         for key, value in group_indx_count.items():
             if value <= 3:
@@ -437,6 +480,9 @@ class NetworkObserver(MCObserver):
     def get_cluster_count(self):
         """
         Counts the number of atoms in each clusters
+
+        :return: Number of atoms in each cluster
+        :rtype: dict
         """
         group_indx_count = {}
         for indx in self.indx_max_cluster:
@@ -449,6 +495,9 @@ class NetworkObserver(MCObserver):
     def get_indices_of_largest_cluster(self):
         """
         Return the indices of the largest cluster
+
+        :return: Indices of the atoms in the largest cluster
+        :rtype: list of int
         """
         group_indx_count = self.get_cluster_count()
         max_id = 0
@@ -483,7 +532,11 @@ class NetworkObserver(MCObserver):
             print(msg)
 
     def get_statistics(self):
-        """Compute network size statistics."""
+        """Compute network size statistics.
+
+        :return: Statistics about atomic clusters in the system
+        :rtype: dict
+        """
         self.collect_stat_MPI()
         stat = {}
         if self.res["number_of_clusters"] == 0:
@@ -505,7 +558,11 @@ class NetworkObserver(MCObserver):
         return stat
 
     def get_size_histogram(self):
-        """Return the size histogram and the corresponding size."""
+        """Return the size histogram and the corresponding size.
+
+        :return: Sizes and corresponding occurence rate
+        :rtype: 1D numpy array, 1D numpy array
+        """
         x = np.linspace(3, self.max_size_hist, self.nbins)
         return x, self.size_histogram
 
@@ -515,12 +572,17 @@ class NetworkObserver(MCObserver):
         """
         return self.fast_cluster_tracker.surface_python()
 
+
 class SiteOrderParameter(MCObserver):
     """
     Class that can be used to detect phase transitions.
 
     It monitors the average number of sites that are different from the initial
     value.
+
+    :param Atoms atoms: Atoms object
+    :param mpicomm: MPI communicator
+    :type mpicomm: Intracomm or None
     """
 
     def __init__(self, atoms, mpicomm=None):
@@ -548,6 +610,11 @@ class SiteOrderParameter(MCObserver):
         self._check_all_sites()
 
     def __call__(self, system_changes):
+        """Get a new value for the order parameter.
+
+        :param list system_changes: Last changes to the system
+        """
+
         self.num_calls += 1
         assert self.current_num_changed < len(self.atoms)
 
@@ -567,7 +634,11 @@ class SiteOrderParameter(MCObserver):
         self.avg_num_changed_sq += self.current_num_changed**2
 
     def get_average(self):
-        """Get the number of sites different from the ground state."""
+        """Get the number of sites different from the ground state.
+
+        :return: Average and standard deviation of the order parameters
+        :rtype: float, float
+        """
         average = float(self.avg_num_changed)/self.num_calls
         average_sq = float(self.avg_num_changed_sq)/self.num_calls
 
