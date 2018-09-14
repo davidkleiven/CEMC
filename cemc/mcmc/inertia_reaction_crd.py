@@ -12,6 +12,20 @@ class CouldNotFindValidStateError(Exception):
 
 
 class InertiaCrdInitializer(ReactionCrdInitializer):
+    """Initializer for various version of principal moment of inertia.
+
+    :param FixedNucleusMC fixed_nuc_mc: Monte Carlo object
+    :param str matrix_element: Matrix element
+    :param list cluster_elements: Elements in the clusters
+    :param int num_matrix_atoms_surface: Number of neighboring matrix atoms
+        required if a cluster atoms should be considered to be on the
+        surface
+    :param str traj_file: Trajectory file when the system is evolved towards
+        a target value for the reaction coordinate
+    :param str traj_file_clst: Trajectory file containing only the cluster
+    :param int output_every: Interval in seconds for how often status
+        messages should be printed
+    """
     def __init__(self, fixed_nucl_mc=None, matrix_element=None,
                  cluster_elements=[], num_matrix_atoms_surface=1,
                  traj_file="full_system_insertia.traj",
@@ -45,6 +59,11 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
     @property
     def inertia_tensor(self):
+        """Calculate the inertial tensor of the cluster.
+
+        :return: Inertia tensor
+        :rtype: Numpy 3x3 matrix
+        """
         include = self.indices_in_cluster
         cluster = self.fixed_nucl_mc.atoms[include]
         cluster = InertiaCrdInitializer.center_atoms(cluster)
@@ -67,7 +86,13 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
     @staticmethod
     def center_atoms(atoms):
-        """Center the atoms in the cell."""
+        """Center the atoms in the cell.
+
+        :param Atoms atoms: Atoms to be centered in the cell
+
+        :return: Centered atoms object
+        :rtype: Atoms
+        """
         cell = atoms.get_cell()
         diag = 0.5 * (cell[0, :] + cell[1, :] + cell[2, :])
         indx = list(range(1, len(atoms)))
@@ -80,12 +105,21 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
     @property
     def principal_inertia(self):
-        """Calculate the inertia of the atoms in cluster elements"""
+        """Calculate the inertia of the atoms in cluster elements.
+
+        :return: Principal moment of inertia
+        :rtype: numpy 1D array of length 3
+        """
         eigv = np.linalg.eigvals(self.inertia_tensor)
         return eigv
 
     @property
     def indices_in_cluster(self):
+        """Find the indices of the atoms belonding to the cluster.
+
+        :return: Indices of the atoms in the cluster
+        :rtype: list of int
+        """
         include = []
         for symb in self.cluster_elements:
             include += self.fixed_nucl_mc.atoms_tracker.tracker[symb]
@@ -93,12 +127,20 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
     @property
     def normalized_principal_inertia(self):
-        """Principal inertia normalized by the largest component."""
+        """Principal inertia normalized by the largest component.
+
+        :return: Normalized principal inertia
+        :rtype: 1D numpy array of length 3
+        """
         princ_inertia = self.principal_inertia
         return princ_inertia / np.max(princ_inertia)
 
     def get_cluster(self):
-        """Get atoms object with only the cluster."""
+        """Get atoms object with only the cluster.
+
+        :return: Atoms in the cluster
+        :rtype: Atoms
+        """
         include = self.indices_in_cluster
         cluster = self.fixed_nucl_mc.atoms[include]
         cluster = InertiaCrdInitializer.center_atoms(cluster)
@@ -111,7 +153,11 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
     @property
     def dist_all_to_all(self):
-        """Get distance between all atoms."""
+        """Get distance between all atoms.
+
+        :return: All distances between atoms in the clsuter
+        :rtype: list of numpy 1D arrays
+        """
         indx = self.indices_in_cluster
         cluster = self.fixed_nucl_mc.atoms[indx]
         all_distances = []
@@ -124,7 +170,11 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
     @property
     def dist_all_to_all_flattened(self):
-        """Get a flattened list of all distances."""
+        """Get a flattened list of all distances.
+
+        :return: Flattened distance list
+        :rtype: list of float
+        """
         dists = self.dist_all_to_all
         flat_list = []
         for sublist in dists:
@@ -134,7 +184,10 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
     def get(self, atoms):
         """Get the inertial reaction coordinate.
 
-        :param atoms: Not used. Using the atoms object of fixed_nucl_mc.
+        :param Atoms atoms: Not used. Using the atoms object of fixed_nucl_mc.
+
+        :return: The reaction coordinate
+        :rtype: float
         """
         princ = self.principal_inertia
 
@@ -149,7 +202,11 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
     @property
     def surface_atoms(self):
-        """Return a list of atoms on a surface."""
+        """Return a list of atoms on a surface.
+
+        :return: Indices of the atoms on the surface
+        :rtype: list of int
+        """
         indx = np.array(self.indices_in_cluster)
         neighbors = self.fixed_nucl_mc.network_clust_indx
         num_matrix_atoms = np.zeros(len(indx))
@@ -165,7 +222,13 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         print(msg)
 
     def set(self, atoms, value):
-        """Create an atoms object with the correct reaction coordinate."""
+        """Create an atoms object with the correct reaction coordinate.
+
+        :param Atoms atom: Atoms object (not used, using the one attached
+            to the MC object). Argument only included because parent class
+            has it.
+        :param float value: Target value for the reaction coordinate
+        """
         from random import choice, shuffle
         from ase.io.trajectory import TrajectoryWriter
         max_attempts = 1000 * len(self.fixed_nucl_mc.atoms)
@@ -254,6 +317,13 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
 
 class InertiaRangeConstraint(ReactionCrdRangeConstraint):
+    """Constraint to ensure that the system stays without its bounds.
+
+    :param FixedNucleusMC fixed_nuc_mc: Monte Carlo object
+    :param list range: Upper and lower bound of the reaction coordinate
+    :param InertiaCrdInitializer inertia_init: Initializer
+    """
+
     def __init__(self, fixed_nuc_mc=None, range=[0.0, 1.0], inertia_init=None):
         super(InertiaRangeConstraint, self).__init__()
         self.update_range(range)
@@ -261,6 +331,13 @@ class InertiaRangeConstraint(ReactionCrdRangeConstraint):
         self._inertia_init = inertia_init
 
     def get_new_value(self, system_changes):
+        """Get new value for reaction coordinate.
+
+        :param list system_changes: List with the proposed changes
+
+        :return: Reaction coordate after the change
+        :rtype: float
+        """
         self.mc.selected_a = None
         self.mc.selected_b = None
 
@@ -301,5 +378,12 @@ class InertiaRangeConstraint(ReactionCrdRangeConstraint):
         return new_val
 
     def __call__(self, system_changes):
+        """Check the system is in a valid state after the changes.
+
+        :param list system_changes: Proposed changes
+
+        :return: True/False, if True the system is still within the bounds
+        :rtype: bool
+        """
         new_val = self.get_new_value(system_changes)
         return new_val >= self.range[0] and new_val < self.range[1]
