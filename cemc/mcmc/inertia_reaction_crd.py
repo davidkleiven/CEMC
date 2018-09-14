@@ -21,7 +21,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
             raise ValueError("InertiaCrdInitializer works only when "
                              "the matrix element is not present in the "
                              "clustering element!")
-        allowed_types = ["I1/I3", "2*I1/(I2+I3)", "(I1+I1)/(2*I3)"]
+        allowed_types = ["I1/I3", "2*I1/(I2+I3)", "(I1+I2)/(2*I3)"]
         if formula not in allowed_types:
             raise ValueError("formula has to be one of {}"
                              "".format(allowed_types))
