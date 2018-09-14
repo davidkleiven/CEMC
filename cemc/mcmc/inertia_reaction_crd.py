@@ -12,6 +12,19 @@ class CouldNotFindValidStateError(Exception):
 
 
 class InertiaCrdInitializer(ReactionCrdInitializer):
+    """Initializer for various version of principal moment of inertia.
+
+    :param FixedNucleusMC fixed_nuc_mc: Monte Carlo object
+    :param str matrix_element: Matrix element
+    :param list cluster_elements: Elements in the clusters
+    :param int num_matrix_atoms_surface: Number of neighboring matrix atoms
+        required if a cluster atoms should be considered to be on the
+        surface
+    :param str traj_file: Trajectory file when the system is evolved towards
+        a target value for the reaction coordinate
+    :param str traj_file_clst:
+    _
+    """
     def __init__(self, fixed_nucl_mc=None, matrix_element=None,
                  cluster_elements=[], num_matrix_atoms_surface=1,
                  traj_file="full_system_insertia.traj",
