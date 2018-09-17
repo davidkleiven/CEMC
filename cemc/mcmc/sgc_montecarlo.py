@@ -112,7 +112,11 @@ class SGCMonteCarlo(mc.Montecarlo):
             nproc = self.mpicomm.Get_size()
 
         no_corr_info = self.correlation_info is None
-        corr_time_found = self.correlation_info["corr_time_found"]
+
+        if no_corr_info:
+            corr_time_found = False
+        else:
+            corr_time_found = self.correlation_info["corr_time_found"]
         if no_corr_info or not corr_time_found:
             return var_n/(N*nproc)
 

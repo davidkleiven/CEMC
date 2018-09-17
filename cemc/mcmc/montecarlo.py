@@ -385,7 +385,10 @@ class Montecarlo(object):
             var = np.abs(var)
 
         no_corr_info = self.correlation_info is None
-        cr_time_found = self.correlation_info["correlation_time_found"]
+        if no_corr_info:
+            cr_time_found = False
+        else:
+            cr_time_found = self.correlation_info["correlation_time_found"]
         if no_corr_info or not cr_time_found:
             return var / (self.current_step * nproc)
 
