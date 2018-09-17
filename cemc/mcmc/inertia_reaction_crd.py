@@ -8,6 +8,7 @@ from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
+
 class CouldNotFindValidStateError(Exception):
     pass
 
@@ -288,7 +289,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
             if time.time() - now > output_every:
                 print("Rank: {} Current value: {} Target value: {}"
-                         "".format(rank, new_value, value))
+                      "".format(rank, new_value, value))
                 sys.stdout.flush()
                 now = time.time()
                 atoms = mc.atoms
