@@ -5,7 +5,7 @@
 [Documentation page](http://folk.ntnu.no/davidkl/CEMC/index.html)
 
 # Dependencies
-* [SWIG](http://www.swig.org/) (newer than version 3.0)
+* ~~[SWIG](http://www.swig.org/) (newer than version 3.0)~~ (not anymore!)
 * [GCC](https://gcc.gnu.org/) (has to support multithreading)
 * [MPI](https://www.mpich.org/)
 * Python packages listed in [requirements.txt](requirements.txt)
@@ -14,7 +14,6 @@
 Install all the dependencies on Ubuntu
 ```bash
 sudo apt-get update
-sudo apt-get install swig
 sudo apt-get install g++
 sudo apt-get install mpich2
 ```
@@ -31,7 +30,7 @@ pip install .
 
 Run the all tests
 ```bash
-python -m unittest discover tests/
+python tests/runner.py
 ```
 
 # Examples
@@ -65,12 +64,8 @@ code does what it is supposed to do without raising unexpected exceptions.
 Code producing results that can be verified against some reference values,
 should also include tests verifying that the code produce the desired result.
 
-All examples should be written as python notebooks and located in the
-*example* folder. They should be verified with the [py.test](https://pypi.python.org/pypi/pytest-ipynb) command.
-
 At any time *ALL* tests in the *tests* folder should pass, meaning that
 ```bash
-python -m unittest discover tests/
 python tests/runner.py
 ```
 should give no errors.
