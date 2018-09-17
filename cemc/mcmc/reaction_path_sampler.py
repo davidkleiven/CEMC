@@ -208,8 +208,11 @@ class ReactionPathSampler(object):
     @property
     def converged_all_bins(self):
         """Check if all bins have been covered."""
+        nproc = 1
+        if self.mpicomm is not None:
+            nproc = self.mpicomm.Get_size()
         for dset in self.data:
-            if np.min(dset) < 1.1:
+            if np.min(dset) < nproc + 0.1:
                 return False
         return True
 
