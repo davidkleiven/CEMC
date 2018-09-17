@@ -271,7 +271,7 @@ class ReactionPathSampler(object):
 
             if num_failed_attempts > 0:
                 frac_failed = float(num_failed_attempts)/(nsteps * nproc)
-                self.log("Number of failed trial moves: {} ({0:.1f}%)"
+                self.log("Number of failed trial moves: {} ({:.1f}%)"
                          "".format(num_failed_attempts, 100 * frac_failed))
 
             self.log_window_statistics(self.current_window)
