@@ -98,13 +98,19 @@ class ReactionPathSampler(object):
         """
         Update the data arrays
         """
-        reac_crd = self.initializer.get(self.mc.atoms)
-        indx = self._get_window_indx(self.current_window, reac_crd)
+        try:
+            reac_crd = self.initializer.get(self.mc.atoms)
+            indx = self._get_window_indx(self.current_window, reac_crd)
 
-        # Add a safety in case it is marginally larger
-        if indx >= len(self.data[self.current_window]):
-            indx -= 1
-        self.data[self.current_window][indx] += 1
+            # Add a safety in case it is marginally larger
+            if indx >= len(self.data[self.current_window]):
+                indx -= 1
+            self.data[self.current_window][indx] += 1
+        except Exception as exc:
+            print("Error on rank: {}".self.rank)
+            print("{}: {}".format(type(exc).__name__, str(exc)))
+            print("Errors here will not be handled, because it will lead "
+                  "to tremendous communication overhead.")
 
     def _get_merged_records(self, data):
         """
@@ -135,34 +141,35 @@ class ReactionPathSampler(object):
         # We need to temporary release the concentration range
         # constraint when moving from a window
         self.mc.constraints.remove(self.constraint)
-
-        raised_exception = Exception("Arbitrary exception")
-        error_occured = 0
+        error = 0
+        msg = ""
         try:
             # Bring the system into the new window
             self.initializer.set(self.mc.atoms, val)
         except Exception as exc:
-            raised_exception = exc
-            error_occured = 1
+            # Indicate that an error occured. It will be handled by
+            # another function
+            msg = "{}: {}".format(type(exc).__name__, str(exc))
+            error = 1
 
         if self.mpicomm is not None:
-            error_occured = self.mpicomm.allreduce(error_occured)
+            error = self.mpicomm.allreduce(error)
 
-        # Raise exception on all processes
-        if error_occured > 0:
-            raise raised_exception
+        # Raise error on all processes
+        if error:
+            raise Exception(msg)
 
         # Now add the constraint again
         self.mc.add_constraint(self.constraint)
 
-    def log(self, msg):
+    def log(self, msg, ranks=[0]):
         """Log messages.
 
         :param msg: Message to log
         """
-        if self.rank == 0:
+        if self.rank in ranks:
             print(msg)
-        sys.stdout.flush()
+            sys.stdout.flush()
 
     def log_window_statistics(self, window):
         """Print logging message concerning the sampling window.
@@ -178,6 +185,7 @@ class ReactionPathSampler(object):
 
     def save_current_window(self):
         """Save result of current window to file."""
+        self.log("Collecting results from all processes...")
         self._collect_results(self.current_window)
         if os.path.exists(self.fname):
             flag = "r+"
@@ -211,28 +219,25 @@ class ReactionPathSampler(object):
 
         :param nsteps: Number of Monte Carlo step per window
         """
-
+        from cemc.mcmc import CanNotFindLegalMoveError
         output_every = 30
         # For all windows
         for i in range(self.n_windows):
-            if self.mpicomm is not None:
-                self.mpicomm.barrier()
             self.current_window = i
             # We are inside a new window, update to start with concentration in
             # the middle of this window
             min, max = self._get_window_limits(self.current_window)
             self.constraint.update_range([min, max])
+            self.log("Bringing system into window...")
             self._bring_system_into_window()
-
-            # Wait until all processor has a structure in a valid state
-            if self.mpicomm is not None:
-                self.mpicomm.barrier()
 
             # Now we are in the middle of the current window, start MC
             current_step = 0
             now = time.time()
             self.log("Initial chemical formula window {}: {}".format(
                 self.current_window, self.mc.atoms.get_chemical_formula()))
+            print("Starting MC calculation on rank: {}".format(self.rank))
+            num_failed_attempts = 0
             while (current_step < nsteps):
                 current_step += 1
                 if (time.time() - now > output_every):
@@ -242,17 +247,44 @@ class ReactionPathSampler(object):
                     now = time.time()
 
                 # Run MC step
-                self.mc._mc_step()
-                self._update_records()
+                try:
+                    self.mc._mc_step()
+                    self._update_records()
+                except CanNotFindLegalMoveError:
+                    # We don't care about this error we just count the
+                    # number of occurences and print a warning
+                    num_failed_attempts += 1
+                except Exception as exc:
+                    print("Totally unexpected exception {} {} on rank {}"
+                          "".format(type(exc).__name__, str(exc), self.rank))
+                    print("Exceptions here are not handles, due to "
+                          "communication overhead")
+
+            print("MC calculation finished on rank: {}".format(self.rank))
+
+            nproc = 1
+            # Collect the legal move error from all processes
+            if self.mpicomm is not None:
+                num_failed_attempts = \
+                    self.mpicomm.allreduce(num_failed_attempts)
+                nproc = self.mpicomm.Get_size()
+
+            if num_failed_attempts > 0:
+                frac_failed = float(num_failed_attempts)/(nsteps * nproc)
+                self.log("Number of failed trial moves: {} ({0:.1f}%)"
+                         "".format(num_failed_attempts, 100 * frac_failed))
+
             self.log_window_statistics(self.current_window)
 
             self.log(
                 "Acceptance rate in window {}: {}".format(
                     self.current_window, float(
                         self.mc.num_accepted) / self.mc.current_step))
+
             self.log("Final chemical formula: {}".format(
                 self.mc.atoms.get_chemical_formula()))
             self.mc.reset()
+
             self.save_current_window()
         self.log("Convered all bins: {}".format(self.converged_all_bins))
         self.save()

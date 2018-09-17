@@ -47,10 +47,15 @@ class Montecarlo(object):
                        equilibration
     :param bool recycle_waste: If True also rejected states will be used to estimate
                           averages
+    :param int max_constraint_attempts: Maximum number of allowed attempts to
+        for finding a candidate move that does not violate the constraints.
+        A CanNotFindLegalMoveError is raised if the maximum number of attempts
+        is reaced.
     """
 
     def __init__(self, atoms, temp, indeces=None, mpicomm=None, logfile="",
-                 plot_debug=False, min_acc_rate=0.0, recycle_waste=False):
+                 plot_debug=False, min_acc_rate=0.0, recycle_waste=False,
+                 max_constraint_attempts=10000):
         self.name = "MonteCarlo"
         self.atoms = atoms
         self.T = temp
@@ -66,7 +71,10 @@ class Montecarlo(object):
         self.observers = []
 
         self.constraints = []
-        self.max_allowed_constraint_pass_attempts = 10000
+        self.max_allowed_constraint_pass_attempts = max_constraint_attempts
+
+        if self.max_allowed_constraint_pass_attempts <= 0:
+            raise ValueError("Max. constraint attempts has to be > 0!")
 
         self.bias_potentials = []
 
@@ -986,6 +994,7 @@ class Montecarlo(object):
         while not self._no_constraint_violations(system_changes) and \
                 counter < self.max_allowed_constraint_pass_attempts:
             system_changes = self._get_trial_move()
+            counter += 1
 
         if counter == self.max_allowed_constraint_pass_attempts:
             msg = "Did not manage to produce a trial move that does not "

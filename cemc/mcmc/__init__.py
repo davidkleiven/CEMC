@@ -1,6 +1,7 @@
 # Empty file
 from cemc.mcmc.bias_potential import BiasPotential
 from cemc.mcmc.montecarlo import Montecarlo, TooFewElementsError
+from cemc.mcmc.montecarlo import CanNotFindLegalMoveError
 from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
 from cemc.mcmc.linear_vib_correction import LinearVibCorrection
 from cemc.mcmc.mc_observers import MCObserver, CorrelationFunctionTracker, PairCorrelationObserver, \
