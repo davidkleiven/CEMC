@@ -192,6 +192,11 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         :rtype: float
         """
         princ = self.principal_inertia
+        princ = np.sort(princ)
+
+        # Make sure they are sorted in the correct order
+        assert princ[0] <= princ[2]
+
         if self.formula == "I1/I3":
             return 1.0 - np.min(princ)/np.max(princ)
         elif self.formula == "2*I1/(I2+I3)":
