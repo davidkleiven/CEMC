@@ -116,7 +116,7 @@ class SGCMonteCarlo(mc.Montecarlo):
         if no_corr_info:
             corr_time_found = False
         else:
-            corr_time_found = self.correlation_info["corr_time_found"]
+            corr_time_found = self.correlation_info["correlation_time_found"]
         if no_corr_info or not corr_time_found:
             return var_n/(N*nproc)
 
