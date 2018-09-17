@@ -31,14 +31,21 @@ def get_max_dia_name():
 def get_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
                 db_name="temp_db.db"):
     """
-    Constructs a CE calculator for a supercell by first computing the correlation function
-    from a small cell
+    Constructs a CE calculator for a supercell.
 
-    :param small_bc: Instance of BulkCrystal or BulkSpacegroup with a relatively small unitcell
-    :param bc_kwargs: dictionary of the keyword arguments used to construct small_bc
-    :param eci: Effective Cluster Interactions
-    :param size: The atoms in small_bc will be extended by this amount
-    :param db_name: Database to store info in for the large cell
+    First, the correlation function from a small cell is calculated and then
+    a supercell is formed. Note that the correlation functions are the same
+    for the supercell.
+
+    :param ClusterExpansionSetting small_bc: Settings for small unitcell
+    :param dict bc_kwargs: dictionary of the keyword arguments used to
+        construct small_bc
+    :param dict eci: Effective Cluster Interactions
+    :param list size: The atoms in small_bc will be extended by this amount
+    :param str db_name: Database to store info in for the large cell
+
+    :return: CE calculator for the large cell
+    :rtype: CE
     """
     nproc = MPI.COMM_WORLD.Get_size()
     unknown_type = False
@@ -107,7 +114,11 @@ def get_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
 
 
 def get_max_size_eci(eci):
-    """Finds the maximum cluster name given in the ECIs."""
+    """Find the maximum cluster name given in the ECIs.
+
+    :return: Maximum cluster size in the ECIs given
+    :rtype: int
+    """
     max_size = 0
     for key in eci.keys():
         size = int(key[1])
@@ -120,10 +131,11 @@ class CE(Calculator):
     """
     Class for updating the CE when symbols change
 
-    :param BC: Instance of BulkCrystal or BulkSpacegroup from ASE
-    :param eci: Dictionary with the effective cluster interactions
-    :param initial_cf: Dictionary with the correlation function of the atoms
-        object in BC
+    :param ClusterExpansionSetting BC: Settings from ASE
+    :param dict eci: Effective cluster interactions
+    :param initial_cf: Initial correlation functions, if None all the
+        required correlation functions are calculated from scratch
+    :type initial_cf: dict or None
     """
 
     implemented_properties = ["energy"]
@@ -131,8 +143,9 @@ class CE(Calculator):
     def __init__(self, BC, eci=None, initial_cf=None):
         Calculator.__init__(self)
         self.BC = BC
-        self.BC._info_entries_to_list() # NOTE: This should be handled in the
-                                        # CE code
+
+        # NOTE: This should be handled in the CE code
+        self.BC._info_entries_to_list()
         self.corrFunc = CorrFunction(self.BC)
         cf_names = list(eci.keys())
         if initial_cf is None:
@@ -183,7 +196,11 @@ class CE(Calculator):
         self._linear_vib_correction = None
 
     def copy(self):
-        """Create a copy of the calculator."""
+        """Create a copy of the calculator.
+
+        :return: New CE instance
+        :rtype: CE
+        """
         from copy import deepcopy
         self.atoms.set_calculator(None)
         new_bc = deepcopy(self.BC)
@@ -213,7 +230,7 @@ class CE(Calculator):
         """
         Returns the full cluster names with decoration info in the end
 
-        :param cnames: List of the current cluster names
+        :param list cnames: List of the current cluster names
         """
         full_names = self.cf.keys()
         only_prefix = [name.rpartition("_")[0] for name in full_names]
@@ -254,7 +271,7 @@ class CE(Calculator):
         """
         Includes the effect of linear vibration correction in the ECIs
 
-        :param T: Temperature in Kelvin
+        :param float T: Temperature in Kelvin
         """
         if (self.linear_vib_correction is None):
             return
@@ -268,7 +285,10 @@ class CE(Calculator):
         """
         Returns the vibration energy per atom
 
-        :param T: Temperature in kelving
+        :param float T: Temperature in kelving
+
+        :return: Vibration energy
+        :rtype: float
         """
         if (self.updater is not None):
             return self.updater.vib_energy(T)
@@ -280,6 +300,9 @@ class CE(Calculator):
     def get_energy(self):
         """
         Returns the energy of the system
+
+        :return: Energy of the system
+        :rtype: float
         """
         energy = 0.0
         if (self.updater is None):
@@ -305,13 +328,16 @@ class CE(Calculator):
         Calculates the energy. The system_changes is assumed to be a list
         of tuples of the form (indx,old_symb,new_symb)
 
-        :param atoms: Atoms object. Note that this is not used
+        :param Atoms atoms: This is not used
             to fit the signature of this function in ASE. The energy returned,
             is the one of the internal atoms object *after* system_changes is
             applied
-        :param properties: Has to be ["energy"]
-        :param system_changes: Updates to the system. Same signature as
+        :param list properties: Has to be ["energy"]
+        :param list system_changes: Updates to the system. Same signature as
             :py:meth:`cemc.mcmc.MCObserver.__call__`
+
+        :return: Energy of the system
+        :rtype: float
         """
         energy = self.updater.calculate(system_changes)
         self.cf = self.updater.get_cf()
@@ -321,6 +347,9 @@ class CE(Calculator):
     def get_cf(self):
         """
         Returns the correlation functions
+
+        :return: Correlation functions
+        :rtype: dict
         """
         if (self.updater is None):
             return self.cf
@@ -331,7 +360,7 @@ class CE(Calculator):
         """
         Updates the ecis
 
-        :param new_ecis: New ECI values
+        :param dict new_ecis: New ECI values
         """
         self.eci = new_ecis
         if (self.updater is not None):
@@ -340,6 +369,9 @@ class CE(Calculator):
     def get_singlets(self):
         """
         Return the singlets
+
+        :return: Correlation functions corresponding to singlets
+        :rtype: dict
         """
         return self.updater.get_singlets()
 
@@ -347,7 +379,7 @@ class CE(Calculator):
         """
         Change composition of an object.
 
-        :param comp: Dictionary with the new composition. If you want
+        :param dict comp: New composition. If you want
             to set the composition to for instance 20%% Mg and 80 %% Al, this
             argument should be {"Mg":0.2, "Al":0.8}
         """
@@ -386,7 +418,7 @@ class CE(Calculator):
         """
         Change the symbols of the entire atoms object
 
-        :param symbs: List of new symbols
+        :param list symbs: List of new symbols
         """
         if (len(symbs) != len(self.atoms)):
             raise ValueError(
@@ -400,7 +432,10 @@ class CE(Calculator):
         """
         Convert singlet to compositions
 
-        :param singlets: Singlet values
+        :param dict singlets: Singlet values
+
+        :return: Concentrations corresponding to the singlets
+        :rtype: dict
         """
         bfs = self.BC.basis_functions
 
@@ -471,13 +506,18 @@ class CE(Calculator):
         it is not all singlet value that are possible. So the composition
         obtained in the end, may differ slightly from the intended value.
 
-        :param singlets: Singlet values
+        :param dict singlets: Singlet values
         """
         conc = self.singlet2comp(singlets)
         self.set_composition(conc)
 
     def backup_dict(self):
-        """Return a dictionary containing all arguments for backup."""
+        """Return a dictionary containing all arguments for backup.
+
+        :return: All nessecary arguments to reconstruct the calculator in the
+            current state
+        :rtype: dict
+        """
         backup_data = {}
         backup_data["cf"] = self.get_cf()
         backup_data["symbols"] = [atom.symbol for atom in self.atoms]
@@ -488,8 +528,9 @@ class CE(Calculator):
 
     def save(self, fname):
         """
-        Stores all nessecary information required to restart the calculation
-        from the state it ended
+        Store all nessecary information required to restart the calculation.
+
+        :param str fname: Filename
         """
         import json
         with open(fname, 'w') as outfile:
@@ -501,6 +542,10 @@ class CE(Calculator):
 
     @staticmethod
     def load(fname):
+        """Rebuild the calculator.
+
+        :param str fname: Filename
+        """
         import json
         with open(fname, 'r') as infile:
             backup_data = json.load(infile)
@@ -508,6 +553,10 @@ class CE(Calculator):
 
     @staticmethod
     def load_from_dict(backup_data):
+        """Rebuild the calculator from dictionary
+
+        :param dict backup_data: All nessecary arguments
+        """
         from ase.ce import BulkCrystal, BulkSpacegroup
 
         classtype = backup_data["setting_kwargs"].pop("classtype")
