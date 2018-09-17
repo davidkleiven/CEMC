@@ -45,8 +45,8 @@ class Montecarlo(object):
     :param str logfile: Filename for logging (default is logging to console)
     :param bool plot_debug: If True it will create some diagnositc plots during
                        equilibration
-    :param bool recycle_waste: If True also rejected states will be used to estimate
-                          averages
+    :param bool recycle_waste: If True also rejected states will be used to
+        estimate averages
     :param int max_constraint_attempts: Maximum number of allowed attempts to
         for finding a candidate move that does not violate the constraints.
         A CanNotFindLegalMoveError is raised if the maximum number of attempts
@@ -133,7 +133,7 @@ class Montecarlo(object):
             ch.setLevel(logging.INFO)
             self.flush_log = ch.flush
         else:
-            ch = logging.FileHandler(logfile)
+            ch = logging.FileHandler(self.logfile)
             ch.setLevel(logging.INFO)
             self.flush_log = ch.emit
         if not self.logger.handlers:
@@ -384,8 +384,9 @@ class Montecarlo(object):
             self.log("Variance of energy : {}".format(var))
             var = np.abs(var)
 
-        if (self.correlation_info is None or
-                not self.correlation_info["correlation_time_found"]):
+        no_corr_info = self.correlation_info is None
+        cr_time_found = self.correlation_info["correlation_time_found"]
+        if no_corr_info or not cr_time_found:
             return var / (self.current_step * nproc)
 
         tau = self.correlation_info["correlation_time"]
@@ -487,10 +488,11 @@ class Montecarlo(object):
         """
         Run MC until equillibrium is reached.
 
-        :param int window_length: the length of the window used to compare averages
-                     if window_lenth='auto' then the length of window is set to
-                     10*len(self.atoms)
-        :param float confidence_level: Confidence level used in hypothesis testing
+        :param int window_length: the length of the window used to compare
+                     averages if window_lenth='auto' then the length of window
+                     is set to 10*len(self.atoms)
+        :param float confidence_level: Confidence level used in hypothesis
+                     testing.
                      The question asked in the hypothesis testing is:
                      Given that the two windows have the same average
                      and the variance observed (null hypothesis is correct),
@@ -507,7 +509,7 @@ class Montecarlo(object):
                      the variance is underestimated. Hence, one can
                      safely use a lower confidence level.
 
-        :param int maxiter: The maximum number of windows it will try to sample.
+        :param int maxiter: The maximum number of windows it will try to sample
             If it reaches this number of iteration the algorithm will
             raise an error
         """
@@ -518,9 +520,6 @@ class Montecarlo(object):
 
         if (window_length == "auto"):
             window_length = 10 * len(self.atoms)
-        nproc = 1
-        if self.mpicomm is not None:
-            nproc = self.mpicomm.Get_size()
 
         self.reset()
         if mode == "fixed":
@@ -659,7 +658,7 @@ class Montecarlo(object):
 
     def _has_converged_prec_mode(self, prec=0.01, confidence_level=0.05,
                                  log_status=False):
-        """Return True if the simulation has converged in the precision mode.abs
+        """Return True if the simulation has converged in the precision mode.
 
         :param float prec: Relative precission
         :param float confidence_level: Confidence leve in hypothesis testing
@@ -710,16 +709,16 @@ class Montecarlo(object):
             self.correlation_info["correlation_time_found"], root=0)
         all_corr_times = self.mpicomm.gather(
             self.correlation_info["correlation_time"], root=0)
-        self.log("Correlation time on all processors: {}".format(all_corr_times))
+        self.log("Correlation time on all processors: {}"
+                 "".format(all_corr_times))
         corr_time = self.correlation_info["correlation_time"]
         found = False
         if (self.rank == 0):
             found = np.any(corr_time_found)
             corr_time = np.median(all_corr_times)
-            self.log(
-                "Using correlation time: {} on all processors".format(corr_time))
+            self.log("Using correlation time: {} on all processors"
+                     "".format(corr_time))
         corr_time = self.mpicomm.bcast(corr_time, root=0)
-        corrtime_found = self.mpicomm.bcast(found, root=0)
         self.correlation_info["correlation_time_found"] = found
         self.correlation_info["correlation_time"] = corr_time
 
@@ -801,7 +800,8 @@ class Montecarlo(object):
 
             at_lest_one_proc_reached_equil = \
                 self._atleast_one_reached_equillibrium(reached_equil)
-            # This exception is MPI safe, as the function _atleast_one_reached_equillibrium broadcasts
+            # This exception is MPI safe, as the function
+            # _atleast_one_reached_equillibrium broadcasts
             # the result to all the other processors
             if (not at_lest_one_proc_reached_equil):
                 raise DidNotReachEquillibriumError()
@@ -849,12 +849,14 @@ class Montecarlo(object):
                 start = time.time()
             if (mode == "prec" and self.current_step > next_convergence_check):
                 next_convergence_check += check_convergence_every
-                # TODO: Is this barrier nessecary, or does it impact performance?
-                #print ("Proc check_conv: {}".format(self.rank))
+                # TODO: Is this barrier nessecary, or does it
+                # impact performance?
+                # print ("Proc check_conv: {}".format(self.rank))
                 if (self.mpicomm is not None):
                     self.mpicomm.barrier()
                 converged = self._has_converged_prec_mode(
-                    prec=prec, confidence_level=prec_confidence, log_status=log_status_conv)
+                    prec=prec, confidence_level=prec_confidence,
+                    log_status=log_status_conv)
                 log_status_conv = False
                 if (converged):
                     self._on_converged_log()
@@ -875,7 +877,6 @@ class Montecarlo(object):
         if (self.mpicomm is None):
             return
 
-        size = self.mpicomm.Get_size()
         self.mean_energy = self.mpicomm.allreduce(self.mean_energy, op=MPI.SUM)
         self.energy_squared = self.mpicomm.allreduce(
             self.energy_squared, op=MPI.SUM)
@@ -986,7 +987,6 @@ class Montecarlo(object):
         Make one Monte Carlo step by swithing two atoms
         """
         self.current_step += 1
-        number_of_atoms = len(self.atoms)
         self.last_energies[0] = self.current_energy
 
         system_changes = self._get_trial_move()
