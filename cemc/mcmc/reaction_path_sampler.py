@@ -9,22 +9,18 @@ import sys
 class ReactionPathSampler(object):
     """Generic class for sampling the free energy along some path.
 
-    :param mc_obj: Instance of :py:class:`cemc.mcmc.monteccarlo.Montecarlo`
-    :param reac_crd: Array [lower, upper). Maximum and minimum limits of the
-                     range of the reaction coordinate
-    :param react_crd_init: Instance of
-                           :py:class:`cemc.mcmc.reaction_path_utils.ReactionCrdInitializer`
-                           Has to be able to generate an atoms object
-                           corresponding to an arbitrary reaction coordinate
-    :param react_crd_range_constraint: Instance of
-                                       :py:class:`cemc.mcmc.reaction_path_utils.ReactionCrdRangeConstraint`
-                                       Given a set of changes it has to return
-                                       True if the object is still inside the
-                                       range, and False otherwise
-    :param n_window: Number of windows used for Umbrella sampling
-    :param n_bins: Number of bins inside each window
-    :param data_file: HDF5-file where all data acquired during the run
-                      is stored
+    :param Montecarlo mc_obj: MC object
+    :param list reac_crd: Maximum and minimum limits of the range of the
+        reaction coordinate. [lower, upper)
+    :param ReactionCrdInitializer react_crd_init: Has to be able to generate
+        configurations corresponding to an arbitrary reaction coordinate.
+    :param ReactionCrdRangeConstraint react_crd_range_constraint: Given a set
+        of changes it has to return True if the object is still inside the
+        range, and False otherwise
+    :param int n_window: Number of windows used for Umbrella sampling
+    :param int n_bins: Number of bins inside each window
+    :param str data_file: HDF5-file where all data acquired during the run
+        is stored
     """
 
     def __init__(self, mc_obj=None, react_crd=[0.0, 1.0],
@@ -63,7 +59,10 @@ class ReactionPathSampler(object):
         """
         Returns the upper and lower bound for window
 
-        :param window: Index of window
+        :param int window: Index of window
+
+        :return: Lower and upper limit of the window
+        :rtype: float, float
         """
         maxval = self.react_crd[1]
         minval = self.react_crd[0]
@@ -78,8 +77,11 @@ class ReactionPathSampler(object):
         """
         Returns the bin index of value in the current window
 
-        :param window: Index of current window
-        :param value: Value to be added in a histogram
+        :param int window: Index of current window
+        :param float value: Value to be added in a histogram
+
+        :return: Bin in the window corresponding to the value given
+        :rtype: int
         """
         min_lim, max_lim = self._get_window_limits(window)
         if (value < min_lim or value >= max_lim):
@@ -116,8 +118,11 @@ class ReactionPathSampler(object):
         """
         Merge the records into a one array
 
-        :param data: List of histograms containing the number of visits in
-                     each window
+        :param list data: List of histograms containing the number of visits in
+            each window
+
+        :return: Merged values. Keys: histrogram, free_energy, x
+        :rtype: dict
         """
         all_data = data[0].tolist()
         for i in range(1, len(data)):
@@ -165,7 +170,9 @@ class ReactionPathSampler(object):
     def log(self, msg, ranks=[0]):
         """Log messages.
 
-        :param msg: Message to log
+        :param str msg: Message to log
+        :param list ranks: Ranks that should print the message. Default is
+            only the master process.
         """
         if self.rank in ranks:
             print(msg)
@@ -174,7 +181,7 @@ class ReactionPathSampler(object):
     def log_window_statistics(self, window):
         """Print logging message concerning the sampling window.
 
-        :param window: Int, window to log statistics from.
+        :param int window: Int, window to log statistics from.
         """
         max = np.max(self.data[window])
         min = np.min(self.data[window])
@@ -220,7 +227,7 @@ class ReactionPathSampler(object):
         """
         Run MC simulation in all windows
 
-        :param nsteps: Number of Monte Carlo step per window
+        :param int nsteps: Number of Monte Carlo step per window
         """
         from cemc.mcmc import CanNotFindLegalMoveError
         output_every = 30
@@ -297,12 +304,17 @@ class ReactionPathSampler(object):
         """Return a dataset name.
 
         :param window: Int. Number of the window
+
+        :return: String used as key for the dataset in the HDF5 file
+        :rtype: str
         """
         return "window{}".format(window)
 
     def _collect_results(self, window):
         """
         Collects the results from all processors
+
+        :param int window: Index of the window
         """
         if self.mpicomm is None:
             return
@@ -311,7 +323,11 @@ class ReactionPathSampler(object):
         self.data[window][:] = recv_buf
 
     def _update_data_entry(self, grp, data):
-        """Update one data entry."""
+        """Update one data entry.
+
+        :param H5py.Group grp: HDF5 group that should be altered
+        :param numpy.ndarray data: New data points
+        """
         for key, value in data.items():
             try:
                 old_data = np.array(grp[key])
@@ -323,7 +339,11 @@ class ReactionPathSampler(object):
                 grp.create_dataset(key, data=value)
 
     def get_free_energy(self):
-        """Read from file and create free energy curve."""
+        """Read from file and create free energy curve.
+
+        :return: Merged histogram
+        :rtype: list of floats
+        """
         # Load content
         data = []
         merged = []
