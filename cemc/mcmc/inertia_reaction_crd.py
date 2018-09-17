@@ -8,6 +8,7 @@ from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
+
 class CouldNotFindValidStateError(Exception):
     pass
 
@@ -27,6 +28,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
     :param int output_every: Interval in seconds for how often status
         messages should be printed
     """
+
     def __init__(self, fixed_nucl_mc=None, matrix_element=None,
                  cluster_elements=[], num_matrix_atoms_surface=1,
                  traj_file="full_system_insertia.traj",
@@ -191,6 +193,10 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         :rtype: float
         """
         princ = self.principal_inertia
+        princ = np.sort(princ)
+
+        # Make sure they are sorted in the correct order
+        assert princ[0] <= princ[2]
 
         if self.formula == "I1/I3":
             return 1.0 - np.min(princ)/np.max(princ)
@@ -283,7 +289,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
 
             if time.time() - now > output_every:
                 print("Rank: {} Current value: {} Target value: {}"
-                         "".format(rank, new_value, value))
+                      "".format(rank, new_value, value))
                 sys.stdout.flush()
                 now = time.time()
                 atoms = mc.atoms
@@ -324,13 +330,18 @@ class InertiaRangeConstraint(ReactionCrdRangeConstraint):
     :param FixedNucleusMC fixed_nuc_mc: Monte Carlo object
     :param list range: Upper and lower bound of the reaction coordinate
     :param InertiaCrdInitializer inertia_init: Initializer
+    :param bool verbose: If True print messages every 10 sec
+        if the constraint is violated
     """
 
-    def __init__(self, fixed_nuc_mc=None, range=[0.0, 1.0], inertia_init=None):
+    def __init__(self, fixed_nuc_mc=None, range=[0.0, 1.0], inertia_init=None,
+                 verbose=False):
         super(InertiaRangeConstraint, self).__init__()
         self.update_range(range)
         self.mc = fixed_nuc_mc
         self._inertia_init = inertia_init
+        self.last_print = time.time()
+        self.verbose = verbose
 
     def get_new_value(self, system_changes):
         """Get new value for reaction coordinate.
@@ -388,4 +399,13 @@ class InertiaRangeConstraint(ReactionCrdRangeConstraint):
         :rtype: bool
         """
         new_val = self.get_new_value(system_changes)
-        return new_val >= self.range[0] and new_val < self.range[1]
+        ok = (new_val >= self.range[0] and new_val < self.range[1])
+
+        if not ok and self.verbose:
+            # The evaluation of this constraint can be time consuming
+            # so let the user know at regular intervals
+            rank = comm.Get_rank()
+            if time.time() - self.last_print > 10:
+                print("Move violates constraint on rank {}".format(rank))
+                self.last_print = time.time()
+        return ok

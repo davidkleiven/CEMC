@@ -1,13 +1,3 @@
-"""
-import montecarlo as mc
-from cemc.mcmc.mc_observers import SGCObserver
-from cemc.mcmc import SGCMonteCarlo
-import numpy as np
-from ase.units import kB
-import copy
-from scipy import stats
-import mpi_tools
-"""
 from cemc.mcmc import SGCMonteCarlo
 import numpy as np
 from ase.io import write
@@ -21,12 +11,15 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
     It applies umbrella sampling to force the system to also visit
     regions with low statistical weight
 
-    :Keyword Arguments:
-        * *n_windows* Maximum number of windows
-        * *n_bins* Number of bins per window
-        * *min_singlet* Minmum value of singlet term
-        * *max_singlet* Maximum value of singlet term
-        * mpicomm* MPI communicator object
+    :param Atoms atoms: Atoms object
+    :param float T: Temperature in kelvin
+    :param int n_windows: Number of windows used for Umbrellas sampling
+        with hard wall bias potential
+    :param int n_bins: Number of bins within each window
+    :param float min_singlet: Minimum value of the singlet value
+    :param float max_singlet: Maximum value of the singlet value
+    :param Intracomm mpicomm: MPI communicator
+    :param other: See :py:class:`cemc.mcmc.SGCMonteCarlo`
     """
 
     def __init__(self, atoms, T, **kwargs):
@@ -86,7 +79,10 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
         """
         Returns the upper and lower bound for window
 
-        :param window: Index of window
+        :param int window: Index of window
+
+        :return: Lower and upper bound of the window
+        :rtype: float, float
         """
         if window == 0:
             min_limit = self.min_singlet
@@ -103,8 +99,11 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
         """
         Returns the bin index of value in the current window
 
-        :param window: Index of current window
-        :param value: Value to be added in a histogram
+        :param int window: Index of current window
+        :param float value: Value to be added in a histogram
+
+        :return: Bin in the current window of the value passed
+        :rtype: int
         """
         min_lim, max_lim = self._get_window_limits(window)
         if (value < min_lim or value >= max_lim):
@@ -153,7 +152,10 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
         """
         Return True if the trial move was accepted, False otherwise
 
-        :param system_changes: List of system changes
+        :param list system_changes: List of system changes
+
+        :return: True/False if the move is accepted or not
+        :rtype: bool
         """
 
         # Check if move accepted by SGCMonteCarlo
@@ -172,13 +174,22 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
         return move_accepted and in_window
 
     def _is_inside_window(self, singlet):
-        """Check if the current state is inside the window."""
+        """Check if the current state is inside the window.
+
+        :param float singlet: Singlet value
+
+        :return: True/False. If True, the given value is inside the window
+        :rtype: bool
+        """
         min_allowed, max_allowed = self._get_window_limits(self.current_window)
         return singlet >= min_allowed and singlet < max_allowed
 
     def _get_merged_records(self):
         """
         Merge the records into a one array
+
+        :return: Merged results (keys: histogram, free_energy, energy)
+        :rtype: dict
         """
         self._collect_results()
         all_data = self.data[0].tolist()
@@ -200,6 +211,8 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
     def save(self, fname="sgc_free_energy.json"):
         """
         Stores the results to a JSON file
+
+        :param str fname: Filename
         """
         self._get_merged_records()
         if (self.rank == 0):
@@ -238,8 +251,8 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
         Loads the results from a file such the calculations can be restarted
         Returns an instance of the object in the same state as it was left
 
-        :param fname: Filename to data file
-        :param mpicomm: MPI communicator object
+        :param str fname: Filename to data file
+        :param Intracomm mpicomm: MPI communicator object
         """
         with open(fname, 'r') as infile:
             params = json.load(infile)
@@ -282,8 +295,9 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
         """
         Run MC simulation in all windows
 
-        :param nsteps: Number of Monte Carlo step per window
-        :param chem_pot: Chemical potential. See :py:meth:`cemc.mcmc.SGCMonteCarlo.runMC`
+        :param int nsteps: Number of Monte Carlo step per window
+        :param dict chem_pot: Chemical potential.
+            See :py:meth:`cemc.mcmc.SGCMonteCarlo.runMC`
         """
         if (self.chem_potential_restart_file is not None):
             self.log("Chemical potential was read from the restart file.")
@@ -336,7 +350,10 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
         """
         Create some standard plots of the results file produced
 
-        :param fname: Filename of the data file
+        :param str fname: Filename of the data file
+
+        :return: All figures
+        :rtype: list of Figure
         """
         from matplotlib import pyplot as plt
         with open(fname, 'r') as infile:
@@ -349,7 +366,7 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
         ax = figs[-1].add_subplot(1, 1, 1)
         ax.plot(result["xaxis"], result["free_energy"], ls="steps")
         ax.set_xlabel("Singlets")
-        ax.set_ylabel("$\\beta \Delta G$")
+        ax.set_ylabel("$\\beta \\Delta G$")
 
         figs.append(plt.figure())
         ax = figs[-1].add_subplot(1, 1, 1)

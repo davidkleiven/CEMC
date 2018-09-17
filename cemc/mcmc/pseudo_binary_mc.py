@@ -7,16 +7,16 @@ class PseudoBinarySGC(SGCMonteCarlo):
     """
     Class that can assign a chemical potential to a group of atoms.
 
-    :param atoma: Atoms object
-    :param T: Temperature
+    :param Atoms atoms: Atoms object
+    :param float T: Temperature in kelvin
     :param kwargs: See :py:class:`cemc.mcmc.SGCMonteCarlo`
-        Special key word arguments for this class
-        * groups: The pseudo binary groups [{"Al": 2}, {"Mg": 1, "Si": 1}],
+    :param groups: The pseudo binary groups [{"Al": 2}, {"Mg": 1, "Si": 1}],
         will allow for inserting MgSi for 2 Al atoms.
-        * insert_prob: Probability to try an insertion of the pseudo binary
-        groups
-        * chem_pot: Chemical potential associated with the pseudo-binary groups
-
+    :type groups: list of dicts
+    :param float insert_prob: Probability of trying an insertion move
+    :param float chem_pot: Chemical potential associated with the
+        pseudo-binary groups (i.e. inserting an entity from the
+        laster group and removing one from the first group)
     """
 
     def __init__(self, atoms, T, **kwargs):
@@ -67,7 +67,13 @@ class PseudoBinarySGC(SGCMonteCarlo):
             raise ValueError(msg)
 
     def _group2formula(self, elem_dict):
-        """Convert a dictionary description into a string description."""
+        """Convert a dictionary description into a string description.
+
+        :param dict elem_dict: Elements and number of each species
+
+        :return: Chemical formula
+        :rtype: str
+        """
         formula = ""
         for key, value in elem_dict:
             formula += "{}{}".format(key, value)
@@ -92,7 +98,13 @@ class PseudoBinarySGC(SGCMonteCarlo):
         return chem_pot_dict
 
     def _symbs_in_group_in_random_order(self, grp):
-        """Return the symbols of a group in random order."""
+        """Return the symbols of a group in random order.
+
+        :param dict grp: Symbols in group
+
+        :return: Symbols in random order
+        :rtype: list of str
+        """
         symbs = []
         for key, num in grp.items():
             symbs += [key] * num
@@ -118,7 +130,14 @@ class PseudoBinarySGC(SGCMonteCarlo):
         return syst_changes
 
     def _get_random_index(self, symbol, num=1):
-        """Get a random index of an atom with given symbol."""
+        """Get a random index of an atom with given symbol.
+
+        :param str symbol: Symbol
+        :param int num: Number of random indices
+
+        :return: Random index of a symbol
+        :rtype: list of int
+        """
         # NOTE: pop removes an arbitrary element
         indices = []
         for _ in range(num):
@@ -154,7 +173,10 @@ class PseudoBinarySGC(SGCMonteCarlo):
         return syst_changes
 
     def _update_tracker(self, changes):
-        """Update the atom tracker, only called if moves are accepted."""
+        """Update the atom tracker, only called if moves are accepted.
+
+        :param list changes: Accepted changes
+        """
         for change in changes:
             indx = change[0]
             old_symb = change[1]
