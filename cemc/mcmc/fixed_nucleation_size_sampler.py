@@ -197,6 +197,28 @@ class FixedNucleusMC(Montecarlo):
         dists = self.atoms.get_distances(root, indices, mic=True)
         return [indx for indx, d in zip(indices, dists) if d < radius]
 
+    def init_cluster_info(self):
+        """Initialize cluster info."""
+        self.network.reset()
+        self.network(None)
+        stat = self.network.get_statistics()
+        self.initial_num_atoms_in_cluster = stat["n_atoms_in_cluster"]
+
+        if stat["number_of_clusters"] != 1:
+            print("Cluster statistics:")
+            print(stat)
+            indices = []
+            for atom in self.atoms:
+                if atom.symbol in unique_solute_elements:
+                    indices.append(atom.index)
+            cluster = self.atoms[indices]
+            from ase.io import write
+            fname = "invalide_cluster{}.xyz".format(self.rank)
+            write(fname, cluster)
+            raise RuntimeError("There are {} clusters present! "
+                               "Initial structure written to {}\n"
+                               "".format(stat["number_of_clusters"], fname))
+
     def grow_cluster(self, elements, shape="arbitrary", radius=10.0):
         """Grow a cluster of a certain size.
 
@@ -286,26 +308,7 @@ class FixedNucleusMC(Montecarlo):
                 raise ValueError("Inconsistent size!\n"
                                  "Should be: {}\n"
                                  "Contains: {}".format(elements, at_count))
-
-        self.network.reset()
-        self.network(None)
-        stat = self.network.get_statistics()
-        self.initial_num_atoms_in_cluster = stat["n_atoms_in_cluster"]
-
-        if stat["number_of_clusters"] != 1:
-            print("Cluster statistics:")
-            print(stat)
-            indices = []
-            for atom in self.atoms:
-                if atom.symbol in unique_solute_elements:
-                    indices.append(atom.index)
-            cluster = self.atoms[indices]
-            from ase.io import write
-            fname = "invalide_cluster{}.xyz".format(self.rank)
-            write(fname, cluster)
-            raise RuntimeError("There are {} clusters present! "
-                               "Initial structure written to {}\n"
-                               "".format(stat["number_of_clusters"], fname))
+        self.init_cluster_info()
 
     def get_atoms(self, atoms=None, prohib_elem=[]):
         """
