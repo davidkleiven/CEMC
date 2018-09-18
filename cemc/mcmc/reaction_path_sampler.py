@@ -141,6 +141,11 @@ class ReactionPathSampler(object):
     def _bring_system_into_window(self):
         """Bring the system into the current window."""
         min, max = self._get_window_limits(self.current_window)
+        reac_crd = self.initializer.get(self.mc.atoms)
+
+        if reac_crd > min and reac_crd < max:
+            # Is already in window, we can just return
+            return
         val = 0.5 * (min + max)
 
         # We need to temporary release the concentration range
