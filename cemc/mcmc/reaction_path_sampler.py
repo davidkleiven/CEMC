@@ -223,6 +223,22 @@ class ReactionPathSampler(object):
                 return False
         return True
 
+    @property
+    def window_not_converged(self):
+        """List with all the windows that has not been converged.abs
+
+        :return: List with windows that has not been converged
+        :rtype: list of int
+        """
+        nproc = 1
+        if self.mpicomm is not None:
+            nproc = self.mpicomm.Get_size()
+        not_converged = []
+        for i, dset in enumerate(self.data):
+            if np.min(dset) < nproc + 0.1:
+                not_converged.append(i)
+        return not_converged
+
     def run(self, nsteps=10000):
         """
         Run MC simulation in all windows
@@ -296,6 +312,7 @@ class ReactionPathSampler(object):
             self.mc.reset()
 
             self.save_current_window()
+        self.log("Windows not converged: {}".format(self.window_not_converged))
         self.log("Convered all bins: {}".format(self.converged_all_bins))
         self.save()
 
