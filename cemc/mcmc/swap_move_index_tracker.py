@@ -18,6 +18,12 @@ class SwapMoveIndexTracker(object):
             symb_count[atom.symbol] += 1
         return symb_count
 
+    def __repr__(self):
+        str_repr = "SwapMoveIndexTracker at {}\n".format(hex(id(self)))
+        str_repr += "Symbols tracked: {}\n".format(self.symbols)
+        str_repr += "Tracker info: {}\n".format(self.tracker)
+        return str_repr
+
     def init_tracker(self, atoms):
         """Initialize the tracker with the numbers."""
         self.symbols = self._symbols_from_atoms(atoms)
