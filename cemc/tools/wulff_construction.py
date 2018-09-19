@@ -6,6 +6,7 @@ class WulffConstruction(object):
         self.max_dist_in_element = max_dist_in_element
         self.mesh = self._mesh()
         self.surf_mesh = self._extract_surface_mesh(self.mesh)
+        self.linear_fit = {}
 
     def _mesh(self):
         """Create mesh of all the atoms in the cluster.
@@ -126,3 +127,72 @@ class WulffConstruction(object):
             else:
                 data.append((n, dist))
         return data
+
+    def interface_energy_poly_expansion(self, order=2, show=False):
+        """Fit a multidimensional polynomial of a certain order."""
+        from itertools import combinations_with_replacement
+        interf = self.interface_energy
+        print(interf)
+        num_terms = int((3**(order+1) - 1)/2)
+
+        A = np.zeros((len(interf), num_terms))
+        A[:, 0] = 1.0
+        col = 1
+        mult_order = [()]
+        for p in range(1, order+1):
+            for comb in combinations_with_replacement(range(3), p):
+                vec = np.zeros(len(interf))
+                row = 0
+                for n, value in interf:
+                    x = 1.0
+                    for indx in comb:
+                        x *= n[indx]
+                    vec[row] = x
+                    row += 1
+                A[:, col] = vec
+                mult_order.append(comb)
+                col += 1
+
+        rhs = np.zeros(len(interf))
+        row = 0
+        for n, value in interf:
+            rhs[row] = value
+            row += 1
+        coeff, residual, rank, s = np.linalg.lstsq(A, rhs)
+        self.linear_fit["coeff"] = coeff
+        self.linear_fit["order"] = mult_order
+        if show:
+            from matplotlib import pyplot as plt
+            fig = plt.figure()
+            ax = fig.add_subplot(1, 1, 1)
+            pred = A.dot(coeff)
+            ax.plot(pred, rhs, 'o', mfc="none")
+            plt.show()
+
+    def eval(self, theta, phi):
+        """Evaluate interface energy in a particular direction using fit.
+
+        :param float theta: Polar angle in radians
+        :param float phi: Azimuthal angle in radian
+
+        :return: The estimated interface value
+        :rtype: float
+        """
+        required_fields = ["coeff", "order"]
+        for field in required_fields:
+            if required_fields not in self.linear_fit.keys():
+                raise ValueError("It looks like "
+                                 "interface_energy_poly_expansion "
+                                 "has not been called. Call that function "
+                                 "first.")
+
+        res = self.linear_fit["coeff"][0]
+        loop = zip(self.linear_fit["order"], self.linear_fit["coeff"])
+        n = [np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi),
+             np.cos(theta)]
+        for coeff, order in loop:
+            x = 1.0
+            for indx in order:
+                x *= n[indx]
+            res += coeff*x
+        return res
