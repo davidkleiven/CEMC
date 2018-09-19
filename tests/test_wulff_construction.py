@@ -11,7 +11,7 @@ except ImportError as exc:
 class TestWulff(unittest.TestCase):
     def test_no_throw(self):
         if not available:
-            self.skipTest(msg)
+            self.skipTest(io_msg)
 
         try:
             fname = "tests/test_data/cluster.xyz"
