@@ -2,6 +2,7 @@
 import numpy as np
 from cemc_cpp_code import PyEshelbyTensor, PyEshelbySphere
 from cemc.tools import rot_matrix, rotate_tensor, to_voigt, to_full_tensor
+from cemc.tools import rot_matrix_spherical_coordinates
 from itertools import product
 from scipy.optimize import minimize
 
@@ -111,20 +112,22 @@ class StrainEnergy(object):
         self.eshelby = StrainEnergy.get_eshelby(aspect, self.poisson)
         result = []
         eigenstrain_orig = to_full_tensor(self.eigenstrain)
+        theta = np.arange(0.0, np.pi, step*np.pi / 180.0)
+        phi = np.arange(0.0, 2.0 * np.pi, step * np.pi / 180.0)
 
-        for euler in product(np.arange(0, 360, step), repeat=3):
-            sequence = [("x", euler[0]), ("z", euler[1]), ("x", euler[2])]
-            matrix = rot_matrix(sequence)
-            strain = rotate_tensor(eigenstrain_orig, matrix)
-            self.eigenstrain = to_voigt(strain)
-            energy = self.strain_energy(scale_factor, e_matrix)
-            res = {"energy": energy, "rot_seq": sequence}
-            a = matrix.T.dot([1.0, 0.0, 0.0])
-            b = matrix.T.dot([0.0, 1.0, 0.0])
-            c = matrix.T.dot([0.0, 0.0, 1.0])
-            res["half_axes"] = {"a": a, "b": b, "c": c}
-            res["eigenstrain"] = self.eigenstrain
-            result.append(res)
+        for th in theta:
+            for p in phi:
+                matrix = rot_matrix_spherical_coordinates(p, th)
+                strain = rotate_tensor(eigenstrain_orig, matrix)
+                self.eigenstrain = to_voigt(strain)
+                energy = self.strain_energy(scale_factor, e_matrix)
+                res = {"energy": energy, "theta": th, "phi": p}
+                a = matrix.T.dot([1.0, 0.0, 0.0])
+                b = matrix.T.dot([0.0, 1.0, 0.0])
+                c = matrix.T.dot([0.0, 0.0, 1.0])
+                res["half_axes"] = {"a": a, "b": b, "c": c}
+                res["eigenstrain"] = self.eigenstrain
+                result.append(res)
 
         if print_summary:
             self.summarize_orientation_serch(result)
@@ -188,8 +191,8 @@ class StrainEnergy(object):
         self.log("{} orientation with the lowest energy".format(num_angles))
         self.log("---------------------------------------------------------")
         for i in range(num_angles):
-            out = "{:3} \t {} \t".format(top_20[i]["energy"]*1000.0,
-                                         top_20[i]["rot_seq"])
+            out = "{:3} \t {} \t {}".format(top_20[i]["energy"]*1000.0,
+                                            top_20[i]["theta"], top_20[i]["phi"])
             a = np.round(top_20[i]["half_axes"]["a"], decimals=2)
             b = np.round(top_20[i]["half_axes"]["b"], decimals=2)
             c = np.round(top_20[i]["half_axes"]["c"], decimals=2)
@@ -201,25 +204,32 @@ class StrainEnergy(object):
     def plot_explore_result(self, explore_result, latex=False):
         """Plot a diagonistic plot over the exploration result."""
         from matplotlib import pyplot as plt
-        energies = []
-        x_val = []
+        from scipy.interpolate import SmoothSphereBivariateSpline
+        energy = []
+        phi = []
+        theta = []
         for res in explore_result:
-            energies.append(res["energy"])
-            axes, angles = unwrap_euler_angles(res["rot_seq"])
-            x_val.append(map_euler_angles_to_unique_float(angles))
+            energy.append(res["energy"]*1000.0)
+            phi.append(res["phi"])
+            theta.append(res["theta"])
 
+        lut = SmoothSphereBivariateSpline(theta, phi, energy, s=3.5)
+        th_fine = np.linspace(0.0, np.pi, 90)
+        phi_fine = np.linspace(0.0, 2.0*np.pi, 90)
+        data_smooth = lut(th_fine, phi_fine)
         fig = plt.figure()
         ax = fig.add_subplot(1, 1, 1)
-        ax.plot(x_val, np.array(energies)*1000, 'o')
-
-        if latex:
-            ylab = "Strain energy (meV/\$\SI{}{\\angstrom^3}\$)"
-            xlab = "\$\\alpha + 360\\beta + 360^2 \\gamma\$"
-        else:
-            ylab = "Strain energy (meV/^3)"
-            xlab = "$\\alpha + 360\\beta + 360^2 \\gamma$"
-        ax.set_ylabel(ylab)
-        ax.set_xlabel(xlab)
+        phi_min = np.min(phi_fine) * 180.0 / np.pi
+        phi_max = np.max(phi_fine) * 180.0 / np.pi
+        theta_min = np.min(th_fine) * 180.0 / np.pi
+        theta_max = np.max(th_fine) * 180.0 / np.pi
+        im = ax.imshow(data_smooth, cmap="inferno",
+                       extent=[theta_min, theta_max, phi_min, phi_max],
+                       aspect="auto", origin="lower")
+        cb = fig.colorbar(im)
+        cb.set_label("Strain energy (meV/$Å^3$)")
+        ax.set_xlabel("Polar angle (deg)")
+        ax.set_ylabel("Azimuthal angle (deg)")
         return fig
 
     @staticmethod

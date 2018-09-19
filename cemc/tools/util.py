@@ -99,3 +99,28 @@ def to_full_tensor(voigt):
 def rotate_tensor(tensor, rot_matrix):
     """Rotate a tensor."""
     return rot_matrix.dot(tensor).dot(rot_matrix.T)
+
+
+def rot_matrix_spherical_coordinates(phi, theta):
+    """Find the rotation matrix in spherical coordinates.abs
+
+    After the rotation the z-axis points along
+    z' = [cos(phi) sin(theta), sin(phi)sin(theta), cos(theta)]
+
+    :param float phi: Azimuthal angle
+    :param float theta: polar angle
+    """
+    phi_deg = 180.0 * phi / np.pi
+    theta_deg = 180.0 * theta / np.pi
+    seq = [("z", phi_deg), ("y", theta_deg)]
+    seq = [("y", -theta_deg), ("z", -phi_deg)]
+    matrix = rot_matrix(seq)
+
+    # Make sure that the rotation is correct
+    target_z = np.array([np.cos(phi)*np.sin(theta),
+                         np.sin(phi)*np.sin(theta),
+                         np.cos(theta)])
+
+    z_from_matrix = matrix.dot([0, 0, 1])
+    assert np.allclose(z_from_matrix, target_z)
+    return matrix
