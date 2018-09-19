@@ -8,3 +8,4 @@ dataset
 spglib
 cython
 dill
+pygmsh
