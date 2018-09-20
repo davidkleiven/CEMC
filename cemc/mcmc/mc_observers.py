@@ -509,6 +509,32 @@ class NetworkObserver(MCObserver):
         return [i for i, indx in enumerate(self.indx_max_cluster)
                 if indx == max_id]
 
+    @staticmethod
+    def flatten_nested_list(nested):
+        flattened = []
+        for sublist in nested:
+            flattened += sublist
+        return flattened
+
+    def get_indices_of_largest_cluster_with_neighbours(self):
+        """Return the indices of the largest cluster+their neighboirs
+        :return: Indices of atoms in the cluster
+        :rtype: list of int
+        """
+        indices = self.get_indices_of_largest_cluster()
+        neighbour_indices = []
+        for root in indices:
+            for cname in self.cluster_name:
+                for info in self.calc.BC.cluster_info:
+                    if cname not in info.keys():
+                        continue
+                    members = info[cname]["indices"]
+                    for i in NetworkObserver.flatten_nested_list(members):
+                        tindx = self.calc.BC.trans_matrix[root][i]
+                        neighbour_indices.append(tindx)
+        indices += neighbour_indices
+        return list(set(indices))
+
     def collect_stat_MPI(self):
         """Collect the statistics from MPI."""
         if self.mpicomm is None:
