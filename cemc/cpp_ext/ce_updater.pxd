@@ -1,5 +1,8 @@
 # distutils: language = c++
 
+from libcpp.string cimport string
+from libcpp.vector cimport vector
+
 cdef extern from "init_numpy.hpp":
   pass
 
@@ -34,3 +37,5 @@ cdef extern from "ce_updater.hpp":
       void set_ecis(object ecis)
 
       object get_singlets()
+
+      const vector[string]& get_symbols() const

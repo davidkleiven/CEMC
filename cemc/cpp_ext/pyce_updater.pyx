@@ -52,3 +52,6 @@ cdef class PyCEUpdater:
 
     def get_energy(self):
         return self._cpp_class.get_energy()
+
+    def get_symbols(self):
+        return self._cpp_class.get_symbols()
