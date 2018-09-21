@@ -27,7 +27,7 @@ cdef class PyClusterTracker:
         return self._clust_track.get_cluster_statistics_python()
 
     def atomic_clusters2group_indx_python(self):
-        return self._clust_track.get_cluster_statistics_python()
+        return self._clust_track.atomic_clusters2group_indx_python()
 
     def surface_python(self):
         self._clust_track.surface_python()
