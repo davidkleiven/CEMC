@@ -133,9 +133,11 @@ class WulffConstruction(object):
         """Return a list with all symmetry equivalent directions."""
         from numpy.linalg import inv
         if self.spg_group is None:
-            return [vec]
-        rot, trans = self.spg_group.get_op()
-        cell = self.cluster.get_cell().T
+            equiv_vec = np.zeros((1, 3))
+            equiv_vec[0, :] = vec
+            return equiv_vec
+
+        rot = self.spg_group.get_rotations()
         cell = self.spg_group.scaled_primitive_cell.T
         inv_cell = inv(cell)
         equiv_vec = np.zeros((len(rot), 3))
@@ -147,15 +149,6 @@ class WulffConstruction(object):
             new_vec /= np.sqrt(new_vec.dot(new_vec))
             equiv_vec[i, :] = new_vec
         return equiv_vec
-
-    def symmetry_averaged_vector(self, n):
-        """Calculate the symmetry averaged vector.
-
-        :param n: Vector to be symmetry averaged
-        :type n: list or numpy 1D vector
-        """
-        eq_vecs = self.symmetry_equivalent_directions(n)
-        return np.mean(eq_vecs, axis=0)
 
     def interface_energy_poly_expansion(self, order=2, show=False, spg=1):
         """Fit a multidimensional polynomial of a certain order."""
@@ -176,16 +169,19 @@ class WulffConstruction(object):
                 vec = np.zeros(len(interf))
                 row = 0
                 for n, value in interf:
-                    n = self.symmetry_averaged_vector(n)
-                    x = 1.0
-                    for indx in comb:
-                        x *= n[indx]
-                    vec[row] = x
+                    eq_vec = self.symmetry_equivalent_directions(n)
+                    x_avg = 0.0
+                    for vec_indx in range(eq_vec.shape[0]):
+                        v = eq_vec[vec_indx, :]
+                        x = 1.0
+                        for indx in comb:
+                            x *= v[indx]
+                        x_avg += x
+                    vec[row] = x_avg / eq_vec.shape[0]
                     row += 1
                 A[:, col] = vec
                 mult_order.append(comb)
                 col += 1
-
         rhs = np.zeros(len(interf))
         row = 0
         for n, value in interf:
