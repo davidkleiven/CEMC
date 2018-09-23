@@ -7,6 +7,7 @@ class WulffConstruction(object):
         self.mesh = self._mesh()
         self.surf_mesh = self._extract_surface_mesh(self.mesh)
         self.linear_fit = {}
+        self.spg_group = None
 
     def _mesh(self):
         """Create mesh of all the atoms in the cluster.
@@ -128,11 +129,42 @@ class WulffConstruction(object):
                 data.append((n, dist))
         return data
 
-    def interface_energy_poly_expansion(self, order=2, show=False):
+    def symmetry_equivalent_directions(self, vec):
+        """Return a list with all symmetry equivalent directions."""
+        from numpy.linalg import inv
+        if self.spg_group is None:
+            return [vec]
+        rot, trans = self.spg_group.get_op()
+        cell = self.cluster.get_cell().T
+        cell = self.spg_group.scaled_primitive_cell.T
+        inv_cell = inv(cell)
+        equiv_vec = np.zeros((len(rot), 3))
+        for i, mat in enumerate(rot):
+            matrix = cell.dot(mat.dot(inv_cell))
+            new_vec = matrix.dot(vec)
+
+            # TODO: Why is this needed? The length should be conserved
+            new_vec /= np.sqrt(new_vec.dot(new_vec))
+            equiv_vec[i, :] = new_vec
+        return equiv_vec
+
+    def symmetry_averaged_vector(self, n):
+        """Calculate the symmetry averaged vector.
+
+        :param n: Vector to be symmetry averaged
+        :type n: list or numpy 1D vector
+        """
+        eq_vecs = self.symmetry_equivalent_directions(n)
+        return np.mean(eq_vecs, axis=0)
+
+    def interface_energy_poly_expansion(self, order=2, show=False, spg=1):
         """Fit a multidimensional polynomial of a certain order."""
         from itertools import combinations_with_replacement
         interf = self.interface_energy
-        print(interf)
+
+        if spg > 1:
+            from ase.spacegroup import Spacegroup
+            self.spg_group = Spacegroup(spg)
         num_terms = int((3**(order+1) - 1)/2)
 
         A = np.zeros((len(interf), num_terms))
@@ -144,6 +176,7 @@ class WulffConstruction(object):
                 vec = np.zeros(len(interf))
                 row = 0
                 for n, value in interf:
+                    n = self.symmetry_averaged_vector(n)
                     x = 1.0
                     for indx in comb:
                         x *= n[indx]
