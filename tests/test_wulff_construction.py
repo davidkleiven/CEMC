@@ -27,6 +27,7 @@ class TestWulff(unittest.TestCase):
             wulff.surface_atoms
             wulff.interface_energy
             wulff.interface_energy_poly_expansion(order=2, spg=225, show=True)
+            wulff.wulff_plot(show=True)
         except Exception as exc:
             no_throw = False
             msg = "{}_{}".format(type(exc).__name__, str(exc))

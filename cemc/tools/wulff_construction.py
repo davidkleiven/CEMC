@@ -153,6 +153,14 @@ class WulffConstruction(object):
             for j in range(i+1, A.shape[1]):
                 if np.allclose(A[:, i], A[:, j]):
                     equal_columns.append((i, j))
+
+        # In addition constant columns are equal to the first column
+        equal_due_to_constant = []
+        for i in range(1, A.shape[1]):
+            if np.allclose(A[:, i], A[0, i]):
+                equal_due_to_constant.append((0, i))
+
+        equal_columns = equal_due_to_constant + equal_columns
         unique_columns = list(range(A.shape[1]))
         for eq in equal_columns:
             if eq[0] in unique_columns and eq[1] in unique_columns:
@@ -187,6 +195,7 @@ class WulffConstruction(object):
         mult_order = [()]
         for p in range(1, order+1):
             for comb in combinations_with_replacement(range(3), p):
+                print(comb)
                 vec = np.zeros(len(interf))
                 row = 0
                 for n, value in interf:
@@ -204,9 +213,9 @@ class WulffConstruction(object):
 
         unique_cols = self._unique_columns(A)
         A = A[:, unique_cols]
-
         mult_order = [mult_order[indx] for indx in unique_cols]
         coeff, residual, rank, s = np.linalg.lstsq(A, rhs)
+        print(coeff)
         self.linear_fit["coeff"] = coeff
         self.linear_fit["order"] = mult_order
         if show:
@@ -228,17 +237,42 @@ class WulffConstruction(object):
         """
         required_fields = ["coeff", "order"]
         for field in required_fields:
-            if required_fields not in self.linear_fit.keys():
+            if field not in self.linear_fit.keys():
                 raise ValueError("It looks like "
                                  "interface_energy_poly_expansion "
                                  "has not been called. Call that function "
                                  "first.")
 
         res = self.linear_fit["coeff"][0]
-        loop = zip(self.linear_fit["order"], self.linear_fit["coeff"])
+        loop = zip(self.linear_fit["order"][1:],
+                   self.linear_fit["coeff"][1:].tolist())
         n = [np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi),
              np.cos(theta)]
-        for coeff, order in loop:
+        for order, coeff in loop:
             x = self._get_x_value(n, order)
             res += coeff*x
         return res
+
+    def wulff_plot(self, show=False):
+        """Create a Wulff plot."""
+        from matplotlib import pyplot as plt
+        fig_xy = plt.figure()
+        ax_xy = fig_xy.add_subplot(1, 1, 1)
+        pos = self.cluster.get_positions()
+        com = np.mean(pos, axis=0)
+        pos -= com
+
+        # Project atomic positions into the xy plane
+        proj_xy = pos[:, :2]
+        ax_xy.plot(proj_xy[:, 0], proj_xy[:, 1], 'x')
+        n_angles = 100
+        theta = np.zeros(n_angles) + np.pi/2.0
+        theta = theta.tolist()
+        phi = np.linspace(0.0, 2.0*np.pi, n_angles).tolist()
+        gamma = np.array([self.eval(t, p) for t, p in zip(theta, phi)])
+        x = gamma * np.cos(phi)
+        y = gamma * np.sin(phi)
+        ax_xy.plot(x, y)
+        if show:
+            plt.show()
+        return fig_xy
