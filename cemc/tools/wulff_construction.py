@@ -131,24 +131,45 @@ class WulffConstruction(object):
 
     def symmetry_equivalent_directions(self, vec):
         """Return a list with all symmetry equivalent directions."""
-        from numpy.linalg import inv
         if self.spg_group is None:
             equiv_vec = np.zeros((1, 3))
             equiv_vec[0, :] = vec
             return equiv_vec
 
         rot = self.spg_group.get_rotations()
-        cell = self.spg_group.scaled_primitive_cell.T
-        inv_cell = inv(cell)
         equiv_vec = np.zeros((len(rot), 3))
         for i, mat in enumerate(rot):
-            matrix = cell.dot(mat.dot(inv_cell))
-            new_vec = matrix.dot(vec)
+            new_vec = mat.dot(vec)
 
             # TODO: Why is this needed? The length should be conserved
             new_vec /= np.sqrt(new_vec.dot(new_vec))
             equiv_vec[i, :] = new_vec
         return equiv_vec
+
+    def _unique_columns(self, A):
+        """Get a list of unique columns."""
+        equal_columns = []
+        for i in range(0, A.shape[1]):
+            for j in range(i+1, A.shape[1]):
+                if np.allclose(A[:, i], A[:, j]):
+                    equal_columns.append((i, j))
+        unique_columns = list(range(A.shape[1]))
+        for eq in equal_columns:
+            if eq[0] in unique_columns and eq[1] in unique_columns:
+                unique_columns.remove(eq[1])
+        return unique_columns
+
+    def _get_x_value(self, vec, comb):
+        """Return the x value in the polynomial expansion."""
+        eq_vec = self.symmetry_equivalent_directions(vec)
+        x_avg = 0.0
+        for vec_indx in range(eq_vec.shape[0]):
+            v = eq_vec[vec_indx, :]
+            x = 1.0
+            for indx in comb:
+                x *= v[indx]
+            x_avg += x
+        return x_avg / eq_vec.shape[0]
 
     def interface_energy_poly_expansion(self, order=2, show=False, spg=1):
         """Fit a multidimensional polynomial of a certain order."""
@@ -169,15 +190,8 @@ class WulffConstruction(object):
                 vec = np.zeros(len(interf))
                 row = 0
                 for n, value in interf:
-                    eq_vec = self.symmetry_equivalent_directions(n)
-                    x_avg = 0.0
-                    for vec_indx in range(eq_vec.shape[0]):
-                        v = eq_vec[vec_indx, :]
-                        x = 1.0
-                        for indx in comb:
-                            x *= v[indx]
-                        x_avg += x
-                    vec[row] = x_avg / eq_vec.shape[0]
+                    x = self._get_x_value(n, comb)
+                    vec[row] = x
                     row += 1
                 A[:, col] = vec
                 mult_order.append(comb)
@@ -187,6 +201,11 @@ class WulffConstruction(object):
         for n, value in interf:
             rhs[row] = value
             row += 1
+
+        unique_cols = self._unique_columns(A)
+        A = A[:, unique_cols]
+
+        mult_order = [mult_order[indx] for indx in unique_cols]
         coeff, residual, rank, s = np.linalg.lstsq(A, rhs)
         self.linear_fit["coeff"] = coeff
         self.linear_fit["order"] = mult_order
@@ -220,8 +239,6 @@ class WulffConstruction(object):
         n = [np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi),
              np.cos(theta)]
         for coeff, order in loop:
-            x = 1.0
-            for indx in order:
-                x *= n[indx]
+            x = self._get_x_value(n, order)
             res += coeff*x
         return res
