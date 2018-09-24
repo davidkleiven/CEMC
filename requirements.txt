@@ -9,3 +9,4 @@ spglib
 cython
 dill
 pygmsh
+vtk

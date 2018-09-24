@@ -253,7 +253,7 @@ class WulffConstruction(object):
             res += coeff*x
         return res
 
-    def wulff_plot(self, show=False):
+    def wulff_plot(self, show=False, vtk_file="default.vtu"):
         """Create a Wulff plot."""
         from matplotlib import pyplot as plt
         fig_xy = plt.figure()
@@ -273,6 +273,57 @@ class WulffConstruction(object):
         x = gamma * np.cos(phi)
         y = gamma * np.sin(phi)
         ax_xy.plot(x, y)
+
+        # Plot the full surface in 3D
+        try:
+            from vtk import vtkPoints, vtkXMLUnstructuredGridWriter
+            from vtk import vtkUnstructuredGrid, vtkCellArray, vtkVertex
+            from vtk import vtkFloatArray
+            points = vtkPoints()
+            theta = np.linspace(np.pi/180.0, np.pi-np.pi/180.0, 100).tolist()
+            p_ids = []
+
+            gamma3D = vtkFloatArray()
+            gamma3D.SetName("gamma")
+            gammas = []
+            n_phi = 100
+            for t in theta:
+                delta = 2.0*np.pi/(n_phi*np.sin(t))
+                if delta >= 2.0*np.pi:
+                    continue
+                phi = np.arange(0.0, 2.0*np.pi, delta)
+                for p in phi:
+                    gamma = self.eval(t, p)
+                    vec = gamma * np.array([np.sin(t)*np.cos(p),
+                                            np.sin(t)*np.sin(p), np.cos(t)])
+                    p_ids.append(points.InsertNextPoint(vec))
+                    gammas.append(gamma)
+
+            gamma3D.SetNumberOfValues(len(gammas))
+            for i, g in enumerate(gammas):
+                gamma3D.SetValue(i, g)
+            cells = vtkCellArray()
+            vertex = vtkVertex()
+            typecode = vertex.GetCellType()
+            ncellpoints = vertex.GetNumberOfPoints()
+            for p in p_ids:
+                cells.InsertNextCell(ncellpoints)
+                cells.InsertCellPoint(p)
+
+            grid = vtkUnstructuredGrid()
+            grid.SetPoints(points)
+            grid.SetCells(typecode, cells)
+            grid.GetPointData().SetScalars(gamma3D)
+
+            writer = vtkXMLUnstructuredGridWriter()
+            writer.SetDataModeToAscii()
+            writer.SetInputData(grid)
+            writer.SetFileName(vtk_file)
+            print("VTK data written to {}".format(vtk_file))
+            writer.Write()
+        except ImportError as exc:
+            print(str(exc))
+            print("VTK package is required in order to generate 3D data!")
         if show:
             plt.show()
         return fig_xy
