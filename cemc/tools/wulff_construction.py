@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class WulffConstruction(object):
     def __init__(self, cluster=None, max_dist_in_element=None):
         self.cluster = cluster
@@ -18,6 +19,8 @@ class WulffConstruction(object):
         from scipy.spatial import Delaunay
         points = self.cluster.get_positions()
         delaunay = Delaunay(points)
+        simplices = self._filter_max_dist_in_element(delaunay.simplices)
+        delaunay.simplices = simplices
         return delaunay
 
     def _filter_max_dist_in_element(self, simplices):
@@ -63,7 +66,7 @@ class WulffConstruction(object):
         :rtype: List of tuples
         """
         from itertools import combinations
-        simplices = self._filter_max_dist_in_element(volume_mesh.simplices)
+        simplices = volume_mesh.simplices
         statistics = {}
         for tri in simplices:
             for comb in combinations(tri, 3):
@@ -253,7 +256,7 @@ class WulffConstruction(object):
             res += coeff*x
         return res
 
-    def wulff_plot(self, show=False, vtk_file="default.vtu"):
+    def wulff_plot(self, show=False, vtk_file="default.vtp"):
         """Create a Wulff plot."""
         from matplotlib import pyplot as plt
         fig_xy = plt.figure()
@@ -278,15 +281,20 @@ class WulffConstruction(object):
         try:
             from vtk import vtkPoints, vtkXMLUnstructuredGridWriter
             from vtk import vtkUnstructuredGrid, vtkCellArray, vtkVertex
-            from vtk import vtkFloatArray
+            from vtk import vtkFloatArray, vtkTriangle, vtkPolyData
+            from vtk import vtkXMLPolyDataWriter
+            from scipy.spatial import Delaunay
             points = vtkPoints()
-            theta = np.linspace(np.pi/180.0, np.pi-np.pi/180.0, 100).tolist()
+            n_angles = 60
+            theta = np.linspace(np.pi/180.0, np.pi-np.pi/180.0, n_angles)
+            theta = theta.tolist()
             p_ids = []
 
             gamma3D = vtkFloatArray()
             gamma3D.SetName("gamma")
             gammas = []
-            n_phi = 100
+            pts_list = []
+            n_phi = n_angles
             for t in theta:
                 delta = 2.0*np.pi/(n_phi*np.sin(t))
                 if delta >= 2.0*np.pi:
@@ -298,29 +306,50 @@ class WulffConstruction(object):
                                             np.sin(t)*np.sin(p), np.cos(t)])
                     p_ids.append(points.InsertNextPoint(vec))
                     gammas.append(gamma)
+                    pts_list.append(vec)
+
+            from scipy.spatial import ConvexHull
+            surf = ConvexHull(pts_list).simplices
+            triangles = vtkCellArray()
+            for simplex in surf:
+                triangle = vtkTriangle()
+                for i, uid in enumerate(simplex):
+                    triangle.GetPointIds().SetId(i, uid)
+                triangles.InsertNextCell(triangle)
 
             gamma3D.SetNumberOfValues(len(gammas))
             for i, g in enumerate(gammas):
                 gamma3D.SetValue(i, g)
-            cells = vtkCellArray()
-            vertex = vtkVertex()
-            typecode = vertex.GetCellType()
-            ncellpoints = vertex.GetNumberOfPoints()
-            for p in p_ids:
-                cells.InsertNextCell(ncellpoints)
-                cells.InsertCellPoint(p)
+            # cells = vtkCellArray()
+            # vertex = vtkVertex()
+            # typecode = vertex.GetCellType()
+            # ncellpoints = vertex.GetNumberOfPoints()
+            # for p in p_ids:
+            #     cells.InsertNextCell(ncellpoints)
+            #     cells.InsertCellPoint(p)
 
-            grid = vtkUnstructuredGrid()
-            grid.SetPoints(points)
-            grid.SetCells(typecode, cells)
-            grid.GetPointData().SetScalars(gamma3D)
+            # grid = vtkUnstructuredGrid()
+            # grid.SetPoints(points)
+            # grid.SetCells(typecode, cells)
+            # grid.GetPointData().SetScalars(gamma3D)
 
-            writer = vtkXMLUnstructuredGridWriter()
-            writer.SetDataModeToAscii()
-            writer.SetInputData(grid)
+            poly_data = vtkPolyData()
+            poly_data.SetPoints(points)
+            poly_data.SetPolys(triangles)
+            poly_data.GetPointData().SetScalars(gamma3D)
+            poly_data.Modified()
+
+            # writer = vtkXMLUnstructuredGridWriter()
+            # writer.SetDataModeToAscii()
+            # writer.SetInputData(grid)
+            # writer.SetFileName(vtk_file)
+            # print("VTK data written to {}".format(vtk_file))
+            # writer.Write()
+            writer = vtkXMLPolyDataWriter()
             writer.SetFileName(vtk_file)
-            print("VTK data written to {}".format(vtk_file))
+            writer.SetInputData(poly_data)
             writer.Write()
+            print("VTK data written to {}".format(vtk_file))
         except ImportError as exc:
             print(str(exc))
             print("VTK package is required in order to generate 3D data!")
