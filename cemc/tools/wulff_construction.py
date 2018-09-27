@@ -256,9 +256,10 @@ class WulffConstruction(object):
             res += coeff*x
         return res
 
-    def wulff_plot(self, show=False, vtk_file="default.vtp"):
+    def wulff_plot(self, show=False, n_angles=120):
         """Create a Wulff plot."""
         from matplotlib import pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D
         fig_xy = plt.figure()
         ax_xy = fig_xy.add_subplot(1, 1, 1)
         pos = self.cluster.get_positions()
@@ -279,80 +280,26 @@ class WulffConstruction(object):
 
         # Plot the full surface in 3D
         try:
-            from vtk import vtkPoints, vtkXMLUnstructuredGridWriter
-            from vtk import vtkUnstructuredGrid, vtkCellArray, vtkVertex
-            from vtk import vtkFloatArray, vtkTriangle, vtkPolyData
-            from vtk import vtkXMLPolyDataWriter
-            from scipy.spatial import Delaunay
-            points = vtkPoints()
-            n_angles = 60
-            theta = np.linspace(np.pi/180.0, np.pi-np.pi/180.0, n_angles)
+            from itertools import product
+            from mayavi import mlab
+            theta = np.linspace(0.0, np.pi, n_angles)
+            phi = np.linspace(0.0, 2.0*np.pi, n_angles)
             theta = theta.tolist()
-            p_ids = []
+            T, P = np.meshgrid(theta, phi)
+            Gamma = np.zeros(T.shape)
+            for indx in product(range(n_angles), range(n_angles)):
+                Gamma[indx] = self.eval(T[indx], P[indx])
 
-            gamma3D = vtkFloatArray()
-            gamma3D.SetName("gamma")
-            gammas = []
-            pts_list = []
-            n_phi = n_angles
-            for t in theta:
-                delta = 2.0*np.pi/(n_phi*np.sin(t))
-                if delta >= 2.0*np.pi:
-                    continue
-                phi = np.arange(0.0, 2.0*np.pi, delta)
-                for p in phi:
-                    gamma = self.eval(t, p)
-                    vec = gamma * np.array([np.sin(t)*np.cos(p),
-                                            np.sin(t)*np.sin(p), np.cos(t)])
-                    p_ids.append(points.InsertNextPoint(vec))
-                    gammas.append(gamma)
-                    pts_list.append(vec)
-
-            from scipy.spatial import ConvexHull
-            surf = ConvexHull(pts_list).simplices
-            triangles = vtkCellArray()
-            for simplex in surf:
-                triangle = vtkTriangle()
-                for i, uid in enumerate(simplex):
-                    triangle.GetPointIds().SetId(i, uid)
-                triangles.InsertNextCell(triangle)
-
-            gamma3D.SetNumberOfValues(len(gammas))
-            for i, g in enumerate(gammas):
-                gamma3D.SetValue(i, g)
-            # cells = vtkCellArray()
-            # vertex = vtkVertex()
-            # typecode = vertex.GetCellType()
-            # ncellpoints = vertex.GetNumberOfPoints()
-            # for p in p_ids:
-            #     cells.InsertNextCell(ncellpoints)
-            #     cells.InsertCellPoint(p)
-
-            # grid = vtkUnstructuredGrid()
-            # grid.SetPoints(points)
-            # grid.SetCells(typecode, cells)
-            # grid.GetPointData().SetScalars(gamma3D)
-
-            poly_data = vtkPolyData()
-            poly_data.SetPoints(points)
-            poly_data.SetPolys(triangles)
-            poly_data.GetPointData().SetScalars(gamma3D)
-            poly_data.Modified()
-
-            # writer = vtkXMLUnstructuredGridWriter()
-            # writer.SetDataModeToAscii()
-            # writer.SetInputData(grid)
-            # writer.SetFileName(vtk_file)
-            # print("VTK data written to {}".format(vtk_file))
-            # writer.Write()
-            writer = vtkXMLPolyDataWriter()
-            writer.SetFileName(vtk_file)
-            writer.SetInputData(poly_data)
-            writer.Write()
-            print("VTK data written to {}".format(vtk_file))
+            X = Gamma*np.cos(P)*np.sin(T)
+            Y = Gamma*np.sin(P)*np.sin(T)
+            Z = Gamma*np.cos(T)
+            mlab.mesh(X, Y, Z, scalars=Gamma)
+            if show:
+                mlab.show()
         except ImportError as exc:
-            print(str(exc))
-            print("VTK package is required in order to generate 3D data!")
+            print("{}: {}".format(type(exc).__name__, str(exc)))
+            print("To visualize in 3D mayavi is required!")
+
         if show:
             plt.show()
         return fig_xy

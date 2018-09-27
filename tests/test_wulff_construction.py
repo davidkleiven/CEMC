@@ -26,7 +26,7 @@ class TestWulff(unittest.TestCase):
             wulff = WulffConstruction(atoms, max_dist_in_element=6.0)
             wulff.surface_atoms
             wulff.interface_energy
-            wulff.interface_energy_poly_expansion(order=4, spg=225, show=True)
+            wulff.interface_energy_poly_expansion(order=2, spg=225, show=True)
             wulff.wulff_plot(show=True)
         except Exception as exc:
             no_throw = False
