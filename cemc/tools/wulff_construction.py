@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 
 class WulffConstruction(object):
@@ -182,7 +183,8 @@ class WulffConstruction(object):
             x_avg += x
         return x_avg / eq_vec.shape[0]
 
-    def interface_energy_poly_expansion(self, order=2, show=False, spg=1):
+    def interface_energy_poly_expansion(self, order=2, show=False, spg=1,
+                                        penalty=0.0):
         """Fit a multidimensional polynomial of a certain order."""
         from itertools import combinations_with_replacement
         interf = self.interface_energy
@@ -196,9 +198,14 @@ class WulffConstruction(object):
         A[:, 0] = 1.0
         col = 1
         mult_order = [()]
+        now = time.time()
+        output_every = 10
         for p in range(1, order+1):
             for comb in combinations_with_replacement(range(3), p):
-                print(comb)
+                if time.time() - now > output_every:
+                    print("Calculating order {} permutation {}"
+                          "".format(p, comb))
+                    now = time.time()
                 vec = np.zeros(len(interf))
                 row = 0
                 for n, value in interf:
@@ -214,18 +221,27 @@ class WulffConstruction(object):
             rhs[row] = value
             row += 1
 
+        print("Filtering duplicates...")
         unique_cols = self._unique_columns(A)
         A = A[:, unique_cols]
         mult_order = [mult_order[indx] for indx in unique_cols]
-        coeff, residual, rank, s = np.linalg.lstsq(A, rhs)
-        print(coeff)
+        print("Solving linear system...")
+        if A.shape[1] == 1:
+            # TODO: Trivial solution, calculate this directly
+            coeff, residual, rank, s = np.linalg.lstsq(A, rhs)
+        else:
+            N = A.shape[1]
+            matrix = np.linalg.inv(A.T.dot(A) + penalty*np.identity(N))
+            coeff = matrix.dot(A.T.dot(rhs))
         self.linear_fit["coeff"] = coeff
         self.linear_fit["order"] = mult_order
+        pred = A.dot(coeff)
+        rmse = np.sqrt(np.mean((pred-rhs)**2))
+        print("RMSE of surface parametrization: {}".format(rmse))
         if show:
             from matplotlib import pyplot as plt
             fig = plt.figure()
             ax = fig.add_subplot(1, 1, 1)
-            pred = A.dot(coeff)
             ax.plot(pred, rhs, 'o', mfc="none")
             plt.show()
 
@@ -259,7 +275,6 @@ class WulffConstruction(object):
     def wulff_plot(self, show=False, n_angles=120):
         """Create a Wulff plot."""
         from matplotlib import pyplot as plt
-        from mpl_toolkits.mplot3d import Axes3D
         fig_xy = plt.figure()
         ax_xy = fig_xy.add_subplot(1, 1, 1)
         pos = self.cluster.get_positions()
@@ -287,6 +302,7 @@ class WulffConstruction(object):
             theta = theta.tolist()
             T, P = np.meshgrid(theta, phi)
             Gamma = np.zeros(T.shape)
+            print("Evaluating gamma at all angles...")
             for indx in product(range(n_angles), range(n_angles)):
                 Gamma[indx] = self.eval(T[indx], P[indx])
 
