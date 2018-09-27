@@ -22,3 +22,4 @@ relaxed_path.traj
 *.csv
 calculator.json
 *.vtp
+energy_data.json
