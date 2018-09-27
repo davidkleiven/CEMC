@@ -8,7 +8,7 @@ def get_example_ecis(bc=None,bc_kwargs=None):
         bc = BulkCrystal(**bc_kwargs)
         cf = CorrFunction(bc)
     cf = cf.get_cf(bc.atoms)
-    eci = {key:0.001 for key in cf.keys()}
+    eci = {key: 0.001 for key in cf.keys()}
     return eci
 
 def get_example_network_name(bc):

@@ -693,5 +693,10 @@ class EnergyEvolution(MCObserver):
         self.name = "EnergyEvolution"
         MCObserver.__init__(self)
 
-    def __call__(self):
-        self.energies.append(self.mc_obj.current_energy_without_vib)
+    def __call__(self, system_changes):
+        """Append the current energy to the MC object."""
+        self.energies.append(self.mc.current_energy_without_vib())
+
+    def reset(self):
+        """Reset the history."""
+        self.energies = []
