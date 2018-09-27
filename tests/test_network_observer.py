@@ -80,8 +80,9 @@ class TestNetworkObs( unittest.TestCase ):
                 res = obs.fast_cluster_tracker.get_cluster_statistics_python()
                 self.assertEqual( res["cluster_sizes"][0], size )
                 size += 1
+            obs.get_indices_of_largest_cluster_with_neighbours()
         except Exception as exc:
-            msg = str(exc)
+            msg = "{}: {}".format(type(exc).__name__, str(exc))
             no_throw = False
         self.assertTrue( no_throw, msg=msg )
 

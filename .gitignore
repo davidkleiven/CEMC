@@ -21,3 +21,4 @@ tests/test_data/example_path_relaxed.json
 relaxed_path.traj
 *.csv
 calculator.json
+*.vtp
