@@ -684,3 +684,14 @@ class SiteOrderParameter(MCObserver):
         if var < 0.0:
             var = 0.0
         return average, np.sqrt(var)
+
+
+class EnergyEvolution(MCObserver):
+    def __init__(self, mc_obj):
+        self.mc = mc_obj
+        self.energies = []
+        self.name = "EnergyEvolution"
+        MCObserver.__init__(self)
+
+    def __call__(self):
+        self.energies.append(self.mc_obj.current_energy_without_vib)
