@@ -690,8 +690,8 @@ class EnergyEvolution(MCObserver):
     def __init__(self, mc_obj):
         self.mc = mc_obj
         self.energies = []
-        self.name = "EnergyEvolution"
         MCObserver.__init__(self)
+        self.name = "EnergyEvolution"
 
     def __call__(self, system_changes):
         """Append the current energy to the MC object."""
@@ -700,3 +700,57 @@ class EnergyEvolution(MCObserver):
     def reset(self):
         """Reset the history."""
         self.energies = []
+
+
+class EnergyHistogram(MCObserver):
+    def __init__(self, mc_obj, buffer_size=100000, n_bins=100):
+        self.mc = mc_obj
+        self.buffer = np.zeros(buffer_size)
+        self.n_bins = n_bins
+        MCObserver.__init__(self)
+        self._next = 0
+        self._histogram = None
+        self.Emin = None
+        self.EMax = None
+        self.sample_in_buffer = True
+
+    def __call__(self, system_changes):
+        E = self.mc.current_energy_without_vib()
+
+        if self.sample_in_buffer:
+            self.buffer[self._next] = E
+            self._next += 1
+            if self._buffer_is_full():
+                self._on_buffer_full()
+        else:
+            indx = self._get_indx(E)
+            self._histogram[indx] += 1
+
+    def _buffer_is_full(self):
+        """Return True if the buffer is full."""
+        return self._next >= len(self.buffer)
+
+    def _on_buffer_full(self):
+        """Initialize the histogram and create a histogram."""
+        self.Emin = np.min(self.buffer)
+        self.Emax = np.max(self.buffer)
+        self._histogram = np.zeros(len(self.n_bins))
+        for e in self.buffer:
+            indx = self._get_indx(e)
+            self._histogram[indx] += 1
+
+        # After initialization we don't need to buffer the energies any more
+        self.sample_in_buffer = False
+
+    def _get_indx(self, E):
+        """Return the index in the histogram corresponding to E."""
+        if self.Emin is None or self.Emax is None:
+            raise RuntimeError("This function should never be called before "
+                               "the histogram has been updated at least once!")
+        return int((E-self.Emin)*(self.n_bins - 1)/(self.Emax - self.Emin))
+
+    @property
+    def histogram(self):
+        if self._histogram is None:
+            self._on_buffer_full()
+        return self._histogram

@@ -55,7 +55,7 @@ mc_obj = Montecarlo( ceBulk.atoms, T )
 
 # Now we define the observers
 from cemc.mcmc import CorrelationFunctionTracker, PairCorrelationObserver, Snapshot, LowestEnergyStructure, NetworkObserver
-from cemc.mcmc import SiteOrderParameter
+from cemc.mcmc import SiteOrderParameter, EnergyEvolution, EnergyHistogram
 
 # The Correlation Function Tracker computes the thermodynamic
 # average of all the correlation functions
@@ -80,6 +80,12 @@ network_obs = NetworkObserver( calc=calc, cluster_name=[get_example_network_name
 # This tracks the average number of sites that where the symbol as changed
 site_order = SiteOrderParameter(ceBulk.atoms)
 
+# Energy evolution. Useful to check if the system has been equilibrated
+energy_evol = EnergyEvolution(mc_obj)
+
+# Energy histogram: Sample a histogram of the visited energy states
+energy_hist = EnergyHistogram(mc_obj, n_bins=100)
+
 # Now we can attach the observers to the mc_obj
 mc_obj.attach( corr_func_obs, interval=1 )
 mc_obj.attach( pair_obs, interval=1 )
@@ -87,6 +93,8 @@ mc_obj.attach( snapshot, interval=10 ) # Take a snap shot every then iteration
 mc_obj.attach( low_en, interval=1 )
 mc_obj.attach( network_obs, interval=5 )
 mc_obj.attach(site_order)
+mc_obj.attach(energy_evol)
+mc_obj.attach(energy_hist)
 
 # Now run 30 MC steps
 mc_obj.runMC( mode="fixed", steps=30, equil=False )
