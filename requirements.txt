@@ -8,5 +8,3 @@ dataset
 spglib
 cython
 dill
-pygmsh
-vtk
