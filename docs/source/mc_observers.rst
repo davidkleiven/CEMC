@@ -44,3 +44,15 @@ the Monte Carlo sampler!
 .. autoclass:: cemc.mcmc.mc_observers.SiteOrderParameter
   :members:
   :special-members: __call__
+
+.. autoclass:: cemc.mcmc.mc_observers.EnergyEvolution
+  :members:
+  :special-members: __call__
+
+.. autoclass:: cemc.mcmc.mc_observers.EnergyHistogram
+  :members:
+  :special-members: __call__
+
+.. autoclass:: cemc.mcmc.mc_observers.MCBackup
+  :members:
+  :special-members: __call__
