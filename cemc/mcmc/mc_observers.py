@@ -754,3 +754,34 @@ class EnergyHistogram(MCObserver):
         if self._histogram is None:
             self._on_buffer_full()
         return self._histogram
+
+
+class MCBackup(MCObserver):
+    """Class that makes backup of the current MC object.
+
+    :param Montecarlo mc_obj: Monte Carlo object
+    :param str backup_file: Filename where backup will be written. Note that
+        the content of this file will be overwritten everytime.
+    """
+
+    def __init__(self, mc_obj, backup_file="montecarlo_backup.pkl"):
+        self.mc_obj = mc_obj
+        self.backup_file = self._include_rank_in_filename(backup_file)
+        MCObserver.__init__(self)
+        self.name = "MCBackup"
+
+    def _include_rank_in_filename(self, fname):
+        """Include the current rank in the filename if nessecary."""
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        size = comm.Get_size()
+        if size > 1:
+            # We have to include the rank in the filename to avoid problems
+            rank = comm.Get_size()
+            prefix = fname.rpartition(".")[0]
+            return prefix + "_rank{}.pkl".format(rank)
+        return fname
+
+    def __call__(self, system_changes):
+        """Write a copy of the Monte Carlo object to file."""
+        self.mc_obj.save(self.backup_file)

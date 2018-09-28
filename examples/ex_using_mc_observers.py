@@ -56,6 +56,7 @@ mc_obj = Montecarlo( ceBulk.atoms, T )
 # Now we define the observers
 from cemc.mcmc import CorrelationFunctionTracker, PairCorrelationObserver, Snapshot, LowestEnergyStructure, NetworkObserver
 from cemc.mcmc import SiteOrderParameter, EnergyEvolution, EnergyHistogram
+from cemc.mcmc import MCBackup
 
 # The Correlation Function Tracker computes the thermodynamic
 # average of all the correlation functions
@@ -86,6 +87,9 @@ energy_evol = EnergyEvolution(mc_obj)
 # Energy histogram: Sample a histogram of the visited energy states
 energy_hist = EnergyHistogram(mc_obj, n_bins=100)
 
+# Make backup at regular intervals
+mc_backup = MCBackup(mc_obj, backup_file="montecarlo_example_backup.pkl")
+
 # Now we can attach the observers to the mc_obj
 mc_obj.attach( corr_func_obs, interval=1 )
 mc_obj.attach( pair_obs, interval=1 )
@@ -95,6 +99,7 @@ mc_obj.attach( network_obs, interval=5 )
 mc_obj.attach(site_order)
 mc_obj.attach(energy_evol)
 mc_obj.attach(energy_hist)
+mc_obj.attach(mc_backup, interval=5)
 
 # Now run 30 MC steps
 mc_obj.runMC( mode="fixed", steps=30, equil=False )
@@ -119,3 +124,4 @@ mc_obj = Montecarlo.load("montecarlo.pkl")
 import os
 os.remove("mc_obs.db")
 os.remove("montecarlo.pkl")
+os.remove("montecarlo_example_backup.pkl")

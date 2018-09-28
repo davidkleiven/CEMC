@@ -1067,6 +1067,9 @@ class Montecarlo(object):
         with open(fname, 'wb') as outfile:
             dill.dump(self, outfile)
 
+        # Initialize the loggers again
+        self._init_loggers()
+
     @staticmethod
     def load(fname):
         """
