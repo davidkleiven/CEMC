@@ -701,6 +701,11 @@ class EnergyEvolution(MCObserver):
         """Reset the history."""
         self.energies = []
 
+    def save(self, fname="energy_evolution.csv"):
+        """Save the result to a numpy file."""
+        np.savetxt(fname, self.energies, delimiter=",")
+        print("Energy evolution data saved to {}".format(fname))
+
 
 class EnergyHistogram(MCObserver):
     def __init__(self, mc_obj, buffer_size=100000, n_bins=100):
