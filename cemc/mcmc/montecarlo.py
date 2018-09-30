@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Monte Carlo method for ase."""
 from __future__ import division
-
+import sys
 import numpy as np
 import ase.units as units
 import time
@@ -16,6 +16,14 @@ from cemc.mcmc.util import waste_recycled_average, waste_recycled_accept_prob
 from cemc.mcmc.util import get_new_state
 from cemc.mcmc import BiasPotential
 from cemc.mcmc.swap_move_index_tracker import SwapMoveIndexTracker
+
+# Set the pickle protocol
+if sys.version_info[0] == 2:
+    PICKLE_PROTOCOL = 2
+elif sys.version_info[0] == 3:
+    PICKLE_PROTOCOL = 4
+else:
+    raise ImportError("Expected system info to be 2 or 3!")
 
 
 class DidNotReachEquillibriumError(Exception):
@@ -1065,7 +1073,7 @@ class Montecarlo(object):
         self.flush_log = None
         import dill
         with open(fname, 'wb') as outfile:
-            dill.dump(self, outfile)
+            dill.dump(self, outfile, protocol=PICKLE_PROTOCOL)
 
         # Initialize the loggers again
         self._init_loggers()
