@@ -88,7 +88,7 @@ energy_evol = EnergyEvolution(mc_obj)
 energy_hist = EnergyHistogram(mc_obj, n_bins=100)
 
 # Make backup at regular intervals
-mc_backup = MCBackup(mc_obj, backup_file="montecarlo_example_backup.pkl")
+mc_backup = MCBackup(mc_obj, backup_file="montecarlo_example_backup.pkl", db_name="mc_ex_backup.db")
 
 # Now we can attach the observers to the mc_obj
 mc_obj.attach( corr_func_obs, interval=1 )
@@ -125,3 +125,4 @@ import os
 os.remove("mc_obs.db")
 os.remove("montecarlo.pkl")
 os.remove("montecarlo_example_backup.pkl")
+os.remove("mc_ex_backup.db")

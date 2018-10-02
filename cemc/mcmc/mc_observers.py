@@ -762,13 +762,21 @@ class MCBackup(MCObserver):
     :param Montecarlo mc_obj: Monte Carlo object
     :param str backup_file: Filename where backup will be written. Note that
         the content of this file will be overwritten everytime.
+    :param str db_name: Database name. If given, results will be written to 
+        a table
+    :param str db_tab_name: Name of table in the database
+    :param int db_id: ID in the database. If None, a new entry will be created
     """
 
-    def __init__(self, mc_obj, backup_file="montecarlo_backup.pkl"):
+    def __init__(self, mc_obj, backup_file="montecarlo_backup.pkl", db_name="",
+                 db_tab_name="mc_backup", db_id=None):
         self.mc_obj = mc_obj
         self.backup_file = self._include_rank_in_filename(backup_file)
         MCObserver.__init__(self)
         self.name = "MCBackup"
+        self.db_name = db_name
+        self.db_id = None
+        self.db_tab_name = db_tab_name
 
     def _include_rank_in_filename(self, fname):
         """Include the current rank in the filename if nessecary."""
@@ -785,3 +793,21 @@ class MCBackup(MCObserver):
     def __call__(self, system_changes):
         """Write a copy of the Monte Carlo object to file."""
         self.mc_obj.save(self.backup_file)
+        if self.db_name != "":
+            import dataset
+            from mpi4py import MPI
+            thermo = self.mc_obj.get_thermodynamic()
+            comm = MPI.COMM_WORLD
+            rank = comm.Get_rank()
+            db = dataset.connect("sqlite:///{}".format(self.db_name))
+            tab = db[self.db_tab_name]
+            if self.db_id is None:
+                # This shoud be a new entry
+                self.db_id = tab.insert(thermo)
+            else:
+                # Entry alread exists. Update that one.
+                thermo["id"] = self.db_id
+                tab.update(thermo, ["id"])
+
+
+
