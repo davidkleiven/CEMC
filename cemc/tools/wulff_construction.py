@@ -1,6 +1,8 @@
 import numpy as np
 import time
 
+class SpliPyNotFoundError(Exception):
+    pass
 
 class WulffConstruction(object):
     def __init__(self, cluster=None, max_dist_in_element=None):
@@ -82,6 +84,7 @@ class WulffConstruction(object):
                 tri_surf.append(k)
         return tri_surf
 
+
     def save_surface_mesh(self, fname):
         """Save the surface mesh to GMSH format
 
@@ -98,7 +101,7 @@ class WulffConstruction(object):
 
             # Write points
             out.write("$Nodes\n")
-            out.write("1 {}\n".format(points.shape[0]))
+            out.write("{}\n".format(points.shape[0]))
             for i in range(points.shape[0]):
                 vec = points[i, :]
                 out.write("{} {} {} {}\n".format(i+1, vec[0], vec[1], vec[2]))
@@ -108,7 +111,7 @@ class WulffConstruction(object):
             out.write("$Elements\n")
             out.write("{}\n".format(len(triangulation)))
             for i, tri in enumerate(triangulation):
-                out.write("{} 2 0 {} {} {}\n".format(i+1, tri[0], tri[1], tri[2]))
+                out.write("{} 2 0 {} {} {}\n".format(i+1, tri[0]+1, tri[1]+1, tri[2]+1))
             out.write("$EndElements\n")
         print("Surface mesh saved to {}".format(fname))
 
@@ -302,6 +305,27 @@ class WulffConstruction(object):
             res += coeff*x
         return res
 
+    def fit_harmonics(self, show=False, order=3, penalty=0.0):
+        """Fit a spherical harmonics expansion to the surface."""
+        pts = self.surface_atoms.get_positions()
+        com = np.mean(pts, axis=0)
+        pts -= com
+        r = np.sqrt(np.sum(pts**2, axis=1))
+        theta = np.arccos(pts[:, 2]/r)
+        phi = np.arctan2(pts[:, 1], pts[:, 0])
+        data = np.zeros((len(phi), 3))
+        data[:, 0] = phi
+        data[:, 1] = theta
+        data[:, 2] = r
+
+
+        from cemc.tools import HarmonicsFit
+        fit = HarmonicsFit(order=order)
+        fit.fit(data, penalty=penalty)
+        if show:
+            fit.show()
+        return fit
+
     def wulff_plot(self, show=False, n_angles=120):
         """Create a Wulff plot."""
         from matplotlib import pyplot as plt
@@ -339,7 +363,8 @@ class WulffConstruction(object):
             X = Gamma*np.cos(P)*np.sin(T)
             Y = Gamma*np.sin(P)*np.sin(T)
             Z = Gamma*np.cos(T)
-            mlab.mesh(X, Y, Z, scalars=Gamma)
+            fig = mlab.figure(bgcolor=(1, 1, 1))
+            mlab.mesh(X, Y, Z, scalars=Gamma/np.min(Gamma))
             if show:
                 mlab.show()
         except ImportError as exc:
