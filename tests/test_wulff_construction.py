@@ -29,6 +29,9 @@ class TestWulff(unittest.TestCase):
             wulff.interface_energy_poly_expansion(order=2, spg=225, show=False,
                                                   penalty=0.1)
             wulff.wulff_plot(show=False)
+            mesh_file = "surface_mesh.msh"
+            wulff.save_surface_mesh(mesh_file)
+            os.remove(mesh_file)
         except Exception as exc:
             no_throw = False
             msg = "{}_{}".format(type(exc).__name__, str(exc))

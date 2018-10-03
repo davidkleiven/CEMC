@@ -82,6 +82,36 @@ class WulffConstruction(object):
                 tri_surf.append(k)
         return tri_surf
 
+    def save_surface_mesh(self, fname):
+        """Save the surface mesh to GMSH format
+
+        :param str fname: Filename to where mesh will be stored
+        """
+        triangulation = self.surf_mesh
+        points = self.cluster.get_positions()
+        with open(fname, 'w') as out:
+            # Write mandatory header
+            out.write("$MeshFormat\n")
+            out.write("2.2 0 8\n")
+            out.write("$EndMeshFormat\n\n")
+
+
+            # Write points
+            out.write("$Nodes\n")
+            out.write("1 {}\n".format(points.shape[0]))
+            for i in range(points.shape[0]):
+                vec = points[i, :]
+                out.write("{} {} {} {}\n".format(i+1, vec[0], vec[1], vec[2]))
+            out.write("$EndNodes\n")
+
+            # Write triangles
+            out.write("$Elements\n")
+            out.write("{}\n".format(len(triangulation)))
+            for i, tri in enumerate(triangulation):
+                out.write("{} 2 0 {} {} {}\n".format(i+1, tri[0], tri[1], tri[2]))
+            out.write("$EndElements\n")
+        print("Surface mesh saved to {}".format(fname))
+
     def _unique_surface_indices(self, surf_mesh):
         """Extract the unique positions of the atoms on the surface
 
