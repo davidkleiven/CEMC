@@ -13,6 +13,29 @@ class WulffConstruction(object):
         self.linear_fit = {}
         self.spg_group = None
 
+    def filter_neighbours(self, num_neighbours=1, elements=None, cutoff=6.0):
+        """Remove atoms that has to few neighbours within the specified cutoff.
+
+        :param int num_neighbours: Number of required neighbours
+        :param elements: Which elements are considered part of the cluster
+        :type elements: list of strings
+        :param float cutoff: Cut-off radius in angstrom
+        """
+        from scipy.spatial import cKDTree as KDTree
+
+        if elements is None:
+            raise TypeError("No elements given!")
+        tree = KDTree(self.cluster.get_positions())
+        indices_in_cluster = []
+        for atom in self.cluster:
+            neighbours = tree.query_ball_point(atom.position, cutoff)
+            if len(neighbours) >= num_neighbours:
+                indices_in_cluster.append(atom.index)
+        
+        # Have to remesh everything
+        self.mesh = self._mesh()
+        self.surf_mesh = self._extract_surface_mesh(self.mesh)
+
     def _mesh(self):
         """Create mesh of all the atoms in the cluster.
 
