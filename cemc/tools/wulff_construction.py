@@ -206,30 +206,38 @@ class WulffConstruction(object):
         length = np.sqrt(np.sum(n**2))
         return n / length
 
-    @property
-    def interface_energy(self):
+    def interface_energy(self, average_cutoff=10.0):
+        from cemc.tools.normal_vector import NormalVectorEstimator
         com = np.mean(self.cluster.get_positions(), axis=0)
 
         data = []
         pos = self.cluster.get_positions()
         self.angles = []
-        for facet in self.surf_mesh:
-            n = self.normal_vector(facet)
+        normal_estimate = NormalVectorEstimator(self.surf_mesh, pos)
+        # for facet in self.surf_mesh:
+        #     n = self.normal_vector(facet)
 
-            # Calculate centroid of the facet
-            point_on_facet = (pos[facet[0], :] + pos[facet[1], :] + pos[facet[2], :])/3.0
-            vec = point_on_facet - com
+        #     # Calculate centroid of the facet
+        #     point_on_facet = (pos[facet[0], :] + pos[facet[1], :] + pos[facet[2], :])/3.0
+        #     vec = point_on_facet - com
+        #     dist = vec.dot(n)
+        #     angle = np.arccos(dist/np.sqrt(vec.dot(vec)))*180.0/np.pi
+        #     if angle > 90.0:
+        #         angle = 180.0 - angle
+        #     self.angles.append(angle)
+
+        #     if dist < 0.0:
+        #         data.append((-n, -dist))
+        #     else:
+        #         data.append((n, dist))
+        pos = self.surface_atoms.get_positions()
+        for i in range(pos.shape[0]):
+            n = normal_estimate.get_normal(pos[i, :], cutoff=average_cutoff)
+            vec = pos[i, :] - com
             dist = vec.dot(n)
-            angle = np.arccos(dist/np.sqrt(vec.dot(vec)))*180.0/np.pi
-            if angle > 90.0:
-                angle = 180.0 - angle
-            self.angles.append(angle)
-
-            if dist < 0.0:
-                data.append((-n, -dist))
-            else:
-                data.append((n, dist))
+            data.append((n, dist))
         self._interface_energy = data
+        normal_estimate.show_statistics()
         return data
 
     def symmetry_equivalent_directions(self, vec):
@@ -283,17 +291,18 @@ class WulffConstruction(object):
         return x_avg / eq_vec.shape[0]
 
     def interface_energy_poly_expansion(self, order=2, show=False, spg=1,
-                                        penalty=0.0, max_angle=90):
+                                        penalty=0.0, max_angle=90,
+                                        average_cutoff=10.0):
         """Fit a multidimensional polynomial of a certain order."""
         from itertools import combinations_with_replacement
-        interf = self.interface_energy
+        interf = self.interface_energy(average_cutoff=average_cutoff)
 
         # Filter out the surfaces that has extremely high angles
-        inter_filtered = []
-        for data, angle in zip(interf, self.angles):
-            if angle < max_angle:
-                inter_filtered.append(data)
-        interf = inter_filtered
+        # inter_filtered = []
+        # for data, angle in zip(interf, self.angles):
+        #     if angle < max_angle:
+        #         inter_filtered.append(data)
+        # interf = inter_filtered
 
         if spg > 1:
             from ase.spacegroup import Spacegroup
