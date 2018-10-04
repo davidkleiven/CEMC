@@ -9,6 +9,8 @@ class WulffConstruction(object):
         self.surf_mesh = self._extract_surface_mesh(self.mesh)
         self.linear_fit = {}
         self.spg_group = None
+        self.angles = []
+        self._interface_energy = []
 
     def filter_neighbours(self, num_neighbours=1, elements=None, cutoff=6.0):
         """Remove atoms that has to few neighbours within the specified cutoff.
@@ -19,16 +21,25 @@ class WulffConstruction(object):
         :param float cutoff: Cut-off radius in angstrom
         """
         from scipy.spatial import cKDTree as KDTree
-
         if elements is None:
             raise TypeError("No elements given!")
+
+        print("Filtering out atoms with less than {} elements "
+              "of type {} within {} angstrom"
+              "".format(num_neighbours, elements, cutoff))
+
         tree = KDTree(self.cluster.get_positions())
         indices_in_cluster = []
         for atom in self.cluster:
             neighbours = tree.query_ball_point(atom.position, cutoff)
-            if len(neighbours) >= num_neighbours:
+            num_of_correct_symbol = 0
+            for neigh in neighbours:
+                if self.cluster[neigh].symbol in elements:
+                    num_of_correct_symbol += 1
+            if num_of_correct_symbol >= num_neighbours:
                 indices_in_cluster.append(atom.index)
         
+        self.cluster = self.cluster[indices_in_cluster]
         # Have to remesh everything
         self.mesh = self._mesh()
         self.surf_mesh = self._extract_surface_mesh(self.mesh)
@@ -133,6 +144,33 @@ class WulffConstruction(object):
             for i, tri in enumerate(triangulation):
                 out.write("{} 2 0 {} {} {}\n".format(i+1, tri[0]+1, tri[1]+1, tri[2]+1))
             out.write("$EndElements\n")
+
+            if len(self.angles) == len(triangulation):
+                # Angles between the normal vector of the facet and the 
+                # centroid has been computed. We store this as element data
+                out.write("$ElementData\n")
+                out.write("1\n")
+                out.write("NormalVectorAngle\n")
+                out.write("0\n")
+                out.write("4\n0\n1\n{}\n0\n".format(len(self.angles)))
+                for i, ang in enumerate(self.angles):
+                    angle = ang
+                    if angle > 90.0:
+                        angle = 180.0 - angle
+                    out.write("{} {}\n".format(i+1, angle))
+                out.write("$EndElementData\n")
+
+            if len(self._interface_energy) == len(triangulation):
+                # Interface energy has been computed
+                # We store this as element data
+                out.write("$ElementData\n")
+                out.write("1\n")
+                out.write("Gamma\n")
+                out.write("0\n")
+                out.write("4\n0\n1\n{}\n0\n".format(len(self._interface_energy)))
+                for i, interf in enumerate(self._interface_energy):
+                    out.write("{} {}\n".format(i+1, interf[1]))
+                out.write("$EndElementData\n")
         print("Surface mesh saved to {}".format(fname))
 
     def _unique_surface_indices(self, surf_mesh):
@@ -170,20 +208,28 @@ class WulffConstruction(object):
 
     @property
     def interface_energy(self):
-        com = np.sum(self.cluster.get_positions(), axis=0) / len(self.cluster)
+        com = np.mean(self.cluster.get_positions(), axis=0)
 
         data = []
         pos = self.cluster.get_positions()
+        self.angles = []
         for facet in self.surf_mesh:
             n = self.normal_vector(facet)
-            point_on_facet = pos[facet[0], :]
+
+            # Calculate centroid of the facet
+            point_on_facet = (pos[facet[0], :] + pos[facet[1], :] + pos[facet[2], :])/3.0
             vec = point_on_facet - com
             dist = vec.dot(n)
+            angle = np.arccos(dist/np.sqrt(vec.dot(vec)))*180.0/np.pi
+            if angle > 90.0:
+                angle = 180.0 - angle
+            self.angles.append(angle)
 
             if dist < 0.0:
                 data.append((-n, -dist))
             else:
                 data.append((n, dist))
+        self._interface_energy = data
         return data
 
     def symmetry_equivalent_directions(self, vec):
@@ -237,10 +283,17 @@ class WulffConstruction(object):
         return x_avg / eq_vec.shape[0]
 
     def interface_energy_poly_expansion(self, order=2, show=False, spg=1,
-                                        penalty=0.0):
+                                        penalty=0.0, max_angle=90):
         """Fit a multidimensional polynomial of a certain order."""
         from itertools import combinations_with_replacement
         interf = self.interface_energy
+
+        # Filter out the surfaces that has extremely high angles
+        inter_filtered = []
+        for data, angle in zip(interf, self.angles):
+            if angle < max_angle:
+                inter_filtered.append(data)
+        interf = inter_filtered
 
         if spg > 1:
             from ase.spacegroup import Spacegroup
