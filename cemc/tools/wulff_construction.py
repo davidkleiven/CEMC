@@ -1,9 +1,6 @@
 import numpy as np
 import time
 
-class SpliPyNotFoundError(Exception):
-    pass
-
 class WulffConstruction(object):
     def __init__(self, cluster=None, max_dist_in_element=None):
         self.cluster = cluster
