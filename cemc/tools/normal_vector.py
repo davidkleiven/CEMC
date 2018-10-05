@@ -64,6 +64,9 @@ class NormalVectorEstimator(object):
         normal = np.zeros(3)
         for indx in facet_indx:
             normal += self.normal_vectors[indx, :]
+        
+        # Track how many facets that where used in the averaging
+        # for later reference
         self.num_average_history.append(len(facet_indx))
         return normal/np.sqrt(normal.dot(normal))
 
