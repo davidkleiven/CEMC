@@ -2,6 +2,12 @@ import numpy as np
 import time
 
 class WulffConstruction(object):
+    """Class for performing the inverse Wulff construction
+
+    :param Atoms cluster: Atoms in a cluster
+    :param float max_dist_in_element: Maximum distance between
+        atoms in an tetrahedron in the triangulation.
+    """
     def __init__(self, cluster=None, max_dist_in_element=None):
         self.cluster = cluster
         self.max_dist_in_element = max_dist_in_element
