@@ -109,7 +109,7 @@ def has_mpi():
     return False
 
 
-def mpi_comminicator():
+def mpi_communicator():
     try:
         from mpi4py import MPI
         return MPI.COMM_WORLD

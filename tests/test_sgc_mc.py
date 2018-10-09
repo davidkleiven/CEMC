@@ -9,6 +9,7 @@ try:
     from cemc.mcmc import PairConstraint, FixedElement
     from helper_functions import get_max_cluster_dia_name
     from helper_functions import get_example_network_name
+    from cemc.mcmc.mpi_tools import mpi_communicator
     has_ase_with_ce = True
 except Exception as exc:
     print(str(exc))

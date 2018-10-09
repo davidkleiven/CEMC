@@ -2,7 +2,7 @@
 import unittest
 try:
     from cemc.mcmc import ActivitySampler
-    from cemc.mcmc.mpi_tools import mpi_comminicator
+    from cemc.mcmc.mpi_tools import mpi_communicator
     from cemc import CE
     from ase.clease import CEBulk
     from ase.clease import CorrFunction

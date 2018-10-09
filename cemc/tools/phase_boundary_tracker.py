@@ -15,7 +15,7 @@ from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
 from cemc.tools.phase_track_utils import PhaseBoundarySolution
 from cemc.tools.phase_track_utils import CECalculators
 from cemc.mcmc.mpi_tools import num_processors, mpi_rank
-from cemc.mcmc.mpi_tools import mpi_bcast, mpi_comminicator
+from cemc.mcmc.mpi_tools import mpi_bcast, mpi_communicator
 from cemc.mcmc.mpi_tools import mpi_barrier
 
 
