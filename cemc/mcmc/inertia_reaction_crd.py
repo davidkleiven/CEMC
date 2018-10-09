@@ -1,12 +1,9 @@
 import sys
 from cemc.mcmc import ReactionCrdInitializer, ReactionCrdRangeConstraint
+from cemc.mcmc.mpi_tools import num_processors, mpi_rank
 import numpy as np
 from itertools import product
 import time
-from mpi4py import MPI
-
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
 
 
 class CouldNotFindValidStateError(Exception):
@@ -49,8 +46,8 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         self.num_matrix_atoms_surface = num_matrix_atoms_surface
         self.output_every = output_every
 
-        size = comm.Get_size()
-        rank = comm.Get_rank()
+        size = num_processors()
+        rank = mpi_rank()
         if size > 1:
             # Rename the trajectory file writer one for each process
             fname_base = traj_file.rpartition(".")[0]
@@ -404,7 +401,7 @@ class InertiaRangeConstraint(ReactionCrdRangeConstraint):
         if not ok and self.verbose:
             # The evaluation of this constraint can be time consuming
             # so let the user know at regular intervals
-            rank = comm.Get_rank()
+            rank = mpi_rank()
             if time.time() - self.last_print > 10:
                 print("Move violates constraint on rank {}".format(rank))
                 self.last_print = time.time()

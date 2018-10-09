@@ -4,6 +4,7 @@ from cemc_cpp_code import PyClusterTracker
 from ase.io.trajectory import TrajectoryWriter
 from cemc.mcmc.averager import Averager
 from cemc.mcmc.util import waste_recycled_average
+from cemc.mcmc.mpi_tools import num_processors, mpi_rank
 highlight_elements = ["Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na", "Mg",
                       "Al", "Si", "P", "S", "Cl", "Ar"]
 
@@ -780,12 +781,10 @@ class MCBackup(MCObserver):
 
     def _include_rank_in_filename(self, fname):
         """Include the current rank in the filename if nessecary."""
-        from mpi4py import MPI
-        comm = MPI.COMM_WORLD
-        size = comm.Get_size()
+        size = num_processors()
         if size > 1:
             # We have to include the rank in the filename to avoid problems
-            rank = comm.Get_size()
+            rank = mpi_rank()
             prefix = fname.rpartition(".")[0]
             return prefix + "_rank{}.pkl".format(rank)
         return fname
@@ -795,10 +794,8 @@ class MCBackup(MCObserver):
         self.mc_obj.save(self.backup_file)
         if self.db_name != "":
             import dataset
-            from mpi4py import MPI
             thermo = self.mc_obj.get_thermodynamic()
-            comm = MPI.COMM_WORLD
-            rank = comm.Get_rank()
+            rank = mpi_rank()
             db = dataset.connect("sqlite:///{}".format(self.db_name))
             tab = db[self.db_tab_name]
             if self.db_id is None:

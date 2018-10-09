@@ -6,7 +6,6 @@ import numpy as np
 import ase.units as units
 import time
 import logging
-from mpi4py import MPI
 from scipy import stats
 from ase.units import kJ, mol
 from cemc.mcmc import mpi_tools
@@ -16,6 +15,7 @@ from cemc.mcmc.util import waste_recycled_average, waste_recycled_accept_prob
 from cemc.mcmc.util import get_new_state
 from cemc.mcmc import BiasPotential
 from cemc.mcmc.swap_move_index_tracker import SwapMoveIndexTracker
+from cemc.mcmc.mpi_tools import mpi_max, mpi_sum
 
 # Set the pickle protocol
 if sys.version_info[0] == 2:
@@ -622,13 +622,13 @@ class Montecarlo(object):
             if self.mpicomm is not None:
                 eng_conv = np.array(energy_conv, dtype=np.uint8)
                 eng_conv_recv = np.zeros(1, dtype=np.uint8)
-                self.mpicomm.Allreduce(eng_conv, eng_conv_recv, op=MPI.MAX)
+                self.mpicomm.Allreduce(eng_conv, eng_conv_recv, op=mpi_max())
                 energy_conv = eng_conv_recv[0]
 
                 comp_conv_arr = np.array(comp_conv, dtype=np.uint8)
                 comp_conv_recv = np.zeros(1, dtype=np.uint8)
                 self.mpicomm.Allreduce(
-                    comp_conv_arr, comp_conv_recv, op=MPI.MAX)
+                    comp_conv_arr, comp_conv_recv, op=mpi_max())
                 comp_conv = comp_conv_recv[0]
 
             if (energy_conv and comp_conv):
@@ -888,9 +888,9 @@ class Montecarlo(object):
         if (self.mpicomm is None):
             return
 
-        self.mean_energy = self.mpicomm.allreduce(self.mean_energy, op=MPI.SUM)
+        self.mean_energy = self.mpicomm.allreduce(self.mean_energy, op=mpi_sum())
         self.energy_squared = self.mpicomm.allreduce(
-            self.energy_squared, op=MPI.SUM)
+            self.energy_squared, op=mpi_sum())
 
     def get_thermodynamic(self):
         """

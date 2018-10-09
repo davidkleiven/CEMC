@@ -1,7 +1,6 @@
 numpy
 scipy
 matplotlib
-mpi4py
 ase
 h5py
 dataset

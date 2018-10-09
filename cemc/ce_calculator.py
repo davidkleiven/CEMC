@@ -5,10 +5,11 @@ from ase.clease import CECrystal
 import os
 import numpy as np
 from cemc.mcmc import linear_vib_correction as lvc
+from cemc.mcmc.mpi_tools import num_processors, mpi_allreduce
+from cemc.mcmc.mpi_tools import mpi_allgather, mpi_bcast
 from inspect import getargspec
 from cemc_cpp_code import PyCEUpdater
 
-from mpi4py import MPI
 try:
     use_cpp = True
 except Exception as exc:
@@ -47,7 +48,7 @@ def get_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
     :return: CE calculator for the large cell
     :rtype: CE
     """
-    nproc = MPI.COMM_WORLD.Get_size()
+    nproc = num_processors()
     unknown_type = False
     large_bc = small_bc
     init_cf = None
@@ -92,8 +93,8 @@ def get_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
         print(msg)
 
     # Broad cast the error flag and raise error on all processes
-    error_happened = MPI.COMM_WORLD.allreduce(error_happened)
-    all_msg = MPI.COMM_WORLD.allgather(msg)
+    error_happened = mpi_allreduce(error_happened)
+    all_msg = mpi_allgather(msg)
     for item in all_msg:
         if item != "":
             msg = item
@@ -102,13 +103,11 @@ def get_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
     if error_happened:
         raise RuntimeError(msg)
 
-    unknown_type = MPI.COMM_WORLD.bcast(unknown_type, root=0)
+    unknown_type = mpi_bcast(unknown_type, root=0)
     if unknown_type:
         msg = "The small_bc argument has to by of type "
         msg += "CEBulk or CECrystal"
         raise TypeError(msg)
-    # large_bc = MPI.COMM_WORLD.bcast(large_bc, root=0)
-    # init_cf = MPI.COMM_WORLD.bcast(init_cf, root=0)
     calc2 = CE(large_bc, eci, initial_cf=init_cf)
     return calc2
 

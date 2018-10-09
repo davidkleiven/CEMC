@@ -8,15 +8,15 @@ import logging
 
 import numpy as np
 from scipy.interpolate import UnivariateSpline
-from mpi4py import MPI
 import h5py as h5
 from ase.units import kB
 
 from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
 from cemc.tools.phase_track_utils import PhaseBoundarySolution
 from cemc.tools.phase_track_utils import CECalculators
-
-COMM = MPI.COMM_WORLD
+from cemc.mcmc.mpi_tools import num_processors, mpi_rank
+from cemc.mcmc.mpi_tools import mpi_bcast, mpi_comminicator
+from cemc.mcmc.mpi_tools import mpi_barrier
 
 
 class PhaseChangedOnFirstIterationError(Exception):
@@ -115,7 +115,7 @@ class PhaseBoundaryTracker(object):
         """
         Print message for logging
         """
-        rank = COMM.Get_rank()
+        rank = mpi_rank()
         if rank == 0:
             if mode == "info":
                 self._logger.info(msg)
@@ -153,7 +153,7 @@ class PhaseBoundaryTracker(object):
         :param data: Dictionary of data to be backed up
         :param dsetname: Basename for all datasets in the h5 file
         """
-        rank = COMM.Get_rank()
+        rank = mpi_rank()
         if rank == 0:
             with h5.File(self._backupfile, 'a') as hfile:
                 grp = hfile.create_group(
@@ -178,7 +178,7 @@ class PhaseBoundaryTracker(object):
                     else:
                         grp.create_dataset(key, data=value)
             self._current_backup_indx += 1
-        COMM.barrier()
+        mpi_barrier()
 
 
     def _singlet_comparison(self, thermo):
@@ -381,10 +381,8 @@ class PhaseBoundaryTracker(object):
         else:
             # Use the user provided chemical potential is initial value
             chem_pot = np.array(init_mu)
-        if COMM.Get_size() > 1:
-            mpicomm = COMM
-        else:
-            mpicomm = None
+
+        mpicomm = mpi_communicator() 
 
         calcs = CECalculators(self._ground_states)
         self._init_sgc(init_temp, symbols, mpicomm)
@@ -559,7 +557,7 @@ def predict_composition(
     predicted_comp = spl(target_temp)
 
     rgbimage = np.zeros(1)
-    rank = COMM.Get_rank()
+    rank = mpi_rank()
     if rank == 0 and has_matplotlib:
         # Create a plot of how the spline performs
         fig = plt.figure()
@@ -579,7 +577,7 @@ def predict_composition(
         axis.legend()
         rgbimage = fig2rgb(fig)
         plt.close("all")
-    rgbimage = COMM.bcast(rgbimage, root=0)
+    rgbimage = mpi_bcast(rgbimage, root=0)
     return predicted_comp, rgbimage
 
 def get_singlet_evolution(singlet_history, phase_indx, singlet_indx):

@@ -2,6 +2,7 @@
 import unittest
 try:
     from cemc.mcmc import ActivitySampler
+    from cemc.mcmc.mpi_tools import mpi_comminicator
     from cemc import CE
     from ase.clease import CEBulk
     from ase.clease import CorrFunction
@@ -12,9 +13,7 @@ except Exception as exc:
     print(reason)
     available = False
 
-from mpi4py import MPI
-comm = MPI.COMM_WORLD
-
+comm = mpi_communicator()
 
 class TestActivitySampler(unittest.TestCase):
     def test_no_throw(self):

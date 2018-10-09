@@ -1,6 +1,5 @@
 import unittest
 import os
-from mpi4py import MPI
 
 try:
     from cemc.mcmc import linear_vib_correction as lvc
@@ -86,7 +85,7 @@ class TestSGCMC(unittest.TestCase):
                     "c1_1": -0.03
                 }
                 T = 600.0
-                comm = MPI.COMM_WORLD
+                comm = mpi_communicator()
                 mc = SGCMonteCarlo(
                     ceBulk.atoms, T, symbols=["Al", "Mg", "Si"], mpicomm=comm)
                 mc.runMC(steps=100, chem_potential=chem_pots)
