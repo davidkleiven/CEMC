@@ -2,7 +2,7 @@ import unittest
 import os
 try:
     has_CE = True
-    from ase.ce import BulkCrystal, CorrFunction
+    from ase.clease import CEBulk, CorrFunction
     from cemc import get_ce_calc
     from cemc.mcmc import SGCFreeEnergyBarrier
 except ImportError as exc:
@@ -26,7 +26,7 @@ class TestFreeEnergy( unittest.TestCase ):
                 "conc_args":conc_args, "db_name":"temporary_bcnucleationdb.db",
                 "max_cluster_size": 3
             }
-            ceBulk = BulkCrystal( **kwargs )
+            ceBulk = CEBulk( **kwargs )
             cf = CorrFunction(ceBulk)
             cf_dict = cf.get_cf(ceBulk.atoms)
             ecis = {key:1.0 for key,value in cf_dict.items()}

@@ -4,7 +4,7 @@ from mpi4py import MPI
 
 try:
     from cemc.mcmc import linear_vib_correction as lvc
-    from ase.ce.settings_bulk import BulkCrystal
+    from ase.clease.settings_bulk import CEBulk
     from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
     from cemc import CE
     from cemc.mcmc import PairConstraint, FixedElement
@@ -31,7 +31,7 @@ class TestSGCMC(unittest.TestCase):
         }
         max_dia_name = get_max_cluster_dia_name()
         size_arg = {max_dia_name: 4.05}
-        ceBulk = BulkCrystal(crystalstructure="fcc", a=4.05, size=[3, 3, 3],
+        ceBulk = CEBulk(crystalstructure="fcc", a=4.05, size=[3, 3, 3],
                              basis_elements=[["Al", "Mg", "Si"]],
                              conc_args=conc_args, db_name=db_name,
                              max_cluster_size=3, **size_arg)

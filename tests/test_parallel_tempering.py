@@ -1,7 +1,7 @@
 import unittest
 import os
 try:
-    from ase.ce import BulkCrystal
+    from ase.clease import CEBulk
     from cemc.mcmc import ParallelTempering
     from cemc.mcmc import Montecarlo
     from helper_functions import get_example_ecis
@@ -21,7 +21,7 @@ class TestParallelTempering(unittest.TestCase):
             "conc_ratio_min_1": [[2, 1, 1]],
             "conc_ratio_max_1": [[0, 2, 2]],
         }
-        ceBulk = BulkCrystal(crystalstructure="fcc", a=4.05, size=[4, 4, 4],
+        ceBulk = CEBulk(crystalstructure="fcc", a=4.05, size=[4, 4, 4],
                              basis_elements=[["Al", "Mg", "Si"]],
                              conc_args=conc_args, db_name=db_name,
                              max_cluster_size=2, max_cluster_dia=4.0)

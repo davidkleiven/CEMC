@@ -1,7 +1,7 @@
 import unittest
 try:
-    from ase.ce.settings_bulk import BulkCrystal
-    from ase.ce import CorrFunction
+    from ase.clease.settings_bulk import CEBulk
+    from ase.clease import CorrFunction
     from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
     from cemc import CE
     from cemc.mcmc.mc_parameter_sweep import MCParameterSweep
@@ -18,7 +18,7 @@ class TestMCParameterSweep( unittest.TestCase ):
             "conc_ratio_min_1":[[1,0]],
             "conc_ratio_max_1":[[0,1]],
         }
-        ceBulk = BulkCrystal( crystalstructure="fcc", a=4.05, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, db_name=db_name)
+        ceBulk = CEBulk( crystalstructure="fcc", a=4.05, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, db_name=db_name)
         ceBulk.reconfigure_settings()
         cf = CorrFunction(ceBulk)
         cf = cf.get_cf(ceBulk.atoms)

@@ -30,7 +30,7 @@ void CEUpdater::init(PyObject *BC, PyObject *corrFunc, PyObject *pyeci)
 {
   if (BC == nullptr)
   {
-    throw invalid_argument("BulkCrystal object is nullptr!");
+    throw invalid_argument("CEBulk object is nullptr!");
   }
 
   #ifdef CE_DEBUG

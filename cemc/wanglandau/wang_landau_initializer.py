@@ -1,6 +1,6 @@
 from ase.db import connect
 from cemc import get_ce_calc, CE
-from ase.ce import BulkCrystal, BulkSpacegroup
+from ase.clease import CEBulk, CECrystal
 from cemc.mcmc import SimulatedAnnealingCanonical
 from ase.calculators.singlepoint import SinglePointCalculator
 import pickle as pck
@@ -15,14 +15,14 @@ class WangLandauInit(object):
     def __init__( self, wl_db_name ):
         self.wl_db_name = wl_db_name
 
-    def insert_atoms( self, bc_kwargs, size=[1,1,1], composition=None, cetype="BulkCrystal", \
+    def insert_atoms( self, bc_kwargs, size=[1,1,1], composition=None, cetype="CEBulk", \
                       T=None, n_steps_per_temp=10000, eci=None ):
         """
         Insert a new atoms object into the database
         """
         if ( composition is None ):
             raise TypeError( "No composition given" )
-        allowed_ce_types = ["BulkCrystal","BulkSpacegroup"]
+        allowed_ce_types = ["CEBulk","CECrystal"]
         if ( not cetype in allowed_ce_types ):
             raise ValueError( "cetype has to be one of {}".format(allowed_ce_types) )
         self.cetype = cetype
@@ -30,11 +30,11 @@ class WangLandauInit(object):
         if ( eci is None ):
             raise ValueError( "No ECIs given! Cannot determine required energy range!")
 
-        if ( cetype == "BulkCrystal" ):
-            small_bc = BulkCrystal(**bc_kwargs )
+        if ( cetype == "CEBulk" ):
+            small_bc = CEBulk(**bc_kwargs )
             small_bc.reconfigure_settings()
-        elif( ctype == "BulkSpacegroup" ):
-            small_bc = BulkSpacegroup(**bc_kwargs)
+        elif( ctype == "CECrystal" ):
+            small_bc = CECrystal(**bc_kwargs)
             small_bc.reconfigure_settings()
 
         self._check_eci(small_bc,eci)
@@ -153,14 +153,14 @@ class WangLandauInit(object):
             return bc.atoms
         except IOError as exc:
             print (str(exc))
-            print ("Will try to recover the BulkCrystal object" )
+            print ("Will try to recover the CEBulk object" )
             bc_kwargs = row.data["bc_kwargs"]
             cetype = row.key_value_pairs["cetype"]
-            if ( cetype == "BulkCrystal" ):
-                small_bc = BulkCrystal( **bc_kwargs )
+            if ( cetype == "CEBulk" ):
+                small_bc = CEBulk( **bc_kwargs )
                 small_bc.reconfigure_settings()
             else:
-                small_bc = BulkSpacegroup( **bc_kwargs )
+                small_bc = CECrystal( **bc_kwargs )
                 small_bc.reconfigure_settings()
             size = row.data["supercell_size"]
             calc = get_ce_calc( small_bc, bc_kwargs, eci=eci, size=size )

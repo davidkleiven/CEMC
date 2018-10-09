@@ -3,8 +3,8 @@ import os
 try:
     from cemc.mcmc import NucleationSampler, SGCNucleation
     from cemc.mcmc import CanonicalNucleationMC, FixedNucleusMC
-    from ase.ce import BulkCrystal
-    from ase.ce import CorrFunction
+    from ase.clease import CEBulk
+    from ase.clease import CorrFunction
     from cemc.mcmc import InertiaCrdInitializer
     from cemc import CE
     from cemc import get_ce_calc
@@ -45,7 +45,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
                 "conc_args": conc_args, "db_name": db_name,
                 "max_cluster_size": 3
             }
-            ceBulk = BulkCrystal(**kwargs)
+            ceBulk = CEBulk(**kwargs)
             ceBulk.reconfigure_settings()
             cf = CorrFunction(ceBulk)
             cf = cf.get_cf(ceBulk.atoms)
@@ -121,7 +121,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
         # Test some inertia calculation
         from ase.build import bulk
         from itertools import product
-        from ase.ce.tools import wrap_and_sort_by_position
+        from ase.clease.tools import wrap_and_sort_by_position
 
         lc = nanoparticle.info["lc"]
         pos = nanoparticle.get_positions()

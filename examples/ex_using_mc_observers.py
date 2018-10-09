@@ -2,8 +2,8 @@
 This example shows how one can use the Monte Carlo observers
 """
 
-# First we import the BulkCrystal object from ASE
-from ase.ce import BulkCrystal
+# First we import the CEBulk object from ASE
+from ase.clease import CEBulk
 from util import get_example_ecis, get_example_network_name
 
 # Specify the concentration arguments (they really don't matter here)
@@ -16,7 +16,7 @@ conc_args = {
 db_name = "database_with_dft_structures.db"
 
 # In order to be able to construct a large Monte Carlo cell we have to
-# but the arguments used to construct the BulkCrystal object in a
+# but the arguments used to construct the CEBulk object in a
 # dictionary
 kwargs = {
     "crystalstructure":"fcc",
@@ -31,8 +31,8 @@ kwargs = {
 # In this example, we just use some example ecis
 eci = get_example_ecis(bc_kwargs=kwargs)
 
-# Initialize a template BulkCrystal Object
-ceBulk = BulkCrystal( **kwargs )
+# Initialize a template CEBulk Object
+ceBulk = CEBulk( **kwargs )
 ceBulk.reconfigure_settings()  # Nessecary for the unittests to pass
 # Now we want to get a Cluster Expansion calculator for a big cell
 mc_cell_size = [10,10,10]

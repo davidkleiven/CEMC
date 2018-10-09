@@ -2,8 +2,8 @@ import unittest
 import os
 from ase.build import bulk
 try:
-    from ase.ce import BulkCrystal
-    from ase.ce import CorrFunction
+    from ase.clease import CEBulk
+    from ase.clease import CorrFunction
     from cemc.wanglandau import WangLandauInit, WangLandau, WangLandauDBManager
     from cemc.wanglandau import AtomExistsError
     has_CE = True
@@ -25,7 +25,7 @@ bc_kwargs = {
 
 
 def get_eci():
-    bc = BulkCrystal(**bc_kwargs)
+    bc = CEBulk(**bc_kwargs)
     bc.reconfigure_settings()
     cf = CorrFunction(bc)
     cf = cf.get_cf(bc.atoms)

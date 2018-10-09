@@ -1,5 +1,5 @@
-from ase.ce.settings_bulk import BulkCrystal
-from ase.calculators.cluster_expansion.cluster_expansion import ClusterExpansion
+from ase.clease.settings_bulk import CEBulk
+from ase.calculators.clease import Clease
 from ase.units import kB, kJ, mol
 import copy
 import numpy as np
@@ -12,8 +12,8 @@ class MeanFieldApprox( object ):
     """
     def __init__( self, bc, symbols=None ):
         self.bc = bc
-        if ( not isinstance(self.bc.atoms._calc,ClusterExpansion) ):
-            raise TypeError( "The calculator of the atoms object of BulkCrystal has to be a ClusterExpansion calculator!" )
+        if not isinstance(self.bc.atoms._calc, Clease):
+            raise TypeError( "The calculator of the atoms object of CEBulk has to be a Clease calculator!" )
         self.symbols = symbols
         if ( symbols is None ):
             self.get_symbols()

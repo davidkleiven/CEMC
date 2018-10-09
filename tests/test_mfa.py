@@ -1,8 +1,8 @@
 import unittest
 try:
-    from ase.ce.settings_bulk import BulkCrystal
-    from ase.ce import CorrFunction
-    from ase.calculators.cluster_expansion.cluster_expansion import ClusterExpansion
+    from ase.clease.settings_bulk import CEBulk
+    from ase.clease import CorrFunction
+    from ase.calculators.clease import Clease
     from cemc.mfa.mean_field_approx import MeanFieldApprox
     from cemc.mfa import CanonicalMeanField
     from ase.units import kB
@@ -28,7 +28,7 @@ class TestMFA( unittest.TestCase ):
                 "conc_ratio_min_1":[[1,0]],
                 "conc_ratio_max_1":[[0,1]],
             }
-            ceBulk = BulkCrystal(
+            ceBulk = CEBulk(
                 crystalstructure="fcc",
                 a=4.05, size=[3, 3, 3], basis_elements=[["Al","Mg"]],
                 conc_args=conc_args, db_name=db_name, max_cluster_size=3)
@@ -36,7 +36,7 @@ class TestMFA( unittest.TestCase ):
             cf = CorrFunction(ceBulk)
             cf = cf.get_cf(ceBulk.atoms)
             ecis = {key:0.001 for key in cf.keys()}
-            calc = ClusterExpansion( ceBulk, cluster_name_eci=ecis ) # Bug in the update
+            calc = Clease( ceBulk, cluster_name_eci=ecis ) # Bug in the update
             ceBulk.atoms.set_calculator( calc )
             mf = MeanFieldApprox( ceBulk )
             chem_pot = {"c1_0":-1.05}

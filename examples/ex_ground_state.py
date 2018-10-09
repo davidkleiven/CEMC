@@ -4,23 +4,23 @@ This example shows how the ground state of a structure can be found
 using Cluster Expansion
 
 Features
-1. Initialize a BulkCrystal object
+1. Initialize a CEBulk object
 2. Initialize a Cluster Expansion calculator
 3. Initialize a the Monte Carlo object
 4. Simple use of Monte Carlo observers
 """
 
-# First we import the BulkCrystal object from ASE
-from ase.ce import BulkCrystal
+# First we import the CEBulk object from ASE
+from ase.clease import CEBulk
 from util import get_example_ecis
 
-# Initialize the BulkCrystal object for a 4x4x4 expansion of a
+# Initialize the CEBulk object for a 4x4x4 expansion of a
 # primitive FCC unitcell
 conc_args = {
     "conc_ratio_min_1":[[0,1]],
     "conc_ratio_max_1":[[1,0]]
 }
-bc = BulkCrystal(crystalstructure="fcc", a=4.05, conc_args=conc_args,
+bc = CEBulk(crystalstructure="fcc", a=4.05, conc_args=conc_args,
                  db_name="test_gs_db.db", size=[3, 3, 3],
                  basis_elements=[["Al","Mg"]], max_cluster_size=3)
 bc.reconfigure_settings()  # Nessecary for unittests to pass

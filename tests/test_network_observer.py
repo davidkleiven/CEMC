@@ -2,8 +2,8 @@ import unittest
 try:
     from cemc.mcmc import NetworkObserver
     from cemc import CE
-    from ase.ce import BulkCrystal
-    from ase.ce import CorrFunction
+    from ase.clease import CEBulk
+    from ase.clease import CorrFunction
     from ase.io import read
     from ase.visualize import view
     from helper_functions import get_example_network_name
@@ -50,7 +50,7 @@ class TestNetworkObs( unittest.TestCase ):
                 "conc_ratio_max_1":[[0,1]],
             }
             a = 4.05
-            ceBulk = BulkCrystal(
+            ceBulk = CEBulk(
                 crystalstructure="fcc", a=a, size=[3, 3, 3],
                 basis_elements=[["Al","Mg"]], conc_args=conc_args,
                 db_name=db_name, max_cluster_size=3)

@@ -3,7 +3,7 @@ import importlib
 import os
 import sys
 try:
-    from ase.ce import BulkCrystal
+    from ase.clease import CEBulk
 
     # Import matplotlib as the examples should only be run if matplotlib
     # is present

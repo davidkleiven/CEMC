@@ -1,7 +1,7 @@
 from ase.calculators.calculator import Calculator
-from ase.ce.corrFunc import CorrFunction
-from ase.ce import BulkCrystal
-from ase.ce import BulkSpacegroup
+from ase.clease.corrFunc import CorrFunction
+from ase.clease import CEBulk
+from ase.clease import CECrystal
 import os
 import numpy as np
 from cemc.mcmc import linear_vib_correction as lvc
@@ -22,7 +22,7 @@ def get_max_dia_name():
     In the past max_cluster_dist was named max_cluster_dia.
     We support both version here
     """
-    args = getargspec(BulkCrystal.__init__).args
+    args = getargspec(CEBulk.__init__).args
     if "max_cluster_dia" in args:
         return "max_cluster_dia"
     return "max_cluster_dist"
@@ -75,10 +75,10 @@ def get_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
         bc_kwargs[size_name] = min_length
         bc_kwargs["db_name"] = db_name
 
-        if isinstance(small_bc, BulkCrystal):
-            large_bc = BulkCrystal(**bc_kwargs)
-        elif isinstance(small_bc, BulkSpacegroup):
-            large_bc = BulkSpacegroup(**bc_kwargs)
+        if isinstance(small_bc, CEBulk):
+            large_bc = CEBulk(**bc_kwargs)
+        elif isinstance(small_bc, CECrystal):
+            large_bc = CECrystal(**bc_kwargs)
         else:
             unknown_type = True
     except MemoryError:
@@ -105,7 +105,7 @@ def get_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
     unknown_type = MPI.COMM_WORLD.bcast(unknown_type, root=0)
     if unknown_type:
         msg = "The small_bc argument has to by of type "
-        msg += "BulkCrystal or BulkSpacegroup"
+        msg += "CEBulk or CECrystal"
         raise TypeError(msg)
     # large_bc = MPI.COMM_WORLD.bcast(large_bc, root=0)
     # init_cf = MPI.COMM_WORLD.bcast(init_cf, root=0)
@@ -557,13 +557,13 @@ class CE(Calculator):
 
         :param dict backup_data: All nessecary arguments
         """
-        from ase.ce import BulkCrystal, BulkSpacegroup
+        from ase.clease import CEBulk, CECrystal
 
         classtype = backup_data["setting_kwargs"].pop("classtype")
-        if classtype == "BulkCrystal":
-            bc = BulkCrystal(**backup_data["setting_kwargs"])
-        elif classtype == "BulkSpacegroup":
-            bc = BulkSpacegroup(**backup_data["setting_kwargs"])
+        if classtype == "CEBulk":
+            bc = CEBulk(**backup_data["setting_kwargs"])
+        elif classtype == "CECrystal":
+            bc = CECrystal(**backup_data["setting_kwargs"])
         else:
             raise ValueError("Unknown setting classtype: {}"
                              "".format(backup_data["setting_kwargs"]))

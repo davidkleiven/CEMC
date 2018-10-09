@@ -1,8 +1,8 @@
 import unittest
 try:
     from cemc.tools import GSFinder
-    from ase.ce import BulkCrystal
-    from ase.ce import CorrFunction
+    from ase.clease import CEBulk
+    from ase.clease import CorrFunction
     has_CE = True
 except ImportError:
     has_CE = False
@@ -22,7 +22,7 @@ class TestGSFinder( unittest.TestCase ):
                 "conc_ratio_max_1":[[0,1]],
             }
             a = 4.05
-            ceBulk = BulkCrystal( crystalstructure="fcc", a=a, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, \
+            ceBulk = CEBulk( crystalstructure="fcc", a=a, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, \
             db_name=db_name, max_cluster_size=4)
             cf = CorrFunction(ceBulk)
             cf = cf.get_cf(ceBulk.atoms)

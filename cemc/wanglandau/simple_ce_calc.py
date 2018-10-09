@@ -1,6 +1,6 @@
 from ase.calculators.calculator import Calculator
-from ase.ce.corrFunc import CorrFunction
-from ase.ce.settings import BulkCrystal
+from ase.clease.corrFunc import CorrFunction
+from ase.clease.settings import CEBulk
 
 class CEcalc( Calculator ):
     implemented_properties = ['energy']

@@ -2,8 +2,8 @@ import unittest
 import os
 try:
     from cemc import TimeLoggingTestRunner
-    from ase.ce.settings_bulk import BulkCrystal
-    from ase.ce.corrFunc import CorrFunction
+    from ase.clease.settings_bulk import CEBulk
+    from ase.clease.corrFunc import CorrFunction
     from cemc import CE, get_ce_calc
     from helper_functions import get_bulkspacegroup_binary
     from helper_functions import get_max_cluster_dia_name
@@ -26,7 +26,7 @@ class TestCE(unittest.TestCase):
             "conc_ratio_max_1": [[0, 1]],
         }
         a = 4.05
-        ceBulk = BulkCrystal(crystalstructure=lat, a=a, size=[3, 3, 3],
+        ceBulk = CEBulk(crystalstructure=lat, a=a, size=[3, 3, 3],
                              basis_elements=[["Al", "Mg"]],
                              conc_args=conc_args,
                              db_name=db_name, max_cluster_size=3)
@@ -140,10 +140,10 @@ class TestCE(unittest.TestCase):
         kwargs_template = copy.deepcopy(kwargs)
         kwargs_template["size"] = [4, 4, 4]
         kwargs_template["db_name"] = "template_bc.db"
-        template_supercell_bc = BulkCrystal(**kwargs_template)
+        template_supercell_bc = CEBulk(**kwargs_template)
         template_supercell_bc.reconfigure_settings()
 
-        ceBulk = BulkCrystal(**kwargs)
+        ceBulk = CEBulk(**kwargs)
         ceBulk.reconfigure_settings()
         calc = get_ce_calc(ceBulk, kwargs, eci, size=[4, 4, 4],
                            db_name="sc4x4x.db")
@@ -174,7 +174,7 @@ class TestCE(unittest.TestCase):
         }
         max_dia = get_max_cluster_dia_name()
         size_arg = {max_dia:4.05}
-        ceBulk = BulkCrystal( crystalstructure="fcc", a=4.05, size=[4,4,4], basis_elements=[["Al","Mg","Si"]], \
+        ceBulk = CEBulk( crystalstructure="fcc", a=4.05, size=[4,4,4], basis_elements=[["Al","Mg","Si"]], \
                               conc_args=conc_args, db_name=db_name, max_cluster_size=3, **size_arg)
         ceBulk.reconfigure_settings()
         corr_func = CorrFunction( ceBulk )
@@ -253,7 +253,7 @@ class TestCE(unittest.TestCase):
                 a = 4.05
                 mx_dia_name = get_max_cluster_dia_name()
                 size_arg = {mx_dia_name:a}
-                ceBulk = BulkCrystal( crystalstructure="fcc", a=a, size=[5, 5, 5], basis_elements=[basis_elems], conc_args=conc_args, \
+                ceBulk = CEBulk( crystalstructure="fcc", a=a, size=[5, 5, 5], basis_elements=[basis_elems], conc_args=conc_args, \
                 db_name=db_name, max_cluster_size=2,**size_arg)
                 ceBulk.reconfigure_settings()
                 cf = CorrFunction(ceBulk)

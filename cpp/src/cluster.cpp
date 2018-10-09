@@ -76,7 +76,7 @@ void Cluster::construct_equivalent_deco(int n_basis_funcs)
   }
 
   // Use the python methods due to the convenient itertools module
-  string mod_name("ase.ce.tools");
+  string mod_name("ase.clease.tools");
   PyObject *mod_string = string2py(mod_name);
   PyObject *ce_tools_mod = PyImport_Import(mod_string);
   PyObject *equiv_deco_func = PyObject_GetAttrString(ce_tools_mod, "equivalent_deco");

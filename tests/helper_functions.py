@@ -1,8 +1,8 @@
 from cemc.ce_calculator import CE, get_ce_calc
-from ase.ce import BulkSpacegroup
-from ase.ce import BulkCrystal
+from ase.clease import CECrystal
+from ase.clease import CEBulk
 from inspect import getargspec
-from ase.ce import CorrFunction
+from ase.clease import CorrFunction
 
 def get_bulkspacegroup_binary():
 # https://materials.springer.com/isp/crystallographic/docs/sd_0453869
@@ -24,7 +24,7 @@ def get_bulkspacegroup_binary():
     basis_elements = [["Al","Mg"],["Al","Mg"],["Al","Mg"],["Al","Mg"]]
     max_dia = get_max_cluster_dia_name()
     size_arg = {max_dia:4.1}
-    bs = BulkSpacegroup( basis_elements=basis_elements, basis=basis, spacegroup=217, cellpar=cellpar, conc_args=conc_args,
+    bs = CECrystal( basis_elements=basis_elements, basis=basis, spacegroup=217, cellpar=cellpar, conc_args=conc_args,
     max_cluster_size=3, db_name=db_name, size=[1, 1, 1], grouped_basis=[[0,1,2,3]], **size_arg )
     return bs, db_name
 
@@ -37,7 +37,7 @@ def get_small_BC_with_ce_calc(lat="fcc"):
         "conc_ratio_max_1":[[0,1]],
     }
     a = 4.05
-    ceBulk = BulkCrystal( crystalstructure=lat, a=a, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, \
+    ceBulk = CEBulk( crystalstructure=lat, a=a, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, \
     db_name=db_name, max_cluster_size=3)
     ceBulk.reconfigure_settings()
     cf = CorrFunction(ceBulk)
@@ -57,7 +57,7 @@ def get_ternary_BC():
     }
     max_dia = get_max_cluster_dia_name()
     size_arg = {max_dia:4.05}
-    ceBulk = BulkCrystal(crystalstructure="fcc", a=4.05, size=[4,4,4], basis_elements=[["Al","Mg","Si"]], \
+    ceBulk = CEBulk(crystalstructure="fcc", a=4.05, size=[4,4,4], basis_elements=[["Al","Mg","Si"]], \
                          conc_args=conc_args, db_name=db_name, max_cluster_size=3, **size_arg)
     ceBulk.reconfigure_settings()
     return ceBulk
@@ -67,7 +67,7 @@ def get_max_cluster_dia_name():
     In former versions max_cluster_dist was called max_cluster_dia
     """
     kwargs = {"max_cluster_dia":5.0}
-    argspec = getargspec(BulkCrystal.__init__).args
+    argspec = getargspec(CEBulk.__init__).args
     if "max_cluster_dia" in argspec:
         return "max_cluster_dia"
     return "max_cluster_dist"

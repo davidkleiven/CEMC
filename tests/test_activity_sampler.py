@@ -3,8 +3,8 @@ import unittest
 try:
     from cemc.mcmc import ActivitySampler
     from cemc import CE
-    from ase.ce import BulkCrystal
-    from ase.ce import CorrFunction
+    from ase.clease import CEBulk
+    from ase.clease import CorrFunction
     available = True
     reason = ""
 except Exception as exc:
@@ -36,7 +36,7 @@ class TestActivitySampler(unittest.TestCase):
             "db_name": "data/temporary_bcnucleationdb.db",
             "max_cluster_size": 3
         }
-        ceBulk = BulkCrystal(**kwargs)
+        ceBulk = CEBulk(**kwargs)
         ceBulk.reconfigure_settings()
         cf = CorrFunction(ceBulk)
         cf = cf.get_cf(ceBulk.atoms)

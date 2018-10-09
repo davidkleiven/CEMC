@@ -2,7 +2,7 @@ import unittest
 import copy
 import numpy as np
 try:
-    from ase.ce.settings_bulk import BulkCrystal
+    from ase.clease.settings_bulk import CEBulk
     from cemc.tools.phase_boundary_tracker import PhaseBoundaryTracker, PhaseChangedOnFirstIterationError
     from cemc.tools import save_phase_boundary, process_phase_boundary
     from cemc.mcmc import linear_vib_correction as lvc
@@ -24,9 +24,9 @@ class TestPhaseBoundaryMC( unittest.TestCase ):
             "conc_ratio_min_1":[[1,0]],
             "conc_ratio_max_1":[[0,1]],
         }
-        ceBulk1 = BulkCrystal( crystalstructure="fcc", a=4.05, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, db_name=db_name)
+        ceBulk1 = CEBulk( crystalstructure="fcc", a=4.05, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, db_name=db_name)
         ceBulk1.reconfigure_settings()
-        ceBulk2 = BulkCrystal( crystalstructure="fcc", a=4.05, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, db_name=db_name)
+        ceBulk2 = CEBulk( crystalstructure="fcc", a=4.05, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, db_name=db_name)
         ceBulk2.reconfigure_settings()
 
         for atom in ceBulk2.atoms:

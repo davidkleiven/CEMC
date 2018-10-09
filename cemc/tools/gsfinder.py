@@ -19,7 +19,7 @@ class GSFinder(object):
         """
         Computes the ground states
 
-        :param BC: Instance of *BulkCrystal* or *BulkSpacegroup* from ASE
+        :param BC: Instance of *CEBulk* or *CECrystal* from ASE
         :param ecis: Dictionary with the Effecitve Cluster Interactions
         :param composition: Dictionary with compositions (i.e. {"Mg":0.2,"Al":0.8})
         :param temps: List of cooling temperatures
