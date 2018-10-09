@@ -412,6 +412,11 @@ class WulffConstruction(object):
             fig = plt.figure()
             ax = fig.add_subplot(1, 1, 1)
             ax.plot(pred, rhs, 'o', mfc="none")
+            min_val = np.min(pred) - 1
+            max_val = np.max(pred) + 1
+            ax.plot([min_val, max_val], [min_val, max_val])
+            ax.plot([min_val, max_val], [min_val+rmse, max_val+rmse], "--")
+            ax.plot([min_val, max_val], [min_val-rmse, max_val-rmse], "--")
             self.plot_fitting_coefficients()
             plt.show()
 
@@ -559,7 +564,7 @@ class WulffConstruction(object):
             X = Gamma*np.cos(P)*np.sin(T)
             Y = Gamma*np.sin(P)*np.sin(T)
             Z = Gamma*np.cos(T)
-            fig = mlab.figure(bgcolor=(1, 1, 1), fgcolor=(0, 0, 0))
+            mlab.figure(bgcolor=(1, 1, 1), fgcolor=(0, 0, 0))
             mlab.mesh(X, Y, Z, scalars=Gamma/np.min(Gamma))
             mlab.colorbar()
             if show:
@@ -571,3 +576,80 @@ class WulffConstruction(object):
         if show:
             plt.show()
         return fig_xy
+
+    def path_plot(self, path=[90, 90], num_points=100, normalization=1.0, latex=False):
+        """Create a wulff plot along a path.
+        
+        :param path: Path along which ti visualize. The first angle 
+            represents rotation around the y-axis. All angles are 
+            given in degrees.
+
+            Example:
+            If theta is the polar angle, and phi is the azimuthal angle
+            [90, 90] means the path consists of the segments
+            [0, 0] --> [0, 90] --> [90, 90] --> [90, 0]
+            where each tuple denots  [theta, phi] pairs
+        :type path: list of ints
+        :param int num_points: Number of points along each path
+        :param float normalization: Normalization factor to convert
+            relative surface tension into absolute.
+        :param bool latex: If True axis text will be put as raw strings
+        """
+        from matplotlib import pyplot as plt
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1)
+        x_values = []
+        tick_label = []
+
+        # Plot the first path
+        end = path[0]*np.pi/180.0
+        theta = np.linspace(0.0, end, num_points).tolist()
+        phi = 0.0
+        counter = 0
+        gamma = []
+        angles = []
+        tick_label.append(0)
+        for t in theta:
+            x_values.append(counter)
+            gamma.append(self.eval(t, phi))
+            angles.append((t, phi))
+            counter += 1
+
+        # Plot second path
+        theta = end
+        end = path[1]*np.pi/180.0
+        phi = np.linspace(0.0, end, num_points).tolist()
+        counter -= 1
+        tick_label.append(counter)
+        for p in phi:
+            x_values.append(counter)
+            gamma.append(self.eval(theta, p))
+            angles.append((theta, p))
+            counter += 1
+
+        # Plot third path (back to origin)
+        theta = np.linspace(0.0, theta, num_points)[::-1]
+        theta = theta.tolist()
+        phi = end
+        counter -= 1
+        tick_label.append(counter)
+        for t in theta:
+            x_values.append(counter)
+            gamma.append(self.eval(t, phi))
+            counter += 1
+            angles.append((t, phi))
+        tick_label.append(counter-1)
+
+        gamma = np.array(gamma)*normalization
+        ax.plot(x_values, gamma)
+        if latex:
+            ax.set_ylabel(r"Surface tension (mJ/\$m^2\$")
+        else:
+            ax.set_ylabel("Surface tension (mJ/$m^2$")
+        ax.set_xticklabels([])
+        ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
+        ax.set_xticks(tick_label)
+        ax.set_xticklabels([(0, 0), (path[0], 0), (path[0], path[1]), (0, path[1])])
+        return fig
+        
