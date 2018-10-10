@@ -31,6 +31,8 @@ class TestWulff(unittest.TestCase):
             wulff.wulff_plot(show=False)
             mesh_file = "surface_mesh.msh"
             wulff.save_surface_mesh(mesh_file)
+            wulff.wulff_plot_plane()
+            wulff.path_plot()
             os.remove(mesh_file)
         except Exception as exc:
             no_throw = False

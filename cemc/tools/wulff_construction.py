@@ -18,6 +18,7 @@ class WulffConstruction(object):
         self.spg_num = 1
         self.angles = []
         self._interface_energy = []
+        self.rhs = None
         self._symmetry_file = "symmetry"
 
     @property
@@ -60,6 +61,23 @@ class WulffConstruction(object):
         self.mesh = self._mesh()
         self.surf_mesh = self._extract_surface_mesh(self.mesh)
 
+    def _indicies_in_plane(self, plane="xy", tol=1.0):
+        """Return all the datapoints that lies in a plane."""
+        control_indx = {"xy": 2, "xz": 1, "yz": 0}
+
+        if plane not in ["xy", "xz", "yz"]:
+            raise ValueError("Plane has to by xy, xz or yz!")
+        
+        pos = self.surface_atoms.get_positions()
+        com = np.mean(pos, axis=0)
+        pos -= com
+        in_plane = []
+        for i in range(pos.shape[0]):
+            ctrl_pos = pos[i, control_indx[plane]]
+            if ctrl_pos > -tol and ctrl_pos < tol:
+                in_plane.append(i)
+        return in_plane
+
     def _mesh(self):
         """Create mesh of all the atoms in the cluster.
 
@@ -88,6 +106,44 @@ class WulffConstruction(object):
             if max(dists) < self.max_dist_in_element:
                 filtered.append(tup)
         return filtered
+
+    @staticmethod
+    def normal2angles(normal):
+        theta = np.arccos(normal[2])
+        phi = np.arctan2(normal[1], normal[0])
+        return theta, phi
+
+    def wulff_plot_plane(self, tol=1.0):
+        from matplotlib import pyplot as plt
+
+        angles = []
+        for pt in self._interface_energy:
+            angles.append(WulffConstruction.normal2angles(pt[0]))
+
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1)
+
+        indx_in_plane = self._indicies_in_plane(plane="xy", tol=tol)
+
+        if not indx_in_plane:
+            print("Warning! There no indices in the requested plane!")
+        ang_in_plane = [angles[indx] for indx in indx_in_plane]
+        rhs = np.array([self.rhs[indx] for indx in indx_in_plane])
+
+        theta = [a[0] for a in ang_in_plane]
+        phi = [a[1] for a in ang_in_plane]
+        x = rhs*np.cos(phi)*np.sin(theta)
+        y = rhs*np.sin(phi)*np.sin(theta)
+
+        theta = np.pi/2.0
+        phi = np.linspace(0.0, 2.0*np.pi, 100)
+        pred = np.array([self.eval(theta, p) for p in phi])
+        x_pred = pred*np.cos(phi)
+        y_pred = pred*np.sin(phi)
+
+        ax.plot(x, y, "o", mfc="none")
+        ax.plot(x_pred, y_pred)
+        return fig
 
     def show(self):
         """Show the triangulation in 3D."""
@@ -259,8 +315,12 @@ class WulffConstruction(object):
         """Get a list of unique columns."""
         rand_vec = np.random.rand(A.shape[0])
         dot_prod = rand_vec.dot(A)
-        unique, index = np.unique(dot_prod, return_index=True)
-        return index
+        _, index = np.unique(dot_prod, return_index=True)
+        if not np.any(index==0):
+            new_indx = np.zeros(len(index)+1, dtype=int)
+            new_indx[1:] = index
+            index = new_indx
+        return np.sort(index)
 
     def _get_x_value(self, vec, comb):
         """Return the x value in the polynomial expansion."""
@@ -356,14 +416,13 @@ class WulffConstruction(object):
                 mult_order.append(comb)
                 col += 1
         A = np.array(A).T
-        print(A.shape)
     
         rhs = np.zeros(len(interf))
         row = 0
         for n, value in interf:
             rhs[row] = value
             row += 1
-
+        self.rhs = rhs
         print("Filtering duplicates...")
         # unique_cols = self._unique_columns(A)
         # A = A[:, unique_cols]
@@ -381,6 +440,7 @@ class WulffConstruction(object):
                 constant_columns.append(i)
         A = np.delete(A, constant_columns, axis=1)
         assert A.shape[0] == num_rows
+        assert np.allclose(A[:, 0], 1.0)
 
         mult_order = [mult_order[indx] for indx in range(len(mult_order)) if indx not in constant_columns]
         self._save_valid_order(mult_order)
@@ -479,11 +539,11 @@ class WulffConstruction(object):
         if num_x == 0 and num_y == 0 and num_z == 0:
             return "constant"
         if num_x > 0:
-            string_repr += "x^{}".format(num_x)
+            string_repr += "x^{{{}}}".format(num_x)
         if num_y > 0 :
-            string_repr += "y^{}".format(num_y)
+            string_repr += "y^{{{}}}".format(num_y)
         if num_z > 0:
-            string_repr += "z^{}".format(num_z)
+            string_repr += "z^{{{}}}".format(num_z)
         string_repr += "$"
         return string_repr
 
