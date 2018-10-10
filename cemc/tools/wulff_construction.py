@@ -151,7 +151,7 @@ class WulffConstruction(object):
         from mpl_toolkits.mplot3d import Axes3D
 
         fig = plt.figure()
-        ax = fig.add_subplot(1, 1, 1, projection="3d")
+        ax = Axes3D(fig)
         pos = self.cluster.get_positions()
         from itertools import combinations
         for tri in self.mesh.simplices:
@@ -448,7 +448,7 @@ class WulffConstruction(object):
         print("Solving linear system...")
         if A.shape[1] == 1:
             # TODO: Trivial solution, calculate this directly
-            coeff, residual, rank, s = np.linalg.lstsq(A, rhs)
+            coeff, _, _, _ = np.linalg.lstsq(A, rhs)
         else:
             N = A.shape[1]
             matrix = np.linalg.inv(A.T.dot(A) + penalty*np.identity(N))
@@ -689,7 +689,7 @@ class WulffConstruction(object):
 
         # Plot third path (back to origin)
         theta = np.linspace(0.0, theta, num_points)[::-1]
-        theta = theta.tolist()
+        theta = list(theta)
         phi = end
         counter -= 1
         tick_label.append(counter)
