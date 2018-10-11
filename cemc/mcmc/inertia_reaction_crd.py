@@ -254,6 +254,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         now = time.time()
         traj_full = TrajectoryWriter(self.traj_file, mode="a")
         traj_clst = TrajectoryWriter(self.traj_file_clst, mode="a")
+        rank = mpi_rank()
         while attempt < max_attempts:
             attempt += 1
             surf_atoms = self.surface_atoms
