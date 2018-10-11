@@ -109,7 +109,7 @@ class ReactionPathSampler(object):
                 indx -= 1
             self.data[self.current_window][indx] += 1
         except Exception as exc:
-            print("Error on rank: {}".self.rank)
+            print("Error on rank: {}".format(self.rank))
             print("{}: {}".format(type(exc).__name__, str(exc)))
             print("Errors here will not be handled, because it will lead "
                   "to tremendous communication overhead.")
