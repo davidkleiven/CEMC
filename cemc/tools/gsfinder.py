@@ -15,7 +15,7 @@ class GSFinder(object):
         """
         self.constraints.append(constraint)
 
-    def get_gs( self, BC, ecis, composition=None, temps=None, n_steps_per_temp=1000 ):
+    def get_gs(self, BC, ecis=None, composition=None, temps=None, n_steps_per_temp=1000):
         """
         Computes the ground states
 
@@ -25,8 +25,14 @@ class GSFinder(object):
         :param temps: List of cooling temperatures
         :param n_steps_per_temp: Number of MC steps per temperature
         """
-        calc = CE( BC, ecis )
-        BC.atoms.set_calculator( calc )
+        if BC.atoms.get_calculator() is None:
+            if eci is None:
+                raise ValueError("When a calculator is not attached "
+                                 "the ECIs has to be given!")
+            calc = CE(BC, ecis)
+            BC.atoms.set_calculator(calc)
+        else:
+            calc = BC.atoms.get_calculator()
         #print (calc.get_cf())
         if ( temps is None ):
             temps = np.linspace( 1, 1500, 30 )[::-1]
