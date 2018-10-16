@@ -26,7 +26,7 @@ class GSFinder(object):
         :param n_steps_per_temp: Number of MC steps per temperature
         """
         if BC.atoms.get_calculator() is None:
-            if eci is None:
+            if ecis is None:
                 raise ValueError("When a calculator is not attached "
                                  "the ECIs has to be given!")
             calc = CE(BC, ecis)
