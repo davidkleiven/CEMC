@@ -826,7 +826,7 @@ class BiasPotentialContribution(MCObserver):
 
     def _update_histogram(self):
         """Updates the histogram with the current buffer."""
-        if self.hist_max = None:
+        if self.hist_max is None:
             self.hist_max = np.max(self.buffer)
             self.hist_min = np.min(self.buffer)
             hist_range = self.hist_max - self.hist_min
@@ -836,7 +836,7 @@ class BiasPotentialContribution(MCObserver):
             self.hist_max += hist_range/2.0
             self.hist_min -= hist_range/2.0
 
-        hist_indx = (self.buffer - self.hist_min)*len(hist) \
+        hist_indx = (self.buffer - self.hist_min)*len(self.hist) \
                     /(self.hist_max - self.hist_min)
         
         for indx in hist_indx:
