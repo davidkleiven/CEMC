@@ -8,12 +8,12 @@ try:
     from ase.clease import CorrFunction
     available = True
     reason = ""
+    comm = mpi_communicator()
 except Exception as exc:
     reason = str(exc)
     print(reason)
     available = False
-
-comm = mpi_communicator()
+    comm = None
 
 class TestActivitySampler(unittest.TestCase):
     def test_no_throw(self):
