@@ -27,18 +27,15 @@ else:
 
 
 class DidNotReachEquillibriumError(Exception):
-    def __init__(self, msg):
-        super(DidNotReachEquillibriumError, self).__init__(msg)
+    pass
 
 
 class TooFewElementsError(Exception):
-    def __init__(self, msg):
-        super(TooFewElementsError, self).__init__(msg)
+    pass
 
 
 class CanNotFindLegalMoveError(Exception):
-    def __init__(self, msg):
-        super(CanNotFindLegalMoveError, self).__init__(msg)
+    pass
 
 
 class Montecarlo(object):
@@ -94,6 +91,8 @@ class Montecarlo(object):
         self._build_atoms_list()
         E0 = self.atoms.get_calculator().get_energy()
         self.current_energy = E0
+        self.bias_energy = 0.0
+        self.new_bias_energy = self.bias_energy
         self.new_energy = self.current_energy
 
         # Keep the energy of old and trial state
@@ -951,8 +950,10 @@ class Montecarlo(object):
 
         # NOTE: As this is called after calculate, the changes has
         # already been introduced to the system
+        self.new_bias_energy = 0.0
         for bias in self.bias_potentials:
-            self.new_energy += bias(system_changes)
+            self.new_bias_energy += bias(system_changes)
+        self.new_energy += self.new_bias_energy
 
         self.last_energies[1] = self.new_energy
 
@@ -1019,6 +1020,7 @@ class Montecarlo(object):
 
         if (move_accepted):
             self.current_energy = self.new_energy
+            self.bias_energy = self.new_bias_energy
             self.num_accepted += 1
         else:
             # Reset the sytem back to original

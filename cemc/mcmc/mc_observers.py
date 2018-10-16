@@ -807,4 +807,54 @@ class MCBackup(MCObserver):
                 tab.update(thermo, ["id"])
 
 
+class BiasPotentialContribution(MCObserver):
+    def __init__(self, mc=None, buffer_size=10000, n_bins=100):
+        self.mc = mc
+        self.buffer = np.zeros(buffer_size)
+        self.hist = np.zeros(n_bins)
+        self.hist_max = None
+        self.hist_min = None
+        self.buffer_indx = 0
+
+    def __call__(self, system_changes):
+        diff = self.mc.new_bias_energy - self.mc.bias_energy
+        self.buffer[self.buffer_indx] = diff
+        self.buffer_indx += 1
+
+        if self.buffer_indx == len(self.buffer):
+            self._update_histogram()
+
+    def _update_histogram(self):
+        """Updates the histogram with the current buffer."""
+        if self.hist_max is None:
+            self.hist_max = np.max(self.buffer)
+            self.hist_min = np.min(self.buffer)
+            hist_range = self.hist_max - self.hist_min
+
+            # We double the range in case the first
+            # buffer did not cover all cases
+            self.hist_max += hist_range/2.0
+            self.hist_min -= hist_range/2.0
+
+        hist_indx = (self.buffer - self.hist_min)*len(self.hist) \
+                    /(self.hist_max - self.hist_min)
+        
+        for indx in hist_indx:
+            if indx < len(self.hist) and indx >= 0:
+                self.hist[indx] += 1
+
+    def save(self, fname="bias_potential_hist.csv"):
+        """Store the histogram to a text file."""
+        if self.hist_max is None:
+            # There is not histogram
+            return
+        x = np.linspace(self.hist_min, self.hist_max, len(self.hist))
+        data = np.vstack((x, self.hist))
+        np.savetxt(fname, data.T, delimiter=",")
+        print("Histogram data written to {}".format(fname))
+
+
+
+
+
 

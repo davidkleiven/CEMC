@@ -60,8 +60,8 @@ def get_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
                       "get_ce_calc")
     try:
         max_size_eci = get_max_size_eci(eci)
-        if "max_cluster_dia" in bc_kwargs.keys():
-            if max_size_eci > bc_kwargs["max_cluster_dia"]:
+        if "max_cluster_size" in bc_kwargs.keys():
+            if max_size_eci > bc_kwargs["max_cluster_size"]:
                 msg = "ECI specifies a cluster size larger than "
                 msg += "ClusterExpansionSetting tracks!"
                 raise ValueError(msg)

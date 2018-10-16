@@ -7,6 +7,7 @@ from cemc.mcmc.linear_vib_correction import LinearVibCorrection
 from cemc.mcmc.mc_observers import MCObserver, CorrelationFunctionTracker, PairCorrelationObserver, \
 LowestEnergyStructure, SGCObserver, Snapshot, NetworkObserver, SiteOrderParameter
 from cemc.mcmc.mc_observers import EnergyEvolution, EnergyHistogram, MCBackup
+from cemc.mcmc.mc_observers import BiasPotentialContribution
 
 from cemc.mcmc.sa_canonical import SimulatedAnnealingCanonical
 from cemc.mcmc.multidim_comp_dos import CompositionDOS
