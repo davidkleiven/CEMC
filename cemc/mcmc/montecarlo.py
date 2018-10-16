@@ -891,6 +891,21 @@ class Montecarlo(object):
         self.energy_squared = self.mpicomm.allreduce(
             self.energy_squared, op=mpi_sum())
 
+    @property
+    def meta_info(self):
+        """Return dict with meta info."""
+        import sys
+        import datetime
+        import time
+        ts = time.time()
+        st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+        v_info = sys.version_info
+        meta_info = {
+            "timestamp": st,
+            "python_version": "{}.{}.{}".format(v_info.major, v_info.minor, v_info.micro)
+        }
+        return meta_info
+
     def get_thermodynamic(self):
         """
         Compute thermodynamic quantities
@@ -911,6 +926,9 @@ class Montecarlo(object):
             name = "{}_conc".format(key)
             conc = float(value) / len(self.atoms)
             quantities[name] = conc
+
+        # Add some more info that can be useful
+        quantities.update(self.meta_info)
         return quantities
 
     def _get_trial_move(self):
