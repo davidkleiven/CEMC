@@ -499,6 +499,7 @@ class SGCMonteCarlo(mc.Montecarlo):
             name = "mu_{}".format(self.chem_pot_names[i])
             quantities[name] = self.chem_pots[i]
 
+        quantities.update(self.meta_info)
         if reset_ecis:
             self._reset_eci_to_original(self.atoms._calc.eci)
         return quantities
