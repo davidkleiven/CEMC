@@ -81,8 +81,11 @@ class MCParameterSweep(object):
         """Save data as arrays."""
 
         data_flattened = {key: [] for key in data[0].keys()}
+        ignore_keys = ["timestamp", "python_version"]
         for dset in data:
             for key, value in dset.items():
+                if key in ignore_keys:
+                    continue
                 data_flattened[key].append(value)
 
         data_flattened = {key: np.array(value) for key, value in
