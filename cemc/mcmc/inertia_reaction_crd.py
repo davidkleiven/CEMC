@@ -360,13 +360,18 @@ class InertiaRangeConstraint(ReactionCrdRangeConstraint):
         orig_symb = self.mc.atoms[system_changes[0][0]].symbol
         move_has_been_performed = (orig_symb != system_changes[0][1])
 
+        tracker_updated_here = False
+        if not self.mc.atoms_tracker.move_already_updated(system_changes):
+            self.mc.atoms_tracker.update_swap_move(system_changes)
+            tracker_updated_here = True
+
         if not move_has_been_performed:
             # Introduce the changes to the atoms object
             for change in system_changes:
                 orig_symb = self.mc.atoms[change[0]].symbol
                 assert orig_symb == change[1]
                 self.mc.atoms[change[0]].symbol = change[2]
-            self.mc._update_tracker(system_changes)
+            # self.mc._update_tracker(system_changes)
         else:
             # Just make sure that nothing wrong happened
             assert orig_symb == system_changes[0][2]
@@ -385,7 +390,11 @@ class InertiaRangeConstraint(ReactionCrdRangeConstraint):
             for change in opposite_change:
                 assert self.mc.atoms[change[0]].symbol == change[1]
                 self.mc.atoms[change[0]].symbol = change[2]
-            self.mc._update_tracker(opposite_change)
+            self.mc.atoms_tracker.undo_last_swap_move()
+            #self.mc._update_tracker(opposite_change)
+        elif tracker_updated_here:
+            # Leave the tracker in its original state
+            self.mc.atoms_tracker.undo_last_swap_move()
         return new_val
 
     def __call__(self, system_changes):
