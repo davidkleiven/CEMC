@@ -73,6 +73,15 @@ void CEUpdater::init(PyObject *BC, PyObject *corrFunc, PyObject *pyeci)
   {
     throw invalid_argument("index_by_trans_symm is nullptr!");
   }
+
+  #ifdef CE_DEBUG
+    cerr << "Reading background indices\n";
+  #endif
+  // Read the backgound indices from settings
+  PyObject *bkg_indx = PyObject_GetAttrString(BC, "background_atom_indices");
+  read_background_indices(bkg_indx);
+  Py_DECREF(bkg_indx);
+
   build_trans_symm_group( py_trans_symm_group );
   Py_DECREF( py_trans_symm_group );
 
@@ -295,7 +304,9 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
   symb_change_track->new_symb = symb_change.new_symb;
   symb_change_track->track_indx = symb_change.track_indx;
 
-
+  if (is_background_index[symb_change.indx]){
+    throw runtime_error("Attempting to move a background atom!");
+  }
 
   symbols[symb_change.indx] = symb_change.new_symb;
   if ( atoms != nullptr )
@@ -562,6 +573,7 @@ CEUpdater* CEUpdater::copy() const
   obj->ctype_lookup = ctype_lookup;
   obj->ecis = ecis;
   obj->cname_with_dec = cname_with_dec;
+  obj->is_background_index = is_background_index;
   obj->history = new CFHistoryTracker(*history);
   obj->atoms = nullptr; // Left as nullptr by intention
   obj->tracker = tracker;
@@ -721,7 +733,7 @@ void CEUpdater::build_trans_symm_group( PyObject *py_trans_symm_group )
   // Check that all sites belongs to one translational symmetry group
   for ( unsigned int i=0;i<trans_symm_group.size();i++ )
   {
-    if ( trans_symm_group[i] == -1 )
+    if ((trans_symm_group[i] == -1) && !is_background_index[i])
     {
       stringstream msg;
       msg << "Site " << i << " has not been assigned to any translational symmetry group!";
@@ -733,7 +745,9 @@ void CEUpdater::build_trans_symm_group( PyObject *py_trans_symm_group )
   trans_symm_group_count.resize(list_size);
   for ( unsigned int i=0;i<trans_symm_group.size();i++ )
   {
-    trans_symm_group_count[trans_symm_group[i]] += 1;
+    if (trans_symm_group[i] >= 0){
+      trans_symm_group_count[trans_symm_group[i]] += 1;
+    }
   }
 }
 
@@ -883,6 +897,11 @@ void CEUpdater::read_trans_matrix( PyObject* py_trans_mat )
     unsigned int n_elements_insterted = 0;
     for (unsigned int i=0;i<size;i++ )
     {
+      // Background atoms are ignored (and should never be accessed)
+      if (is_background_index[i]){
+        continue;
+      }
+
       PyObject* dict = PyList_GetItem(py_trans_mat, i);
       for (unsigned int j=0;j<unique_indx_vec.size();j++ )
       {
@@ -962,4 +981,18 @@ void CEUpdater::add_linear_vib_correction(PyObject *dict)
     linvib_corr[py2string(key)] = PyFloat_AS_DOUBLE(value);
   }
   add_linear_vib_correction(linvib_corr);
+}
+
+void CEUpdater::read_background_indices(PyObject *bkg_indices){
+  // Fill array with false
+  is_background_index.resize(symbols.size());
+  fill(is_background_index.begin(), is_background_index.end(), false);
+
+  // Set to true if index is in bkg_indices
+  int size = PyList_Size(bkg_indices);
+  for (int i=0;i<size;i++){
+    PyObject *py_indx = PyList_GetItem(bkg_indices, i);
+    int indx = py2int(py_indx);
+    is_background_index[indx] = true;
+  }
 }
