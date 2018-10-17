@@ -158,6 +158,7 @@ private:
   //std::map<std::string,double> ecis;
   NamedArray ecis;
   std::map<std::string,std::string> cname_with_dec;
+  std::vector<bool> is_background_index;
   CFHistoryTracker *history{nullptr};
   PyObject *atoms{nullptr};
   std::vector<MCObserver*> observers; // TODO: Not used at the moment. The accept/rejection is done in the Python code
@@ -188,6 +189,9 @@ private:
 
   /** Reads the translation matrix */
   void read_trans_matrix( PyObject* py_trans_mat );
+
+  /** Read background indices */
+  void read_background_indices(PyObject *bkg_indices);
 
   /** Check if a move is a swap move */
   bool is_swap_move(const swap_move &move) const;

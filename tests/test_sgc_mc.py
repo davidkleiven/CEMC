@@ -5,10 +5,12 @@ try:
     from cemc.mcmc import linear_vib_correction as lvc
     from ase.clease.settings_bulk import CEBulk
     from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
-    from cemc import CE
+    from cemc.mcmc import Montecarlo
+    from cemc import CE, get_ce_calc
     from cemc.mcmc import PairConstraint, FixedElement
     from helper_functions import get_max_cluster_dia_name
     from helper_functions import get_example_network_name
+    from helper_functions import get_example_ecis
     from cemc.mcmc.mpi_tools import mpi_communicator
     has_ase_with_ce = True
 except Exception as exc:
@@ -158,6 +160,64 @@ class TestSGCMC(unittest.TestCase):
             msg = str(exc)
             no_throw = False
         self.assertTrue(no_throw, msg=msg)
+
+    
+    def test_ignore_atoms(self):
+        if not has_ase_with_ce:
+            self.skipTest("ASE does not have CE")
+        from cemc.mcmc import FixedElement
+        no_trow = True
+        msg = ""
+        try:
+            from copy import deepcopy
+            kwargs = {
+            "crystalstructure": "rocksalt",
+            "basis_elements": [['V', 'Li'], ['O']],
+            "a": 4.12,
+            'size': [2, 2, 2],
+            'cubic': True,
+            "conc_args": {'conc_ratio_min_1': [[1, 1], [2]],
+                        'conc_ratio_max_1': [[1, 1], [2]]},
+            "max_cluster_size": 4,
+            "max_cluster_dia": 4.12,
+            "db_name": 'database.db',
+            'basis_function': 'sluiter',
+            'ignore_background_atoms': True
+            }
+            fix_elem = FixedElement(element="O")
+            kw_args_cpy = deepcopy(kwargs)
+            ceBulk = CEBulk(**kw_args_cpy)
+            ecis = get_example_ecis(ceBulk)
+            calc = get_ce_calc(ceBulk, kwargs,  eci=ecis, size=[3, 3, 3], 
+                            db_name="ignore_test_large.db")
+            
+            atoms = calc.atoms
+            atoms.set_calculator(calc)
+
+            # Insert some Li atoms
+            num_li = 5
+            symbols = [atom.symbol for atom in atoms]
+            num_inserted = 0
+            for i in range(0, len(symbols)):
+                if symbols[i] == "V":
+                    symbols[i] = "Li"
+                    num_inserted += 1
+                if num_inserted >= num_li:
+                    break
+            calc.set_symbols(symbols)
+
+            mc = Montecarlo(atoms, 800)
+            mc.add_constraint(fix_elem)
+            mc.runMC(steps=100, equil=False, mode="fixed")
+
+            # Clean up files
+            os.remove("ignore_test_large.db")
+            os.remove("database.db")
+        except Exception as exc:
+            no_trow = False
+            msg = str(exc)
+        self.assertTrue(no_trow, msg=msg)
+
 
     def __del__(self):
         if (os.path.isfile(db_name)):
