@@ -28,15 +28,16 @@ class TestMCParameterSweep( unittest.TestCase ):
         return ceBulk
 
     def test_sgc_montecarlo(self):
-        if ( not has_ase_with_ce ):
+        if not has_ase_with_ce:
             self.skipTest( "ASE version does not have CE" )
             return
 
         no_throw = True
+        msg = ""
         try:
             bc = self.get_cebulk()
             T = 600.0
-            mc = SGCMonteCarlo( bc.atoms, T, symbols=["Al","Mg"] )
+            mc = SGCMonteCarlo(bc.atoms, T, symbols=["Al", "Mg"])
             parameters = [
                 {
                     "temperature":10000.0,
@@ -50,12 +51,12 @@ class TestMCParameterSweep( unittest.TestCase ):
             equil_params = {
                 "confidence_level":1E-8
             }
-            explorer = MCParameterSweep( parameters, mc, nsteps=20, equil_params=equil_params )
+            explorer = MCParameterSweep(parameters, mc, nsteps=20, equil_params=equil_params)
             explorer.run()
         except Exception as exc:
-            print(exc)
+            msg = str(exc)
             no_throw = False
-        self.assertTrue( no_throw )
+        self.assertTrue(no_throw, msg)
 
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
