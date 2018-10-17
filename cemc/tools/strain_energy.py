@@ -227,7 +227,7 @@ class StrainEnergy(object):
                        extent=[theta_min, theta_max, phi_min, phi_max],
                        aspect="auto", origin="lower")
         cb = fig.colorbar(im)
-        cb.set_label("Strain energy (meV/$Å^3$)")
+        cb.set_label("Strain energy (meV per angstrom cubed)")
         ax.set_xlabel("Polar angle (deg)")
         ax.set_ylabel("Azimuthal angle (deg)")
         return fig
