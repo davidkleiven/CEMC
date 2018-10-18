@@ -23,13 +23,27 @@ class ReactionPathSampler(object):
         is stored
     :param bool log_bin_stat: If True statistics on bin changes will be
         logged
+    :param str init_scheme: Determines how the samplers are initialized when 
+        changing window. 
+
+        1. uniform 
+            All samplers will be initialized
+            uniformly distributed inside the window. If there is only
+            one core, it will be initialized at the center of the window.
+        2. random
+            All samplers are initialized at a random place in the 
+            window.
     """
 
     def __init__(self, mc_obj=None, react_crd=[0.0, 1.0],
                  react_crd_init=None, react_crd_range_constraint=None,
                  n_windows=10, n_bins=10, data_file="reaction_path.h5",
-                 log_bin_stat=True):
+                 log_bin_stat=True, init_scheme="uniform"):
         self.log_bin_stat = log_bin_stat
+        allowed_init_schemes = ["uniform", "random"]
+        if init_scheme not in allowed_init_schemes:
+            raise ValueError("Init scheme has to be one of {}".format())
+        self.init_scheme = init_scheme
         self.mc = mc_obj
         self.react_crd = react_crd
         self.n_windows = n_windows
@@ -192,10 +206,24 @@ class ReactionPathSampler(object):
         result["x"] = np.linspace(self.react_crd[0], self.react_crd[1], len(G))
         return result
 
+    def _get_initial_value(self):
+        """Return the initial value in window."""
+        minval, maxval = self._get_window_limits(self.current_window)
+        if self.init_scheme == "random":
+            value = np.random.rand()*(maxval-minval) + minval
+        elif self.init_scheme == "uniform":
+            if self.mpicomm is None:
+                value = 0.5*(minval + maxval)
+            else:
+                size = self.mpicomm.Get_size()
+                rank = self.mpicomm.Get_rank()
+                delta = (maxval-minval)/(size+1)
+                value = minval+ delta*(rank + 1)
+        return value
+
     def _bring_system_into_window(self):
         """Bring the system into the current window."""
-        min, max = self._get_window_limits(self.current_window)
-        val = np.random.rand()*(max-min) + min
+        val = self._get_initial_value()
 
         # We need to temporary release the concentration range
         # constraint when moving from a window
