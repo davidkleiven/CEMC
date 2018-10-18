@@ -1,6 +1,7 @@
 #ifndef CLUSTER_TRACKER_H
 #define CLUSTER_TRACKER_H
 #include <vector>
+#include <set>
 #include <string>
 #include <map>
 #include <Python.h>
@@ -41,6 +42,20 @@ public:
   /** Computes the surface of the clusters */
   void surface( std::map<int,int> &surf ) const;
 
+  /** Check if the proposed move creates a new cluster */
+  bool move_creates_new_cluster(PyObject *system_changes);
+  bool move_creates_new_cluster(const std::vector<SymbolChange> &system_changes);
+
+  /** Update the clusters */
+  void update_clusters(PyObject *system_changes);
+  void update_clusters(const std::vector<SymbolChange> &system_changes);
+
+  /** Raise error if circular connected clusters are present */
+  void check_circular_connected_clusters();
+
+  /** Return True if indx1 is connected to indx2 */
+  bool is_connected(unsigned int indx1, unsigned int indx2) const;
+
   /** Compute the surface of the clusters and return the result in a Python dict */
   PyObject* surface_python() const;
 private:
@@ -48,8 +63,16 @@ private:
   vecstr cnames;
   CEUpdater *updater; // Do not own this
   std::vector<int> atomic_clusters;
+  std::set<int> indices_in_cluster;
+  std::vector<std::string> symbols_cpy;
 
   /** Check if the curent element is one of the cluster elements */
   bool is_cluster_element(const std::string &elm) const;
+
+  /** Detach neighbours from ref_indx. Return True on success. */
+  bool detach_neighbours(unsigned int ref_indx, bool can_create_new_clusters);
+
+  /** Initialize indices in cluster */
+  void init_cluster_indices();
 };
 #endif

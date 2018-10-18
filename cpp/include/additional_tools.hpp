@@ -22,6 +22,9 @@ template<class T>
 std::ostream& operator <<( std::ostream &out, const std::vector<T> &vec );
 
 template<class T>
+std::ostream& operator <<(std::ostream &out, const std::set<T> &set);
+
+template<class T>
 std::vector<T>& cyclic_permute( std::vector<T> &vec );
 
 template<class T, unsigned int N>
@@ -40,6 +43,9 @@ std::string py2string(PyObject *str);
 
 PyObject* int2py(int integer);
 int py2int(PyObject *integer);
+
+SymbolChange& py_tuple_to_symbol_change( PyObject *single_change, SymbolChange &symb_change );
+void py_changes2symb_changes( PyObject* all_changes, std::vector<SymbolChange> &symb_changes );
 
 #include "additional_tools.tpp"
 #endif

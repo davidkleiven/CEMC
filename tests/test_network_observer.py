@@ -1,4 +1,5 @@
 import unittest
+import os
 try:
     from cemc.mcmc import NetworkObserver
     from cemc import CE
@@ -81,10 +82,67 @@ class TestNetworkObs( unittest.TestCase ):
                 self.assertEqual( res["cluster_sizes"][0], size )
                 size += 1
             obs.get_indices_of_largest_cluster_with_neighbours()
+            os.remove("test_db_network.db")
         except Exception as exc:
             msg = "{}: {}".format(type(exc).__name__, str(exc))
             no_throw = False
         self.assertTrue( no_throw, msg=msg )
+
+    def test_fast_network_update(self):
+        if not available:
+            self.skipTest("ASE version does not have CE!")
+        from cemc.mcmc import Montecarlo
+        no_throw = True
+        msg = ""
+        try:
+            db_name = "test_db_network.db"
+
+            conc_args = {
+                "conc_ratio_min_1":[[1,0]],
+                "conc_ratio_max_1":[[0,1]],
+            }
+            a = 4.05
+            ceBulk = CEBulk(
+                crystalstructure="fcc", a=a, size=[3, 3, 3],
+                basis_elements=[["Al","Mg"]], conc_args=conc_args,
+                db_name=db_name, max_cluster_size=3)
+            ceBulk.reconfigure_settings()
+            cf = CorrFunction(ceBulk)
+            cf = cf.get_cf(ceBulk.atoms)
+            eci = {key:0.001 for key in cf.keys()}
+            calc = CE( ceBulk, eci=eci )
+            ceBulk.atoms.set_calculator(calc)
+
+            # Insert some magnesium atoms
+            symbs = [atom.symbol for atom in ceBulk.atoms]
+            for i in range(10):
+                symbs[i] = "Mg"
+            calc.set_symbols(symbs)
+
+            for name, info in ceBulk.cluster_info[0].items():
+                if info["size"] == 2:
+                    net_name = name
+                    break
+            obs = NetworkObserver( calc=calc, cluster_name=[net_name], element=["Mg"])
+            obs.collect_statistics_on_call = False
+            mc = Montecarlo(ceBulk.atoms, 500)
+            mc.attach(obs, interval=1)
+            for _ in range(10):
+                mc.runMC(mode="fixed", steps=200, equil=False)
+                stat = obs.get_current_cluster_info()
+
+                obs.retrieve_clusters_from_scratch()
+                stat_new = obs.get_current_cluster_info()
+                print(stat, stat_new)
+                self.assertAlmostEqual(stat["max_size"], stat_new["max_size"])
+                self.assertEqual(stat["cluster_sizes"], stat_new["cluster_sizes"])
+                self.assertAlmostEqual(stat["number_of_clusters"], stat_new["number_of_clusters"])
+            os.remove("test_db_network.db")
+        except Exception as exc:
+            no_throw = False
+            msg = str(exc)
+        self.assertTrue(no_throw, msg=msg)
+
 
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner

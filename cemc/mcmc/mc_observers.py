@@ -355,6 +355,7 @@ class NetworkObserver(MCObserver):
         self.n_calls = 0
         self.n_atoms_in_cluster = 0
         self.mpicomm = mpicomm
+        self.collect_statistics_on_call = True
 
         # Count the number of atoms of the element type being tracked
         n_atoms = 0
@@ -377,20 +378,33 @@ class NetworkObserver(MCObserver):
         :param list system_changes: Last changes to the system
         """
         self.n_calls += 1
+        # if system_changes is None or not system_changes:
+        #     self.fast_cluster_tracker.find_clusters()
+        # else:
+        #     self.fast_cluster_tracker.update_clusters(system_changes)
         self.fast_cluster_tracker.find_clusters()
-        new_res = self.fast_cluster_tracker.get_cluster_statistics_python()
-        for key in self.res.keys():
-            self.res[key] += new_res[key]
 
-        self.update_histogram(new_res["cluster_sizes"])
-        self.n_atoms_in_cluster += np.sum(new_res["cluster_sizes"])
-        if new_res["max_size"] > self.max_size:
-            self.max_size = new_res["max_size"]
-            self.atoms_max_cluster = self.calc.atoms.copy()
-            clust_indx = \
-                self.fast_cluster_tracker.atomic_clusters2group_indx_python()
-            self.indx_max_cluster = clust_indx
-            self.num_clusters = len(new_res["cluster_sizes"])
+        if self.collect_statistics_on_call:
+            new_res = self.fast_cluster_tracker.get_cluster_statistics_python()
+            for key in self.res.keys():
+                self.res[key] += new_res[key]
+
+            self.update_histogram(new_res["cluster_sizes"])
+            self.n_atoms_in_cluster += np.sum(new_res["cluster_sizes"])
+            if new_res["max_size"] > self.max_size:
+                self.max_size = new_res["max_size"]
+                self.atoms_max_cluster = self.calc.atoms.copy()
+                clust_indx = \
+                    self.fast_cluster_tracker.atomic_clusters2group_indx_python()
+                self.indx_max_cluster = clust_indx
+                self.num_clusters = len(new_res["cluster_sizes"])
+
+    def move_creates_new_clusters(self, system_changes):
+        return self.fast_cluster_tracker.move_creates_new_clusters(system_changes)
+
+    def retrieve_clusters_from_scratch(self):
+        """Retrieve the all the clusters from scratch."""
+        self.fast_cluster_tracker.find_clusters()
 
     def update_histogram(self, sizes):
         """
@@ -558,6 +572,11 @@ class NetworkObserver(MCObserver):
             msg += "by get_statisttics() is not collected yet."
             print(msg)
 
+    def get_current_cluster_info(self):
+        """Return the info dict for the current state."""
+        self.fast_cluster_tracker.find_clusters()
+        return self.fast_cluster_tracker.get_cluster_statistics_python()
+
     def get_statistics(self):
         """Compute network size statistics.
 
@@ -565,6 +584,7 @@ class NetworkObserver(MCObserver):
         :rtype: dict
         """
         self.collect_stat_MPI()
+
         stat = {}
         if self.res["number_of_clusters"] == 0:
             stat["avg_size"] = 0

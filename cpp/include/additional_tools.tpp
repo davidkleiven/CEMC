@@ -64,3 +64,12 @@ std::ostream& operator <<(std::ostream& out, std::array<T, N> &array)
   out << "\n";
   return out;
 };
+
+template<class T>
+std::ostream& operator <<(std::ostream& out, std::set<T> &set){
+  for (auto iter=set.begin(); iter != set.end(); ++iter){
+    out << *iter << " ";
+  }
+  out << "\n";
+  return out;
+}

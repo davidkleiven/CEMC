@@ -31,3 +31,9 @@ cdef class PyClusterTracker:
 
     def surface_python(self):
         self._clust_track.surface_python()
+
+    def move_creates_new_cluster(self, system_changes):
+        return self._clust_track.move_creates_new_cluster(system_changes)
+
+    def update_clusters(self, system_changes):
+        self._clust_track.update_clusters(system_changes)

@@ -60,3 +60,22 @@ int py2int(PyObject *integer)
     return PyInt_AsLong(integer);
   #endif
 }
+
+SymbolChange& py_tuple_to_symbol_change( PyObject *single_change, SymbolChange &symb_change )
+{
+  symb_change.indx = py2int( PyTuple_GetItem(single_change,0) );
+  symb_change.old_symb = py2string( PyTuple_GetItem(single_change,1) );
+  symb_change.new_symb = py2string( PyTuple_GetItem(single_change,2) );
+  return symb_change;
+}
+
+void py_changes2symb_changes( PyObject* all_changes, vector<SymbolChange> &symb_changes )
+{
+  int size = PyList_Size(all_changes);
+  for (unsigned int i=0;i<size;i++ )
+  {
+    SymbolChange symb_change;
+    py_tuple_to_symbol_change( PyList_GetItem(all_changes,i), symb_change );
+    symb_changes.push_back(symb_change);
+  }
+}
