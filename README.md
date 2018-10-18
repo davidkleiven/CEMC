@@ -57,6 +57,13 @@ env CC=gcc CXX=g++ pip install -e .
 ```
 note that a GCC version supporting openMP is required.
 
+3. **Installing with Intel Compilers**
+If installing with Intel compilers prepending some paths before the pip command 
+might help
+```bash
+CC=icc LINKCC=icc LDSHARED="icc -shared" pip install .
+```
+
 # Guidelines
 Any code that is in this repository should have *at least* one unittest
 located in the *tests* folder. The minimum test required is that the
