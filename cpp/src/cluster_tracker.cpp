@@ -389,7 +389,10 @@ void ClusterTracker::update_clusters(const vector<SymbolChange> &changes){
       bool attached = false;
       for (auto iter=indices_in_cluster.begin(); iter != indices_in_cluster.end(); ++iter){
         int indx = trans_mat(change.indx, *iter);
-        if (is_cluster_element(symbs[indx])){
+        
+        // Use symbs (and not symbols_cpy) where the move have already been updated
+        // TODO: Why do we need to check for connection here?
+        if (is_cluster_element(symbs[indx]) && !is_connected(indx, change.indx)){
           atomic_clusters[change.indx] = indx;
           attached = true;
           break;
@@ -417,6 +420,10 @@ void ClusterTracker::update_clusters(const vector<SymbolChange> &changes){
   #ifdef CLUSTER_TRACK_DEBUG
     check_circular_connected_clusters();
     cout << "Successfully updated clusters\n";
+
+    if (symbols_cpy != symbs){
+      throw runtime_error("The local copy of symbols differ from the CEUpdater.symbol!");
+    }
   #endif
 }
 
