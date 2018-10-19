@@ -91,7 +91,7 @@ class PairCorrelationObserver(MCObserver):
         self.n_entries = 0
         self.name = "PairCorrelationObserver"
 
-        for key, value in self.ce_calc.eci.items():
+        for key in self.ce_calc.eci.keys():
             if key.startswith("c2_"):
                 self.cf[key] = 0.0
                 self.cf_squared[key] = 0.0
@@ -378,11 +378,11 @@ class NetworkObserver(MCObserver):
         :param list system_changes: Last changes to the system
         """
         self.n_calls += 1
-        # if system_changes is None or not system_changes:
-        #     self.fast_cluster_tracker.find_clusters()
-        # else:
-        #     self.fast_cluster_tracker.update_clusters(system_changes)
-        self.fast_cluster_tracker.find_clusters()
+        if system_changes is None or not system_changes:
+            self.fast_cluster_tracker.find_clusters()
+        else:
+            self.fast_cluster_tracker.update_clusters(system_changes)
+        # self.fast_cluster_tracker.find_clusters()
 
         if self.collect_statistics_on_call:
             new_res = self.fast_cluster_tracker.get_cluster_statistics_python()
@@ -815,7 +815,6 @@ class MCBackup(MCObserver):
         if self.db_name != "":
             import dataset
             thermo = self.mc_obj.get_thermodynamic()
-            rank = mpi_rank()
             db = dataset.connect("sqlite:///{}".format(self.db_name))
             tab = db[self.db_tab_name]
             if self.db_id is None:
