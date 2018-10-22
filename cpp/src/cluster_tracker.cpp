@@ -367,6 +367,11 @@ void ClusterTracker::update_clusters(const vector<SymbolChange> &changes){
   const auto& trans_mat = updater->get_trans_matrix();
   const vector<string>& symbs = updater->get_symbols();
 
+  vector<int> indx_in_change;
+  for (const SymbolChange &change : changes){
+    indx_in_change.push_back(change.indx);
+  }
+
   for (const SymbolChange &change : changes){
     if (is_cluster_element(change.old_symb) && is_cluster_element(change.new_symb)){
       // Change only involved elements in the cluster
@@ -375,7 +380,7 @@ void ClusterTracker::update_clusters(const vector<SymbolChange> &changes){
     }
     if (is_cluster_element(change.old_symb)){
         // Detach indices that are connected to this cluster
-        detach_neighbours(change.indx, true);
+        detach_neighbours(change.indx, true, indx_in_change);
 
         #ifdef CLUSTER_TRACK_DEBUG
           cout << "Neighbours detached\n";
@@ -391,8 +396,7 @@ void ClusterTracker::update_clusters(const vector<SymbolChange> &changes){
         int indx = trans_mat(change.indx, *iter);
         
         // Use symbs (and not symbols_cpy) where the move have already been updated
-        // TODO: Why do we need to check for connection here?
-        if (is_cluster_element(symbs[indx]) && !is_connected(indx, change.indx)){
+        if (is_cluster_element(symbs[indx])){
           atomic_clusters[change.indx] = indx;
           attached = true;
           break;
@@ -436,7 +440,12 @@ bool ClusterTracker::move_creates_new_cluster(PyObject *py_changes){
 bool ClusterTracker::move_creates_new_cluster(const vector<SymbolChange> &changes){
   const auto& trans_mat = updater->get_trans_matrix();
   const vector<string>& symbs = updater->get_symbols();
-  cout << changes << endl;
+
+  vector<int> indx_in_change;
+  for (const SymbolChange &change : changes){
+    indx_in_change.push_back(change.indx);
+  }
+
   for (const SymbolChange &change : changes){
     if (is_cluster_element(change.old_symb) && is_cluster_element(change.new_symb)){
       // Change only involved elements in the cluster
@@ -447,7 +456,7 @@ bool ClusterTracker::move_creates_new_cluster(const vector<SymbolChange> &change
     if (is_cluster_element(change.old_symb)){
       // Check if all neighbours can be connected 
       // to something else
-      if (!detach_neighbours(change.indx, false)) return true;
+      if (!detach_neighbours(change.indx, false, indx_in_change)) return true;
     }
 
     if (is_cluster_element(change.new_symb)){
@@ -466,7 +475,7 @@ bool ClusterTracker::move_creates_new_cluster(const vector<SymbolChange> &change
   return false;
 }
 
-bool ClusterTracker::detach_neighbours(unsigned int ref_indx, bool can_create_new_clusters){
+bool ClusterTracker::detach_neighbours(unsigned int ref_indx, bool can_create_new_clusters, const vector<int> &indx_in_change){
   const auto& trans_mat = updater->get_trans_matrix();
   //const vector<string>& symbs = updater->get_symbols();
 
@@ -506,8 +515,8 @@ bool ClusterTracker::detach_neighbours(unsigned int ref_indx, bool can_create_ne
     // The current index is connected to ref_indx
     bool managed_to_detach = false;
     for (auto iter2=indices_in_cluster.begin();iter2 != indices_in_cluster.end(); ++iter2){
-      unsigned int indx2 = trans_mat(indx, *iter2);
-      if (indx2 == ref_indx) continue;
+      int indx2 = trans_mat(indx, *iter2);
+      if (is_in_vector(indx2, indx_in_change)) continue;
 
       // indx is in the cluster, and indx2 is not connected to indx, 
       // we can connect indx to indx2

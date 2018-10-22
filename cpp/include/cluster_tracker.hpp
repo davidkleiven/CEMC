@@ -70,7 +70,7 @@ private:
   bool is_cluster_element(const std::string &elm) const;
 
   /** Detach neighbours from ref_indx. Return True on success. */
-  bool detach_neighbours(unsigned int ref_indx, bool can_create_new_clusters);
+  bool detach_neighbours(unsigned int ref_indx, bool can_create_new_clusters, const std::vector<int> &indx_in_change);
 
   /** Initialize indices in cluster */
   void init_cluster_indices();
