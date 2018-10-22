@@ -927,6 +927,76 @@ class InertiaTensorObserver(MCObserver):
 
             
 
+class PairObserver(MCObserver):
+    """Tracking the average number of pairs within a cutoff"""
+    def __init__(self, atoms, cutoff=4.0, elements=[]):
+        from ase.neighborlist import neighbor_list
+        self.atoms = atoms
+        self.cutoff = cutoff
+        self.elements = elements
+        first_indx, second_indx, self.dist = neighbor_list("ijd", atoms, cutoff)
+
+        # neighbors
+        self.neighbors = [[] for _ in range(len(self.atoms))]
+        for i1, i2 in zip(first_indx, second_indx):
+            self.neighbors[i1].append(i2)
+
+        # Count how many pairs inside cutoff
+        self.num_pairs = self.num_pairs_brute_force()
+        self.avg_num_pairs = 0
+        self.num_calls = 0
+        self.symbols = [atom.symbol for atom in self.atoms]
+
+    def __call__(self, system_changes):
+        # Update how many pairs there are present
+        # at this point the atoms object is already 
+        num_new_pairs = 0
+        for change in system_changes:
+            if change[1] in self.elements and change[2] not in self.elements:
+                neighbors = self.neighbors[change[0]]
+                pairs_in_site = len([self.symbols[indx] for indx in neighbors
+                                     if self.symbols[indx] in self.elements])
+
+                # We loose some pairs (factor 2 due to double counting)
+                num_new_pairs -= 2*pairs_in_site
+
+            elif change[1] not in self.elements and change[2] in self.elements:
+                neighbors = self.neighbors[change[0]]
+                pairs_in_site = len([self.symbols[indx] for indx in neighbors
+                                     if self.symbols[indx] in self.elements])
+                # Add pairs (factor 2 due to double counting)
+                num_new_pairs += 2*pairs_in_site
+            self.symbols[change[0]] = change[2]
+
+        self.num_pairs += num_new_pairs
+        self.avg_num_pairs += float(self.num_pairs)/len(self.atoms)
+        self.num_calls += 1
+
+    def reset(self):
+        self.num_calls = 0
+        self.avg_num_pairs = 0
+
+    def symbols_is_synced(self):
+        """Sanity check to ensure that the symbols array is syncronized."""
+        symbs_atoms = [atom.symbol for atom in self.atoms]
+        return symbs_atoms == self.symbols
+
+    def num_pairs_brute_force(self):
+        """Calculate the number pairs by brute force loop."""
+        num_pairs = 0
+        for i1 in range(len(self.neighbors)):
+            if self.atoms[i1].symbol in self.elements:
+                for i2 in self.neighbors[i1]:
+                    if self.atoms[i2].symbol in self.elements:
+                        num_pairs += 1
+        return num_pairs
+
+    @property
+    def mean_number_of_pairs(self):
+        if self.num_calls == 0:
+            return 0
+        return self.avg_num_pairs/self.num_calls
+
 
 
 
