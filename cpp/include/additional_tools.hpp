@@ -47,5 +47,9 @@ int py2int(PyObject *integer);
 SymbolChange& py_tuple_to_symbol_change( PyObject *single_change, SymbolChange &symb_change );
 void py_changes2symb_changes( PyObject* all_changes, std::vector<SymbolChange> &symb_changes );
 
+/** Return true if element is in vector*/
+template<class T>
+bool is_in_vector(const T &value, const std::vector<T> &vec);
+
 #include "additional_tools.tpp"
 #endif

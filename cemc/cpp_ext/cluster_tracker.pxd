@@ -17,6 +17,8 @@ cdef extern from "cluster_tracker.hpp":
 
       object surface_python()
 
-      bool move_creates_new_cluster(object system_changes)
+      bool move_creates_new_cluster(object system_changes) except+
 
       void update_clusters(object system_changes) except+
+
+      bool has_minimal_connectivity()

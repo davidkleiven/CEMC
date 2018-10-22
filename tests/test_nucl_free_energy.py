@@ -216,6 +216,62 @@ class TestNuclFreeEnergy( unittest.TestCase ):
 
         self.assertTrue(no_throw, msg=msg)
 
+    def test_inertia_observer(self):
+        """Test the inertia observer."""
+        if not available:
+            self.skipTest("ASE version does not have CE!")
+
+        msg = ""
+        no_throw = True
+        try:
+            from cemc.mcmc import FixEdgeLayers
+            from cemc.mcmc import InertiaTensorObserver
+            bc, args = get_ternary_BC(ret_args=True)
+            ecis = get_example_ecis(bc=bc)
+            calc = get_ce_calc(bc, args, eci=ecis, size=[8, 8, 8], db_name="inertia_obs.db")
+            bc = calc.BC
+            bc.atoms.set_calculator(calc)
+
+            T = 200
+            nn_names = [name for name in bc.cluster_family_names
+                        if int(name[1]) == 2]
+
+            mc = FixedNucleusMC(
+                bc.atoms, T, network_name=nn_names,
+                network_element=["Mg", "Si"])
+
+            fixed_layers = FixEdgeLayers(atoms=mc.atoms, thickness=3.0)
+            mc.add_constraint(fixed_layers)
+            elements = {"Mg": 6, "Si": 6}
+            mc.insert_symbol_random_places("Mg", num=1, swap_symbs=["Al"])
+            mc.grow_cluster(elements)
+            
+            inert_obs = InertiaTensorObserver(atoms=mc.atoms, cluster_elements=["Mg", "Si"])
+            mc.attach(inert_obs)
+            for _ in range(10):
+                mc.runMC(steps=100, elements=elements, init_cluster=False)
+
+                obs_I = inert_obs.inertia
+                indices = []
+                for atom in mc.atoms:
+                    if atom.symbol in ["Mg", "Si"]:
+                        indices.append(atom.index)
+                cluster = mc.atoms[indices]
+                pos = cluster.get_positions()
+                com = np.mean(pos, axis=0)
+                pos -= com
+                inertia = np.zeros((3, 3))
+                for i in range(pos.shape[0]):
+                    x = pos[i, :]
+                    inertia += np.outer(x, x)
+                self.assertTrue(np.allclose(obs_I, inertia))
+            os.remove("inertia_obs.db")
+        except Exception as exc:
+            no_throw = False
+            msg = type(exc).__name__ + str(exc)
+
+        self.assertTrue(no_throw, msg=msg)
+
 
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner

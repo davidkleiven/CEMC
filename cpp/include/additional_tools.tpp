@@ -73,3 +73,11 @@ std::ostream& operator <<(std::ostream& out, std::set<T> &set){
   out << "\n";
   return out;
 }
+
+template<class T>
+bool is_in_vector(const T& value, const std::vector<T> &vector){
+  for (const T& elem : vector){
+    if (value == elem) return true;
+  }
+  return false;
+}

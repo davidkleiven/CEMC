@@ -1,3 +1,4 @@
+import numpy as np
 
 class MCConstraint(object):
     """
@@ -104,3 +105,69 @@ class FixedElement(MCConstraint):
             if change[0] == self.element or change[1] == self.element:
                 return False
         return True
+
+
+class FixEdgeLayers(MCConstraint):
+    """Fix atoms near border of the cell."""
+    def __init__(self, thickness=4.0, atoms=None):
+        self.cell = atoms.get_cell()
+        self.thickness = thickness
+        self.planes = self._init_planes()
+        self.atoms = atoms
+        self.pos = self.atoms.get_positions()
+
+    def _init_planes(self):
+        """Initialize the planes."""
+        from cemc.tools.geometry import Plane
+        from itertools import combinations
+        cross_comb = [(0, 1), (0, 2), (1, 2)]
+        trans_vec = [2, 1, 0]
+        planes = []
+        for t, comb in zip(trans_vec, cross_comb):
+            normal = np.cross(self.cell[comb[0], :], self.cell[comb[1], :])
+            unit_vec = self.cell[t, :]/np.sqrt(np.sum(self.cell[t, :]**2))
+            pts_in_plane = np.array(-0.1*self.thickness*unit_vec)
+            p1 = Plane(normal, pts_in_plane)
+
+            pts_in_plane = unit_vec*self.thickness
+            p2 = Plane(normal, pts_in_plane)
+            planes.append((p1, p2))
+
+            pts_in_plane = self.cell[t, :] + 0.1*self.thickness*unit_vec
+            p3 = Plane(normal, pts_in_plane)
+            pts_in_plane = self.cell[t, :] - self.thickness*unit_vec
+            p4 = Plane(normal, pts_in_plane)
+            planes.append((p3, p4))
+        return planes
+
+    def _is_between_planes(self, x, p1, p2):
+        """Check if a point is between two planes."""
+        d1 = p1.signed_distance(x)
+        d2 = p2.signed_distance(x)
+        return np.sign(d1*d2) < 0
+
+    def _is_between_any(self, x):
+        """Check if a point is between any pairs of planes."""
+        for p in self.planes:
+            if self._is_between_planes(x, p[0], p[1]):
+                return True
+        return False
+
+    def __call__(self, system_changes):
+        """Check if move is valid
+        Return True if the move is valid
+        """
+        for change in system_changes:
+            x = self.pos[change[0], :]
+            if self._is_between_any(x):
+                return False
+        return True
+
+    def get_fixed_atoms(self):
+        """Return an atoms object containing only the fixed sites."""
+        indices = []
+        for i in range(self.pos.shape[0]):
+            if self._is_between_any(self.pos[i, :]):
+                indices.append(i)
+        return self.atoms[indices]
+        

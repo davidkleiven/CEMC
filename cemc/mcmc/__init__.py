@@ -8,6 +8,7 @@ from cemc.mcmc.mc_observers import MCObserver, CorrelationFunctionTracker, PairC
 LowestEnergyStructure, SGCObserver, Snapshot, NetworkObserver, SiteOrderParameter
 from cemc.mcmc.mc_observers import EnergyEvolution, EnergyHistogram, MCBackup
 from cemc.mcmc.mc_observers import BiasPotentialContribution
+from cemc.mcmc.mc_observers import InertiaTensorObserver
 
 from cemc.mcmc.sa_canonical import SimulatedAnnealingCanonical
 from cemc.mcmc.multidim_comp_dos import CompositionDOS
@@ -21,6 +22,7 @@ from cemc.mcmc.sgc_free_energy_barrier import SGCFreeEnergyBarrier
 from cemc.mcmc.activity_sampler import ActivitySampler
 from cemc.mcmc.collective_jump_move import CollectiveJumpMove
 from cemc.mcmc.mc_constraints import MCConstraint, PairConstraint, FixedElement
+from cemc.mcmc.mc_constraints import FixEdgeLayers
 from cemc.mcmc.transition_path_relaxer import TransitionPathRelaxer
 from cemc.mcmc.damage_spreading_mc import DamageSpreadingMC
 from cemc.mcmc.pseudo_binary_mc import PseudoBinarySGC

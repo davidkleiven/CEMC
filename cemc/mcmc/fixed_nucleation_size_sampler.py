@@ -152,6 +152,7 @@ class FixedNucleusMC(Montecarlo):
         mv_ok = n_in_clst == self.initial_num_atoms_in_cluster
         mv_ok = mv_ok and stat["number_of_clusters"] == 1
         return mv_ok
+        #return self.network.move_creates_new_clusters()
 
     def _accept(self, system_changes):
         """Accept trial move.

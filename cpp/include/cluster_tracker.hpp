@@ -56,6 +56,9 @@ public:
   /** Return True if indx1 is connected to indx2 */
   bool is_connected(unsigned int indx1, unsigned int indx2) const;
 
+  /** Return true if all atoms have a direct connection to one of its neighbours */
+  bool has_minimal_connectivity() const;
+
   /** Compute the surface of the clusters and return the result in a Python dict */
   PyObject* surface_python() const;
 private:
@@ -70,9 +73,12 @@ private:
   bool is_cluster_element(const std::string &elm) const;
 
   /** Detach neighbours from ref_indx. Return True on success. */
-  bool detach_neighbours(unsigned int ref_indx, bool can_create_new_clusters, const std::vector<int> &indx_in_change);
+  bool detach_neighbours(int ref_indx, bool can_create_new_clusters, const std::vector<int> &indx_in_change);
 
   /** Initialize indices in cluster */
   void init_cluster_indices();
+
+  /** Rebuild cluster and connect all nodes to one of their neighbours */
+  void rebuild_cluster();
 };
 #endif

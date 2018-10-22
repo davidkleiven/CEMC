@@ -37,3 +37,6 @@ cdef class PyClusterTracker:
 
     def update_clusters(self, system_changes):
         self._clust_track.update_clusters(system_changes)
+
+    def has_minimal_connectivity(self):
+        return self._clust_track.has_minimal_connectivity()

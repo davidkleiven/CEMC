@@ -4,7 +4,7 @@
 #include "additional_tools.hpp"
 #include <stdexcept>
 #include <sstream>
-//#define CLUSTER_TRACK_DEBUG
+#define CLUSTER_TRACK_DEBUG
 
 using namespace std;
 
@@ -14,6 +14,10 @@ updater(&updater),cnames(cname),elements(elements)
   verify_cluster_name_exists();
   init_cluster_indices();
   find_clusters();
+
+  // Restructure the clusters into minimal nested connections
+  // i.e. all atoms have a direct link to one their neighbours
+  rebuild_cluster();
 
   #ifdef CLUSTER_TRACK_DEBUG
     cout << "Cluster tracker initialized\n";
@@ -363,7 +367,6 @@ void ClusterTracker::update_clusters(const vector<SymbolChange> &changes){
   #ifdef CLUSTER_TRACK_DEBUG
     cout << changes << endl;
   #endif
-
   const auto& trans_mat = updater->get_trans_matrix();
   const vector<string>& symbs = updater->get_symbols();
 
@@ -378,9 +381,12 @@ void ClusterTracker::update_clusters(const vector<SymbolChange> &changes){
       // we don't need to do anything
       continue;
     }
+
     if (is_cluster_element(change.old_symb)){
         // Detach indices that are connected to this cluster
-        detach_neighbours(change.indx, true, indx_in_change);
+        if (!detach_neighbours(change.indx, false, indx_in_change)){
+          throw runtime_error("New cluster formed when detaching neighbours!");
+        }
 
         #ifdef CLUSTER_TRACK_DEBUG
           cout << "Neighbours detached\n";
@@ -392,18 +398,21 @@ void ClusterTracker::update_clusters(const vector<SymbolChange> &changes){
     if (is_cluster_element(change.new_symb)){
       // Attach the updated index
       bool attached = false;
+      int indx = 0;
       for (auto iter=indices_in_cluster.begin(); iter != indices_in_cluster.end(); ++iter){
-        int indx = trans_mat(change.indx, *iter);
+        indx = trans_mat(change.indx, *iter);
         
         // Use symbs (and not symbols_cpy) where the move have already been updated
-        if (is_cluster_element(symbs[indx])){
+        if (is_cluster_element(symbs[indx]) && !is_in_vector(indx, indx_in_change)){
           atomic_clusters[change.indx] = indx;
           attached = true;
           break;
         }
       }
+
       if (!attached){
         // Create a new reference site
+        throw runtime_error("Generating new clusters are not allowed when using the fast cluster tracker!");
         atomic_clusters[change.indx] = -1;
       }
 
@@ -460,11 +469,12 @@ bool ClusterTracker::move_creates_new_cluster(const vector<SymbolChange> &change
     }
 
     if (is_cluster_element(change.new_symb)){
-      // See if we can attach the new position to the a cluster
+      // See if we can attach the new position to a cluster
       bool can_attach = false;
+      int indx = 0;
       for (auto iter=indices_in_cluster.begin(); iter != indices_in_cluster.end(); ++iter){
-        int indx = trans_mat(change.indx, *iter);
-        if (is_cluster_element(symbs[indx])){
+        indx = trans_mat(change.indx, *iter);
+        if (is_cluster_element(symbs[indx]) && !is_in_vector(indx, indx_in_change)){
           can_attach = true;
           break;
         }
@@ -472,25 +482,40 @@ bool ClusterTracker::move_creates_new_cluster(const vector<SymbolChange> &change
       if (!can_attach) return true;
     }
   }
+
+  #ifdef CLUSTER_TRACK_DEBUG
+    for (const SymbolChange &change : changes){
+      if (is_in_vector(change.indx, atomic_clusters)){
+        stringstream ss;
+        ss << "Still sites connected to " << change.indx << " after successful detach!\n";
+        ss << atomic_clusters << endl;
+        throw runtime_error(ss.str());
+      }
+    }
+  #endif
   return false;
 }
 
-bool ClusterTracker::detach_neighbours(unsigned int ref_indx, bool can_create_new_clusters, const vector<int> &indx_in_change){
+bool ClusterTracker::detach_neighbours(int ref_indx, bool can_create_new_clusters, const vector<int> &indx_in_change){
   const auto& trans_mat = updater->get_trans_matrix();
-  //const vector<string>& symbs = updater->get_symbols();
 
-  // if (!is_cluster_element(symbs[ref_indx])){
-  //   // There is not to detach as this site is not
-  //   // part of the cluster
-  //   return true;
-  // }
+  // Make sure that the site that we shoud detach actually is going to be changed
+  if (!is_in_vector(ref_indx, indx_in_change)){
+    throw invalid_argument("Ref_indx not in the change vector!");
+  }
+
+  #ifdef CLUSTER_TRACK_DEBUG
+    if (!has_minimal_connectivity()){
+      throw runtime_error("The cluster no longer has minimal connectivity!");
+    }
+  #endif
 
   bool new_ref_indx_assigned = false;
   bool is_ref_indx = (atomic_clusters[ref_indx] == -1);
 
   // Loop accross neighbour indices
   for (auto iter=indices_in_cluster.begin(); iter != indices_in_cluster.end();++iter){
-    unsigned int indx = trans_mat(ref_indx, *iter);
+    int indx = trans_mat(ref_indx, *iter);
 
     if (!is_cluster_element(symbols_cpy[indx])){
       // This symbol is not part of the cluster
@@ -498,7 +523,7 @@ bool ClusterTracker::detach_neighbours(unsigned int ref_indx, bool can_create_ne
     }
 
     if (atomic_clusters[indx] != ref_indx){
-      // Not connected to the ref_index
+      // Not directly connected to the ref_index
       continue;
     }
 
@@ -562,4 +587,64 @@ void ClusterTracker::check_circular_connected_clusters(){
   for (unsigned int ref_indx=0;ref_indx<atomic_clusters.size();ref_indx++){
     root_indx(ref_indx);
   }
+}
+
+void ClusterTracker::rebuild_cluster(){
+  vector<int> grp_indx;
+  atomic_clusters2group_indx(grp_indx);
+  vector<int> used_group_indx;
+  const auto& trans_mat = updater->get_trans_matrix();
+
+  for (int grp : grp_indx){
+    if (is_in_vector(grp, used_group_indx)) continue;
+
+    used_group_indx.push_back(grp);
+
+    // Find all sites belonging to this cluster
+    vector<int> indx_in_group;
+    for (int i=0;i<grp_indx.size();i++){
+      if (grp_indx[i] == grp){
+        indx_in_group.push_back(i);
+      }
+    }
+
+    if (indx_in_group.size() <= 1) continue;
+
+    // We need to restructure the cluster (i.e.)
+    // construct the cluster without altering the root index
+    vector<bool> already_inserted(atomic_clusters.size());
+    fill(already_inserted.begin(), already_inserted.end(), false);
+
+    atomic_clusters[indx_in_group[0]] = -1;
+    already_inserted[indx_in_group[0]] = true;
+    for (int i=0;i<indx_in_group.size();i++){
+      // Attach all neighbours to the current site
+      for (auto iter=indices_in_cluster.begin(); iter != indices_in_cluster.end(); ++iter){
+        int indx = trans_mat(indx_in_group[i], *iter);
+        if (is_in_vector(indx, indx_in_group) && !already_inserted[indx]){
+          atomic_clusters[indx] = indx_in_group[i];
+          already_inserted[indx] = true;
+        }
+      }
+    }
+  }
+}
+
+bool ClusterTracker::has_minimal_connectivity() const{
+  const auto& trans_mat = updater->get_trans_matrix();
+  for (int i=0;i<atomic_clusters.size();i++){
+    if (atomic_clusters[i] != -1){
+      bool found_neighbor = false;
+      for (auto iter=indices_in_cluster.begin(); iter != indices_in_cluster.end(); ++iter){
+        int candidate = trans_mat(i, *iter);
+        if (atomic_clusters[i] == candidate){
+          found_neighbor = true;
+          break;
+        }
+      }
+
+      if (!found_neighbor) return false;
+    }
+  }
+  return true;
 }

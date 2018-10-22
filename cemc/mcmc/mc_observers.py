@@ -355,7 +355,6 @@ class NetworkObserver(MCObserver):
         self.n_calls = 0
         self.n_atoms_in_cluster = 0
         self.mpicomm = mpicomm
-        self.collect_statistics_on_call = True
 
         # Count the number of atoms of the element type being tracked
         n_atoms = 0
@@ -378,29 +377,24 @@ class NetworkObserver(MCObserver):
         :param list system_changes: Last changes to the system
         """
         self.n_calls += 1
-        if system_changes is None or not system_changes:
-            self.fast_cluster_tracker.find_clusters()
-        else:
-            self.fast_cluster_tracker.update_clusters(system_changes)
-        # self.fast_cluster_tracker.find_clusters()
+        self.fast_cluster_tracker.find_clusters()
 
-        if self.collect_statistics_on_call:
-            new_res = self.fast_cluster_tracker.get_cluster_statistics_python()
-            for key in self.res.keys():
-                self.res[key] += new_res[key]
+        new_res = self.fast_cluster_tracker.get_cluster_statistics_python()
+        for key in self.res.keys():
+            self.res[key] += new_res[key]
 
-            self.update_histogram(new_res["cluster_sizes"])
-            self.n_atoms_in_cluster += np.sum(new_res["cluster_sizes"])
-            if new_res["max_size"] > self.max_size:
-                self.max_size = new_res["max_size"]
-                self.atoms_max_cluster = self.calc.atoms.copy()
-                clust_indx = \
-                    self.fast_cluster_tracker.atomic_clusters2group_indx_python()
-                self.indx_max_cluster = clust_indx
-                self.num_clusters = len(new_res["cluster_sizes"])
+        self.update_histogram(new_res["cluster_sizes"])
+        self.n_atoms_in_cluster += np.sum(new_res["cluster_sizes"])
+        if new_res["max_size"] > self.max_size:
+            self.max_size = new_res["max_size"]
+            self.atoms_max_cluster = self.calc.atoms.copy()
+            clust_indx = \
+                self.fast_cluster_tracker.atomic_clusters2group_indx_python()
+            self.indx_max_cluster = clust_indx
+            self.num_clusters = len(new_res["cluster_sizes"])
 
-    def move_creates_new_clusters(self, system_changes):
-        return self.fast_cluster_tracker.move_creates_new_clusters(system_changes)
+    def has_minimal_connectivity(self):
+        return self.fast_cluster_tracker.has_minimal_connectivity()
 
     def retrieve_clusters_from_scratch(self):
         """Retrieve the all the clusters from scratch."""
@@ -872,6 +866,66 @@ class BiasPotentialContribution(MCObserver):
         np.savetxt(fname, data.T, delimiter=",")
         print("Histogram data written to {}".format(fname))
 
+
+class InertiaTensorObserver(MCObserver):
+    def __init__(self, atoms=None, cluster_elements=None):
+        self.pos = atoms.get_positions()
+        self.cluster_elements = cluster_elements
+        self.com = np.zeros(3)
+        self.inertia = np.zeros((3, 3))
+        self.num_atoms = 0
+        self._init_com_and_inertia(atoms)
+        self.old_com = None
+        self.old_inertia = None
+
+    def _init_com_and_inertia(self, atoms):
+        """Initialize the center of mass and the inertia."""
+        self.num_atoms = 0
+        for atom in atoms:
+            if atom.symbol in self.cluster_elements:
+                self.com += atom.position
+                self.inertia += np.outer(atom.position, atom.position)
+                self.num_atoms += 1
+
+        if self.num_atoms == 0:
+            raise RuntimeError("No cluster elements are present in the "
+                               "Atoms object provided!")
+        self.com /= self.num_atoms
+        self.inertia -= self.num_atoms*np.outer(self.com, self.com)
+
+    def __call__(self, system_changes):
+        """Update the inertia tensor."""
+        d_com = np.zeros(3)
+        d_I = np.zeros((3, 3))
+        for change in system_changes:
+            if change[1] in self.cluster_elements and change[2] in self.cluster_elements:
+                continue
+
+            x = self.pos[change[0], :]
+            if change[2] in self.cluster_elements:
+                d_com += x
+                d_I += np.outer(x, x)
+            elif change[1] in self.cluster_elements:
+                d_com -= x
+                d_I -= np.outer(x, x)
+        
+        d_com /= self.num_atoms
+
+        d_I -= self.num_atoms*(np.outer(d_com, self.com) + np.outer(self.com, d_com) + np.outer(d_com, d_com))
+        self.old_inertia = self.inertia.copy()
+        self.old_com = self.com.copy()
+
+        self.com += d_com
+        self.inertia += d_I
+
+    def undo_last(self):
+        """Undo the last update."""
+        if self.old_inertia is None:
+            return
+        self.inertia = self.old_inertia
+        self.com = self.old_com
+
+            
 
 
 
