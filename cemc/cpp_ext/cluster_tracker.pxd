@@ -9,7 +9,7 @@ cdef extern from "cluster_tracker.hpp":
   cdef cppclass ClusterTracker:
       ClusterTracker(CEUpdater &updater, vector[string] &cname, vector[string] &element) except +
 
-      void find_clusters()
+      void find_clusters(bool only_selected)
 
       object get_cluster_statistics_python() except+
 
@@ -22,3 +22,5 @@ cdef extern from "cluster_tracker.hpp":
       void update_clusters(object system_changes) except+
 
       bool has_minimal_connectivity()
+
+      int num_root_nodes()

@@ -79,3 +79,14 @@ void py_changes2symb_changes( PyObject* all_changes, vector<SymbolChange> &symb_
     symb_changes.push_back(symb_change);
   }
 }
+
+void py_change2swap_move(PyObject* all_changes, swap_move &symb_changes)
+{
+  int size = PyList_Size(all_changes);
+  for (unsigned int i=0;i<size;i++ )
+  {
+    SymbolChange symb_change;
+    py_tuple_to_symbol_change( PyList_GetItem(all_changes,i), symb_change );
+    symb_changes[i]  = symb_change;
+  }
+}

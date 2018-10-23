@@ -14,7 +14,10 @@ public:
   ClusterTracker(CEUpdater &updater, const vecstr &cnames, const vecstr &elements);
 
   /** Search through the symbol list of CEupdater and identifies atomic clusters */
-  void find_clusters();
+  void find_clusters(bool only_selected);
+
+  /** Return the number of root nodes among the solute atoms */
+  unsigned int num_root_nodes() const;
 
   /** Collect the cluster statistics */
   void get_cluster_statistics( std::map<std::string,double> &res, std::vector<int> &cluster_sizes ) const;
@@ -44,11 +47,11 @@ public:
 
   /** Check if the proposed move creates a new cluster */
   bool move_creates_new_cluster(PyObject *system_changes);
-  bool move_creates_new_cluster(const std::vector<SymbolChange> &system_changes);
+  bool move_creates_new_cluster(const swap_move &system_changes);
 
   /** Update the clusters */
   void update_clusters(PyObject *system_changes);
-  void update_clusters(const std::vector<SymbolChange> &system_changes);
+  void update_clusters(const swap_move &system_changes);
 
   /** Raise error if circular connected clusters are present */
   void check_circular_connected_clusters();
@@ -67,6 +70,7 @@ private:
   CEUpdater *updater; // Do not own this
   std::vector<int> atomic_clusters;
   std::set<int> indices_in_cluster;
+  std::set<int> solute_atoms_indices;
   std::vector<std::string> symbols_cpy;
 
   /** Check if the curent element is one of the cluster elements */
@@ -80,5 +84,8 @@ private:
 
   /** Rebuild cluster and connect all nodes to one of their neighbours */
   void rebuild_cluster();
+
+  /** Attach one index to the cluster */
+  void attach2cluster(unsigned int indx);
 };
 #endif

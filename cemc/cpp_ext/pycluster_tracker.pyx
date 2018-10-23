@@ -20,8 +20,8 @@ cdef class PyClusterTracker:
         if self._clust_track != NULL:
             del self._clust_track
 
-    def find_clusters(self):
-        self._clust_track.find_clusters()
+    def find_clusters(self, only_selected=False):
+        self._clust_track.find_clusters(only_selected)
 
     def get_cluster_statistics_python(self):
         return self._clust_track.get_cluster_statistics_python()
@@ -40,3 +40,6 @@ cdef class PyClusterTracker:
 
     def has_minimal_connectivity(self):
         return self._clust_track.has_minimal_connectivity()
+
+    def num_root_nodes(self):
+        return self._clust_track.num_root_nodes()

@@ -13,7 +13,7 @@ updater(&updater),cnames(cname),elements(elements)
 {
   verify_cluster_name_exists();
   init_cluster_indices();
-  find_clusters();
+  find_clusters(false);
 
   // Restructure the clusters into minimal nested connections
   // i.e. all atoms have a direct link to one their neighbours
@@ -24,64 +24,66 @@ updater(&updater),cnames(cname),elements(elements)
   #endif
 }
 
-void ClusterTracker::find_clusters()
+void ClusterTracker::attach2cluster(unsigned int indx){
+  const auto& trans_mat = updater->get_trans_matrix();
+
+  // If the element does not match, do not do anything
+  if ( !is_cluster_element(symbols_cpy[indx]) )
+  {
+    return;
+  }
+
+  int current_root_indx = root_indx(indx);
+
+  if (atomic_clusters[current_root_indx] != -1)
+  {
+    throw runtime_error("Something strange happend. ID of root index is not -1!");
+  }
+
+  // Loop over all symmetries
+  for (int c_indx : indices_in_cluster){
+    int indx2 = trans_mat(indx, c_indx);
+    if (is_cluster_element(symbols_cpy[indx2]))
+    {
+      int root = root_indx(indx2);
+      if ( root != current_root_indx )
+      {
+        atomic_clusters[root] = current_root_indx;
+      }
+    }
+  }
+}
+
+void ClusterTracker::find_clusters(bool only_selected)
 {
   const vector<string> &symbs = updater->get_symbols();
 
-  // Syncronize the copy
-  symbols_cpy = symbs;
+  if (!only_selected){
+    // Sync the clusters
+    symbols_cpy = symbs;
 
-  atomic_clusters.resize( symbs.size() );
-  for ( unsigned int i=0;i<atomic_clusters.size();i++ )
-  {
-    atomic_clusters[i] = -1; // All atoms are initially a root site
-  }
-
-  const vector< map<string,Cluster> >& clusters = updater->get_clusters();
-  const auto& trans_mat = updater->get_trans_matrix();
-
-  for ( unsigned int i=0;i<symbs.size();i++ )
-  {
-    // If the element does not match, do not do anything
-    if ( !is_cluster_element(symbs[i]) )
+    solute_atoms_indices.clear();
+    atomic_clusters.resize(symbs.size());
+    for ( unsigned int i=0;i<atomic_clusters.size();i++ )
     {
-      continue;
+      atomic_clusters[i] = -1; // All atoms are initially a root site
     }
-
-    int current_root_indx = root_indx(i);
-
-    if ( atomic_clusters[current_root_indx] != -1 )
+    for ( unsigned int i=0;i<symbs.size();i++ )
     {
-      throw runtime_error( "Something strange happend. ID of root index is not -1!" );
-    }
-
-    // Loop over all symmetries
-    for ( unsigned int trans_group=0;trans_group<clusters.size();trans_group++ )
-    {
-      for (const string &cname : cnames )
-      {
-        if ( clusters[trans_group].find(cname) == clusters[trans_group].end() )
-        {
-          // Cluster does not exist in this translattional symmetry group
-          continue;
-        }
-
-        const std::vector< std::vector<int> >& members = clusters[trans_group].at(cname).get();
-        for ( int subgroup=0;subgroup<members.size();subgroup++ )
-        {
-          int indx = trans_mat(i, members[subgroup][0]);
-
-          //if ( symbs[indx] == element )
-          if (is_cluster_element(symbs[indx]))
-          {
-            int root = root_indx(indx);
-            if ( root != current_root_indx )
-            {
-              atomic_clusters[root] = current_root_indx;
-            }
-          }
-        }
+      if (is_cluster_element(symbs[i])){
+        solute_atoms_indices.insert(i);
       }
+      attach2cluster(i);
+    }
+  }
+  else{
+    // Reset sites where we now there is solute atoms
+    for (int indx : solute_atoms_indices){
+      atomic_clusters[indx] = -1;
+    }
+
+    for (int indx : solute_atoms_indices){
+      attach2cluster(indx);
     }
   }
 }
@@ -358,142 +360,102 @@ bool ClusterTracker::is_cluster_element(const string &element) const
 }
 
 void ClusterTracker::update_clusters(PyObject *py_changes){
-  vector<SymbolChange> changes;
-  py_changes2symb_changes(py_changes, changes);
+  swap_move changes;
+  py_change2swap_move(py_changes, changes);
   update_clusters(changes);
 }
 
-void ClusterTracker::update_clusters(const vector<SymbolChange> &changes){
-  #ifdef CLUSTER_TRACK_DEBUG
-    cout << changes << endl;
-  #endif
-  const auto& trans_mat = updater->get_trans_matrix();
-  const vector<string>& symbs = updater->get_symbols();
-
-  vector<int> indx_in_change;
-  for (const SymbolChange &change : changes){
-    indx_in_change.push_back(change.indx);
+void ClusterTracker::update_clusters(const swap_move &changes){
+  if (is_cluster_element(changes[0].old_symb) && (is_cluster_element(changes[0].new_symb))){
+    return;
+  }
+  else if(!is_cluster_element(changes[0].old_symb) && !is_cluster_element(changes[0].new_symb)){
+    return;
   }
 
+  unsigned int old_solute_indx = 0;
+  unsigned int new_solute_indx = 0;
   for (const SymbolChange &change : changes){
-    if (is_cluster_element(change.old_symb) && is_cluster_element(change.new_symb)){
-      // Change only involved elements in the cluster
-      // we don't need to do anything
-      continue;
-    }
-
     if (is_cluster_element(change.old_symb)){
-        // Detach indices that are connected to this cluster
-        if (!detach_neighbours(change.indx, false, indx_in_change)){
-          throw runtime_error("New cluster formed when detaching neighbours!");
-        }
-
-        #ifdef CLUSTER_TRACK_DEBUG
-          cout << "Neighbours detached\n";
-          check_circular_connected_clusters();
-          cout << "No circular connected clusters after detach\n";
-        #endif
-    }
-
-    if (is_cluster_element(change.new_symb)){
-      // Attach the updated index
-      bool attached = false;
-      int indx = 0;
-      for (auto iter=indices_in_cluster.begin(); iter != indices_in_cluster.end(); ++iter){
-        indx = trans_mat(change.indx, *iter);
-        
-        // Use symbs (and not symbols_cpy) where the move have already been updated
-        if (is_cluster_element(symbs[indx]) && !is_in_vector(indx, indx_in_change)){
-          atomic_clusters[change.indx] = indx;
-          attached = true;
-          break;
-        }
-      }
-
-      if (!attached){
-        // Create a new reference site
-        throw runtime_error("Generating new clusters are not allowed when using the fast cluster tracker!");
-        atomic_clusters[change.indx] = -1;
-      }
-
-      #ifdef CLUSTER_TRACK_DEBUG
-        cout << "Attached symbol to new cluster\n";
-      #endif
-    }
-    else{
+      old_solute_indx = change.indx;
       atomic_clusters[change.indx] = -1;
     }
-  }
+    else{
+      new_solute_indx = change.indx;
+    }
 
-  // Update the local copy
-  for (const SymbolChange &change : changes){
+    // Update the symbols array
     symbols_cpy[change.indx] = change.new_symb;
   }
 
-  #ifdef CLUSTER_TRACK_DEBUG
-    check_circular_connected_clusters();
-    cout << "Successfully updated clusters\n";
-
-    if (symbols_cpy != symbs){
-      throw runtime_error("The local copy of symbols differ from the CEUpdater.symbol!");
-    }
-  #endif
+  solute_atoms_indices.erase(old_solute_indx);
+  solute_atoms_indices.insert(new_solute_indx);
+  find_clusters(true);
 }
 
 bool ClusterTracker::move_creates_new_cluster(PyObject *py_changes){
-  vector<SymbolChange> changes;
-  py_changes2symb_changes(py_changes, changes);
+  swap_move changes;
+  py_change2swap_move(py_changes, changes);
   return move_creates_new_cluster(changes);
 }
 
-bool ClusterTracker::move_creates_new_cluster(const vector<SymbolChange> &changes){
-  const auto& trans_mat = updater->get_trans_matrix();
-  const vector<string>& symbs = updater->get_symbols();
+bool ClusterTracker::move_creates_new_cluster(const swap_move &changes){
+  if (is_cluster_element(changes[0].old_symb) && (is_cluster_element(changes[0].new_symb))){
+    return false;
+  }
+  else if(!is_cluster_element(changes[0].old_symb) && !is_cluster_element(changes[0].new_symb)){
+    return false;
+  }
 
-  vector<int> indx_in_change;
-  for (const SymbolChange &change : changes){
-    indx_in_change.push_back(change.indx);
+  unsigned int old_solute_indx = 0;
+  unsigned int new_solute_indx = 0;
+
+  vector<int> atomic_cluster_cpy;
+  for (int s_indx : solute_atoms_indices){
+    atomic_cluster_cpy.push_back(atomic_clusters[s_indx]);
   }
 
   for (const SymbolChange &change : changes){
-    if (is_cluster_element(change.old_symb) && is_cluster_element(change.new_symb)){
-      // Change only involved elements in the cluster
-      // we don't need to do anything
-      continue;
-    }
-
     if (is_cluster_element(change.old_symb)){
-      // Check if all neighbours can be connected 
-      // to something else
-      if (!detach_neighbours(change.indx, false, indx_in_change)) return true;
+      old_solute_indx = change.indx;
+      atomic_clusters[change.indx] = -1;
     }
-
-    if (is_cluster_element(change.new_symb)){
-      // See if we can attach the new position to a cluster
-      bool can_attach = false;
-      int indx = 0;
-      for (auto iter=indices_in_cluster.begin(); iter != indices_in_cluster.end(); ++iter){
-        indx = trans_mat(change.indx, *iter);
-        if (is_cluster_element(symbs[indx]) && !is_in_vector(indx, indx_in_change)){
-          can_attach = true;
-          break;
-        }
-      }
-      if (!can_attach) return true;
+    else{
+      new_solute_indx = change.indx;
     }
+    symbols_cpy[change.indx] = change.new_symb;
   }
 
-  #ifdef CLUSTER_TRACK_DEBUG
-    for (const SymbolChange &change : changes){
-      if (is_in_vector(change.indx, atomic_clusters)){
-        stringstream ss;
-        ss << "Still sites connected to " << change.indx << " after successful detach!\n";
-        ss << atomic_clusters << endl;
-        throw runtime_error(ss.str());
-      }
-    }
-  #endif
-  return false;
+  solute_atoms_indices.erase(old_solute_indx);
+  solute_atoms_indices.insert(new_solute_indx);
+  find_clusters(true);
+
+  int num_roots = num_root_nodes();
+
+  // Reset the solute atoms indices
+  solute_atoms_indices.erase(new_solute_indx);
+  solute_atoms_indices.insert(old_solute_indx);
+
+  if (solute_atoms_indices.size() != atomic_cluster_cpy.size()){
+    stringstream ss;
+    ss << "Number of solute atoms tracker changes.\n";
+    ss << "New value " << solute_atoms_indices.size() << " ";
+    ss << "Old value " << atomic_cluster_cpy.size() << "\n";
+    throw runtime_error(ss.str());
+  }
+
+  int counter = 0;
+  // Reset the atomic clusters
+  for (int s_indx : solute_atoms_indices){
+    atomic_clusters[s_indx] = atomic_cluster_cpy[counter];
+    counter += 1;
+  }
+
+  // Reset the symbols_cpy
+  for (const SymbolChange &change : changes){
+    symbols_cpy[change.indx] = change.old_symb;
+  }
+  return num_roots > 1;
 }
 
 bool ClusterTracker::detach_neighbours(int ref_indx, bool can_create_new_clusters, const vector<int> &indx_in_change){
@@ -647,4 +609,14 @@ bool ClusterTracker::has_minimal_connectivity() const{
     }
   }
   return true;
+}
+
+unsigned int ClusterTracker::num_root_nodes() const{
+  unsigned int num_roots = 0;
+  for (int s_indx : solute_atoms_indices){
+    if (atomic_clusters[s_indx] == -1){
+      num_roots += 1;
+    }
+  }
+  return num_roots;
 }

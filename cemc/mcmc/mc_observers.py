@@ -365,6 +365,7 @@ class NetworkObserver(MCObserver):
         self.num_clusters = 0
         self.nbins = nbins
         self.size_histogram = np.zeros(self.nbins)
+        self.collect_statistics = True
 
     def __reduce__(self):
         args = (self.calc, self.cluster_name, self.element, self.nbins)
@@ -377,21 +378,25 @@ class NetworkObserver(MCObserver):
         :param list system_changes: Last changes to the system
         """
         self.n_calls += 1
-        self.fast_cluster_tracker.find_clusters()
+        if system_changes:
+            self.fast_cluster_tracker.update_clusters(system_changes)
+        else:
+            self.fast_cluster_tracker.find_clusters()
 
-        new_res = self.fast_cluster_tracker.get_cluster_statistics_python()
-        for key in self.res.keys():
-            self.res[key] += new_res[key]
+        if self.collect_statistics:
+            new_res = self.fast_cluster_tracker.get_cluster_statistics_python()
+            for key in self.res.keys():
+                self.res[key] += new_res[key]
 
-        self.update_histogram(new_res["cluster_sizes"])
-        self.n_atoms_in_cluster += np.sum(new_res["cluster_sizes"])
-        if new_res["max_size"] > self.max_size:
-            self.max_size = new_res["max_size"]
-            self.atoms_max_cluster = self.calc.atoms.copy()
-            clust_indx = \
-                self.fast_cluster_tracker.atomic_clusters2group_indx_python()
-            self.indx_max_cluster = clust_indx
-            self.num_clusters = len(new_res["cluster_sizes"])
+            self.update_histogram(new_res["cluster_sizes"])
+            self.n_atoms_in_cluster += np.sum(new_res["cluster_sizes"])
+            if new_res["max_size"] > self.max_size:
+                self.max_size = new_res["max_size"]
+                self.atoms_max_cluster = self.calc.atoms.copy()
+                clust_indx = \
+                    self.fast_cluster_tracker.atomic_clusters2group_indx_python()
+                self.indx_max_cluster = clust_indx
+                self.num_clusters = len(new_res["cluster_sizes"])
 
     def has_minimal_connectivity(self):
         return self.fast_cluster_tracker.has_minimal_connectivity()
@@ -399,6 +404,12 @@ class NetworkObserver(MCObserver):
     def retrieve_clusters_from_scratch(self):
         """Retrieve the all the clusters from scratch."""
         self.fast_cluster_tracker.find_clusters()
+
+    def move_creates_new_cluster(self, system_changes):
+        return self.fast_cluster_tracker.move_creates_new_cluster(system_changes)
+
+    def num_root_nodes(self):
+        return self.fast_cluster_tracker.num_root_nodes()
 
     def update_histogram(self, sizes):
         """
@@ -869,19 +880,20 @@ class BiasPotentialContribution(MCObserver):
 
 class InertiaTensorObserver(MCObserver):
     def __init__(self, atoms=None, cluster_elements=None):
+        self.atoms = atoms
         self.pos = atoms.get_positions()
         self.cluster_elements = cluster_elements
         self.com = np.zeros(3)
         self.inertia = np.zeros((3, 3))
         self.num_atoms = 0
-        self._init_com_and_inertia(atoms)
+        self.init_com_and_inertia()
         self.old_com = None
         self.old_inertia = None
 
-    def _init_com_and_inertia(self, atoms):
+    def init_com_and_inertia(self):
         """Initialize the center of mass and the inertia."""
         self.num_atoms = 0
-        for atom in atoms:
+        for atom in self.atoms:
             if atom.symbol in self.cluster_elements:
                 self.com += atom.position
                 self.inertia += np.outer(atom.position, atom.position)

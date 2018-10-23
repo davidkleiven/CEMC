@@ -8,6 +8,8 @@
 #include "cf_history_tracker.hpp"
 #include <Python.h>
 
+typedef std::array<SymbolChange, 2> swap_move;
+
 
 //class SymbolChange;
 
@@ -46,6 +48,7 @@ int py2int(PyObject *integer);
 
 SymbolChange& py_tuple_to_symbol_change( PyObject *single_change, SymbolChange &symb_change );
 void py_changes2symb_changes( PyObject* all_changes, std::vector<SymbolChange> &symb_changes );
+void py_change2swap_move(PyObject *all_changes, swap_move &symb_changes);
 
 /** Return true if element is in vector*/
 template<class T>
