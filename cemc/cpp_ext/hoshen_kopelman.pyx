@@ -46,31 +46,31 @@ def hoshen_kopelman(np.ndarray[np.uint8_t, ndim=3] matrix):
                         labels[labels[0]] = labels[0]
                     elif (left != 0) and (depth == 0) and (above == 0):
                         # One neighbour to the left
-                        clusters[ix, iy, iz] = find(clusters, left)
+                        clusters[ix, iy, iz] = find(labels, left)
                     elif (left == 0) and (depth != 0) and (above == 0):
                         # One neighbour in the depth
-                        clusters[ix, iy, iz] = find(clusters, depth)
+                        clusters[ix, iy, iz] = find(labels, depth)
                     elif (left == 0) and (depth == 0) and (above != 0):
                         # One neighbour above
-                        clusters[ix, iy, iz] = find(clusters, above)
+                        clusters[ix, iy, iz] = find(labels, above)
                     elif (left != 0) and (depth != 0) and (above == 0):
                         # Neighbours to the left and in depth
-                        union(clusters, left, depth)
-                        clusters[ix, iy, iz] = find(clusters, left)
+                        union(labels, left, depth)
+                        clusters[ix, iy, iz] = find(labels, left)
                     elif (left != 0) and (depth == 0) and (above != 0):
                         # Neighbours to the left and above
-                        union(clusters, left, above)
-                        clusters[ix, iy, iz] = find(clusters, left)
+                        union(labels, left, above)
+                        clusters[ix, iy, iz] = find(labels, left)
                     elif (left == 0) and (depth != 0) and (above != 0):
                         # Neighbours in depth and above
-                        union(clusters, depth, above)
-                        clusters[ix, iy, iz] = find(clusters, depth)
+                        union(labels, depth, above)
+                        clusters[ix, iy, iz] = find(labels, depth)
                     else:
                         # Neighbours in all directions
                         union(labels, left, depth)
                         union(labels, left, above)
-                        clusters[ix, iy, iz] = find(clusters, left)
-
+                        clusters[ix, iy, iz] = find(labels, left)
+    return clusters
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
