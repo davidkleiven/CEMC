@@ -10,7 +10,6 @@ from cemc.mcmc.mc_observers import EnergyEvolution, EnergyHistogram, MCBackup
 from cemc.mcmc.mc_observers import BiasPotentialContribution
 from cemc.mcmc.mc_observers import InertiaTensorObserver
 from cemc.mcmc.mc_observers import PairObserver
-
 from cemc.mcmc.sa_canonical import SimulatedAnnealingCanonical
 from cemc.mcmc.multidim_comp_dos import CompositionDOS
 from cemc.mcmc.dos_sampler import SGCCompositionFreeEnergy
@@ -36,3 +35,4 @@ from cemc.mcmc.bias_potential import PseudoBinaryFreeEnergyBias
 from cemc.mcmc.bias_potential import InertiaBiasPotential
 from cemc.mcmc.inertia_reaction_crd import InertiaCrdInitializer, InertiaRangeConstraint
 from cemc.mcmc.parallel_tempering import ParallelTempering
+from cemc.mcmc.adaptive_bias_reac_path import AdaptiveBiasReactionPathSampler
