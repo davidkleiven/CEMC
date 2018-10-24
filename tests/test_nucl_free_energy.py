@@ -167,16 +167,17 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             used_sites.append(indx)
 
         # Apply some translation
-        trans = 1.2 * diag
+        trans = 0.2 * diag
         blk.translate(trans)
         blk = wrap_and_sort_by_position(blk)
 
         # Manually alter the atoms object and rebuild the atoms list
-        conc_init.fixed_nucl_mc.atoms = blk
-        conc_init.fixed_nucl_mc._build_atoms_list()
+        conc_init.inert_obs.atoms = blk
+        conc_init.inert_obs.pos = blk.get_positions()
 
         # Inertia tensor
-        inertia_tens = conc_init.principal_inertia
+        conc_init.inert_obs.init_com_and_inertia()
+        inertia_tens = conc_init.principal_inertia([])
         return inertia_tens, orig_principal
 
 
@@ -200,13 +201,14 @@ class TestNuclFreeEnergy( unittest.TestCase ):
                 bc.atoms, T, network_name=nn_names,
                 network_element=["Mg", "Si"])
 
+            elements = {"Mg": 4, "Si": 4}
+            mc.insert_symbol_random_places("Mg", num=1, swap_symbs=["Al"])
+            mc.grow_cluster(elements)
             conc_init = InertiaCrdInitializer(
                 fixed_nucl_mc=mc, matrix_element="Al",
                 cluster_elements=["Mg", "Si"])
-            elements = {"Mg": 4, "Si": 4}
-            mc.insert_symbol_random_places("Mg", num=1, swap_symbs=["Al"])
-            # mc.insert_symbol_random_places("Si", num=4, swap_symbs=["Al"])
-            mc.runMC(steps=100, elements=elements)
+            
+            mc.runMC(steps=100, init_cluster=False)
 
             match, match_msg = self._spherical_nano_particle_matches(conc_init)
             self.assertTrue(match, msg=match_msg)

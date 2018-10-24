@@ -366,6 +366,7 @@ class NetworkObserver(MCObserver):
         self.nbins = nbins
         self.size_histogram = np.zeros(self.nbins)
         self.collect_statistics = True
+        self.fixed_num_solutes = True
 
     def __reduce__(self):
         args = (self.calc, self.cluster_name, self.element, self.nbins)
@@ -378,7 +379,7 @@ class NetworkObserver(MCObserver):
         :param list system_changes: Last changes to the system
         """
         self.n_calls += 1
-        if system_changes:
+        if system_changes and self.fixed_num_solutes:
             self.fast_cluster_tracker.update_clusters(system_changes)
         else:
             self.fast_cluster_tracker.find_clusters()
@@ -893,6 +894,8 @@ class InertiaTensorObserver(MCObserver):
     def init_com_and_inertia(self):
         """Initialize the center of mass and the inertia."""
         self.num_atoms = 0
+        self.com[:] = 0.0
+        self.inertia[: ,:] = 0.0
         for atom in self.atoms:
             if atom.symbol in self.cluster_elements:
                 self.com += atom.position
