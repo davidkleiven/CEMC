@@ -51,6 +51,7 @@ class SGCNucleation(SGCMonteCarlo):
         self.network = NetworkObserver(
             calc=self.atoms._calc, cluster_name=self.network_name,
             element=self.network_element)
+        self.network.fixed_num_solutes = False
         self.attach(self.network)
 
         if self.allow_solutes:

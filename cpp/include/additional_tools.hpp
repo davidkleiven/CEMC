@@ -8,6 +8,8 @@
 #include "cf_history_tracker.hpp"
 #include <Python.h>
 
+typedef std::array<SymbolChange, 2> swap_move;
+
 
 //class SymbolChange;
 
@@ -20,6 +22,9 @@ std::ostream& operator <<(std::ostream &out, const std::array<SymbolChange,2> &m
 
 template<class T>
 std::ostream& operator <<( std::ostream &out, const std::vector<T> &vec );
+
+template<class T>
+std::ostream& operator <<(std::ostream &out, const std::set<T> &set);
 
 template<class T>
 std::vector<T>& cyclic_permute( std::vector<T> &vec );
@@ -40,6 +45,14 @@ std::string py2string(PyObject *str);
 
 PyObject* int2py(int integer);
 int py2int(PyObject *integer);
+
+SymbolChange& py_tuple_to_symbol_change( PyObject *single_change, SymbolChange &symb_change );
+void py_changes2symb_changes( PyObject* all_changes, std::vector<SymbolChange> &symb_changes );
+void py_change2swap_move(PyObject *all_changes, swap_move &symb_changes);
+
+/** Return true if element is in vector*/
+template<class T>
+bool is_in_vector(const T &value, const std::vector<T> &vec);
 
 #include "additional_tools.tpp"
 #endif

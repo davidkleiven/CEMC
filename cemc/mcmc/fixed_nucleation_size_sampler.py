@@ -31,6 +31,7 @@ class FixedNucleusMC(Montecarlo):
         self.bc = self.atoms.get_calculator().BC
         self.network_clust_indx = self.find_cluster_indx()
         self.initial_num_atoms_in_cluster = 0
+        self.attach(self.network)
 
     def _init_networks(self):
         """Initialize the network observers."""
@@ -152,6 +153,7 @@ class FixedNucleusMC(Montecarlo):
         mv_ok = n_in_clst == self.initial_num_atoms_in_cluster
         mv_ok = mv_ok and stat["number_of_clusters"] == 1
         return mv_ok
+        #return self.network.move_creates_new_clusters()
 
     def _accept(self, system_changes):
         """Accept trial move.
@@ -161,10 +163,16 @@ class FixedNucleusMC(Montecarlo):
         :return: True/False, if True the move is accepted
         :rtype: bool
         """
+        # Note that we have to call the parent's accept first,
+        # as the _mc_step function assumes that an energy 
+        # evaluation have been performed, prior to accepting
+        # or rejecting the move
         move_accepted = Montecarlo._accept(self, system_changes)
-
-        if not self.move_ok():
+        if self.network.move_creates_new_cluster(system_changes):
             return False
+
+        # if not self.move_ok():
+        #     return False
         return move_accepted
 
     def _check_nucleation_site_exists(self):
@@ -358,6 +366,14 @@ class FixedNucleusMC(Montecarlo):
             self._check_nucleation_site_exists()
             self.grow_cluster(elements)
         step = 0
+        self.network.collect_statistics = False
+
+        # Call one time
+        self.network([])
+
+        if self.network.num_root_nodes() > 1:
+            raise ValueError("Something went wrong during construction! "
+                             "the system has more than one cluster!")
         while step < steps:
             step += 1
             self._mc_step()

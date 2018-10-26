@@ -223,6 +223,6 @@ class InertiaBiasPotential(SampledBiasPotential):
     def get(self, reac_crd):
         """Get the bias as a function reaction coordinate.abs
 
-        :param reac_crd: Reaction coordinate
+        :param float reac_crd: Reaction coordinate
         """
         return self.bias_interp(reac_crd)

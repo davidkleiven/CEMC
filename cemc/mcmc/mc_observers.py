@@ -91,7 +91,7 @@ class PairCorrelationObserver(MCObserver):
         self.n_entries = 0
         self.name = "PairCorrelationObserver"
 
-        for key, value in self.ce_calc.eci.items():
+        for key in self.ce_calc.eci.keys():
             if key.startswith("c2_"):
                 self.cf[key] = 0.0
                 self.cf_squared[key] = 0.0
@@ -365,6 +365,8 @@ class NetworkObserver(MCObserver):
         self.num_clusters = 0
         self.nbins = nbins
         self.size_histogram = np.zeros(self.nbins)
+        self.collect_statistics = True
+        self.fixed_num_solutes = True
 
     def __reduce__(self):
         args = (self.calc, self.cluster_name, self.element, self.nbins)
@@ -377,20 +379,38 @@ class NetworkObserver(MCObserver):
         :param list system_changes: Last changes to the system
         """
         self.n_calls += 1
-        self.fast_cluster_tracker.find_clusters()
-        new_res = self.fast_cluster_tracker.get_cluster_statistics_python()
-        for key in self.res.keys():
-            self.res[key] += new_res[key]
+        if system_changes and self.fixed_num_solutes:
+            self.fast_cluster_tracker.update_clusters(system_changes)
+        else:
+            self.fast_cluster_tracker.find_clusters()
 
-        self.update_histogram(new_res["cluster_sizes"])
-        self.n_atoms_in_cluster += np.sum(new_res["cluster_sizes"])
-        if new_res["max_size"] > self.max_size:
-            self.max_size = new_res["max_size"]
-            self.atoms_max_cluster = self.calc.atoms.copy()
-            clust_indx = \
-                self.fast_cluster_tracker.atomic_clusters2group_indx_python()
-            self.indx_max_cluster = clust_indx
-            self.num_clusters = len(new_res["cluster_sizes"])
+        if self.collect_statistics:
+            new_res = self.fast_cluster_tracker.get_cluster_statistics_python()
+            for key in self.res.keys():
+                self.res[key] += new_res[key]
+
+            self.update_histogram(new_res["cluster_sizes"])
+            self.n_atoms_in_cluster += np.sum(new_res["cluster_sizes"])
+            if new_res["max_size"] > self.max_size:
+                self.max_size = new_res["max_size"]
+                self.atoms_max_cluster = self.calc.atoms.copy()
+                clust_indx = \
+                    self.fast_cluster_tracker.atomic_clusters2group_indx_python()
+                self.indx_max_cluster = clust_indx
+                self.num_clusters = len(new_res["cluster_sizes"])
+
+    def has_minimal_connectivity(self):
+        return self.fast_cluster_tracker.has_minimal_connectivity()
+
+    def retrieve_clusters_from_scratch(self):
+        """Retrieve the all the clusters from scratch."""
+        self.fast_cluster_tracker.find_clusters()
+
+    def move_creates_new_cluster(self, system_changes):
+        return self.fast_cluster_tracker.move_creates_new_cluster(system_changes)
+
+    def num_root_nodes(self):
+        return self.fast_cluster_tracker.num_root_nodes()
 
     def update_histogram(self, sizes):
         """
@@ -558,6 +578,11 @@ class NetworkObserver(MCObserver):
             msg += "by get_statisttics() is not collected yet."
             print(msg)
 
+    def get_current_cluster_info(self):
+        """Return the info dict for the current state."""
+        self.fast_cluster_tracker.find_clusters()
+        return self.fast_cluster_tracker.get_cluster_statistics_python()
+
     def get_statistics(self):
         """Compute network size statistics.
 
@@ -565,6 +590,7 @@ class NetworkObserver(MCObserver):
         :rtype: dict
         """
         self.collect_stat_MPI()
+
         stat = {}
         if self.res["number_of_clusters"] == 0:
             stat["avg_size"] = 0
@@ -795,7 +821,6 @@ class MCBackup(MCObserver):
         if self.db_name != "":
             import dataset
             thermo = self.mc_obj.get_thermodynamic()
-            rank = mpi_rank()
             db = dataset.connect("sqlite:///{}".format(self.db_name))
             tab = db[self.db_tab_name]
             if self.db_id is None:
@@ -853,6 +878,139 @@ class BiasPotentialContribution(MCObserver):
         np.savetxt(fname, data.T, delimiter=",")
         print("Histogram data written to {}".format(fname))
 
+
+class InertiaTensorObserver(MCObserver):
+    def __init__(self, atoms=None, cluster_elements=None):
+        self.atoms = atoms
+        self.pos = atoms.get_positions()
+        self.cluster_elements = cluster_elements
+        self.com = np.zeros(3)
+        self.inertia = np.zeros((3, 3))
+        self.num_atoms = 0
+        self.init_com_and_inertia()
+        self.old_com = None
+        self.old_inertia = None
+
+    def init_com_and_inertia(self):
+        """Initialize the center of mass and the inertia."""
+        self.num_atoms = 0
+        self.com[:] = 0.0
+        self.inertia[: ,:] = 0.0
+        for atom in self.atoms:
+            if atom.symbol in self.cluster_elements:
+                self.com += atom.position
+                self.inertia += np.outer(atom.position, atom.position)
+                self.num_atoms += 1
+
+        if self.num_atoms == 0:
+            raise RuntimeError("No cluster elements are present in the "
+                               "Atoms object provided!")
+        self.com /= self.num_atoms
+        self.inertia -= self.num_atoms*np.outer(self.com, self.com)
+
+    def __call__(self, system_changes):
+        """Update the inertia tensor."""
+        d_com = np.zeros(3)
+        d_I = np.zeros((3, 3))
+        for change in system_changes:
+            if change[1] in self.cluster_elements and change[2] in self.cluster_elements:
+                continue
+
+            x = self.pos[change[0], :]
+            if change[2] in self.cluster_elements:
+                d_com += x
+                d_I += np.outer(x, x)
+            elif change[1] in self.cluster_elements:
+                d_com -= x
+                d_I -= np.outer(x, x)
+        
+        d_com /= self.num_atoms
+
+        d_I -= self.num_atoms*(np.outer(d_com, self.com) + np.outer(self.com, d_com) + np.outer(d_com, d_com))
+        self.old_inertia = self.inertia.copy()
+        self.old_com = self.com.copy()
+
+        self.com += d_com
+        self.inertia += d_I
+
+    def undo_last(self):
+        """Undo the last update."""
+        if self.old_inertia is None:
+            return
+        self.inertia = self.old_inertia
+        self.com = self.old_com
+
+            
+
+class PairObserver(MCObserver):
+    """Tracking the average number of pairs within a cutoff"""
+    def __init__(self, atoms, cutoff=4.0, elements=[]):
+        from ase.neighborlist import neighbor_list
+        self.atoms = atoms
+        self.cutoff = cutoff
+        self.elements = elements
+        first_indx, second_indx, self.dist = neighbor_list("ijd", atoms, cutoff)
+
+        # neighbors
+        self.neighbors = [[] for _ in range(len(self.atoms))]
+        for i1, i2 in zip(first_indx, second_indx):
+            self.neighbors[i1].append(i2)
+
+        # Count how many pairs inside cutoff
+        self.num_pairs = self.num_pairs_brute_force()
+        self.avg_num_pairs = 0
+        self.num_calls = 0
+        self.symbols = [atom.symbol for atom in self.atoms]
+
+    def __call__(self, system_changes):
+        # Update how many pairs there are present
+        # at this point the atoms object is already 
+        num_new_pairs = 0
+        for change in system_changes:
+            if change[1] in self.elements and change[2] not in self.elements:
+                neighbors = self.neighbors[change[0]]
+                pairs_in_site = len([self.symbols[indx] for indx in neighbors
+                                     if self.symbols[indx] in self.elements])
+
+                # We loose some pairs (factor 2 due to double counting)
+                num_new_pairs -= 2*pairs_in_site
+
+            elif change[1] not in self.elements and change[2] in self.elements:
+                neighbors = self.neighbors[change[0]]
+                pairs_in_site = len([self.symbols[indx] for indx in neighbors
+                                     if self.symbols[indx] in self.elements])
+                # Add pairs (factor 2 due to double counting)
+                num_new_pairs += 2*pairs_in_site
+            self.symbols[change[0]] = change[2]
+
+        self.num_pairs += num_new_pairs
+        self.avg_num_pairs += float(self.num_pairs)/len(self.atoms)
+        self.num_calls += 1
+
+    def reset(self):
+        self.num_calls = 0
+        self.avg_num_pairs = 0
+
+    def symbols_is_synced(self):
+        """Sanity check to ensure that the symbols array is syncronized."""
+        symbs_atoms = [atom.symbol for atom in self.atoms]
+        return symbs_atoms == self.symbols
+
+    def num_pairs_brute_force(self):
+        """Calculate the number pairs by brute force loop."""
+        num_pairs = 0
+        for i1 in range(len(self.neighbors)):
+            if self.atoms[i1].symbol in self.elements:
+                for i2 in self.neighbors[i1]:
+                    if self.atoms[i2].symbol in self.elements:
+                        num_pairs += 1
+        return num_pairs
+
+    @property
+    def mean_number_of_pairs(self):
+        if self.num_calls == 0:
+            return 0
+        return self.avg_num_pairs/self.num_calls
 
 
 

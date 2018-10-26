@@ -64,3 +64,20 @@ std::ostream& operator <<(std::ostream& out, std::array<T, N> &array)
   out << "\n";
   return out;
 };
+
+template<class T>
+std::ostream& operator <<(std::ostream& out, std::set<T> &set){
+  for (auto iter=set.begin(); iter != set.end(); ++iter){
+    out << *iter << " ";
+  }
+  out << "\n";
+  return out;
+}
+
+template<class T>
+bool is_in_vector(const T& value, const std::vector<T> &vector){
+  for (const T& elem : vector){
+    if (value == elem) return true;
+  }
+  return false;
+}

@@ -167,16 +167,17 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             used_sites.append(indx)
 
         # Apply some translation
-        trans = 1.2 * diag
+        trans = 0.2 * diag
         blk.translate(trans)
         blk = wrap_and_sort_by_position(blk)
 
         # Manually alter the atoms object and rebuild the atoms list
-        conc_init.fixed_nucl_mc.atoms = blk
-        conc_init.fixed_nucl_mc._build_atoms_list()
+        conc_init.inert_obs.atoms = blk
+        conc_init.inert_obs.pos = blk.get_positions()
 
         # Inertia tensor
-        inertia_tens = conc_init.principal_inertia
+        conc_init.inert_obs.init_com_and_inertia()
+        inertia_tens = conc_init.principal_inertia([])
         return inertia_tens, orig_principal
 
 
@@ -200,19 +201,76 @@ class TestNuclFreeEnergy( unittest.TestCase ):
                 bc.atoms, T, network_name=nn_names,
                 network_element=["Mg", "Si"])
 
+            elements = {"Mg": 4, "Si": 4}
+            mc.insert_symbol_random_places("Mg", num=1, swap_symbs=["Al"])
+            mc.grow_cluster(elements)
             conc_init = InertiaCrdInitializer(
                 fixed_nucl_mc=mc, matrix_element="Al",
                 cluster_elements=["Mg", "Si"])
-            elements = {"Mg": 4, "Si": 4}
-            mc.insert_symbol_random_places("Mg", num=1, swap_symbs=["Al"])
-            # mc.insert_symbol_random_places("Si", num=4, swap_symbs=["Al"])
-            mc.runMC(steps=100, elements=elements)
+            
+            mc.runMC(steps=100, init_cluster=False)
 
             match, match_msg = self._spherical_nano_particle_matches(conc_init)
             self.assertTrue(match, msg=match_msg)
         except Exception as exc:
             no_throw = False
             msg = str(exc)
+
+        self.assertTrue(no_throw, msg=msg)
+
+    def test_inertia_observer(self):
+        """Test the inertia observer."""
+        if not available:
+            self.skipTest("ASE version does not have CE!")
+
+        msg = ""
+        no_throw = True
+        try:
+            from cemc.mcmc import FixEdgeLayers
+            from cemc.mcmc import InertiaTensorObserver
+            bc, args = get_ternary_BC(ret_args=True)
+            ecis = get_example_ecis(bc=bc)
+            calc = get_ce_calc(bc, args, eci=ecis, size=[8, 8, 8], db_name="inertia_obs.db")
+            bc = calc.BC
+            bc.atoms.set_calculator(calc)
+
+            T = 200
+            nn_names = [name for name in bc.cluster_family_names
+                        if int(name[1]) == 2]
+
+            mc = FixedNucleusMC(
+                bc.atoms, T, network_name=nn_names,
+                network_element=["Mg", "Si"])
+
+            fixed_layers = FixEdgeLayers(atoms=mc.atoms, thickness=3.0)
+            mc.add_constraint(fixed_layers)
+            elements = {"Mg": 6, "Si": 6}
+            mc.insert_symbol_random_places("Mg", num=1, swap_symbs=["Al"])
+            mc.grow_cluster(elements)
+            
+            inert_obs = InertiaTensorObserver(atoms=mc.atoms, cluster_elements=["Mg", "Si"])
+            mc.attach(inert_obs)
+            for _ in range(10):
+                mc.runMC(steps=100, elements=elements, init_cluster=False)
+
+                obs_I = inert_obs.inertia
+                indices = []
+                for atom in mc.atoms:
+                    if atom.symbol in ["Mg", "Si"]:
+                        indices.append(atom.index)
+                cluster = mc.atoms[indices]
+                pos = cluster.get_positions()
+                com = np.mean(pos, axis=0)
+                pos -= com
+                inertia = np.zeros((3, 3))
+                for i in range(pos.shape[0]):
+                    x = pos[i, :]
+                    inertia += np.outer(x, x)
+                self.assertTrue(np.allclose(obs_I, inertia))
+            os.remove("inertia_obs.db")
+        except Exception as exc:
+            no_throw = False
+            msg = type(exc).__name__ + str(exc)
 
         self.assertTrue(no_throw, msg=msg)
 
