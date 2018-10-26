@@ -207,6 +207,7 @@ class FixedNucleusMC(Montecarlo):
 
     def init_cluster_info(self):
         """Initialize cluster info."""
+        self.network.collect_statistics = True
         self.network.reset()
         self.network(None)
         stat = self.network.get_statistics()
@@ -217,7 +218,7 @@ class FixedNucleusMC(Montecarlo):
             print(stat)
             indices = []
             for atom in self.atoms:
-                if atom.symbol in unique_solute_elements:
+                if atom.symbol in self.network_element:
                     indices.append(atom.index)
             cluster = self.atoms[indices]
             from ase.io import write
@@ -226,6 +227,8 @@ class FixedNucleusMC(Montecarlo):
             raise RuntimeError("There are {} clusters present! "
                                "Initial structure written to {}\n"
                                "".format(stat["number_of_clusters"], fname))
+        
+        self.network.collect_statistics = False
 
     def grow_cluster(self, elements, shape="arbitrary", radius=10.0):
         """Grow a cluster of a certain size.
@@ -239,6 +242,7 @@ class FixedNucleusMC(Montecarlo):
         if shape not in valid_shapes:
             raise ValueError("shape has to be one of {}".format(valid_shapes))
 
+        self.network.collect_statistics = True
         all_elems = []
         at_count = self.count_atoms()
         unique_solute_elements = list(elements.keys())
@@ -318,6 +322,10 @@ class FixedNucleusMC(Montecarlo):
                                  "Contains: {}".format(elements, at_count))
         self.init_cluster_info()
 
+        # Disable network statistics to make the program
+        # run faster
+        self.network.collect_statistics = False
+
     def get_atoms(self, atoms=None, prohib_elem=[]):
         """
         Return the atoms object with the clusters highlighted
@@ -351,6 +359,12 @@ class FixedNucleusMC(Montecarlo):
         atoms.translate(center-com)
         atoms.wrap()
         return atoms, atoms[indices]
+
+    def set_symbols(self, symbs):
+        """Override parents set symbols."""
+        Montecarlo.set_symbols(self, symbs)
+        self.network.collect_statistics = False
+        self.network([])
 
     def runMC(self, steps=100000, init_cluster=True, elements={}):
         """

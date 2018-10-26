@@ -40,7 +40,7 @@ class ReactionCrdInitializer(object):
         """
         raise NotImplementedError("Has to be implemented in derived classes!")
 
-    def get(self, atoms):
+    def get(self, atoms, system_changes=[]):
         """Get the current value of the reaction coordinate.
 
         :param atoms: An atoms object
