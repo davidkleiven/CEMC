@@ -6,6 +6,21 @@ import time
 import os
 
 class AdaptiveBiasPotential(BiasPotential):
+    """Bias potential intended to be used by AdaptiveBiasReactionPathSampler
+
+    :param list lim: List of length 2 with upper and lower bound of the 
+        reaction coordinate. Ex. [0.0, 1.0]
+    :param int n_bins: Number of bins used in the histogram
+    :param float mod_factor: Modification factor. Each time
+        the samplers is a bin, this factor is added to the 
+        potential.
+    :param ReactionCrdInitializer reac_init: Initializer to 
+        which can obtain the reaction coordinate of 
+        an arbitrary structure
+    :param float T: Temperature in Kelvin
+    :param Montecarlo mc: Monte Carlo object which samples
+        the configurational space
+    """
     def __init__(self, lim=[0.0, 1.0], n_bins=100, mod_factor=0.1,
                  reac_init=None, T=400, mc=None):
         from ase.units import kB
@@ -20,7 +35,12 @@ class AdaptiveBiasPotential(BiasPotential):
         self.mc = mc
 
     def get_bin(self, value):
-        """Return the bin corresponding to value."""
+        """Return the bin corresponding to value.
+        
+        :param float value: Reaction coordinate
+        :return: Corresponding bin
+        :rtype: int
+        """
         return int((value - self.xmin)*self.nbins/(self.xmax - self.xmin))
 
     def update(self):
@@ -39,7 +59,12 @@ class AdaptiveBiasPotential(BiasPotential):
         self.mc.current_energy += (new_val - cur_val)
 
     def get_bias_potential(self, value):
-        """Return the value of the bias potential."""
+        """Return the value of the bias potential.
+        
+        :param float value: Reaction coordinate
+        :return: Value of the bias potential
+        :rtype: float
+        """
         bin_indx = self.get_bin(value)
         if bin_indx == self.nbins - 1:
             # Linear interpolation
@@ -71,14 +96,49 @@ class AdaptiveBiasPotential(BiasPotential):
         return betaG/self.beta
 
     def __call__(self, system_changes):
+        """Return the bias potential after changes are applied.
+
+        :param system_changes: Changes to be applied. 
+            Example: [(10, "Al", "Mg"), (20, "Mg", "Al)]
+        :type system_changes: List of tuples
+
+        :return: Bias potential after changes have been applied
+        :rtype: float
+        """
         # We require initializers that can 
         # get apply the system changes
-        value = self.reac_init.get(None, system_changes)
+        value = self.reac_init.get(self.mc.atoms, system_changes)
         return self.get_bias_potential(value)
         
 
 
 class AdaptiveBiasReactionPathSampler(object):
+    """Sample the free energy along a path by adaptively tuning a bias potential.
+
+    :param Montecarlo mc_obj: Monte Carlo sampler
+    :param ReactionCrdInitializer reac_crd_init: Initializer that 
+        can both set and get the reaction coordinate of an arbitrary
+        configuration. Benefitial if this support fast evaluation
+        of the reaction coordinate if the proposed system changes
+        are supplied.
+    :param int n_bins: Number of bins
+    :param str data_file: HDF5 file for data backup
+    :param list reac_crd: List of length 2 with the upper
+        and the lower value of the reaction coordinate.
+        If it is possible for the MC sampler to leave the 
+        region of interest, the MC sampler should have a 
+        constraint prohibiting this attached.
+    :param float mod_factor: Modification factor used to 
+        update the bias potential
+    :param float convergence_factor: If the bin that has been
+        is least frequently visited have been visited more than
+        convergence_factr*<average visits> the algorithm
+        will consider the visit histogram as flat.
+    :param int save_interval: Interval between writing backup to file 
+        in seconds
+    :param int log_msg_interval: Interval in seconds between every
+        time a status message is printed.
+    """
     def __init__(self, mc_obj=None, react_crd_init=None, n_bins=100, 
                  data_file="adaptive_bias_path_sampler.h5",
                  react_crd=[0.0, 1.0], mod_factor=0.1, convergence_factor=0.8,
@@ -143,6 +203,10 @@ class AdaptiveBiasReactionPathSampler(object):
         return minval > self.convergence_factor*mean
 
     def log(self, msg):
+        """Log a message.
+
+        :param str msg: Message to be logged
+        """
         print(msg)
 
     def progress_message(self):
@@ -182,6 +246,7 @@ class AdaptiveBiasReactionPathSampler(object):
         self.log("Current state written to {}".format(self.data_file))
 
     def run(self):
+        """Run simulation."""
         self.parameter_summary()
         conv = False
         now = time.time()
