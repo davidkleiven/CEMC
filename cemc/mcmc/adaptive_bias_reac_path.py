@@ -1,9 +1,10 @@
-from cemc.mcmc import ReactionCrdInitializer
+from cemc.mcmc import ReactionCrdInitializer, ReactionCrdRangeConstraint
 from cemc.mcmc import BiasPotential
 import numpy as np
 import h5py as h5
 import time
 import os
+from ase.db import connect
 
 class AdaptiveBiasPotential(BiasPotential):
     """Bias potential intended to be used by AdaptiveBiasReactionPathSampler
@@ -22,7 +23,7 @@ class AdaptiveBiasPotential(BiasPotential):
         the configurational space
     """
     def __init__(self, lim=[0.0, 1.0], n_bins=100, mod_factor=0.1,
-                 reac_init=None, T=400, mc=None):
+                 reac_init=None, T=400, mc=None, db_bin_data="adaptive_bias.db"):
         from ase.units import kB
         self.xmin = lim[0]
         self.xmax = lim[1]
@@ -33,6 +34,8 @@ class AdaptiveBiasPotential(BiasPotential):
         self.beta = 1.0/(kB*T)
         self.dx = (self.xmax - self.xmin)/self.nbins
         self.mc = mc
+        self.db_bin_data = db_bin_data
+        self.know_structure_in_bin = np.zeros(self.nbins, dtype=np.uint8)
 
     def get_bin(self, value):
         """Return the bin corresponding to value.
@@ -42,6 +45,10 @@ class AdaptiveBiasPotential(BiasPotential):
         :rtype: int
         """
         return int((value - self.xmin)*self.nbins/(self.xmax - self.xmin))
+
+    def get_value(self, bin_indx):
+        """Return the value corresponding to bin."""
+        return self.dx*bin_indx + self.xmin
 
     def update(self):
         """Update the bias potential."""
@@ -57,6 +64,25 @@ class AdaptiveBiasPotential(BiasPotential):
         # energy of the current state changes
         # despite the fact that no move is performed
         self.mc.current_energy += (new_val - cur_val)
+
+        # Store one structure in each bin in a database
+        if not self.know_structure_in_bin[bin_indx]:
+            db = connect(self.db_bin_data)
+            db.write(self.mc.atoms, bin=bin_indx, reac_crd=x)
+            self.know_structure_in_bin[bin_indx] = 1
+
+    def get_random_structure(self, bin_range):
+        """Return a structure from the DB."""
+        from random import choice
+        db = connect(self.db_bin_data)
+        candidates = []
+        for row in db.select(bin>=bin_range[0], bin<bin_range[1]):
+            candidates.append(row.toatoms())
+
+        if not candidates:
+            return None
+        return choice(candidates)
+
 
     def get_bias_potential(self, value):
         """Return the value of the bias potential.
@@ -142,12 +168,12 @@ class AdaptiveBiasReactionPathSampler(object):
     def __init__(self, mc_obj=None, react_crd_init=None, n_bins=100, 
                  data_file="adaptive_bias_path_sampler.h5",
                  react_crd=[0.0, 1.0], mod_factor=0.1, convergence_factor=0.8,
-                 save_interval=600, log_msg_interval=30):
+                 save_interval=600, log_msg_interval=30, db_struct="adaptive_bias.db"):
 
         self.bias = AdaptiveBiasPotential(lim=react_crd, n_bins=n_bins, 
                                         mod_factor=mod_factor, 
                                         reac_init=react_crd_init, T=mc_obj.T,
-                                        mc=mc_obj)
+                                        mc=mc_obj, db_bin_data=db_struct)
         self.mc = mc_obj
         self.mc.add_bias(self.bias)
         self.visit_histogram = np.zeros(n_bins, dtype=int)
@@ -164,6 +190,21 @@ class AdaptiveBiasReactionPathSampler(object):
         self.data_file = data_file
         self.load_bias()
 
+        # Variables related to adaptive windows
+        self.rng_constraint = None
+        for cnst in self.mc.constraints:
+            if isinstance(cnst, ReactionCrdRangeConstraint):
+                self.rng_constraint = cnst
+        
+        self.min_window_width = 10
+        self.connection = None
+        self.current_min_bin = 0
+        self.attempt_shrink_window_interval = 10000
+    
+    @property
+    def support_adaptive_windows(self):
+        return isinstance(self.rng_constraint, ReactionCrdRangeConstraint)
+
     def parameter_summary(self):
         """Print a summary of the current parameters."""
         self.log("Temperature: {}".format(self.mc.T))
@@ -171,6 +212,7 @@ class AdaptiveBiasReactionPathSampler(object):
         self.log("Reaction coordinate: [{}, {})".format(self.bias.xmin, self.bias.xmax))
         self.log("Save every: {} min".format(self.save_interval/60))
         self.log("Log message every: {} sec".format(self.output_every))
+        self.log("Support adaptive windows: {}".format(self.support_adaptive_windows))
 
     def load_bias(self):
         """Try to load the bias potential from file."""
@@ -194,13 +236,77 @@ class AdaptiveBiasReactionPathSampler(object):
         self.last_visited_bin = bin_indx
         self.visit_histogram[bin_indx] += 1
 
+    def _first_non_converged_bin(self):
+        """Return the first bin that is not converged."""
+        start = self.current_min_bin+self.min_window_width
+        for indx in range(start, len(self.visit_histogram)):
+            active = self.visit_histogram[self.current_min_bin:indx]
+            mean = np.mean(active)
+            minval = np.min(active)
+
+            if minval < self.convergence_factor*mean:
+                return indx
+        return -1
+
+    def _make_energy_curve_continuous(self):
+        """Make the energy curve continuous."""
+        if self.connection is None:
+            return
+        
+        assert self.current_min_bin == self.connection["bin"]
+
+        diff = self.bias.bias_array[self.current_min_bin] - self.connection["value"]
+        self.bias.bias_array[self.current_min_bin:] -= diff
+
+    def update_active_window(self):
+        """If support adaptive window this will update the relevant part."""
+        if self.current_mc_step%self.attempt_shrink_window_interval != 0:
+            mean = np.mean(self.visit_histogram[self.current_min_bin:])
+            minval = np.min(self.visit_histogram[self.current_min_bin:])
+            self.current_max_val = np.max(self.visit_histogram)
+            self.current_min_val = minval
+            self.average_visits = mean
+            return minval > self.convergence_factor*mean
+        
+        indx = self._first_non_converged_bin()
+        if indx == -1:
+            self._make_energy_curve_continuous()
+            return True
+        
+        if abs(indx - self.current_min_bin) > self.min_window_width:
+            new_structure = self.bias.get_random_structure([indx-1, len(self.visit_histogram)])
+            if new_structure is None:
+                # We don't now any valid structure so we can't do anything
+                return False
+            
+            self._make_energy_curve_continuous()
+            self.current_min_bin = indx - 1
+            self.connection = {"bin": indx - 1, 
+                               "value": self.bias.bias_array[indx-1]}
+            current_range = self.rng_constraint.range
+            current_range[0] = self.bias.get_value(self.current_min_bin)
+            self.rng_constraint.update_range(current_range)
+
+            # Update the symbols
+            symbs = [atom.symbol for atom in new_structure]
+            self.mc.set_symbols(symbs)
+
+            # Enforce a calculation of the reaction coordinate
+            value = self.bias.reac_init.get(self.mc.atoms, [])
+            if value < current_range[0] or value >= current_range[1]:
+                raise RuntimeError("System outside window after update!")
+        return False
+
     def converged(self):
-        mean = np.mean(self.visit_histogram)
-        minval = np.min(self.visit_histogram)
-        self.current_max_val = np.max(self.visit_histogram)
-        self.current_min_val = minval
-        self.average_visits = mean
-        return minval > self.convergence_factor*mean
+        if self.support_adaptive_windows:
+            return self.update_active_window()
+        else:
+            mean = np.mean(self.visit_histogram)
+            minval = np.min(self.visit_histogram)
+            self.current_max_val = np.max(self.visit_histogram)
+            self.current_min_val = minval
+            self.average_visits = mean
+            return minval > self.convergence_factor*mean
 
     def log(self, msg):
         """Log a message.
@@ -212,13 +318,13 @@ class AdaptiveBiasReactionPathSampler(object):
     def progress_message(self):
         """Output a progress message."""
         num_visited = np.count_nonzero(self.visit_histogram > 0)
-        acc_rate = self.mc.num_accepted/self.mc.current_step
+        acc_rate = int(100*self.mc.num_accepted/self.mc.current_step)
         self.log("Num MC steps: {}".format(self.current_mc_step))
-        self.log("Visits: Min: {}. Max: {}. Average: {}. Num bins visited: {}. "
-                 "Last visited bin: {}. Acc. ratio: {}"
+        self.log("Visits: Min: {}. Max: {}. Avg: {}. Num visited: {}. "
+                 "Last visited bin: {}. Acc. ratio: {}%. Lower cut: {}"
                  "".format(self.current_min_val, self.current_max_val,
                            self.average_visits, num_visited, self.last_visited_bin,
-                           acc_rate))
+                           acc_rate, self.current_min_bin))
 
     def save(self):
         """Save records to the HDF5 file."""
@@ -226,6 +332,12 @@ class AdaptiveBiasReactionPathSampler(object):
             flag = "r+"
         else:
             flag = "w"
+
+        # We want to always write the continuous potential to file
+        bias_array = self.bias.bias_array.copy()
+        if self.connection is not None:
+            diff = bias_array[self.connection["bin"]] - self.connection["value"]
+            bias_array[self.connection["bin"]:] -= diff
 
         with h5.File(self.data_file, flag) as hfile:
             if "visits" in hfile.keys():
@@ -236,9 +348,9 @@ class AdaptiveBiasReactionPathSampler(object):
 
             if "bias" in hfile.keys():
                 data = hfile["bias"]
-                data[...] = self.bias.bias_array
+                data[...] = bias_array
             else:
-                hfile.create_dataset("bias", data=self.bias.bias_array)
+                hfile.create_dataset("bias", data=bias_array)
 
             if not "x" in hfile.keys():
                 x = np.linspace(self.bias.xmin, self.bias.xmax, len(self.visit_histogram))

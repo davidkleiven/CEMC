@@ -908,6 +908,12 @@ class InertiaTensorObserver(MCObserver):
         self.com /= self.num_atoms
         self.inertia -= self.num_atoms*np.outer(self.com, self.com)
 
+    def set_atoms(self, atoms):
+        """Set a new atoms object."""
+        self.atoms = atoms
+        self.pos = atoms.get_positions()
+        self.init_com_and_inertia()
+
     def __call__(self, system_changes):
         """Update the inertia tensor."""
         d_com = np.zeros(3)
