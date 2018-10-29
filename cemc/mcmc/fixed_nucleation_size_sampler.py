@@ -391,5 +391,9 @@ class FixedNucleusMC(Montecarlo):
         while step < steps:
             step += 1
             self._mc_step()
+
+            # Update the average energy
+            self.mean_energy += self.current_energy_without_vib()
+            self.energy_squared += self.current_energy_without_vib()**2
         accpt_rate = float(self.num_accepted) / self.current_step
         print("Acceptance rate: {}".format(accpt_rate))
