@@ -271,6 +271,7 @@ class AdaptiveBiasReactionPathSampler(object):
         indx = self._first_non_converged_bin()
         if indx == -1:
             self._make_energy_curve_continuous()
+            self.connection = None
             return True
         
         if abs(indx - self.current_min_bin) > self.min_window_width:
