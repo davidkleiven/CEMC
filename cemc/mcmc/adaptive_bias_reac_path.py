@@ -168,6 +168,10 @@ class AdaptiveBiasReactionPathSampler(object):
         in seconds
     :param int log_msg_interval: Interval in seconds between every
         time a status message is printed.
+    :param str db_struct: One structure in each bin will be stored
+        in a database.
+    :param bool delete_db_if_exists: If True any existing DB containing
+        structures will be delted prior to the run.
     """
     def __init__(self, mc_obj=None, react_crd_init=None, n_bins=100, 
                  data_file="adaptive_bias_path_sampler.h5",
