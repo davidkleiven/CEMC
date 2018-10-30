@@ -38,6 +38,7 @@ class AdaptiveBiasPotential(BiasPotential):
         self.mc = mc
         self.db_bin_data = db_bin_data
         self.know_structure_in_bin = np.zeros(self.nbins, dtype=np.uint8)
+        self.lowest_active_indx = 0
 
     def get_bin(self, value):
         """Return the bin corresponding to value.
@@ -87,7 +88,6 @@ class AdaptiveBiasPotential(BiasPotential):
             return None
         return choice(candidates)
 
-
     def get_bias_potential(self, value):
         """Return the value of the bias potential.
         
@@ -102,11 +102,11 @@ class AdaptiveBiasPotential(BiasPotential):
             betaG1 = self.bias_array[bin_indx-1]
             x1 = self.xmin + (bin_indx - 1)*self.dx
             betaG = (betaG2 - betaG1)*(value - x1)/self.dx + betaG1
-        elif bin_indx == 0:
+        elif bin_indx == self.lowest_active_indx:
             # Linear interpolation
-            betaG2 = self.bias_array[1]
-            betaG1 = self.bias_array[0]
-            x1 = self.xmin
+            betaG2 = self.bias_array[self.lowest_active_indx+1]
+            betaG1 = self.bias_array[self.lowest_active_indx]
+            x1 = self.xmin + bin_indx*self.dx
             betaG = (betaG2 - betaG1)*(value - x1)/self.dx + betaG1
         else:
             # Perform quadratic interpolation
@@ -293,6 +293,7 @@ class AdaptiveBiasReactionPathSampler(object):
             
             self._make_energy_curve_continuous()
             self.current_min_bin = indx - 1
+            self.bias.lowest_active_indx = self.current_min_bin
             self.connection = {"bin": indx - 1, 
                                "value": self.bias.bias_array[indx-1]}
             current_range = self.rng_constraint.range
@@ -305,6 +306,10 @@ class AdaptiveBiasReactionPathSampler(object):
 
             # Enforce a calculation of the reaction coordinate
             value = self.bias.reac_init.get(self.mc.atoms, [])
+            self.log("Window shrinked")
+            self.log("New value: {}. New range: [{}, {})"
+                     "".format(value, current_range[0], current_range[1]))
+            self.log("Initialized to bin: {}".format(self.bias.get_bin(value)))
             if value < current_range[0] or value >= current_range[1]:
                 raise RuntimeError("System outside window after update!")
         return False
