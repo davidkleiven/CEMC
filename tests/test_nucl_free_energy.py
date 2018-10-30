@@ -177,7 +177,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
 
         # Inertia tensor
         conc_init.inert_obs.init_com_and_inertia()
-        inertia_tens = conc_init.principal_inertia([])
+        inertia_tens = conc_init.principal_inertia(None, [])
         return inertia_tens, orig_principal
 
 
