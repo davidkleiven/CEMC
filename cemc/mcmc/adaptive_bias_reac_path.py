@@ -21,13 +21,12 @@ class AdaptiveBiasPotential(BiasPotential):
     :param float T: Temperature in Kelvin
     :param Montecarlo mc: Monte Carlo object which samples
         the configurational space
+    :param str db_bin_data: Database where one structure in each 
+        bin will be stored
     """
-    def __init__(self, lim=[0.0, 1.0], n_bins=100, mod_factor=0.1,
-                 reac_init=None, T=400, mc=None, db_bin_data="adaptive_bias.db",
-                 delete_db_if_exists=False):
+    def __init__(self, lim=[0.0, 1.0], n_bins=100, mod_factor=0.01,
+                 reac_init=None, T=400, mc=None, db_bin_data="adaptive_bias.db"):
         from ase.units import kB
-        if delete_db_if_exists and os.path.exists(db_bin_data):
-            os.remove(db_bin_data)
         self.xmin = lim[0]
         self.xmax = lim[1]
         self.nbins = n_bins
@@ -71,7 +70,7 @@ class AdaptiveBiasPotential(BiasPotential):
         # Store one structure in each bin in a database
         if not self.know_structure_in_bin[bin_indx]:
             db = connect(self.db_bin_data)
-            db.write(self.mc.atoms, bin=bin_indx, reac_crd=x)
+            db.write(self.mc.atoms, bin_indx=bin_indx, reac_crd=x)
             self.know_structure_in_bin[bin_indx] = 1
 
     def get_random_structure(self, bin_range):
@@ -79,7 +78,9 @@ class AdaptiveBiasPotential(BiasPotential):
         from random import choice
         db = connect(self.db_bin_data)
         candidates = []
-        for row in db.select(bin>=bin_range[0], bin<bin_range[1]):
+        scond = [("bin_indx", ">=", bin_range[0]), 
+                 ("bin_indx", "<", bin_range[1])]
+        for row in db.select(scond):
             candidates.append(row.toatoms())
 
         if not candidates:
@@ -170,8 +171,12 @@ class AdaptiveBiasReactionPathSampler(object):
     """
     def __init__(self, mc_obj=None, react_crd_init=None, n_bins=100, 
                  data_file="adaptive_bias_path_sampler.h5",
-                 react_crd=[0.0, 1.0], mod_factor=0.1, convergence_factor=0.8,
-                 save_interval=600, log_msg_interval=30, db_struct="adaptive_bias.db"):
+                 react_crd=[0.0, 1.0], mod_factor=0.01, convergence_factor=0.8,
+                 save_interval=600, log_msg_interval=30, db_struct="adaptive_bias.db",
+                 delete_db_if_exists=False):
+
+        if delete_db_if_exists and os.path.exists(db_struct):
+            os.remove(db_struct)
 
         self.bias = AdaptiveBiasPotential(lim=react_crd, n_bins=n_bins, 
                                         mod_factor=mod_factor, 
