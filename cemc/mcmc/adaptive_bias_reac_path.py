@@ -23,8 +23,11 @@ class AdaptiveBiasPotential(BiasPotential):
         the configurational space
     """
     def __init__(self, lim=[0.0, 1.0], n_bins=100, mod_factor=0.1,
-                 reac_init=None, T=400, mc=None, db_bin_data="adaptive_bias.db"):
+                 reac_init=None, T=400, mc=None, db_bin_data="adaptive_bias.db",
+                 delete_db_if_exists=False):
         from ase.units import kB
+        if delete_db_if_exists and os.path.exists(db_bin_data):
+            os.remove(db_bin_data)
         self.xmin = lim[0]
         self.xmax = lim[1]
         self.nbins = n_bins
