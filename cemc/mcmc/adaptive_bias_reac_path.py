@@ -283,7 +283,9 @@ class AdaptiveBiasReactionPathSampler(object):
             self.connection = None
             return True
         
-        if abs(indx - self.current_min_bin) > self.min_window_width:
+        local_conv_ok = abs(indx - self.current_min_bin) > self.min_window_width
+        remaining_ok = (indx < len(self.visit_histogram) - self.min_window_width - 1)
+        if local_conv_ok and remaining_ok:
             new_structure = self.bias.get_random_structure([indx-1, len(self.visit_histogram)])
             if new_structure is None:
                 # We don't now any valid structure so we can't do anything
