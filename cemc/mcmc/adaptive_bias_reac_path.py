@@ -78,7 +78,7 @@ class AdaptiveBiasPotential(BiasPotential):
         from random import choice
         db = connect(self.db_bin_data)
         candidates = []
-        scond = [("bin_indx", ">=", bin_range[0]), 
+        scond = [("bin_indx", ">", bin_range[0]), 
                  ("bin_indx", "<", bin_range[1])]
         for row in db.select(scond):
             candidates.append(row.toatoms())
@@ -265,6 +265,7 @@ class AdaptiveBiasReactionPathSampler(object):
 
         diff = self.bias.bias_array[self.current_min_bin] - self.connection["value"]
         self.bias.bias_array[self.current_min_bin:] -= diff
+        self.connection["value"] = self.bias.bias_array[self.connection["bin"]]
 
     def update_active_window(self):
         """If support adaptive window this will update the relevant part."""
