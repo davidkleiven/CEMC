@@ -63,7 +63,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         self.traj_file = traj_file
         self.traj_file_clst = traj_file_clst
 
-    def inertia_tensor(self, system_changes):
+    def inertia_tensor(self, atoms, system_changes):
         """Calculate the inertial tensor of the cluster.
 
         :return: Inertia tensor
@@ -71,6 +71,10 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         """
         if system_changes:
             self.inert_obs(system_changes)
+        elif atoms is not None:
+            # Perform a new calculation from scratch
+            self.inert_obs.set_atoms(atoms)
+
         inertia = self.inert_obs.inertia
 
         # This class should not alter the intertia tensor
@@ -79,13 +83,13 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
             self.inert_obs.undo_last()
         return inertia
 
-    def principal_inertia(self, system_changes):
+    def principal_inertia(self, atoms, system_changes):
         """Calculate the inertia of the atoms in cluster elements.
 
         :return: Principal moment of inertia
         :rtype: numpy 1D array of length 3
         """
-        eigv = np.linalg.eigvals(self.inertia_tensor(system_changes))
+        eigv = np.linalg.eigvals(self.inertia_tensor(atoms, system_changes))
         return eigv
 
     @property
@@ -100,13 +104,13 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
             include += self.fixed_nucl_mc.atoms_tracker.tracker[symb]
         return include
 
-    def normalized_principal_inertia(self, system_changes):
+    def normalized_principal_inertia(self, atoms, system_changes):
         """Principal inertia normalized by the largest component.
 
         :return: Normalized principal inertia
         :rtype: 1D numpy array of length 3
         """
-        princ_inertia = self.principal_inertia(system_changes)
+        princ_inertia = self.principal_inertia(atoms, system_changes)
         return princ_inertia / np.max(princ_inertia)
 
     @property
@@ -147,7 +151,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         :return: The reaction coordinate
         :rtype: float
         """
-        princ = self.principal_inertia(system_changes)
+        princ = self.principal_inertia(atoms, system_changes)
         princ = np.sort(princ)
 
         # Make sure they are sorted in the correct order
