@@ -244,6 +244,12 @@ class Montecarlo(object):
         self.atoms.get_calculator().set_symbols(symbs)
         self._build_atoms_list()
 
+        self.current_energy = self.atoms.get_calculator().get_energy()
+        self.bias_energy = 0.0
+        for bias in self.bias_potentials:
+            self.bias_energy += bias.calculate_from_scratch(self.atoms)
+        self.is_first = True
+
     def _check_symbols(self):
         """
         Checks that there is at least to different symbols

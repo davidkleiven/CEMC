@@ -139,6 +139,11 @@ class AdaptiveBiasPotential(BiasPotential):
         # get apply the system changes
         value = self.reac_init.get(self.mc.atoms, system_changes)
         return self.get_bias_potential(value)
+
+    def calculate_from_scratch(self, atoms):
+        """Calculate the potential from scratch."""
+        value = self.reac_init.get(self.mc.atoms, None)
+        return self.get_bias_potential(value)
         
 
 

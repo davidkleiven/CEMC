@@ -16,6 +16,13 @@ class BiasPotential(object):
         """
         raise NotImplementedError("Has to be implemented in child classes!")
 
+    def calculate_from_scratch(self, atoms):
+        """Calculate the bias potential from scratch.
+
+        :param Atoms atoms: Structure to evaluate the bias poential for
+        """
+        raise NotImplementedError("Class has not implemented a calculate_from_scratch method!")
+
     def save(self, fname="pseudo_binary_free_energy.pkl"):
         """Save the computed bias potential to a file.
 
@@ -171,6 +178,11 @@ class PseudoBinaryFreeEnergyBias(SampledBiasPotential):
                 q += 1.0 / self.conc_init.num_per_unit
         return self.bias_interp(q)
 
+    def calculate_from_scratch(self, atoms):
+        """Calculate the value from scratch."""
+        q = self.conc_init.get(atoms)
+        return self.bias_interp(q)
+
     def get(self, reac_crd):
         """Get the bias potential as a function of reaction coordinate.
 
@@ -218,6 +230,11 @@ class InertiaBiasPotential(SampledBiasPotential):
         :rtype: float
         """
         reac_crd = self.inertia_range.get_new_value(system_changes)
+        return self.bias_interp(reac_crd)
+
+    def calculate_from_scratch(self, atoms):
+        """Calculate the value from scratch."""
+        reac_crd = self.inertia_range._inertia_init.get(atoms, None)
         return self.bias_interp(reac_crd)
 
     def get(self, reac_crd):
