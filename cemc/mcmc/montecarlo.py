@@ -56,11 +56,14 @@ class Montecarlo(object):
         for finding a candidate move that does not violate the constraints.
         A CanNotFindLegalMoveError is raised if the maximum number of attempts
         is reaced.
+    :param bool accept_first_trial_move_after_reset: If True the first trial
+        move after reset and set_symbols will be accepted
     """
 
     def __init__(self, atoms, temp, indeces=None, mpicomm=None, logfile="",
                  plot_debug=False, min_acc_rate=0.0, recycle_waste=False,
-                 max_constraint_attempts=10000):
+                 max_constraint_attempts=10000,
+                 accept_first_trial_move_after_reset=False):
         self.name = "MonteCarlo"
         self.atoms = atoms
         self.T = temp
@@ -125,12 +128,14 @@ class Montecarlo(object):
         # Set to false if pyplot should not block when plt.show() is called
         self.pyplot_block = True
         self._linear_vib_correction = None
-        self.is_first = True
         self.filter = ExponentialFilter(min_time=0.2*len(self.atoms),
                                         max_time=20*len(self.atoms),
                                         n_subfilters=10)
 
-        self.accept_first_trial_move_after_reset = True
+        self.accept_first_trial_move_after_reset = accept_first_trial_move_after_reset
+        self.is_first = False
+        if self.accept_first_trial_move_after_reset:
+            self.is_first = True
 
     def _init_loggers(self):
         self.logger = logging.getLogger("MonteCarlo")
@@ -248,7 +253,8 @@ class Montecarlo(object):
         self.bias_energy = 0.0
         for bias in self.bias_potentials:
             self.bias_energy += bias.calculate_from_scratch(self.atoms)
-        self.is_first = True
+        if (self.accept_first_trial_move_after_reset):
+            self.is_first = True
 
     def _check_symbols(self):
         """
@@ -980,6 +986,7 @@ class Montecarlo(object):
         self.new_energy += self.new_bias_energy
         self.last_energies[1] = self.new_energy
         if (self.is_first):
+            self.log("Move accepted because accept_first_move_after_reset was activated")
             self.is_first = False
             return True
 
