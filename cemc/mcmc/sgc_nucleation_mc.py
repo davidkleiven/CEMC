@@ -145,7 +145,6 @@ class SGCNucleation(SGCMonteCarlo):
         if self.max_size_reactant is None:
             raise ValueError("Maximum cluster size to be characterized as "
                              "reactant is not set!")
-
         stat = self.network.get_statistics()
         return stat["max_size"] < self.max_size_reactant
 
@@ -308,7 +307,8 @@ class SGCNucleation(SGCMonteCarlo):
 
         :param list symbols: List of symbols
         """
-        self.atoms._calc.set_symbols(symbols)
+        self.set_symbols(symbols)
+        # self.atoms._calc.set_symbols(symbols)
 
     def show_statistics(self, path):
         """

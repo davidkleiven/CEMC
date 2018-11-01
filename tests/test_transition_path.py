@@ -29,13 +29,13 @@ class TestTransitionPath(unittest.TestCase):
             chem_pot = {"c1_0":-1.065}
             sampler = NucleationSampler( size_window_width=10, \
             chemical_potential=chem_pot, max_cluster_size=150, \
-            merge_strategy="normalize_overlap", max_one_cluster=False )
+            merge_strategy="normalize_overlap", max_one_cluster=False)
 
-            T = 500
+            T = 200
             network_name = get_example_network_name(ceBulk)
-            mc = SGCNucleation( ceBulk.atoms, T, nucleation_sampler=sampler, \
+            mc = SGCNucleation(ceBulk.atoms, T, nucleation_sampler=sampler, \
             network_name=[network_name],  network_element=["Mg"], symbols=["Al","Mg"], \
-            chem_pot=chem_pot, allow_solutes=True )
+            chem_pot=chem_pot, allow_solutes=True)
 
             try:
                 mc.find_transition_path( initial_cluster_size=5, max_size_reactant=10, min_size_product=15, \
@@ -43,12 +43,12 @@ class TestTransitionPath(unittest.TestCase):
             except (DidNotReachProductOrReactantError, DidNotFindPathError):
                 pass
 
-            relaxer = TransitionPathRelaxer( nuc_mc=mc )
-            relaxer.relax_path( initial_path="tests/test_data/example_path.json", n_shooting_moves=1 )
-            relaxer.path2trajectory(fname="data/relaxed_path.traj")
+            # relaxer = TransitionPathRelaxer(nuc_mc=mc)
+            # relaxer.relax_path( initial_path="tests/test_data/example_path.json", n_shooting_moves=1 )
+            # relaxer.path2trajectory(fname="data/relaxed_path.traj")
 
-            relaxer = TransitionPathRelaxer( nuc_mc=mc )
-            relaxer.generate_paths( initial_path="tests/test_data/example_path.json", n_paths=1, max_attempts=2, outfile="data/tse_ensemble.json" )
+            relaxer = TransitionPathRelaxer(nuc_mc=mc)
+            relaxer.generate_paths(initial_path="tests/test_data/example_path.json", n_paths=1, max_attempts=2, outfile="data/tse_ensemble.json")
         except Exception as exc:
                 msg = str(exc)
                 no_throw = False
