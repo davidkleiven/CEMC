@@ -1,7 +1,7 @@
 """Class for calculating the strain energy of ellipsoidal inclusions."""
 import numpy as np
 from cemc_cpp_code import PyEshelbyTensor, PyEshelbySphere
-from cemc.tools import rot_matrix, rotate_tensor, to_voigt, to_full_tensor
+from cemc.tools import rot_matrix, rotate_tensor, to_mandel, to_full_tensor
 from cemc.tools import rot_matrix_spherical_coordinates
 from itertools import product
 from scipy.optimize import minimize
@@ -119,7 +119,7 @@ class StrainEnergy(object):
             for p in phi:
                 matrix = rot_matrix_spherical_coordinates(p, th)
                 strain = rotate_tensor(eigenstrain_orig, matrix)
-                self.eigenstrain = to_voigt(strain)
+                self.eigenstrain = to_mandel(strain)
                 energy = self.strain_energy(scale_factor, e_matrix)
                 res = {"energy": energy, "theta": th, "phi": p}
                 a = matrix.T.dot([1.0, 0.0, 0.0])
@@ -138,7 +138,7 @@ class StrainEnergy(object):
         result = [result[indx] for indx in sorted_indx]
 
         # Reset the strain
-        self.eigenstrain = to_voigt(eigenstrain_orig)
+        self.eigenstrain = to_mandel(eigenstrain_orig)
         return result
 
     def optimize_rotation(self, ellipsoid, e_matrix, init_rot):
@@ -167,7 +167,7 @@ class StrainEnergy(object):
         }
 
         # Reset the eigenstrain back
-        self.eigenstrain = to_voigt(orig_strain)
+        self.eigenstrain = to_mandel(orig_strain)
         return optimal_orientation
 
     def log(self, msg):
@@ -249,7 +249,7 @@ class StrainEnergy(object):
             strain = to_full_tensor(orig_strain)
             rot_mat = rot_matrix(rot_seq)
             strain = rotate_tensor(strain, rot_mat)
-            self.eigenstrain = to_voigt(strain)
+            self.eigenstrain = to_mandel(strain)
 
         fig = plt.figure()
         ax = fig.add_subplot(1, 1, 1)
@@ -360,7 +360,7 @@ def cost_minimize_strain_energy(euler, args):
     rot_seq = combine_axes_and_angles(rot_axes, euler)
     matrix = rot_matrix(rot_seq)
     tensor = rotate_tensor(orig_strain, matrix)
-    tensor = to_voigt(tensor)
+    tensor = to_mandel(tensor)
     obj.eigenstrain = tensor
     return obj.strain_energy(scale_factor, e_matrix)
 

@@ -390,8 +390,8 @@ void EshelbyTensor::symmetrize(mat3x3 &matrix)
 
 PyObject* EshelbyTensor::aslist()
 {
-  mat6x6 voigt;
-  voigt_representation(voigt);
+  mat6x6 mandel;
+  mandel_representation(mandel);
   PyObject *npy_array = PyList_New(6);
 
   for (unsigned int i=0;i<6;i++)
@@ -399,7 +399,7 @@ PyObject* EshelbyTensor::aslist()
     PyObject *sublist = PyList_New(6);
     for (unsigned int j=0;j<6;j++)
     {
-      PyObject *py_val = PyFloat_FromDouble(voigt[i][j]);
+      PyObject *py_val = PyFloat_FromDouble(mandel[i][j]);
 
       // NOTE: SetItem steals a reference. So no DECREF needed.
       PyList_SetItem(sublist, j, py_val);
@@ -409,30 +409,32 @@ PyObject* EshelbyTensor::aslist()
   return npy_array;
 }
 
-void EshelbyTensor::voigt_representation(mat6x6 &voigt)
+void EshelbyTensor::mandel_representation(mat6x6 &mandel)
 {
   if (require_rebuild) construct_full_tensor();
 
-  double scale = 1.0;
   for (unsigned int i=0;i<3;i++)
   for (unsigned int j=0;j<3;j++)
   for (unsigned int k=0;k<3;k++)
   for (unsigned int l=0;l<3;l++)
   {
-    int voigt1 = voigt_indx(i, j);
-    int voigt2 = voigt_indx(k, l);
+    int mandel1 = mandel_indx(i, j);
+    int mandel2 = mandel_indx(k, l);
     int indx = get_array_indx(i, j, k, l);
     double value = tensor[indx];
 
-    if ((voigt1 >= 3) || (voigt2 >= 3))
+    if ((mandel1 >= 3) && (mandel2 >= 3))
     {
       value *= 2;
     }
-    voigt[voigt1][voigt2] = value;
+    else if ((mandel1 >= 3) || (mandel2 >= 3)){
+      value *= sqrt(2.0);
+    }
+    mandel[mandel1][mandel2] = value;
   }
 }
 
-unsigned int EshelbyTensor::voigt_indx(unsigned int i, unsigned int j)
+unsigned int EshelbyTensor::mandel_indx(unsigned int i, unsigned int j)
 {
   if (i==j)
   {
@@ -472,18 +474,18 @@ PyObject* EshelbyTensor::get_raw()
   return eshelby_dict;
 }
 
-void EshelbyTensor::dot(vec6 &voigt)
+void EshelbyTensor::dot(vec6 &mandel)
 {
   mat6x6 matrix;
-  voigt_representation(matrix);
+  mandel_representation(matrix);
   vec6 result;
   for (unsigned int i=0;i<6;i++)
   {
     result[i] = 0.0;
     for (unsigned int j=0;j<6;j++)
     {
-      result[i] += matrix[i][j]*voigt[j];
+      result[i] += matrix[i][j]*mandel[j];
     }
   }
-  voigt = result;
+  mandel = result;
 }

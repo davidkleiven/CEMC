@@ -19,16 +19,16 @@ public:
   /** Evaluate the Eshelby Tensor (Not implemented!)*/
   virtual double operator()(int i, int j, int k, int l);
 
-  /** Return the Eshelby tensor as a numpy array using Voigt notation */
+  /** Return the Eshelby tensor as a numpy array using mandel notation */
   PyObject* aslist();
 
-  /** Represent the Eshelby tensor in Voigt notation */
-  void voigt_representation(mat6x6 &matrix);
+  /** Represent the Eshelby tensor in Mandel notation */
+  void mandel_representation(mat6x6 &matrix);
 
-  /** Inplace dot product between Eshelby Tensor and a Voigt vector
+  /** Inplace dot product between Eshelby Tensor and a mandel vector
   * On return the passed vector contains the dot product
   */
-  void dot(vec6 &voigt);
+  void dot(vec6 &mandel);
 
   /** Get the full tensor as a dictionary */
   PyObject *get_raw();
@@ -84,8 +84,8 @@ protected:
   /** Symmetrize the matrix. Put upper part into lower */
   static void symmetrize(mat3x3 &mat);
 
-  /** Convert two indices to their Voigt representation */
-  static unsigned int voigt_indx(unsigned int i, unsigned int j);
+  /** Convert two indices to their mandel representation */
+  static unsigned int mandel_indx(unsigned int i, unsigned int j);
 
   /** Constructs the full Eshelby tensor */
   virtual void construct_full_tensor();

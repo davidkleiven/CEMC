@@ -63,36 +63,37 @@ def rot_matrix(sequence):
     return mat
 
 
-def to_voigt(tensor):
-    """Convert 3x3 tensor to voigt vector."""
+def to_mandel(tensor):
+    """Convert 3x3 tensor to mandel vector."""
     if tensor.shape[0] != 3 or tensor.shape[1] != 3:
         raise ValueError("The provided tensor has to be 3x3!")
 
-    voigt = np.zeros(6)
-    voigt[0] = tensor[0, 0]
-    voigt[1] = tensor[1, 1]
-    voigt[2] = tensor[2, 2]
-    voigt[3] = tensor[1, 2]
-    voigt[4] = tensor[0, 2]
-    voigt[5] = tensor[0, 1]
-    return voigt
+    mandel = np.zeros(6)
+    mandel[0] = tensor[0, 0]
+    mandel[1] = tensor[1, 1]
+    mandel[2] = tensor[2, 2]
+    mandel[3] = np.sqrt(2.0)*tensor[1, 2]
+    mandel[4] = np.sqrt(2.0)*tensor[0, 2]
+    mandel[5] = np.sqrt(2.0)*tensor[0, 1]
+    return mandel
 
 
-def to_full_tensor(voigt):
-    """Convert from Voigt representation back to full tensor."""
-    if len(voigt) != 6:
-        raise ValueError("The Voigt vector has to be of length 6!")
+def to_full_tensor(mandel):
+    """Convert from mandel representation back to full tensor."""
+    if len(mandel) != 6:
+        raise ValueError("The mandel vector has to be of length 6!")
 
     tensor = np.zeros((3, 3))
-    tensor[0, 0] = voigt[0]
-    tensor[1, 1] = voigt[1]
-    tensor[2, 2] = voigt[2]
-    tensor[1, 2] = voigt[3]
-    tensor[2, 1] = voigt[3]
-    tensor[0, 2] = voigt[4]
-    tensor[2, 0] = voigt[4]
-    tensor[0, 1] = voigt[5]
-    tensor[1, 0] = voigt[5]
+    tensor[0, 0] = mandel[0]
+    tensor[1, 1] = mandel[1]
+    tensor[2, 2] = mandel[2]
+
+    tensor[1, 2] = mandel[3]/np.sqrt(2.0)
+    tensor[2, 1] = mandel[3]/np.sqrt(2.0)
+    tensor[0, 2] = mandel[4]/np.sqrt(2.0)
+    tensor[2, 0] = mandel[4]/np.sqrt(2.0)
+    tensor[0, 1] = mandel[5]/np.sqrt(2.0)
+    tensor[1, 0] = mandel[5]/np.sqrt(2.0)
     return tensor
 
 

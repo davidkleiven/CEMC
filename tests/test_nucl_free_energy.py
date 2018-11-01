@@ -65,10 +65,9 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             nn_name = get_network_name(ceBulk.cluster_family_names_by_size)
 
             mc = SGCNucleation(
-                ceBulk.atoms, 300, nucleation_sampler=sampler,
+                ceBulk.atoms, 30000, nucleation_sampler=sampler,
                 network_name=[nn_name],  network_element=["Mg"],
                 symbols=["Al", "Mg"], chem_pot=chem_pot)
-
             mc.runMC(steps=2)
             sampler.save(fname="test_nucl.h5")
 
@@ -77,6 +76,10 @@ class TestNuclFreeEnergy( unittest.TestCase ):
                 network_name=[nn_name],  network_element=["Mg"],
                 concentration={"Al": 0.8, "Mg": 0.2}
                 )
+            symbs = [atom.symbol for atom in ceBulk.atoms]
+            symbs[0] = "Mg"
+            symbs[1] = "Mg"
+            mc.set_symbols(symbs)
             mc.runMC(steps=2)
             sampler.save(fname="test_nucl_canonical.h5")
             elements = {"Mg": 6}
@@ -84,7 +87,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             mc = FixedNucleusMC(ceBulk.atoms, 300,
                                 network_name=[nn_name], network_element=["Mg"])
             mc.insert_symbol_random_places("Mg", num=1, swap_symbs=["Al"])
-            mc.runMC(steps=2, elements=elements)
+            mc.runMC(steps=2, elements=elements, init_cluster=True)
             os.remove("sc5x5x5.db")
         except Exception as exc:
             msg = str(exc)
