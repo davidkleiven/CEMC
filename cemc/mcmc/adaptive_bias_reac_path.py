@@ -25,7 +25,8 @@ class AdaptiveBiasPotential(BiasPotential):
         bin will be stored
     """
     def __init__(self, lim=[0.0, 1.0], n_bins=100, mod_factor=0.01,
-                 reac_init=None, T=400, mc=None, db_bin_data="adaptive_bias.db"):
+                 reac_init=None, T=400, mc=None, db_bin_data="adaptive_bias.db",
+                 mpicomm=None):
         from ase.units import kB
         self.xmin = lim[0]
         self.xmax = lim[1]
@@ -39,6 +40,27 @@ class AdaptiveBiasPotential(BiasPotential):
         self.db_bin_data = db_bin_data
         self.know_structure_in_bin = np.zeros(self.nbins, dtype=np.uint8)
         self.lowest_active_indx = 0
+        self.mpicomm = None
+
+    @property
+    def rank(self):
+        if self.mpicomm is None:
+            return 0
+        return self.mpicomm.Get_rank()
+
+    @property
+    def num_proc(self):
+        if self.mpicomm is None:
+            return 1
+        return self.mpicomm.Get_size()
+
+    def average_from_all_proc(self):
+        """Average the bias potential from all processors."""
+        if self.mpicomm is None:
+            return
+        recv_buf = np.zeros_like(self.bias_array)
+        self.mpicomm.Allreduce(self.bias_array, recv_buf)
+        self.bias_array = recv_buf/self.num_proc
 
     def get_bin(self, value):
         """Return the bin corresponding to value.
@@ -143,8 +165,7 @@ class AdaptiveBiasPotential(BiasPotential):
     def calculate_from_scratch(self, atoms):
         """Calculate the potential from scratch."""
         value = self.reac_init.get(self.mc.atoms, None)
-        return self.get_bias_potential(value)
-        
+        return self.get_bias_potential(value)        
 
 
 class AdaptiveBiasReactionPathSampler(object):
@@ -182,7 +203,8 @@ class AdaptiveBiasReactionPathSampler(object):
                  data_file="adaptive_bias_path_sampler.h5",
                  react_crd=[0.0, 1.0], mod_factor=0.01, convergence_factor=0.8,
                  save_interval=600, log_msg_interval=30, db_struct="adaptive_bias.db",
-                 delete_db_if_exists=False):
+                 delete_db_if_exists=False, mpicomm=None,
+                 check_convergence_interval=10000, check_user_input=True):
 
         if delete_db_if_exists and os.path.exists(db_struct):
             os.remove(db_struct)
@@ -192,6 +214,7 @@ class AdaptiveBiasReactionPathSampler(object):
                                         reac_init=react_crd_init, T=mc_obj.T,
                                         mc=mc_obj, db_bin_data=db_struct)
         self.mc = mc_obj
+        self.mpicomm = None
         self.mc.add_bias(self.bias)
         self.visit_histogram = np.zeros(n_bins, dtype=int)
         self.convergence_factor = convergence_factor
@@ -216,7 +239,41 @@ class AdaptiveBiasReactionPathSampler(object):
         self.min_window_width = 10
         self.connection = None
         self.current_min_bin = 0
-        self.attempt_shrink_window_interval = 10000
+        self.check_convergence_interval = check_convergence_interval
+        self.mpicomm = mpicomm
+
+        # Make sure that each processor has a different seed
+        from cemc.mcmc.mpi_tools import set_seeds
+        set_seeds(self.mpicomm)
+
+        if check_user_input:
+            self.give_input_advise()
+
+    def give_input_advise(self):
+        """Check the input such to help users select good parameters."""
+        warning_printed = False
+        if self.mpicomm is not None and self.check_convergence_interval < 10000:
+            warning_printed = True
+            self.log("Warning! Check convergence is set to {}."
+                     "This process involves collective communication. "
+                     "Therefore it is recommended to increase this number "
+                     "at least beyound 10000"
+                     "".format(self.check_convergence_interval))
+
+        if self.output_every < 10:
+            warning_printed = True
+            self.log("Warning! Do you really want to log with as little as "
+                     "{} sec interval?".format(self.output_every))
+        
+        if self.save_interval < 60:
+            warning_printed = True
+            self.log("Warning! Do you really want to save backup every "
+                     "{} sec? It is recommended to increase this."
+                     "".format(self.save_interval))
+
+        if warning_printed:
+            self.log("To supress these messages set check_user_input=False")
+
     
     @property
     def support_adaptive_windows(self):
@@ -278,13 +335,11 @@ class AdaptiveBiasReactionPathSampler(object):
 
     def update_active_window(self):
         """If support adaptive window this will update the relevant part."""
-        if self.current_mc_step%self.attempt_shrink_window_interval != 0:
-            mean = np.mean(self.visit_histogram[self.current_min_bin:])
-            minval = np.min(self.visit_histogram[self.current_min_bin:])
-            self.current_max_val = np.max(self.visit_histogram)
-            self.current_min_val = minval
-            self.average_visits = mean
-            return minval > self.convergence_factor*mean
+        mean = np.mean(self.visit_histogram[self.current_min_bin:])
+        minval = np.min(self.visit_histogram[self.current_min_bin:])
+        self.current_max_val = np.max(self.visit_histogram)
+        self.current_min_val = minval
+        self.average_visits = mean
         
         indx = self._first_non_converged_bin()
         if indx == -1:
@@ -324,6 +379,7 @@ class AdaptiveBiasReactionPathSampler(object):
         return False
 
     def converged(self):
+        self.synchronize()
         if self.support_adaptive_windows:
             return self.update_active_window()
         else:
@@ -339,7 +395,8 @@ class AdaptiveBiasReactionPathSampler(object):
 
         :param str msg: Message to be logged
         """
-        print(msg)
+        if self.is_master:
+            print(msg)
 
     def progress_message(self):
         """Output a progress message."""
@@ -352,36 +409,70 @@ class AdaptiveBiasReactionPathSampler(object):
                            self.average_visits, num_visited, self.last_visited_bin,
                            acc_rate, self.current_min_bin))
 
+    @property
+    def rank(self):
+        if self.mpicomm is None:
+            return 0
+        return self.mpicomm.Get_rank()
+
+    @property
+    def num_proc(self):
+        if self.mpicomm is None:
+            return 1
+        return self.mpicomm.Get_size()
+
+    @property
+    def is_master(self):
+        return self.rank == 0
+
+    def barrier(self):
+        if self.mpicomm is None:
+            return
+        self.mpicomm.barrier()
+
+    def synchronize(self):
+        """Syncronize the data array from all processors."""
+        if self.mpicomm is None:
+            return
+
+        self.bias.average_from_all_proc()
+        recv_buf = np.zeros_like(self.visit_histogram)
+        self.mpicomm.Allreduce(self.visit_histogram, recv_buf)
+        self.visit_histogram = recv_buf/self.num_proc
+
     def save(self):
         """Save records to the HDF5 file."""
-        if os.path.exists(self.data_file):
-            flag = "r+"
-        else:
-            flag = "w"
-
-        # We want to always write the continuous potential to file
-        bias_array = self.bias.bias_array.copy()
-        if self.connection is not None:
-            diff = bias_array[self.connection["bin"]] - self.connection["value"]
-            bias_array[self.connection["bin"]:] -= diff
-
-        with h5.File(self.data_file, flag) as hfile:
-            if "visits" in hfile.keys():
-                data = hfile["visits"]
-                data[...] = self.visit_histogram
+        self.synchronize()
+        if self.is_master:
+            if os.path.exists(self.data_file):
+                flag = "r+"
             else:
-                hfile.create_dataset("visits", data=self.visit_histogram)
+                flag = "w"
 
-            if "bias" in hfile.keys():
-                data = hfile["bias"]
-                data[...] = bias_array
-            else:
-                hfile.create_dataset("bias", data=bias_array)
+            # We want to always write the continuous potential to file
+            bias_array = self.bias.bias_array.copy()
+            if self.connection is not None:
+                diff = bias_array[self.connection["bin"]] - self.connection["value"]
+                bias_array[self.connection["bin"]:] -= diff
 
-            if not "x" in hfile.keys():
-                x = np.linspace(self.bias.xmin, self.bias.xmax, len(self.visit_histogram))
-                hfile.create_dataset("x", data=x)
-        self.log("Current state written to {}".format(self.data_file))
+            with h5.File(self.data_file, flag) as hfile:
+                if "visits" in hfile.keys():
+                    data = hfile["visits"]
+                    data[...] = self.visit_histogram
+                else:
+                    hfile.create_dataset("visits", data=self.visit_histogram)
+
+                if "bias" in hfile.keys():
+                    data = hfile["bias"]
+                    data[...] = bias_array
+                else:
+                    hfile.create_dataset("bias", data=bias_array)
+
+                if not "x" in hfile.keys():
+                    x = np.linspace(self.bias.xmin, self.bias.xmax, len(self.visit_histogram))
+                    hfile.create_dataset("x", data=x)
+            self.log("Current state written to {}".format(self.data_file))
+        self.barrier()
 
     def run(self):
         """Run simulation."""
@@ -399,7 +490,11 @@ class AdaptiveBiasReactionPathSampler(object):
             if time.time() - self.last_save > self.save_interval:
                 self.save()
                 self.last_save = time.time()
-            conv = self.converged()
+
+            # Check convergence only occationally as this involve
+            # collective communication
+            if self.current_mc_step%self.check_convergence_interval == 0:
+                conv = self.converged()
 
 
 
