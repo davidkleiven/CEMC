@@ -206,9 +206,6 @@ class AdaptiveBiasReactionPathSampler(object):
                  delete_db_if_exists=False, mpicomm=None,
                  check_convergence_interval=10000, check_user_input=True):
 
-        if delete_db_if_exists and os.path.exists(db_struct):
-            os.remove(db_struct)
-
         self.bias = AdaptiveBiasPotential(lim=react_crd, n_bins=n_bins, 
                                         mod_factor=mod_factor, 
                                         reac_init=react_crd_init, T=mc_obj.T,
@@ -248,6 +245,8 @@ class AdaptiveBiasReactionPathSampler(object):
 
         if check_user_input:
             self.give_input_advise()
+        if delete_db_if_exists and os.path.exists(db_struct) and self.is_master:
+            os.remove(db_struct)
 
     def give_input_advise(self):
         """Check the input such to help users select good parameters."""
