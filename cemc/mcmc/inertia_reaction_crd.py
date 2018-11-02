@@ -4,6 +4,7 @@ from cemc.mcmc.mpi_tools import num_processors, mpi_rank
 import numpy as np
 from itertools import product
 import time
+from numpy.linalg import inv
 
 
 class CouldNotFindValidStateError(Exception):
@@ -30,7 +31,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
                  cluster_elements=[], num_matrix_atoms_surface=1,
                  traj_file="full_system_insertia.traj",
                  traj_file_clst="clusters_inertial.traj",
-                 output_every=10, formula="I1/I3"):
+                 output_every=10, formula="I1/I3", outlier_sensitivity=None):
         from cemc.mcmc import InertiaTensorObserver
         if matrix_element in cluster_elements:
             raise ValueError("InertiaCrdInitializer works only when "
@@ -62,6 +63,12 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
             traj_file_clst = fname_base + str(rank) + ".traj"
         self.traj_file = traj_file
         self.traj_file_clst = traj_file_clst
+
+        if outlier_sensitivity is not None:
+            if not isinstance(outlier_sensitivity, OutlierDetection):
+                raise TypeError("outlier_sensitivity has to be of type "
+                                "OutliderDetection or None")
+        self.outlier_sensitivity = outlier_sensitivity
 
     def inertia_tensor(self, atoms, system_changes):
         """Calculate the inertial tensor of the cluster.
@@ -153,18 +160,31 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         """
         princ = self.principal_inertia(atoms, system_changes)
         princ = np.sort(princ)
+        z_score = self.z_score_sensitivity(atoms, system_changes)
 
         # Make sure they are sorted in the correct order
         assert princ[0] <= princ[2]
 
         if self.formula == "I1/I3":
-            return 1.0 - np.min(princ)/np.max(princ)
+            return 1.0 - np.min(princ)/np.max(princ) + z_score
         elif self.formula == "2*I1/(I2+I3)":
-            return 1.0 - 2.0 * princ[0]/(princ[1] + princ[2])
+            return 1.0 - 2.0 * princ[0]/(princ[1] + princ[2]) + z_score
         elif self.formula == "(I1+I2)/(2*I3)":
-            return 1.0 - (princ[0] + princ[1])/(2.0*princ[2])
+            return 1.0 - (princ[0] + princ[1])/(2.0*princ[2]) + z_score
         else:
             raise ValueError("Unknown formula {}".format(self.formula))
+
+    def z_score_sensitivity(self, atoms, system_changes):
+        if self.outlier_sensitivity is None:
+            return 0.0
+        
+        if system_changes:
+            self.outlier_sensitivity.update(system_changes)
+        elif atoms is not None:
+            self.outlier_sensitivity.calculate_from_scratch(atoms)
+        return self.outlier_sensitivity.z_score_parameter()
+        
+
 
     @property
     def surface_atoms(self):
@@ -340,3 +360,69 @@ class InertiaRangeConstraint(ReactionCrdRangeConstraint):
                 print("Move violates constraint on rank {}".format(rank))
                 self.last_print = time.time()
         return ok
+
+class OutlierDetection(object):
+    """
+    Class that calculates 
+    """
+    def __init__(self, inert_obs=None, roots=[0.0, 1.0], amp=1.0):
+        self.insert_obs = inert_obs
+        self.indx = 0
+        self.current_z_score = 0.0
+        self.roots = np.array(roots)
+        self.amp = amp
+
+    def z_score_parameter(self, z_score=None):
+        """Return the z-score parameter."""
+        if z_score is None:
+            z_score = self.current_z_score
+        return np.abs(np.prod(z_score - self.roots)*self.amp)
+
+    def get_z_score(self, vec):
+        """Return the z score."""
+        C_inv = inv(self.insert_obs.inertia)
+        return vec.T.dot(C_inv.dot(vec))
+
+    def get_new(self, system_changes):
+        """Update the furthest index."""
+        atoms = self.insert_obs.atoms
+        largest_z = self.current_z_score
+        indx = self.indx
+        for change in system_changes:
+            if change[2] in self.insert_obs.cluster_elements:
+                diff = atoms[change[0]].position - self.insert_obs.com
+                z_score = self.get_z_score(diff)
+                if z_score > largest_z:
+                    largest_z = z_score
+                    indx = change[0]
+        return indx, largest_z
+
+    def update(self, indx):
+        """Update the maximum z score."""
+        self.indx = indx
+        com = self.insert_obs.com
+        pos = self.insert_obs[indx].position
+        vec = pos - com
+        self.current_z_score = self.get_z_score(vec)
+
+        # Make sure that we actually have tracked a 
+        # cluster element
+        atoms = self.insert_obs.atoms
+        symbs = self.insert_obs.cluster_elements
+        if atoms[indx] not in symbs:
+            self.calculate_from_scratch(atoms)
+
+    def calculate_from_scratch(self, atoms):
+        """Calculate the z score from scratch."""
+        symbs = self.insert_obs.cluster_elements
+        indices = [atom.index for atom in atoms 
+                   if atom.symbol in symbs]
+        pos = atom.get_positions()[indices, :]
+        pos -= self.insert_obs.com
+        z_scores = self.get_z_score(pos.T)
+        max_indx = np.argmax(z_scores)
+        self.current_z_score = z_scores[max_indx]
+        self.indx = indices[max_indx]
+                
+
+    
