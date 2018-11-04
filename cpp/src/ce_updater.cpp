@@ -78,7 +78,7 @@ void CEUpdater::init(PyObject *BC, PyObject *corrFunc, PyObject *pyeci)
     cerr << "Reading background indices\n";
   #endif
   // Read the backgound indices from settings
-  PyObject *bkg_indx = PyObject_GetAttrString(BC, "background_atom_indices");
+  PyObject *bkg_indx = PyObject_GetAttrString(BC, "background_indices");
   read_background_indices(bkg_indx);
   Py_DECREF(bkg_indx);
 
