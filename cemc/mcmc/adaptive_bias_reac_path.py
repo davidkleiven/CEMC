@@ -478,22 +478,25 @@ class AdaptiveBiasReactionPathSampler(object):
         self.parameter_summary()
         conv = False
         now = time.time()
-        while not conv:
-            self.mc._mc_step()
-            self.current_mc_step += 1
-            self.update()
-            if time.time() - now > self.output_every:
-                self.progress_message()
-                now = time.time()
-            
-            if time.time() - self.last_save > self.save_interval:
-                self.save()
-                self.last_save = time.time()
+        try:
+            while not conv:
+                self.mc._mc_step()
+                self.current_mc_step += 1
+                self.update()
+                if time.time() - now > self.output_every:
+                    self.progress_message()
+                    now = time.time()
+                
+                if time.time() - self.last_save > self.save_interval:
+                    self.save()
+                    self.last_save = time.time()
 
-            # Check convergence only occationally as this involve
-            # collective communication
-            if self.current_mc_step%self.check_convergence_interval == 0:
-                conv = self.converged()
+                # Check convergence only occationally as this involve
+                # collective communication
+                if self.current_mc_step%self.check_convergence_interval == 0:
+                    conv = self.converged()
+        except Exception as exc:
+            print("Rank {}: {}".format(self.rank, str(exc)))
 
 
 
