@@ -12,17 +12,15 @@ Features
 
 # First we import the CEBulk object from ASE
 from ase.clease import CEBulk
+from ase.clease import Concentration
 from util import get_example_ecis
 
 # Initialize the CEBulk object for a 4x4x4 expansion of a
 # primitive FCC unitcell
-conc_args = {
-    "conc_ratio_min_1":[[0,1]],
-    "conc_ratio_max_1":[[1,0]]
-}
-bc = CEBulk(crystalstructure="fcc", a=4.05, conc_args=conc_args,
+conc = Concentration([["Al","Mg"]])
+bc = CEBulk(crystalstructure="fcc", a=4.05,
                  db_name="test_gs_db.db", size=[3, 3, 3],
-                 basis_elements=[["Al","Mg"]], max_cluster_size=3)
+                 concentration=conc, max_cluster_size=3)
 bc.reconfigure_settings()  # Nessecary for unittests to pass
 
 # Just use some example ECIs

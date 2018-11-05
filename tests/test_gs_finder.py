@@ -1,7 +1,7 @@
 import unittest
 try:
     from cemc.tools import GSFinder
-    from ase.clease import CEBulk
+    from ase.clease import CEBulk, Concentration
     from ase.clease import CorrFunction
     has_CE = True
 except ImportError:
@@ -17,12 +17,9 @@ class TestGSFinder( unittest.TestCase ):
         try:
             db_name = "test_db_gsfinder.db"
 
-            conc_args = {
-                "conc_ratio_min_1":[[1,0]],
-                "conc_ratio_max_1":[[0,1]],
-            }
             a = 4.05
-            ceBulk = CEBulk( crystalstructure="fcc", a=a, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, \
+            conc = Concentration(basis_elements=[["Al","Mg"]])
+            ceBulk = CEBulk( crystalstructure="fcc", a=a, size=[3,3,3], concentration=conc, \
             db_name=db_name, max_cluster_size=4)
             cf = CorrFunction(ceBulk)
             cf = cf.get_cf(ceBulk.atoms)

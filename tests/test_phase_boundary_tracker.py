@@ -3,6 +3,7 @@ import copy
 import numpy as np
 try:
     from ase.clease.settings_bulk import CEBulk
+    from ase.clease import Concentration
     from cemc.tools.phase_boundary_tracker import PhaseBoundaryTracker, PhaseChangedOnFirstIterationError
     from cemc.tools import save_phase_boundary, process_phase_boundary
     from cemc.mcmc import linear_vib_correction as lvc
@@ -20,13 +21,11 @@ ecivib = {
 db_name = "test_phase_boundary.db"
 class TestPhaseBoundaryMC( unittest.TestCase ):
     def init_bulk_crystal(self):
-        conc_args = {
-            "conc_ratio_min_1":[[1,0]],
-            "conc_ratio_max_1":[[0,1]],
-        }
-        ceBulk1 = CEBulk( crystalstructure="fcc", a=4.05, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, db_name=db_name)
+        conc1 = Concentration(basis_elements=[["Al","Mg"]])
+        conc2 = Concentration(basis_elements=[["Al","Mg"]])
+        ceBulk1 = CEBulk( crystalstructure="fcc", a=4.05, size=[3,3,3], concentration=conc1, db_name=db_name)
         ceBulk1.reconfigure_settings()
-        ceBulk2 = CEBulk( crystalstructure="fcc", a=4.05, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, db_name=db_name)
+        ceBulk2 = CEBulk( crystalstructure="fcc", a=4.05, size=[3,3,3], concentration=conc2, db_name=db_name)
         ceBulk2.reconfigure_settings()
 
         for atom in ceBulk2.atoms:

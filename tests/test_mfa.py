@@ -3,6 +3,7 @@ try:
     from ase.clease.settings_bulk import CEBulk
     from ase.clease import CorrFunction
     from ase.calculators.clease import Clease
+    from ase.clease import Concentration
     from cemc.mfa.mean_field_approx import MeanFieldApprox
     from cemc.mfa import CanonicalMeanField
     from ase.units import kB
@@ -24,14 +25,11 @@ class TestMFA( unittest.TestCase ):
         msg = ""
         try:
             db_name = "test_db.db"
-            conc_args = {
-                "conc_ratio_min_1":[[1,0]],
-                "conc_ratio_max_1":[[0,1]],
-            }
+            conc = Concentration(basis_elements=[["Al","Mg"]])
             ceBulk = CEBulk(
                 crystalstructure="fcc",
-                a=4.05, size=[3, 3, 3], basis_elements=[["Al","Mg"]],
-                conc_args=conc_args, db_name=db_name, max_cluster_size=3)
+                a=4.05, size=[3, 3, 3],
+                concentration=conc, db_name=db_name, max_cluster_size=3)
             ceBulk.reconfigure_settings()
             cf = CorrFunction(ceBulk)
             cf = cf.get_cf(ceBulk.atoms)

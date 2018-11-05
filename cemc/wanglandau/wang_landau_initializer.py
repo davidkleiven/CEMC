@@ -33,7 +33,7 @@ class WangLandauInit(object):
         if ( cetype == "CEBulk" ):
             small_bc = CEBulk(**bc_kwargs )
             small_bc.reconfigure_settings()
-        elif( ctype == "CECrystal" ):
+        elif( cetype == "CECrystal" ):
             small_bc = CECrystal(**bc_kwargs)
             small_bc.reconfigure_settings()
 
@@ -61,7 +61,7 @@ class WangLandauInit(object):
             pck.dump( bc, outfile )
 
         kvp = {"Emin":Emin,"Emax":Emax,"bcfile":outfname,"cetype":self.cetype}
-        data["bc_kwargs"] = bc_kwargs
+        data["bc_kwargs"] = small_bc.kwargs
         data["supercell_size"] = size
         db.write( calc.BC.atoms, key_value_pairs=kvp, data=data )
 

@@ -2,7 +2,7 @@ import unittest
 import os
 try:
     has_CE = True
-    from ase.clease import CEBulk, CorrFunction
+    from ase.clease import CEBulk, CorrFunction, Concentration
     from cemc import get_ce_calc
     from cemc.mcmc import SGCFreeEnergyBarrier
 except ImportError as exc:
@@ -21,9 +21,10 @@ class TestFreeEnergy( unittest.TestCase ):
                         "conc_ratio_min_1":[[1,0]],
                         "conc_ratio_max_1":[[0,1]],
                     }
+            conc = Concentration(basis_elements=[["Al","Mg"]])
             kwargs = {
-                "crystalstructure":"fcc", "a":4.05, "size":[3, 3, 3], "basis_elements":[["Al","Mg"]],
-                "conc_args":conc_args, "db_name":"temporary_bcnucleationdb.db",
+                "crystalstructure":"fcc", "a":4.05, "size":[3, 3, 3],
+                "concentration": conc, "db_name":"temporary_bcnucleationdb.db",
                 "max_cluster_size": 3
             }
             ceBulk = CEBulk( **kwargs )
