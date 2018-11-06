@@ -40,7 +40,7 @@ class AdaptiveBiasPotential(BiasPotential):
         self.db_bin_data = db_bin_data
         self.know_structure_in_bin = np.zeros(self.nbins, dtype=np.uint8)
         self.lowest_active_indx = 0
-        self.mpicomm = None
+        self.mpicomm = mpicomm
 
     @property
     def rank(self):
@@ -211,7 +211,7 @@ class AdaptiveBiasReactionPathSampler(object):
                                         reac_init=react_crd_init, T=mc_obj.T,
                                         mc=mc_obj, db_bin_data=db_struct)
         self.mc = mc_obj
-        self.mpicomm = None
+        self.mpicomm = mpicomm
         self.mc.add_bias(self.bias)
         self.visit_histogram = np.zeros(n_bins, dtype=int)
         self.convergence_factor = convergence_factor
