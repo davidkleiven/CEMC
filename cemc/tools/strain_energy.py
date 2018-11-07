@@ -41,36 +41,53 @@ class StrainEnergy(object):
         if len(ellipsoid["aspect"]) != 3:
             raise ValueError("aspect ratio should be a list/array of length 3")
 
-    def equivalent_eigenstrain(self, scale_factor):
+    def equivalent_eigenstrain(self, C_matrix=None, C_prec=None, 
+                               scale_factor=None):
         """Compute the equivalent eigenstrain.
 
         :param elast_matrix: Elastic tensor of the matrix material
         :param scale_factor: The elastic tensor of the inclustion is assumed to
                              be scale_factor*elast_matrix
         """
-        S = np.array(self.eshelby.aslist())
-        A = (scale_factor-1.0)*S + np.identity(6)
-        return np.linalg.solve(A, scale_factor*self.eigenstrain)
+        if C_matrix is None:
+            raise ValueError("Elastic tensor for the matrix material "
+                             "must be passed!")
 
-    def stress(self, equiv_strain, elastic_matrix):
+        if C_prec is None and scale_factor is not None:
+            C_prec = scale_factor*C_matrix
+
+        if C_prec is None:
+            raise ValueError("Elastic tensor or a scale factor for "
+                             "the precipitating material must be "
+                             "passed")
+        S = np.array(self.eshelby.aslist())
+        A = (C_prec - C_matrix).dot(S) + C_matrix
+        b = C_prec.dot(self.eigenstrain)
+        return np.linalg.solve(A, b)
+
+    def stress(self, equiv_strain, C_matrix=None):
         """Compute the stress tensor.
 
         :param equiv_strain: Equivalent eigenstrain
         :param elastic_matrix: Elastic tensor of the matrix material
         """
         S = np.array(self.eshelby.aslist())
-        sigma = elastic_matrix.dot(S.dot(equiv_strain) - equiv_strain)
+        sigma = C_matrix.dot(S.dot(equiv_strain) - equiv_strain)
         return sigma
 
-    def strain_energy(self, scale_factor, elast_matrix):
+    def strain_energy(self, C_matrix=None, C_prec=None, 
+                      scale_factor=None):
         """Compute the strain energy per volume."""
-        eq_strain = self.equivalent_eigenstrain(scale_factor)
-        sigma = self.stress(eq_strain, elast_matrix)
+        eq_strain = self.equivalent_eigenstrain(
+            C_matrix=C_matrix, C_prec=C_prec, 
+            scale_factor=scale_factor)
+        sigma = self.stress(eq_strain, C_matrix)
 
         # Off diagonal elements should be multiplied by sqrt(2)
         strain = self.eigenstrain.copy()
-        strain[3:] = np.sqrt(2)*strain[3:]
-        sigma[3:] = np.sqrt(2)*sigma[3:]
+        # strain[3:] = np.sqrt(2)*strain[3:]
+        # sigma[3:] = np.sqrt(2)*sigma[3:]
+        print(C_matrix)
         return -0.5*sigma.dot(strain)
 
     def explore_aspect_ratios(self, scale_factor, e_matrix,
