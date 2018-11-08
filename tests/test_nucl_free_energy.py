@@ -3,7 +3,7 @@ import os
 try:
     from cemc.mcmc import NucleationSampler, SGCNucleation
     from cemc.mcmc import CanonicalNucleationMC, FixedNucleusMC
-    from ase.clease import CEBulk
+    from ase.clease import CEBulk, Concentration
     from ase.clease import CorrFunction
     from cemc.mcmc import InertiaCrdInitializer
     from cemc import CE
@@ -31,18 +31,14 @@ class TestNuclFreeEnergy( unittest.TestCase ):
         no_throw = True
         msg = ""
         try:
-            conc_args = {
-                "conc_ratio_min_1": [[1, 0]],
-                "conc_ratio_max_1": [[0, 1]],
-            }
             db_name = "temp_nuc_db.db"
             if os.path.exists(db_name):
                 os.remove(db_name)
+            conc = Concentration(basis_elements=[["Al", "Mg"]])
             kwargs = {
                 "crystalstructure": "fcc", "a": 4.05,
                 "size": [3, 3, 3],
-                "basis_elements": [["Al", "Mg"]],
-                "conc_args": conc_args, "db_name": db_name,
+                "concentration": conc, "db_name": db_name,
                 "max_cluster_size": 3
             }
             ceBulk = CEBulk(**kwargs)

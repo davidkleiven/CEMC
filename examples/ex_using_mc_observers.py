@@ -4,28 +4,22 @@ This example shows how one can use the Monte Carlo observers
 
 # First we import the CEBulk object from ASE
 from ase.clease import CEBulk
+from ase.clease import Concentration
 from util import get_example_ecis, get_example_network_name
-
-# Specify the concentration arguments (they really don't matter here)
-# They only have effect when generating structure of Cluster Expansion
-conc_args = {
-            "conc_ratio_min_1":[[1,0]],
-            "conc_ratio_max_1":[[0,1]],
-        }
 
 db_name = "database_with_dft_structures.db"
 
 # In order to be able to construct a large Monte Carlo cell we have to
 # but the arguments used to construct the CEBulk object in a
 # dictionary
+conc = Concentration(basis_elements=[["Al","Mg"]])
 kwargs = {
     "crystalstructure":"fcc",
     "a":4.05,
     "size":[3, 3, 3],
-    "basis_elements":[["Al","Mg"]],
     "db_name": db_name,
-    "conc_args": conc_args,
-    "max_cluster_size": 3
+    "max_cluster_size": 3,
+    "concentration": conc
 }
 
 # In this example, we just use some example ecis

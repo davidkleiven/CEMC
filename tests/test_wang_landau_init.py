@@ -3,6 +3,7 @@ import os
 from ase.build import bulk
 try:
     from ase.clease import CEBulk
+    from ase.clease import Concentration
     from ase.clease import CorrFunction
     from cemc.wanglandau import WangLandauInit, WangLandau, WangLandauDBManager
     from cemc.wanglandau import AtomExistsError
@@ -13,12 +14,12 @@ except Exception as exc:
 
 db_name = "temp_db_wanglandau.db"
 wl_db_name = "wanglandau_test_init.db"
+conc = Concentration(basis_elements=[["Al", "Mg"]])
 bc_kwargs = {
     "crystalstructure": "fcc",
     "size": [3, 3, 3],
-    "basis_elements": [["Al", "Mg"]],
+    "concentration": conc,
     "db_name": db_name,
-    "conc_args": {"conc_ratio_min_1": [[1, 0]], "conc_ratio_max_1": [[0, 1]]},
     "max_cluster_size": 3,
     "a": 4.05
 }

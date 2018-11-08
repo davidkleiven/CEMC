@@ -4,6 +4,7 @@ from cemc.mcmc.mpi_tools import num_processors, mpi_rank
 import numpy as np
 from itertools import product
 import time
+from numpy.linalg import inv
 
 
 class CouldNotFindValidStateError(Exception):
@@ -165,6 +166,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
             return 1.0 - (princ[0] + princ[1])/(2.0*princ[2])
         else:
             raise ValueError("Unknown formula {}".format(self.formula))
+
 
     @property
     def surface_atoms(self):
@@ -340,3 +342,5 @@ class InertiaRangeConstraint(ReactionCrdRangeConstraint):
                 print("Move violates constraint on rank {}".format(rank))
                 self.last_print = time.time()
         return ok
+
+    

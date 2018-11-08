@@ -4,6 +4,7 @@ import os
 try:
     from cemc.mcmc import linear_vib_correction as lvc
     from ase.clease.settings_bulk import CEBulk
+    from ase.clease import Concentration
     from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
     from cemc.mcmc import Montecarlo
     from cemc import CE, get_ce_calc
@@ -27,15 +28,11 @@ db_name = "test_sgc.db"
 
 class TestSGCMC(unittest.TestCase):
     def init_bulk_crystal(self):
-        conc_args = {
-            "conc_ratio_min_1": [[2, 1, 1]],
-            "conc_ratio_max_1": [[0, 2, 2]],
-        }
         max_dia_name = get_max_cluster_dia_name()
         size_arg = {max_dia_name: 4.05}
+        conc = Concentration(basis_elements=[["Al", "Mg", "Si"]])
         ceBulk = CEBulk(crystalstructure="fcc", a=4.05, size=[3, 3, 3],
-                             basis_elements=[["Al", "Mg", "Si"]],
-                             conc_args=conc_args, db_name=db_name,
+                             concentration=conc, db_name=db_name,
                              max_cluster_size=3, **size_arg)
         ceBulk.reconfigure_settings()
         calc = CE(ceBulk, ecis)
@@ -170,14 +167,13 @@ class TestSGCMC(unittest.TestCase):
         msg = ""
         try:
             from copy import deepcopy
+            conc = Concentration(basis_elements=[['V', 'Li'], ['O']])
             kwargs = {
             "crystalstructure": "rocksalt",
-            "basis_elements": [['V', 'Li'], ['O']],
+            "concentration": conc,
             "a": 4.12,
             'size': [2, 2, 2],
             'cubic': True,
-            "conc_args": {'conc_ratio_min_1': [[1, 1], [2]],
-                        'conc_ratio_max_1': [[1, 1], [2]]},
             "max_cluster_size": 4,
             "max_cluster_dia": 4.12,
             "db_name": 'database.db',

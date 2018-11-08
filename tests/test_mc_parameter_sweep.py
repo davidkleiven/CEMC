@@ -1,6 +1,7 @@
 import unittest
 try:
     from ase.clease.settings_bulk import CEBulk
+    from ase.clease import Concentration
     from ase.clease import CorrFunction
     from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
     from cemc import CE
@@ -14,11 +15,8 @@ except Exception as exc:
 db_name = "test_sgc.db"
 class TestMCParameterSweep( unittest.TestCase ):
     def get_cebulk(self):
-        conc_args = {
-            "conc_ratio_min_1":[[1,0]],
-            "conc_ratio_max_1":[[0,1]],
-        }
-        ceBulk = CEBulk( crystalstructure="fcc", a=4.05, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, db_name=db_name)
+        conc = Concentration(basis_elements=[["Al","Mg"]])
+        ceBulk = CEBulk( crystalstructure="fcc", a=4.05, size=[3,3,3], concentration=conc, db_name=db_name)
         ceBulk.reconfigure_settings()
         cf = CorrFunction(ceBulk)
         cf = cf.get_cf(ceBulk.atoms)
