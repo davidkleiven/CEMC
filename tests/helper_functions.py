@@ -1,6 +1,7 @@
 from cemc.ce_calculator import CE, get_ce_calc
 from ase.clease import CECrystal
 from ase.clease import CEBulk
+from ase.clease import Concentration
 from inspect import getargspec
 from ase.clease import CorrFunction
 
@@ -16,29 +17,23 @@ def get_bulkspacegroup_binary():
     symbols = ["Al","Al","Al","Al"]
     #symbols = ["Al","Al","Al","Al"]
     basis = [(0,0,0),(0.324,0.324,0.324),(0.3582,0.3582,0.0393),(0.0954,0.0954,0.2725)]
-    conc_args = {
-        "conc_ratio_min_1":[[1,0]],
-        "conc_ratio_max_1":[[0,1]]
-    }
     db_name = "test_db_binary_almg.db"
     basis_elements = [["Al","Mg"],["Al","Mg"],["Al","Mg"],["Al","Mg"]]
     max_dia = get_max_cluster_dia_name()
     size_arg = {max_dia:4.1}
-    bs = CECrystal( basis_elements=basis_elements, basis=basis, spacegroup=217, cellpar=cellpar, conc_args=conc_args,
-    max_cluster_size=3, db_name=db_name, size=[1, 1, 1], grouped_basis=[[0,1,2,3]], **size_arg )
+    conc = Concentration(basis_elements=basis_elements, grouped_basis=[[0,1,2,3]])
+    bs = CECrystal(concentration=conc, basis=basis, spacegroup=217, cellpar=cellpar,
+        max_cluster_size=3, db_name=db_name, size=[1, 1, 1], **size_arg )
     return bs, db_name
 
 
 def get_small_BC_with_ce_calc(lat="fcc"):
     db_name = "test_db_{}.db".format(lat)
 
-    conc_args = {
-        "conc_ratio_min_1":[[1,0]],
-        "conc_ratio_max_1":[[0,1]],
-    }
     a = 4.05
-    ceBulk = CEBulk( crystalstructure=lat, a=a, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, \
-    db_name=db_name, max_cluster_size=3)
+    conc = Concentration(basis_elements=[["Al", "Mg"]])
+    ceBulk = CEBulk( crystalstructure=lat, a=a, size=[3,3,3], concentration=conc, \
+        db_name=db_name, max_cluster_size=3)
     ceBulk.reconfigure_settings()
     cf = CorrFunction(ceBulk)
     corrfuncs = cf.get_cf(ceBulk.atoms)
@@ -49,16 +44,11 @@ def get_small_BC_with_ce_calc(lat="fcc"):
 
 def get_ternary_BC(ret_args=False):
     db_name = "test_db_ternary.db"
-    conc_args = {
-        "conc_ratio_min_1":[[4,0,0]],
-        "conc_ratio_max_1":[[0,4,0]],
-        "conc_ratio_min_1":[[2,2,0]],
-        "conc_ratio_max_2":[[1,1,2]]
-    }
     max_dia = get_max_cluster_dia_name()
     size_arg = {max_dia:4.05}
-    args = dict(crystalstructure="fcc", a=4.05, size=[4,4,4], basis_elements=[["Al","Mg","Si"]], \
-                conc_args=conc_args, db_name=db_name, max_cluster_size=3, **size_arg)
+    conc = Concentration(basis_elements=[["Al", "Mg", "Si"]])
+    args = dict(crystalstructure="fcc", a=4.05, size=[4,4,4], concentration=conc, \
+                db_name=db_name, max_cluster_size=3, **size_arg)
     ceBulk = CEBulk(**args)
     ceBulk.reconfigure_settings()
     if ret_args:

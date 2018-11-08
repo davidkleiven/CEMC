@@ -40,7 +40,7 @@ class AdaptiveBiasPotential(BiasPotential):
         self.db_bin_data = db_bin_data
         self.know_structure_in_bin = np.zeros(self.nbins, dtype=np.uint8)
         self.lowest_active_indx = 0
-        self.mpicomm = None
+        self.mpicomm = mpicomm
 
     @property
     def rank(self):
@@ -206,15 +206,12 @@ class AdaptiveBiasReactionPathSampler(object):
                  delete_db_if_exists=False, mpicomm=None,
                  check_convergence_interval=10000, check_user_input=True):
 
-        if delete_db_if_exists and os.path.exists(db_struct):
-            os.remove(db_struct)
-
         self.bias = AdaptiveBiasPotential(lim=react_crd, n_bins=n_bins, 
                                         mod_factor=mod_factor, 
                                         reac_init=react_crd_init, T=mc_obj.T,
                                         mc=mc_obj, db_bin_data=db_struct)
         self.mc = mc_obj
-        self.mpicomm = None
+        self.mpicomm = mpicomm
         self.mc.add_bias(self.bias)
         self.visit_histogram = np.zeros(n_bins, dtype=int)
         self.convergence_factor = convergence_factor
@@ -248,6 +245,8 @@ class AdaptiveBiasReactionPathSampler(object):
 
         if check_user_input:
             self.give_input_advise()
+        if delete_db_if_exists and os.path.exists(db_struct) and self.is_master:
+            os.remove(db_struct)
 
     def give_input_advise(self):
         """Check the input such to help users select good parameters."""
@@ -479,22 +478,25 @@ class AdaptiveBiasReactionPathSampler(object):
         self.parameter_summary()
         conv = False
         now = time.time()
-        while not conv:
-            self.mc._mc_step()
-            self.current_mc_step += 1
-            self.update()
-            if time.time() - now > self.output_every:
-                self.progress_message()
-                now = time.time()
-            
-            if time.time() - self.last_save > self.save_interval:
-                self.save()
-                self.last_save = time.time()
+        try:
+            while not conv:
+                self.mc._mc_step()
+                self.current_mc_step += 1
+                self.update()
+                if time.time() - now > self.output_every:
+                    self.progress_message()
+                    now = time.time()
+                
+                if time.time() - self.last_save > self.save_interval:
+                    self.save()
+                    self.last_save = time.time()
 
-            # Check convergence only occationally as this involve
-            # collective communication
-            if self.current_mc_step%self.check_convergence_interval == 0:
-                conv = self.converged()
+                # Check convergence only occationally as this involve
+                # collective communication
+                if self.current_mc_step%self.check_convergence_interval == 0:
+                    conv = self.converged()
+        except Exception as exc:
+            print("Rank {}: {}".format(self.rank, str(exc)))
 
 
 

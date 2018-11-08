@@ -5,6 +5,7 @@ try:
     from cemc.mcmc.mpi_tools import mpi_communicator
     from cemc import CE
     from ase.clease import CEBulk
+    from ase.clease import Concentration
     from ase.clease import CorrFunction
     available = True
     reason = ""
@@ -23,15 +24,11 @@ class TestActivitySampler(unittest.TestCase):
             return
         msg = ""
         # try:
-        conc_args = {
-                    "conc_ratio_min_1": [[1, 0]],
-                    "conc_ratio_max_1": [[0, 1]],
-                }
+        conc = Concentration(basis_elements=[["Al", "Mg"]])
         kwargs = {
             "crystalstructure": "fcc",
             "a": 4.05, "size": [4, 4, 4],
-            "basis_elements": [["Al", "Mg"]],
-            "conc_args": conc_args,
+            "concentration": conc,
             "db_name": "data/temporary_bcnucleationdb.db",
             "max_cluster_size": 3
         }
