@@ -85,10 +85,41 @@ class StrainEnergy(object):
 
         # Off diagonal elements should be multiplied by sqrt(2)
         strain = self.eigenstrain.copy()
-        # strain[3:] = np.sqrt(2)*strain[3:]
-        # sigma[3:] = np.sqrt(2)*sigma[3:]
-        print(C_matrix)
         return -0.5*sigma.dot(strain)
+
+    def is_isotropic(self, matrix, mat_type="mandel"):
+        """Check tensor represent an isotropic material."""
+        factor = 1.0
+        if mat_type == "mandel":
+            factor = 2.0
+        shear = matrix[3, 3]/factor
+        if not np.allclose(np.diag(matrix)[3:]/factor, shear):
+            return False
+
+        if not np.allclose(np.diag(matrix)[:3], matrix[0, 0]):
+            return False
+
+        if not np.allclose(matrix[:3, 3:], 0.0):
+            return False
+        
+        if not np.allclose(matrix[3:, :3], 0.0):
+            return False
+        
+        # Check that all off diagonal elements in the uppder
+        # 3x3 are the same
+        for indx in product([0, 1, 2], repeat=2):
+            if indx[0] == indx[1]:
+                continue
+            if abs(matrix[indx[0], indx[1]] - matrix[0, 1]) > 1E-4:
+                return False
+
+        # At this point we know that the material is
+        # isotropic. Just apply one final consistency check
+        # bulk_mod = matrix[0, 0] - 4.0*shear/3.0
+        # expected = bulk_mod - 2.0*shear/3.0
+        # print(matrix[0,1 ], factor*expected)
+        # assert abs(matrix[0, 1] - factor*expected) < 1E-6
+        return True
 
     def explore_aspect_ratios(self, scale_factor, e_matrix,
                               angle_step=30):
