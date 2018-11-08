@@ -9,6 +9,13 @@ except ImportError as exc:
     available = False
     reason = str(exc)
 
+C_al = np.array([[0.62639459, 0.41086487, 0.41086487, 0, 0, 0],
+                [0.41086487, 0.62639459, 0.41086487, 0, 0, 0],
+                [0.41086487, 0.41086487, 0.62639459, 0, 0, 0],
+                [0, 0, 0, 0.42750351, 0, 0],
+                [0, 0, 0, 0, 0.42750351, 0],
+                [0, 0, 0, 0, 0, 0.42750351]])
+
 
 def kato_et_al_sphere(f, mu, misfit):
     """Return the equivalent strain for a sphere.
@@ -110,7 +117,7 @@ class TestStrainEnergy(unittest.TestCase):
         strain_eng = StrainEnergy(aspect=[2.0, 2.0, 2.0],
                                   eigenstrain=misfit, poisson=mu)
         f = 5.0
-        eq_strain = strain_eng.equivalent_eigenstrain(f)
+        eq_strain = strain_eng.equivalent_eigenstrain(C_matrix=C_al, scale_factor=f)
         kato_et_al = kato_et_al_sphere(f, mu, misfit)
         self.assertTrue(np.allclose(eq_strain, kato_et_al, atol=1E-5))
 
@@ -123,7 +130,7 @@ class TestStrainEnergy(unittest.TestCase):
         strain_eng = StrainEnergy(aspect=[200000000.0, 51200000.0, 0.001],
                                   eigenstrain=misfit, poisson=mu)
         f = 4.0
-        eq_strain = strain_eng.equivalent_eigenstrain(f)
+        eq_strain = strain_eng.equivalent_eigenstrain(C_matrix=C_al, scale_factor=f)
         kato = kato_et_al_plate(f, mu, misfit)
         self.assertTrue(np.allclose(eq_strain, kato, atol=1E-3))
 
@@ -136,7 +143,7 @@ class TestStrainEnergy(unittest.TestCase):
         strain_eng = StrainEnergy(aspect=[50000.0, 5.0, 5.0],
                                   eigenstrain=misfit, poisson=mu)
         f = 9.0
-        eq_strain = strain_eng.equivalent_eigenstrain(f)
+        eq_strain = strain_eng.equivalent_eigenstrain(C_matrix=C_al, scale_factor=f)
         kato = kato_et_al_needle(f, mu, misfit)
         self.assertTrue(np.allclose(eq_strain, kato, atol=1E-3))
 
