@@ -19,12 +19,12 @@ class GaussianClusterTracker(object):
         self.max_num_clusters = max_num_clusters
 
     def add_gaussian(self, mu, sigma=None):
-        from cemc.tools import PeriodicMultivariateGaussian
+        from cemc.tools import MultivariateGaussian
         if sigma is None:
             sigma = np.diag(self._nn_dist**2, 3)
         cell = self.atoms.get_cell()
         self.gaussians.append(
-            PeriodicMultivariateGaussian(cell=cell, mu=mu, sigma=sigma))
+            MultivariateGaussian(cell=cell, mu=mu, sigma=sigma))
         self.num_members.append(0)
         self._next_cluster_id += 1
         return self._next_cluster_id - 1
