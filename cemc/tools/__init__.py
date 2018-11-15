@@ -14,4 +14,4 @@ from cemc.tools.strain_energy import StrainEnergy
 from cemc.tools.peak_extractor import PeakExtractor
 from cemc.tools.harmonics_fit import HarmonicsFit
 from cemc.tools.wulff_construction import WulffConstruction
-from cemc.tools.periodic_multivariate_gaussian import PeriodicMultivariateGaussian
+from cemc.tools.multivariate_gaussian import MultivariateGaussian
