@@ -15,9 +15,6 @@ class MultivariateGaussian(object):
         self._sigma = sigma
         self.normalization = 1.0/np.sqrt(2.0*np.pi*np.linalg.det(self._sigma))
         self.inv_sigma = np.linalg.inv(self._sigma)
-        
-        if self.cell is None:
-            raise TypeError("Cell has to be given!")
 
     @property
     def sigma(self):
@@ -27,10 +24,10 @@ class MultivariateGaussian(object):
     def sigma(self, new_sigma):
         self._sigma = new_sigma
         self.inv_sigma = np.linalg.inv(self._sigma)
-        self.normalization = 1.0/np.sqrt(2.0*np.pi*np.linalg.det(self._sigma))
+        self.normalization = 1.0/np.sqrt((2.0*np.pi)**3 * np.linalg.det(self._sigma))
 
     def __call__(self, x):
         values = x - self._mu
         weight = np.exp(-0.5*values.dot(self.inv_sigma.dot(values.T)))
-        return weight/self.normalization
+        return weight #*self.normalization
 

@@ -1,12 +1,13 @@
 import numpy as np
 from itertools import combinations_with_replacement
+import time
 
 class CouldNotClassifyClusterError(Exception):
     pass
 
 class GaussianClusterTracker(object):
     def __init__(self, atoms=None, threshold=0.001, 
-                 cluster_elements=[], max_num_clusters=100):
+                 cluster_elements=[], num_clusters=1):
         self.atoms = atoms
         self._nn_dist= self._nn_distance()
         self.threshold = threshold
@@ -14,37 +15,54 @@ class GaussianClusterTracker(object):
         self.probability = np.zeros(len(self.atoms))
         self.gaussians = []
         self.num_members = []
+        self.prob_belong = np.zeros((len(atoms), num_clusters))
+
+        cell = self.atoms.get_cell().T
+        for _ in range(num_clusters):
+            w = np.random.rand(3)
+            mu = cell.dot(w)
+            self.add_gaussian(mu)
+
         self.cluster_elements = cluster_elements
-        self._next_cluster_id = 0
-        self.max_num_clusters = max_num_clusters
+        self.frac_per_cluster = np.zeros(num_clusters) + 1.0/num_clusters
+        self.num_clusters = num_clusters
+        self._check_input()
 
     def add_gaussian(self, mu, sigma=None):
         from cemc.tools import MultivariateGaussian
         if sigma is None:
-            sigma = np.diag(self._nn_dist**2, 3)
-        cell = self.atoms.get_cell()
-        self.gaussians.append(
-            MultivariateGaussian(cell=cell, mu=mu, sigma=sigma))
+            length = 2.0*np.max(self.atoms.get_cell_lengths_and_angles()[:3])
+            sigma = np.eye(3)*length**2
+
+        self.gaussians.append(MultivariateGaussian(mu=mu, sigma=sigma))
         self.num_members.append(0)
-        self._next_cluster_id += 1
-        return self._next_cluster_id - 1
+
+    def _check_input(self):
+        """Perform some checks on the users input."""
+        if self.num_cluster_elements <= 1:
+            raise ValueError("There is only one cluster element present!")
+
+    @property
+    def num_cluster_elements(self):
+        return sum(1 for atom in self.atoms 
+                   if atom.symbol in self.cluster_elements)
 
     @property
     def num_clusters(self):
         return len(self.gaussians)
 
-    def likely_hoods(self, x):
+    def likelihoods(self, x):
         """Compute all the likely hoods for all distribution."""
         prob = []
         for gauss in self.gaussians:
             prob.append(gauss(x))
-        return prob/np.sum(prob)
+        return prob
 
     def move_create_new_cluster(self, system_changes):
         """Check if the proposed move create a new cluster."""
         for change in system_changes:
             if change[2] in self.cluster_elements:
-                prob = self.likely_hoods(self.atoms[change[0]].positions)
+                prob = self.likelihoods(self.atoms[change[0]].positions)
                 if np.max(prob) < self.threshold:
                     return True
         return False
@@ -74,7 +92,7 @@ class GaussianClusterTracker(object):
                 self.gaussians[old_uid].sigma = sigma2
                 self.cluster_id[old_uid] = -1
             elif change[1] not in self.cluster_elements and change[2] in self.cluster_elements:
-                prob = self.likely_hoods(self.atoms[change[0]].position)
+                prob = self.likelihoods(self.atoms[change[0]].position)
                 uid = np.argmax(prob)
                 self.cluster_id[change[0]] = uid
                 N = self.num_members[uid]
@@ -91,44 +109,82 @@ class GaussianClusterTracker(object):
     def _nn_distance(self):
         """Find the nearest neighbour distance."""
         indx = list(range(1, len(self.atoms)))
-        dists = self.atoms.get_distance(0, indx)
+        dists = self.atoms.get_distances(0, indx)
         return np.min(dists)
 
-    def _add_gaussian_at_random_pos(self):
-        w = np.random.rand(3)
-        cell = self.atoms.get_cell().T
-        mu = np.sum(cell.dot(w))
-        sigma = 0.0
-        for gauss in self.gaussians:
-            sigma += gauss.sigma
-        sigma /= len(self.gaussians)
+    def add_new_cluster(self):
+        # Find one atom that is not well classified
+        prob = np.argmin(self.probability[self.cluster_id != -1])
+        indx = np.argmin(np.abs(prob - self.probability))
+        mu = self.atoms[indx].position
+        sigma = np.eye(3)*self._nn_dist**2
         self.add_gaussian(mu, sigma=sigma)
 
-    def find_clusters(self, add_cluster_interval=20, max_iter=10000):
+    def find_clusters(self, max_iter=10000):
         """Find all clusters from scratch."""
         # Initially we start by a assuming there
         # exists a spherical cluster at the center
         cell = self.atoms.get_cell()
         center = 0.5*np.sum(cell, axis=0)
-        self.add_gaussian(center)
+        #self.add_gaussian(center)
         converged = False
 
         step = 0
+        now = time.time()
+        prev_cost = 100000000000000.0
+        step = 0
         while not converged:
             step += 1
-            self.classify()
-            self.update_gaussian_parameters()
+            # Expectation step
+            self._calc_belong_prob()
 
-            if step%add_cluster_interval== 0:
-                self._add_gaussian_at_random_pos()
+            # Maximation step
+            m_c = np.sum(self.prob_belong, axis=0)
+            self.frac_per_cluster = m_c/self.prob_belong.shape[0]
+            self.set_mu_sigma()
+            cost = self.log_likelihood()
 
-            indx = np.argwhere(self.cluster_id != -1)
-            if np.min(self.probability[indx]) > self.threshold:
+            if abs(cost - prev_cost) < self.threshold:
                 return
-            if step > max_iter:
-                raise CouldNotClassifyClusterError(
-                    "Reached maximum number of iterations during "
-                    "cluster classification")
+
+            if step >= max_iter:
+                return
+            
+    def set_mu_sigma(self):
+        """Calculate new values for sigma and mu."""
+        for i, gaussian in enumerate(self.gaussians):
+            m_c = np.sum(self.prob_belong[:, i])
+            mu = np.sum(self.prob_belong[:, i]*self.atoms.get_positions())
+            mu /= m_c
+
+            pos = self.atoms.get_positions() - mu
+            r = self.atoms.get_positions()
+            sigma = np.sum(r*pos.T.dot(pos))/m_c
+            gaussian.mu = mu
+            gaussian.sigma = sigma
+
+    def log_likelihood(self):
+        log_likelihood = 0.0
+        count = 0
+        for atom in self.atoms:
+            if atom not in self.cluster_elements:
+                continue
+
+            likeli = np.array(self.likelihoods(atom.position))
+            log_likelihood += np.log(np.sum(self.frac_per_cluster*likeli))
+            count += 1
+        return log_likelihood/count
+
+
+
+    def _calc_belong_prob(self):
+        for atom in self.atoms:
+            if atom.symbol not in self.cluster_elements:
+                continue
+            likeli = np.array(self.likelihoods(atom.position))
+            r = self.frac_per_cluster*likeli/(np.sum(self.frac_per_cluster*likeli))
+            self.prob_belong[atom.index, :] = r
+
 
     def show_clusters(self):
         from ase.gui.gui import GUI
@@ -136,11 +192,9 @@ class GaussianClusterTracker(object):
         all_clusters = []
         self.tag_by_probability()
         for uid in range(len(self.gaussians)):
-            indx = np.argwhere(self.cluster_id == uid)
-            cluster = self.atoms[indx]
+            cluster = self.atoms[self.cluster_id == uid]
             cluster.info = {"name": "Cluster ID: {}".format(uid)}
             all_clusters.append(cluster)
-
         images = Images()
         images.initialize(all_clusters)
         gui = GUI(images)
@@ -150,8 +204,9 @@ class GaussianClusterTracker(object):
     def tag_by_probability(self):
         """Add the probability of belonging to this cluster
            in the tag."""
-        for atom in self.atoms:
-            atom.tag = self.probability[atom.index]
+
+        # Put the weights in the momenta entry
+        self.atoms.arrays["initial_charges"] = self.probability
 
     def classify(self):
         """Classify all atoms."""
@@ -159,28 +214,25 @@ class GaussianClusterTracker(object):
         for atom in self.atoms:
             if atom.symbol not in self.cluster_elements:
                 continue
-            prob = self.likely_hoods(atom.position)
-            uid = np.argmax(prob)
+            #prob = self.likelihoods(atom.position)
+            uid = np.argmax(self.prob_belong[atom.index, :])
             self.cluster_id[atom.index] = uid
-            self.probability[atom.index] = np.max(prob)
+            self.probability[atom.index] = np.max(np.max(self.prob_belong[atom.index, :]))
             self.num_members[uid] += 1
 
     def update_gaussian_parameters(self):
         """Update the parameters of the Gaussians."""
         for uid in range(len(self.gaussians)):
-            indx = np.argwhere(self.cluster_id==uid)
-            pos = self.atoms.get_positions()[indx, :]
-            mu = np.mean(pos, axis=0)
-            sigma = np.zeros((3, 3))
-            mu_muT = np.outer(mu, mu)
-            num = 0
-            for i in range(pos.shape[0]):
-                sigma += np.outer(pos[i, :], pos[i, :]) - mu_muT
-                num += 1
-            sigma /= num
-            
-            self.gaussians[uid].mu = mu
-            self.gaussians[uid].sigma = sigma
+            pos = self.atoms.get_positions()[self.cluster_id==uid, :]
+            if pos.shape[0] >= 2:
+                mu = np.mean(pos, axis=0)
+                sigma = np.zeros((3, 3))
+                mu_muT = np.outer(mu, mu)
+                for i in range(pos.shape[0]):
+                    sigma += np.outer(pos[i, :], pos[i, :]) - mu_muT
+                sigma /= pos.shape[0]
+                self.gaussians[uid].mu = mu
+                self.gaussians[uid].sigma = sigma
             
 
 
