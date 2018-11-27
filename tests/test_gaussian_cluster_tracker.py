@@ -51,13 +51,16 @@ class TestGaussianClusterTracker(unittest.TestCase):
         for i in range(30):
             atoms[i].symbol = "Mg"
             atoms[-i].symbol = "Mg"
-        from ase.visualize import view
-        view(atoms)
-
-        gaussian_ct = GaussianClusterTracker(atoms=atoms, threshold=0.01, cluster_elements=["Mg"],
-                                             num_clusters=2)
+        centroids = [[0.0, 0.0, 0.0], [18, 18, 36]]
+        gaussian_ct = GaussianClusterTracker(atoms=atoms, threshold=0.0001, cluster_elements=["Mg"],
+                                             num_clusters=2, init_centroids=centroids)
         gaussian_ct.find_clusters()
-        gaussian_ct.show_clusters()
+        cluster1 = np.array(range(0, 30))
+        cluster2 = np.array(range(971, 1000))
+        self.assertTrue(np.all(cluster1 == gaussian_ct.get_cluster(0)))
+
+        self.assertTrue(np.all(cluster2 == gaussian_ct.get_cluster(1)))
+
         
 
 if __name__ == "__main__":
