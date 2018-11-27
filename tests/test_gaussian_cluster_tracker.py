@@ -61,6 +61,13 @@ class TestGaussianClusterTracker(unittest.TestCase):
 
         self.assertTrue(np.all(cluster2 == gaussian_ct.get_cluster(1)))
 
+        try:
+            gaussian_ct.show_gaussians(scale=2.0, show=False)
+        except ImportError:
+            pass
+        except Exception as exc:
+            self.fail(str(exc))
+
         
 
 if __name__ == "__main__":

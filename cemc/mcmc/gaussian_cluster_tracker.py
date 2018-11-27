@@ -230,6 +230,83 @@ class GaussianClusterTracker(object):
         gui.show_name = True
         gui.run()
 
+    def show_gaussians(self, scale=1.0, r=1.0, show=True):
+        """Show clusters as ellipsoids."""
+        from mayavi.api import Engine
+        from mayavi import mlab
+        engine = Engine()
+        engine.start()
+        scene = engine.new_scene()
+        scene.scene.disable_render = True # for speed
+        surfs = []
+        self._draw_cell(r=r)
+        for gauss in self.gaussians:
+            surf = self._show_one_gaussian(gauss, engine, scale=scale)
+            surfs.append(surf)
+
+        scene.scene.disable_render = False
+        for i, surf in enumerate(surfs):
+            vtk_srcs = mlab.pipeline.get_vtk_src(surf)
+            vtk_src = vtk_srcs[0]
+            npoints = len(vtk_src.point_data.scalars)
+            vtk_src.point_data.scalars = np.tile(i, npoints)
+
+        if show:
+            mlab.show()
+
+    def _draw_cell(self, color=(0, 0, 0), r=1.0):
+        from mayavi import mlab
+        cell = self.atoms.get_cell()
+        for i in range(3):
+            x = [0, cell[i, 0]]
+            y = [0, cell[i, 1]]
+            z = [0, cell[i, 2]]
+            mlab.plot3d(x, y, z, color=color, tube_radius=r)
+
+            x = [cell[i, 0], cell[i, 0] + cell[(i+1)%3, 0]]
+            y = [cell[i, 1], cell[i, 1] + cell[(i+1)%3, 1]]
+            z = [cell[i, 2], cell[i, 2] + cell[(i+1)%3, 2]]
+            mlab.plot3d(x, y, z, color=color, tube_radius=r)
+
+            x = [cell[i, 0], cell[i, 0] + cell[(i+2)%3, 0]]
+            y = [cell[i, 1], cell[i, 1] + cell[(i+2)%3, 1]]
+            z = [cell[i, 2], cell[i, 2] + cell[(i+2)%3, 2]]
+            mlab.plot3d(x, y, z, color=color, tube_radius=r)
+
+            x = [cell[i, 0] + cell[(i+1)%3, 0], cell[i, 0] + cell[(i+1)%3, 0] + cell[(i+2)%3, 0]]
+            y = [cell[i, 1] + cell[(i+1)%3, 1], cell[i, 1] + cell[(i+1)%3, 1] + cell[(i+2)%3, 1]]
+            z = [cell[i, 2] + cell[(i+1)%3, 2], cell[i, 2] + cell[(i+1)%3, 2] + cell[(i+2)%3, 2]]
+            mlab.plot3d(x, y, z, color=color, tube_radius=r)
+
+    def _show_one_gaussian(self, gauss, engine, scale=1.0):
+        """Plot one of the gaussians."""
+        from mayavi.sources.api import ParametricSurface
+        from mayavi.modules.api import Surface
+        
+        source = ParametricSurface()
+        source.function = 'ellipsoid'
+        engine.add_source(source)
+
+        eigval, eigvec = np.linalg.eig(gauss.sigma)
+
+        angles = rotationMatrixToEulerAngles(eigvec.T)*180.0/np.pi
+        surface = Surface()
+        source.add_module(surface)
+        actor = surface.actor
+
+        actor.property.opacity = 0.5
+        actor.property.color = tuple(np.random.rand(3))
+        actor.mapper.scalar_visibility = False
+        actor.property.backface_culling = True
+        actor.actor.orientation = np.array([0.0, 0.0, 0.0])
+        actor.actor.origin = np.array([0.0, 0.0, 0.0])
+        actor.actor.position = np.array(gauss.mu)
+        actor.actor.scale = np.array(scale*np.sqrt(eigval))
+        actor.actor.rotate_x(angles[0])
+        actor.actor.rotate_y(angles[1])
+        actor.actor.rotate_z(angles[2])
+        return surface
+
     def tag_by_probability(self):
         """Add the probability of belonging to this cluster
            in the tag."""
@@ -263,6 +340,20 @@ class GaussianClusterTracker(object):
                 self.gaussians[uid].mu = mu
                 self.gaussians[uid].sigma = sigma
             
-
+def rotationMatrixToEulerAngles(R) :
+    sy = np.sqrt(R[0,0] * R[0,0] +  R[1,0] * R[1,0])
+     
+    singular = sy < 1e-6
+ 
+    if  not singular :
+        x = np.arctan2(R[2,1] , R[2,2])
+        y = np.arctan2(-R[2,0], sy)
+        z = np.arctan2(R[1,0], R[0,0])
+    else :
+        x = np.arctan2(-R[1,2], R[1,1])
+        y = np.arctan2(-R[2,0], sy)
+        z = 0
+ 
+    return np.array([x, y, z])
 
 
