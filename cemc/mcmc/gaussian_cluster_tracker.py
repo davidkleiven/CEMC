@@ -231,7 +231,13 @@ class GaussianClusterTracker(object):
         gui.run()
 
     def show_gaussians(self, scale=1.0, r=1.0, show=True):
-        """Show clusters as ellipsoids."""
+        """Show clusters as ellipsoids.
+        
+        :param float scale: Number of standard deviations to show
+        :param float r: Thickness of the tubes used to represent
+            the unit cell
+        :param bool show: If True mlab.show() is executed
+        """
         from mayavi.api import Engine
         from mayavi import mlab
         engine = Engine()
