@@ -14,7 +14,7 @@ using namespace std;
 
 const unsigned int WangLandauSampler::num_threads = omp_get_max_threads(); // Use the maximum number of threads
 
-WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject *ecis, PyObject *py_wl_in )
+WangLandauSampler::WangLandauSampler(PyObject *atoms, PyObject *BC, PyObject *corrFunc, PyObject *ecis, PyObject *py_wl_in )
 {
 
   // Initialize the seeds for the different threads
@@ -25,7 +25,7 @@ WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject
   }
 
   CEUpdater updater;
-  updater.init(nullptr, BC, corrFunc, ecis);
+  updater.init(atoms, BC, corrFunc, ecis);
 
   #ifdef WANG_LANDAU_DEBUG
     cout << "Initializing the wanglandau object\n";
