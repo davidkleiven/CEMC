@@ -40,12 +40,8 @@ ceBulk.reconfigure_settings()  # Nessecary for the unittest to pass
 mc_cell_size = [10, 10, 10]
 from cemc import get_atoms_with_ce_calc
 
-calc = get_atoms_with_ce_calc(ceBulk, kwargs, eci=eci, size=mc_cell_size,
+atoms = get_atoms_with_ce_calc(ceBulk, kwargs, eci=eci, size=mc_cell_size,
                    db_name="sgc_large.db")
-
-# Now er are finished with the template CEBulk
-ceBulk = calc.BC
-ceBulk.atoms.set_calculator( calc )
 
 # In the SGC ensemble the simulation is run at fixed chemical potential
 # The chemical potentials are subtracted from the singlet terms
@@ -61,7 +57,7 @@ T = 400
 
 from cemc.mcmc import SGCMonteCarlo
 
-mc = SGCMonteCarlo( ceBulk.atoms, T, symbols=["Al","Mg"] )
+mc = SGCMonteCarlo(atoms, T, symbols=["Al","Mg"])
 
 # To make the exampl fast, we don't equillibriate the system
 # In general, it is a good idea to equillibriate the system

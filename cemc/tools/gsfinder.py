@@ -15,7 +15,7 @@ class GSFinder(object):
         """
         self.constraints.append(constraint)
 
-    def get_gs(self, BC, ecis=None, composition=None, temps=None, n_steps_per_temp=1000):
+    def get_gs(self, BC, ecis=None, composition=None, temps=None, n_steps_per_temp=1000, atoms=None):
         """
         Computes the ground states
 
@@ -25,14 +25,16 @@ class GSFinder(object):
         :param temps: List of cooling temperatures
         :param n_steps_per_temp: Number of MC steps per temperature
         """
-        if BC.atoms.get_calculator() is None:
+        if atoms is None:
+            atoms = BC.atoms.copy()
+
+        if atoms.get_calculator() is None:
             if ecis is None:
                 raise ValueError("When a calculator is not attached "
                                  "the ECIs has to be given!")
-            calc = CE(BC, ecis)
-            BC.atoms.set_calculator(calc)
+            calc = CE(atoms, BC, ecis)
         else:
-            calc = BC.atoms.get_calculator()
+            calc = atoms.get_calculator()
         #print (calc.get_cf())
         if ( temps is None ):
             temps = np.linspace( 1, 1500, 30 )[::-1]
@@ -42,7 +44,7 @@ class GSFinder(object):
         minimum_energy = LowestEnergyStructure( calc, None )
         for T in temps:
             print ("Temperature {}".format(T) )
-            mc_obj = Montecarlo( BC.atoms, T )
+            mc_obj = Montecarlo(atoms, T)
             mc_obj.constraints = self.constraints
             minimum_energy.mc_obj = mc_obj
             mc_obj.attach( minimum_energy )

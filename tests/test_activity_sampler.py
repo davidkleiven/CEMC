@@ -37,15 +37,14 @@ class TestActivitySampler(unittest.TestCase):
         cf = CorrFunction(ceBulk)
         cf = cf.get_cf(ceBulk.atoms)
         ecis = {key: 1.0 for key in cf.keys()}
-        calc = CE(ceBulk, ecis)
-        ceBulk = calc.BC
-        ceBulk.atoms.set_calculator(calc)
+        atoms = ceBulk.atoms.copy()
+        calc = CE(atoms, ceBulk, ecis)
 
         T = 500
         c_mg = 0.4
         comp = {"Mg": c_mg, "Al": 1.0-c_mg}
         calc.set_composition(comp)
-        act_sampler = ActivitySampler(ceBulk.atoms, T,
+        act_sampler = ActivitySampler(atoms, T,
                                       moves=[("Al", "Mg")], mpicomm=comm)
         act_sampler.runMC(mode="fixed", steps=1000)
         act_sampler.get_thermodynamic()
