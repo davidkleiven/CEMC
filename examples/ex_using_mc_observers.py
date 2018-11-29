@@ -30,12 +30,10 @@ ceBulk = CEBulk( **kwargs )
 ceBulk.reconfigure_settings()  # Nessecary for the unittests to pass
 # Now we want to get a Cluster Expansion calculator for a big cell
 mc_cell_size = [10,10,10]
-from cemc import get_ce_calc
+from cemc import get_atoms_with_ce_calc
 
-calc = get_ce_calc( ceBulk, kwargs, eci=eci, size=mc_cell_size, db_name="mc_obs.db")
-ceBulk = calc.BC
-ceBulk.atoms.set_calculator(calc)
-
+atoms = get_atoms_with_ce_calc(ceBulk, kwargs, eci=eci, size=mc_cell_size, db_name="mc_obs.db")
+calc = atoms.get_calculator()
 conc = {
     "Al":0.8,
     "Mg":0.2
@@ -45,7 +43,7 @@ calc.set_composition(conc)
 # Now we import the Monte Carlo class
 from cemc.mcmc.montecarlo import Montecarlo
 T = 400 # Run the simulation at 400K
-mc_obj = Montecarlo( ceBulk.atoms, T )
+mc_obj = Montecarlo(atoms, T)
 
 # Now we define the observers
 from cemc.mcmc import CorrelationFunctionTracker, PairCorrelationObserver, Snapshot, LowestEnergyStructure, NetworkObserver
@@ -64,7 +62,7 @@ pair_obs = PairCorrelationObserver(calc)
 
 # This function takes a snap shot of the system and collects
 # them in a trajectory file
-snapshot = Snapshot( trajfile="demo.traj", atoms=ceBulk.atoms )
+snapshot = Snapshot( trajfile="demo.traj", atoms=atoms )
 
 # This observer stores the structure having the lowest energy
 low_en = LowestEnergyStructure( calc, mc_obj )
@@ -73,7 +71,7 @@ low_en = LowestEnergyStructure( calc, mc_obj )
 network_obs = NetworkObserver( calc=calc, cluster_name=[get_example_network_name(ceBulk)], element=["Mg"])
 
 # This tracks the average number of sites that where the symbol as changed
-site_order = SiteOrderParameter(ceBulk.atoms)
+site_order = SiteOrderParameter(atoms)
 
 # Energy evolution. Useful to check if the system has been equilibrated
 energy_evol = EnergyEvolution(mc_obj)

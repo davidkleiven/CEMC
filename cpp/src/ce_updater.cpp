@@ -26,8 +26,9 @@ CEUpdater::~CEUpdater()
   }
 }
 
-void CEUpdater::init(PyObject *BC, PyObject *corrFunc, PyObject *pyeci)
+void CEUpdater::init(PyObject *py_atoms, PyObject *BC, PyObject *corrFunc, PyObject *pyeci)
 {
+  atoms = py_atoms;
   if (BC == nullptr)
   {
     throw invalid_argument("CEBulk object is nullptr!");
@@ -36,12 +37,6 @@ void CEUpdater::init(PyObject *BC, PyObject *corrFunc, PyObject *pyeci)
   #ifdef CE_DEBUG
     cerr << "Getting symbols from BC object\n";
   #endif
-  // Initialize the symbols
-  atoms = PyObject_GetAttrString( BC, "atoms" );
-  if ( atoms == nullptr )
-  {
-    throw invalid_argument("BC atoms returned NULL!");
-  }
 
   int n_atoms = PyObject_Length( atoms );
   if (n_atoms < 0)

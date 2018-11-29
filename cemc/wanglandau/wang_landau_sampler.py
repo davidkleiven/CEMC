@@ -458,7 +458,7 @@ class WangLandau( object ):
         corrFunc = self.atoms._calc.updater.get_cf()
         ecis = self.atoms._calc.eci
 
-        fast_wl_sampler = PyWangLandauSampler(BC, corrFunc, ecis, self)
+        fast_wl_sampler = PyWangLandauSampler(self.atoms, BC, corrFunc, ecis, self)
 
         if ( mode == "adaptive_windows" ):
             fast_wl_sampler.use_adaptive_windows( minimum_window_width )

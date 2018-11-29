@@ -1,4 +1,4 @@
-from cemc.ce_calculator import CE, get_ce_calc
+from cemc.ce_calculator import CE, get_atoms_with_ce_calc
 from ase.clease import CECrystal
 from ase.clease import CEBulk
 from ase.clease import Concentration
@@ -38,9 +38,9 @@ def get_small_BC_with_ce_calc(lat="fcc"):
     cf = CorrFunction(ceBulk)
     corrfuncs = cf.get_cf(ceBulk.atoms)
     eci = {name:1.0 for name in corrfuncs.keys()}
-    calc = CE( ceBulk, eci )
-    ceBulk.atoms.set_calculator(calc)
-    return ceBulk
+    calc = CE(ceBulk.atoms.copy(), ceBulk, eci)
+    #ceBulk.atoms.set_calculator(calc)
+    return ceBulk, calc
 
 def get_ternary_BC(ret_args=False):
     db_name = "test_db_ternary.db"
@@ -85,7 +85,7 @@ def get_example_ecis(bc=None):
     eci = {key:0.001 for key in cf.keys()}
     return eci
 
-def get_example_cf(bc=None):
+def get_example_cf(bc=None, atoms=None):
     cf = CorrFunction(bc)
-    cf = cf.get_cf(bc.atoms)
+    cf = cf.get_cf(atoms)
     return cf

@@ -28,8 +28,8 @@ eci = get_example_ecis(bc=bc)
 
 # Initialize a Cluster Expansion calculator (C++ version is required)
 from cemc import CE
-calc = CE( bc, eci )
-bc.atoms.set_calculator(calc)
+atoms = bc.atoms.copy()
+calc = CE(atoms, bc, eci)
 
 # NOTE: At this point all changes to the atoms object has to be done via
 # the calculator. The reason is that the calculator keeps track of the
@@ -62,7 +62,7 @@ from cemc.mcmc.montecarlo import Montecarlo
 
 # Loop over temperatures
 for T in temps:
-    mc_obj = Montecarlo( bc.atoms, T )
+    mc_obj = Montecarlo(atoms, T)
 
     # Give the Lowest Energy Structure a reference to the monte carlo object
     obs.mc_obj = mc_obj
@@ -78,7 +78,7 @@ gs_atoms = obs.lowest_energy_atoms
 # as above is to use the GSFinder class
 from cemc.tools import GSFinder
 gs_search = GSFinder()
-gs = gs_search.get_gs(bc, eci, temps=temps, n_steps_per_temp=100)
+gs = gs_search.get_gs(bc, eci, temps=temps, n_steps_per_temp=100, composition=composition)
 
 """
 gs is now a dictionary with the following form

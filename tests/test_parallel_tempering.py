@@ -23,9 +23,9 @@ class TestParallelTempering(unittest.TestCase):
                              max_cluster_size=2, max_cluster_dia=4.0)
         ceBulk.reconfigure_settings()
         ecis = get_example_ecis(bc=ceBulk)
-        calc = CE(ceBulk, ecis)
-        ceBulk.atoms.set_calculator(calc)
-        return ceBulk
+        atoms = ceBulk.atoms.copy()
+        calc = CE(atoms, ceBulk, ecis)
+        return ceBulk, atoms
 
     def test_no_throw(self):
         if not available:
@@ -34,8 +34,8 @@ class TestParallelTempering(unittest.TestCase):
         msg = ""
         no_throw = True
         try:
-            ceBulk = self.init_bulk_crystal()
-            mc = Montecarlo(ceBulk.atoms, 100.0)
+            ceBulk, atoms = self.init_bulk_crystal()
+            mc = Montecarlo(atoms, 100.0)
             mc.insert_symbol_random_places("Mg", num=5, swap_symbs=["Al"])
             mc.insert_symbol_random_places("Si", num=5, swap_symbs=["Al"])
             par_temp = ParallelTempering(mc_obj=mc, Tmax=100.0, Tmin=0.001)

@@ -86,7 +86,7 @@ class PhaseBoundaryTracker(object):
             gs_energy = 0.0
             for key in ground_state["eci"].keys():
                 gs_energy += ground_state["eci"][key] * ground_state["cf"][key]
-            energy.append(len(ground_state["bc"].atoms) * gs_energy)
+            energy.append(len(ground_state["atoms"]) * gs_energy)
         return energy
 
     def _get_init_chem_pot(self):
@@ -103,8 +103,8 @@ class PhaseBoundaryTracker(object):
                 ref_singlet = self._ground_states[0]["cf"][self._singlet_names[j]]
                 singlet = self._ground_states[i + 1]["cf"][self._singlet_names[j]]
                 matrix[i, j] = (ref_singlet - singlet)
-            energy_ref = gs_energies[0] / len(self._ground_states[0]["bc"].atoms)
-            energy = gs_energies[i + 1] / len(self._ground_states[i + 1]["bc"].atoms)
+            energy_ref = gs_energies[0] / len(self._ground_states[0]["atoms"])
+            energy = gs_energies[i + 1] / len(self._ground_states[i + 1]["atoms"])
             energy_vector[i] = energy_ref - energy
 
         mu_boundary = np.linalg.solve(matrix, energy_vector)
@@ -227,9 +227,9 @@ class PhaseBoundaryTracker(object):
                                  1][get_singlet_name(self._singlet_names[j])]
                 matrix[i, j] = ref_singlet - singlet
             ref_energy = thermo[0]["energy"] / \
-                len(self._ground_states[0]["bc"].atoms)
+                len(self._ground_states[0]["atoms"])
             energy = thermo[i + 1]["energy"] / \
-                len(self._ground_states[i + 1]["bc"].atoms)
+                len(self._ground_states[i + 1]["atoms"])
             energy_vector[i] = ref_energy - energy
         inv_matrix = np.linalg.inv(matrix)
         rhs = inv_matrix.dot(energy_vector) / beta - chem_pot_array / beta
@@ -342,7 +342,7 @@ class PhaseBoundaryTracker(object):
         for ground_state in self._ground_states:
             self._sgc_obj.append(
                 SGCMonteCarlo(
-                    ground_state["bc"].atoms,
+                    ground_state["atoms"],
                     init_temp,
                     symbols=symbols,
                     mpicomm=mpicomm))
@@ -494,7 +494,7 @@ def check_gs_argument(ground_state):
 
     :param ground_state: Ground state structure
     """
-    required_fields = ["bc", "cf", "eci"]
+    required_fields = ["bc", "cf", "eci", "atoms"]
     keys = ground_state.keys()
     for key in keys:
         if key not in required_fields:

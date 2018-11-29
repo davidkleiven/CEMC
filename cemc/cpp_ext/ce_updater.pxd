@@ -11,7 +11,7 @@ cdef extern from "ce_updater.hpp":
       CEUpdater() except +
 
       # Initialize the object
-      void init(object BC, object corrFunc, object ecis) except +
+      void init(object atoms, object BC, object corrFunc, object ecis) except +
 
       # Clear update history
       void clear_history()

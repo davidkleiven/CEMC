@@ -3,7 +3,7 @@ import os
 try:
     has_CE = True
     from ase.clease import CEBulk, CorrFunction, Concentration
-    from cemc import get_ce_calc
+    from cemc import get_atoms_with_ce_calc
     from cemc.mcmc import SGCFreeEnergyBarrier
 except ImportError as exc:
     print (str(exc))
@@ -34,20 +34,18 @@ class TestFreeEnergy( unittest.TestCase ):
 
 
             #calc = CE( ceBulk, ecis, size=(3,3,3) )
-            calc = get_ce_calc(ceBulk, kwargs, ecis, size=[6,6,6],
+            atoms = get_atoms_with_ce_calc(ceBulk, kwargs, ecis, size=[6,6,6],
                                db_name="sc6x6x6.db")
-            ceBulk = calc.BC
-            ceBulk.atoms.set_calculator( calc )
             chem_pot = {"c1_0":-1.069}
 
             T = 300
-            mc = SGCFreeEnergyBarrier( ceBulk.atoms, T, symbols=["Al","Mg"], \
+            mc = SGCFreeEnergyBarrier( atoms, T, symbols=["Al","Mg"], \
             n_windows=5, n_bins=10, min_singlet=0.5, max_singlet=1.0 )
             mc.run( nsteps=100, chem_pot=chem_pot )
             mc.save( fname="free_energy_barrier.json" )
 
             # Try to load the object stored
-            mc = SGCFreeEnergyBarrier.load( ceBulk.atoms, "free_energy_barrier.json")
+            mc = SGCFreeEnergyBarrier.load( atoms, "free_energy_barrier.json")
             mc.run( nsteps=100, chem_pot=chem_pot )
             mc.save( fname="free_energy_barrier.json" )
             os.remove("sc6x6x6.db")

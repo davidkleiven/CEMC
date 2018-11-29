@@ -17,11 +17,11 @@ cdef class PyCEUpdater:
     def __dealloc__(self):
         del self._cpp_class
 
-    def __init__(self, bc, corr_func, eci):
+    def __init__(self, atoms, bc, corr_func, eci):
         self.bc = bc
         self.corr_func = corr_func
         self.eci = eci
-        self._cpp_class.init(bc, corr_func, eci)
+        self._cpp_class.init(atoms, bc, corr_func, eci)
 
     def clear_history(self):
         self._cpp_class.clear_history()

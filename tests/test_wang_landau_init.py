@@ -12,6 +12,11 @@ except Exception as exc:
     print (exc)
     has_CE = False
 
+    # Define a dummy class in case of import error
+    class Concentration(object):
+        def __init__(self, basis_elements=None):
+            pass
+
 db_name = "temp_db_wanglandau.db"
 wl_db_name = "wanglandau_test_init.db"
 conc = Concentration(basis_elements=[["Al", "Mg"]])

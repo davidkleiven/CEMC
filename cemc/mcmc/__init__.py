@@ -36,3 +36,4 @@ from cemc.mcmc.bias_potential import InertiaBiasPotential
 from cemc.mcmc.inertia_reaction_crd import InertiaCrdInitializer, InertiaRangeConstraint
 from cemc.mcmc.parallel_tempering import ParallelTempering
 from cemc.mcmc.adaptive_bias_reac_path import AdaptiveBiasReactionPathSampler
+from cemc.mcmc.gaussian_cluster_tracker import GaussianClusterTracker

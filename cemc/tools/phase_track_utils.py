@@ -44,9 +44,9 @@ class CECalculators(object):
         self.calcs = []
         self.orig_symbols = []
         for ground_state in ground_states:
-            self.calcs.append(CE(ground_state["bc"], ground_state["eci"], initial_cf=ground_state["cf"]))
-            ground_state["bc"].atoms.set_calculator(self.calcs[-1])
-            symbs = [atom.symbol for atom in ground_state["bc"].atoms]
+            self.calcs.append(CE(ground_state["atoms"], ground_state["bc"], 
+                                 ground_state["eci"], initial_cf=ground_state["cf"]))
+            symbs = [atom.symbol for atom in ground_state["atoms"]]
             self.orig_symbols.append(symbs)
 
     def reset(self):
