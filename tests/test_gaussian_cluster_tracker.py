@@ -68,6 +68,71 @@ class TestGaussianClusterTracker(unittest.TestCase):
         except Exception as exc:
             self.fail(str(exc))
 
+    def test_updates(self):
+        if not available:
+            self.skipTest(skip_msg)
+
+        atoms = bulk("Al", a=4.05)*(10, 10, 10)
+        for i in range(30):
+            atoms[i].symbol = "Mg"
+        gaussian_ct = GaussianClusterTracker(atoms=atoms, threshold=0.0001, cluster_elements=["Mg"],
+                                            num_clusters=1)  
+        gaussian_ct.find_clusters()
+
+        N = len(atoms)
+        sigma_orig = gaussian_ct.gaussians[0].sigma
+        mu_orig = gaussian_ct.gaussians[0].mu
+        pos = atoms[:30].get_positions()
+        self.assertTrue(np.allclose(np.mean(pos, axis=0), mu_orig))
+
+        # Test single change. Extend cluster
+        syst_change = [(60, "Al", "Mg")]
+        gaussian_ct.update_clusters(syst_change)
+        atoms[60].symbol = "Mg"
+        sigma = gaussian_ct.gaussians[0].sigma.copy()
+        mu = gaussian_ct.gaussians[0].mu.copy()
+        gaussian_ct.find_clusters()
+        sigma_exc = gaussian_ct.gaussians[0].sigma
+        mu_exc = gaussian_ct.gaussians[0].mu
+        self.assertTrue(np.allclose(mu_exc, mu))
+        self.assertTrue(np.allclose(sigma_exc, sigma))
+
+        # Test single change. Remove element
+        syst_change = [(0, "Mg", "Al")]
+        gaussian_ct.update_clusters(syst_change)
+        atoms[0].symbol = "Al"
+        sigma = gaussian_ct.gaussians[0].sigma.copy()
+        mu = gaussian_ct.gaussians[0].mu.copy()
+        gaussian_ct.find_clusters()
+        sigma_exc = gaussian_ct.gaussians[0].sigma
+        mu_exc = gaussian_ct.gaussians[0].mu
+        self.assertTrue(np.allclose(mu_exc, mu))
+        self.assertTrue(np.allclose(sigma_exc, sigma))
+
+
+        # Perform 100 updates and enure that the gaussian is good
+        for _ in range(100):
+            indx1 = np.random.randint(low=0, high=N)
+            symb1 =atoms[indx1].symbol
+            symb2 = symb1
+            while symb2 == symb1:
+                indx2 = np.random.randint(low=0, high=N)
+                symb2 = atoms[indx2].symbol
+            syst_change = [(indx1, symb1, symb2), (indx2, symb2, symb1)]
+            gaussian_ct.update_clusters(syst_change)
+            atoms[indx1].symbol = symb2
+            atoms[indx2].symbol = symb1
+
+        sigma = gaussian_ct.gaussians[0].sigma.copy()
+        mu = gaussian_ct.gaussians[0].mu.copy()
+
+        gaussian_ct.find_clusters()
+        sigma_exc = gaussian_ct.gaussians[0].sigma
+        mu_exc = gaussian_ct.gaussians[0].mu
+
+        self.assertTrue(np.allclose(sigma, sigma_exc))
+        self.assertTrue(np.allclose(mu, mu_exc))
+
         
 
 if __name__ == "__main__":

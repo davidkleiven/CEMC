@@ -33,6 +33,7 @@ class GaussianClusterTracker(object):
         self.frac_per_cluster = np.zeros(num_clusters) + 1.0/num_clusters
         self.output_every = 20
         self._check_input()
+        self.penalty = self._nn_distance()**2
 
     def add_gaussian(self, mu, sigma=None):
         from cemc.tools import MultivariateGaussian
@@ -93,10 +94,13 @@ class GaussianClusterTracker(object):
 
     def update_clusters(self, system_changes):
         """Classify and update the cluster values."""
+        # Currently only works with one cluster
+        assert self.num_clusters == 1
+
         for change in system_changes:
+            x = self.atoms[change[0]].position
             if change[1] in self.cluster_elements and change[2] not in self.cluster_elements:
                 # One atom is removed
-                x = self.atoms[change[0]].position
                 old_uid = self.cluster_id[change[0]]
                 mu = self.gaussians[old_uid].mu
                 sigma1 = self.gaussians[old_uid].sigma
@@ -106,26 +110,28 @@ class GaussianClusterTracker(object):
                 N = self.num_members[old_uid]
                 mu1_mu1T = np.outer(mu, mu)
                 mu2_mu2T = np.outer(mu2, mu2)
-                
+
                 if N > 1:
                     mu2 = (N*mu - x)/(N-1)
-                    sigma2 = (N*sigma1 + mu1_mu1T - np.outer(x, x) - mu2_mu2T)/(N-1)
+                    mu2_mu2T = np.outer(mu2, mu2)
+                    sigma2 = (N*sigma1 + N*mu1_mu1T - np.outer(x, x))/(N-1) - mu2_mu2T - np.eye(3)*self.penalty/(N-1)
 
                 self.num_members[old_uid] = N-1
                 self.gaussians[old_uid].mu = mu2
                 self.gaussians[old_uid].sigma = sigma2
                 self.cluster_id[old_uid] = -1
             elif change[1] not in self.cluster_elements and change[2] in self.cluster_elements:
+                # One atom is added to the cluster
                 prob = self.likelihoods(self.atoms[change[0]].position)
                 uid = np.argmax(prob)
                 self.cluster_id[change[0]] = uid
                 N = self.num_members[uid]
                 mu = self.gaussians[uid].mu
-                sigma1 = self.gaussians[old_uid].sigma
-                mu2 = (N*mu + self.atoms[change[0]].position)/(N+1)
+                sigma1 = self.gaussians[uid].sigma
+                mu2 = (N*mu + x)/(N+1)
                 mu1_mu1T = np.outer(mu, mu)
                 mu2_mu2T = np.outer(mu2, mu2)
-                sigma2 = (N*sigma1 + mu1_mu1T + np.outer(x, x) - mu2_mu2T)/(N+1)
+                sigma2 = (N*sigma1 + N*mu1_mu1T + np.outer(x, x))/(N+1) - mu2_mu2T + np.eye(3)*self.penalty/(N+1)
                 self.gaussians[uid].mu = mu2
                 self.gaussians[uid].sigma = sigma2
                 self.num_members[uid] = N+1
@@ -141,7 +147,7 @@ class GaussianClusterTracker(object):
         prob = np.argmin(self.probability[self.cluster_id != -1])
         indx = np.argmin(np.abs(prob - self.probability))
         mu = self.atoms[indx].position
-        sigma = np.eye(3)*self._nn_dist**2
+        sigma = np.eye(3)*self.penalty
         self.add_gaussian(mu, sigma=sigma)
 
     def find_clusters(self, max_iter=10000):
@@ -149,12 +155,13 @@ class GaussianClusterTracker(object):
         # Initially we start by a assuming there
         # exists a spherical cluster at the center
         converged = False
-
         step = 0
         now = time.time()
         prev_cost = 100000000000000.0
         step = 0
+        print("here")
         while not converged:
+            print(self.gaussians[0].mu)
             if step > 1:
                 self.recenter_gaussians()
 
@@ -191,7 +198,7 @@ class GaussianClusterTracker(object):
             pos -= mu
             sigma = pos.T.dot(np.diag(r)).dot(pos)/m_c
 
-            sigma += np.eye(3)*self._nn_distance()**2
+            sigma += np.eye(3)*self.penalty
             gaussian.mu = mu
             gaussian.sigma = sigma
 
@@ -208,6 +215,7 @@ class GaussianClusterTracker(object):
         return log_likelihood/count
 
     def _calc_belong_prob(self):
+        self.prob_belong[:, :] = 0.0
         for atom in self.atoms:
             if atom.symbol not in self.cluster_elements:
                 continue
@@ -323,6 +331,7 @@ class GaussianClusterTracker(object):
     def classify(self):
         """Classify all atoms."""
         self.num_members = [0 for _ in range(len(self.num_members))]
+        self.cluster_id[:] = -1
         for atom in self.atoms:
             if atom.symbol not in self.cluster_elements:
                 continue

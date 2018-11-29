@@ -11,7 +11,7 @@ class MultivariateGaussian(object):
     :param numpy.ndarray sigma: Covariance matrix (3x3)
     """
     def __init__(self, mu=np.zeros(3), sigma=np.eye(3)):
-        self._mu = mu
+        self.mu = mu
         self._sigma = sigma
         self.normalization = 1.0/np.sqrt((2.0*np.pi)**3 *np.linalg.det(self._sigma))
         self.inv_sigma = np.linalg.inv(self._sigma)
@@ -28,7 +28,7 @@ class MultivariateGaussian(object):
         self.normalization = 1.0/np.sqrt((2.0*np.pi)**3 * np.linalg.det(self._sigma))
 
     def __call__(self, x):
-        values = x - self._mu
+        values = x - self.mu
         weight = np.exp(-0.5*values.dot(self.inv_sigma.dot(values.T)))
         return weight * self.normalization
 
