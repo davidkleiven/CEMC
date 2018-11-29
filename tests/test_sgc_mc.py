@@ -184,11 +184,9 @@ class TestSGCMC(unittest.TestCase):
             kw_args_cpy = deepcopy(kwargs)
             ceBulk = CEBulk(**kw_args_cpy)
             ecis = get_example_ecis(ceBulk)
-            calc = get_atoms_with_ce_calc(ceBulk, kwargs,  eci=ecis, size=[3, 3, 3], 
+            atoms = get_atoms_with_ce_calc(ceBulk, kwargs,  eci=ecis, size=[3, 3, 3], 
                             db_name="ignore_test_large.db")
-            
-            atoms = calc.atoms
-            atoms.set_calculator(calc)
+            calc = atoms.get_calculator()
 
             # Insert some Li atoms
             num_li = 5

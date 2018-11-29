@@ -47,10 +47,8 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             cf = cf.get_cf(ceBulk.atoms)
 
             ecis = {key: 0.001 for key in cf.keys()}
-            calc = get_atoms_with_ce_calc(ceBulk, kwargs, ecis, size=[5, 5, 5],
+            atoms = get_atoms_with_ce_calc(ceBulk, kwargs, ecis, size=[5, 5, 5],
                                db_name="sc5x5x5.db")
-            ceBulk = calc.BC
-            ceBulk.atoms.set_calculator(calc)
 
             chem_pot = {"c1_0": -1.0651526881167124}
             sampler = NucleationSampler(
@@ -61,26 +59,27 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             nn_name = get_network_name(ceBulk.cluster_family_names_by_size)
 
             mc = SGCNucleation(
-                ceBulk.atoms, 30000, nucleation_sampler=sampler,
+                atoms, 30000, nucleation_sampler=sampler,
                 network_name=[nn_name],  network_element=["Mg"],
                 symbols=["Al", "Mg"], chem_pot=chem_pot)
             mc.runMC(steps=2)
             sampler.save(fname="test_nucl.h5")
 
             mc = CanonicalNucleationMC(
-                ceBulk.atoms, 300, nucleation_sampler=sampler,
+                atoms, 300, nucleation_sampler=sampler,
                 network_name=[nn_name],  network_element=["Mg"],
                 concentration={"Al": 0.8, "Mg": 0.2}
                 )
-            symbs = [atom.symbol for atom in ceBulk.atoms]
+            symbs = [atom.symbol for atom in atoms]
             symbs[0] = "Mg"
             symbs[1] = "Mg"
             mc.set_symbols(symbs)
             mc.runMC(steps=2)
             sampler.save(fname="test_nucl_canonical.h5")
             elements = {"Mg": 6}
+            calc = atoms.get_calculator()
             calc.set_composition({"Al": 1.0, "Mg": 0.0})
-            mc = FixedNucleusMC(ceBulk.atoms, 300,
+            mc = FixedNucleusMC(atoms, 300,
                                 network_name=[nn_name], network_element=["Mg"])
             mc.insert_symbol_random_places("Mg", num=1, swap_symbs=["Al"])
             mc.runMC(steps=2, elements=elements, init_cluster=True)
@@ -188,16 +187,17 @@ class TestNuclFreeEnergy( unittest.TestCase ):
         no_throw = True
         try:
             bc = get_ternary_BC()
+            atoms = bc.atoms.copy()
             ecis = get_example_ecis(bc=bc)
-            calc = CE(bc, eci=ecis)
-            bc.atoms.set_calculator(calc)
+            calc = CE(atoms, bc, eci=ecis)
+            #bc.atoms.set_calculator(calc)
 
             T = 200
             nn_names = [name for name in bc.cluster_family_names
                         if int(name[1]) == 2]
 
             mc = FixedNucleusMC(
-                bc.atoms, T, network_name=nn_names,
+                atoms, T, network_name=nn_names,
                 network_element=["Mg", "Si"])
 
             elements = {"Mg": 4, "Si": 4}
@@ -229,16 +229,14 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             from cemc.mcmc import InertiaTensorObserver
             bc, args = get_ternary_BC(ret_args=True)
             ecis = get_example_ecis(bc=bc)
-            calc = get_atoms_with_ce_calc(bc, args, eci=ecis, size=[8, 8, 8], db_name="inertia_obs.db")
-            bc = calc.BC
-            bc.atoms.set_calculator(calc)
+            atoms = get_atoms_with_ce_calc(bc, args, eci=ecis, size=[8, 8, 8], db_name="inertia_obs.db")
 
             T = 200
             nn_names = [name for name in bc.cluster_family_names
                         if int(name[1]) == 2]
 
             mc = FixedNucleusMC(
-                bc.atoms, T, network_name=nn_names,
+                atoms, T, network_name=nn_names,
                 network_element=["Mg", "Si"])
 
             fixed_layers = FixEdgeLayers(atoms=mc.atoms, thickness=3.0)

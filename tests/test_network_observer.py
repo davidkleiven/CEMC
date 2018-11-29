@@ -54,18 +54,19 @@ class TestNetworkObs( unittest.TestCase ):
                 concentration=conc,
                 db_name=db_name, max_cluster_size=3)
             ceBulk.reconfigure_settings()
+
             cf = CorrFunction(ceBulk)
-            cf = cf.get_cf(ceBulk.atoms)
+            atoms = ceBulk.atoms.copy()
+            cf = cf.get_cf(atoms)
             eci = {key:0.001 for key in cf.keys()}
-            calc = CE( ceBulk, eci=eci )
-            ceBulk.atoms.set_calculator(calc)
+            calc = CE(atoms, ceBulk, eci=eci)
             trans_mat = ceBulk.trans_matrix
 
             for name, info in ceBulk.cluster_info[0].items():
                 if info["size"] == 2:
                     net_name = name
                     break
-            obs = NetworkObserver( calc=calc, cluster_name=[net_name], element=["Mg"])
+            obs = NetworkObserver(calc=calc, cluster_name=[net_name], element=["Mg"])
 
             # Several hard coded tests
             calc.update_cf( (0,"Al","Mg") )
@@ -81,6 +82,7 @@ class TestNetworkObs( unittest.TestCase ):
                 size += 1
             obs.get_indices_of_largest_cluster_with_neighbours()
             os.remove("test_db_network.db")
+
         except Exception as exc:
             msg = "{}: {}".format(type(exc).__name__, str(exc))
             no_throw = False

@@ -39,7 +39,8 @@ class WangLandauInit(object):
 
         self._check_eci(small_bc,eci)
 
-        calc = get_atoms_with_ce_calc( small_bc, bc_kwargs, eci=eci, size=size )
+        atoms = get_atoms_with_ce_calc( small_bc, bc_kwargs, eci=eci, size=size )
+        calc = atoms.get_calculator()
         calc.set_composition( composition )
         bc = calc.BC
         bc.atoms.set_calculator(calc)
@@ -163,7 +164,8 @@ class WangLandauInit(object):
                 small_bc = CECrystal( **bc_kwargs )
                 small_bc.reconfigure_settings()
             size = row.data["supercell_size"]
-            calc = get_atoms_with_ce_calc( small_bc, bc_kwargs, eci=eci, size=size )
+            atoms = get_atoms_with_ce_calc( small_bc, bc_kwargs, eci=eci, size=size )
+            calc = atoms.get_calculator()
 
             # Determine the composition
             count = row.count_atoms()

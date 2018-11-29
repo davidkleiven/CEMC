@@ -21,9 +21,9 @@ class TestMCParameterSweep( unittest.TestCase ):
         cf = CorrFunction(ceBulk)
         cf = cf.get_cf(ceBulk.atoms)
         ecis = {key:1.0 for key in cf.keys()}
-        calc = CE( ceBulk, ecis )
-        ceBulk.atoms.set_calculator(calc)
-        return ceBulk
+        atoms = ceBulk.atoms.copy()
+        calc = CE( atoms, ceBulk, ecis )
+        return atoms
 
     def test_sgc_montecarlo(self):
         if not has_ase_with_ce:
@@ -33,9 +33,9 @@ class TestMCParameterSweep( unittest.TestCase ):
         no_throw = True
         msg = ""
         try:
-            bc = self.get_cebulk()
+            atoms = self.get_cebulk()
             T = 600.0
-            mc = SGCMonteCarlo(bc.atoms, T, symbols=["Al", "Mg"])
+            mc = SGCMonteCarlo(atoms, T, symbols=["Al", "Mg"])
             parameters = [
                 {
                     "temperature":10000.0,
