@@ -136,6 +136,15 @@ class GaussianClusterTracker(object):
                 self.gaussians[uid].sigma = sigma2
                 self.num_members[uid] = N+1
 
+    def solute_atom_belong_to_cluster(self, system_change):
+        """Return True if the new site belong to the cluster."""
+        for change in system_change:
+            if change[2] in self.cluster_elements:
+                prob = self.likelihoods(self.atoms[change[0]].position)
+                if prob < self.threshold:
+                    return False
+        return True
+
     def _nn_distance(self):
         """Find the nearest neighbour distance."""
         indx = list(range(1, len(self.atoms)))
