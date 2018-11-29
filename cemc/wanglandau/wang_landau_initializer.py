@@ -1,5 +1,5 @@
 from ase.db import connect
-from cemc import get_ce_calc, CE
+from cemc import get_atoms_with_ce_calc, CE
 from ase.clease import CEBulk, CECrystal
 from cemc.mcmc import SimulatedAnnealingCanonical
 from ase.calculators.singlepoint import SinglePointCalculator
@@ -39,7 +39,7 @@ class WangLandauInit(object):
 
         self._check_eci(small_bc,eci)
 
-        calc = get_ce_calc( small_bc, bc_kwargs, eci=eci, size=size )
+        calc = get_atoms_with_ce_calc( small_bc, bc_kwargs, eci=eci, size=size )
         calc.set_composition( composition )
         bc = calc.BC
         bc.atoms.set_calculator(calc)
@@ -163,7 +163,7 @@ class WangLandauInit(object):
                 small_bc = CECrystal( **bc_kwargs )
                 small_bc.reconfigure_settings()
             size = row.data["supercell_size"]
-            calc = get_ce_calc( small_bc, bc_kwargs, eci=eci, size=size )
+            calc = get_atoms_with_ce_calc( small_bc, bc_kwargs, eci=eci, size=size )
 
             # Determine the composition
             count = row.count_atoms()

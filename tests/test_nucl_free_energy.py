@@ -7,7 +7,7 @@ try:
     from ase.clease import CorrFunction
     from cemc.mcmc import InertiaCrdInitializer
     from cemc import CE
-    from cemc import get_ce_calc
+    from cemc import get_atoms_with_ce_calc
     import numpy as np
     from helper_functions import get_ternary_BC, get_example_ecis
     available = True
@@ -47,7 +47,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             cf = cf.get_cf(ceBulk.atoms)
 
             ecis = {key: 0.001 for key in cf.keys()}
-            calc = get_ce_calc(ceBulk, kwargs, ecis, size=[5, 5, 5],
+            calc = get_atoms_with_ce_calc(ceBulk, kwargs, ecis, size=[5, 5, 5],
                                db_name="sc5x5x5.db")
             ceBulk = calc.BC
             ceBulk.atoms.set_calculator(calc)
@@ -229,7 +229,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             from cemc.mcmc import InertiaTensorObserver
             bc, args = get_ternary_BC(ret_args=True)
             ecis = get_example_ecis(bc=bc)
-            calc = get_ce_calc(bc, args, eci=ecis, size=[8, 8, 8], db_name="inertia_obs.db")
+            calc = get_atoms_with_ce_calc(bc, args, eci=ecis, size=[8, 8, 8], db_name="inertia_obs.db")
             bc = calc.BC
             bc.atoms.set_calculator(calc)
 

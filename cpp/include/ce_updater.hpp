@@ -50,7 +50,7 @@ public:
   CEUpdater* copy() const;
 
   /** Initialize the object */
-  void init(PyObject *BC, PyObject *corrFunc, PyObject *ecis);
+  void init(PyObject *py_atoms, PyObject *BC, PyObject *corrFunc, PyObject *ecis);
 
   /** Change values of ecis */
   void set_ecis( PyObject *ecis );

@@ -1,4 +1,4 @@
-from cemc.ce_calculator import CE, get_ce_calc
+from cemc.ce_calculator import CE, get_atoms_with_ce_calc
 from ase.clease import CECrystal
 from ase.clease import CEBulk
 from ase.clease import Concentration

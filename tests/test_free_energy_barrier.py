@@ -3,7 +3,7 @@ import os
 try:
     has_CE = True
     from ase.clease import CEBulk, CorrFunction, Concentration
-    from cemc import get_ce_calc
+    from cemc import get_atoms_with_ce_calc
     from cemc.mcmc import SGCFreeEnergyBarrier
 except ImportError as exc:
     print (str(exc))
@@ -34,7 +34,7 @@ class TestFreeEnergy( unittest.TestCase ):
 
 
             #calc = CE( ceBulk, ecis, size=(3,3,3) )
-            calc = get_ce_calc(ceBulk, kwargs, ecis, size=[6,6,6],
+            calc = get_atoms_with_ce_calc(ceBulk, kwargs, ecis, size=[6,6,6],
                                db_name="sc6x6x6.db")
             ceBulk = calc.BC
             ceBulk.atoms.set_calculator( calc )

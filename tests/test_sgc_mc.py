@@ -7,7 +7,7 @@ try:
     from ase.clease import Concentration
     from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
     from cemc.mcmc import Montecarlo
-    from cemc import CE, get_ce_calc
+    from cemc import CE, get_atoms_with_ce_calc
     from cemc.mcmc import PairConstraint, FixedElement
     from helper_functions import get_max_cluster_dia_name
     from helper_functions import get_example_network_name
@@ -184,7 +184,7 @@ class TestSGCMC(unittest.TestCase):
             kw_args_cpy = deepcopy(kwargs)
             ceBulk = CEBulk(**kw_args_cpy)
             ecis = get_example_ecis(ceBulk)
-            calc = get_ce_calc(ceBulk, kwargs,  eci=ecis, size=[3, 3, 3], 
+            calc = get_atoms_with_ce_calc(ceBulk, kwargs,  eci=ecis, size=[3, 3, 3], 
                             db_name="ignore_test_large.db")
             
             atoms = calc.atoms

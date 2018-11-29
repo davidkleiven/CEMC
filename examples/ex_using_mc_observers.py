@@ -30,9 +30,9 @@ ceBulk = CEBulk( **kwargs )
 ceBulk.reconfigure_settings()  # Nessecary for the unittests to pass
 # Now we want to get a Cluster Expansion calculator for a big cell
 mc_cell_size = [10,10,10]
-from cemc import get_ce_calc
+from cemc import get_atoms_with_ce_calc
 
-calc = get_ce_calc( ceBulk, kwargs, eci=eci, size=mc_cell_size, db_name="mc_obs.db")
+calc = get_atoms_with_ce_calc( ceBulk, kwargs, eci=eci, size=mc_cell_size, db_name="mc_obs.db")
 ceBulk = calc.BC
 ceBulk.atoms.set_calculator(calc)
 

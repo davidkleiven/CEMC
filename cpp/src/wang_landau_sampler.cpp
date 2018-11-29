@@ -25,7 +25,7 @@ WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject
   }
 
   CEUpdater updater;
-  updater.init(BC, corrFunc, ecis);
+  updater.init(nullptr, BC, corrFunc, ecis);
 
   #ifdef WANG_LANDAU_DEBUG
     cout << "Initializing the wanglandau object\n";
