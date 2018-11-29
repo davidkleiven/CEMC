@@ -30,13 +30,13 @@ class TestPseudoBinary(unittest.TestCase):
         try:
             bc = get_ternary_BC()
             ecis = get_example_ecis(bc=bc)
-            calc = CE(bc, eci=ecis)
-            bc.atoms.set_calculator(calc)
+            atoms = bc.atoms.copy()
+            calc = CE(atoms, bc, eci=ecis)
 
             groups = [{"Al": 2}, {"Mg": 1, "Si": 1}]
             symbs = ["Al", "Mg", "Si"]
             T = 400
-            mc = PseudoBinarySGC(bc.atoms, T, chem_pot=-0.2, symbols=symbs,
+            mc = PseudoBinarySGC(atoms, T, chem_pot=-0.2, symbols=symbs,
                                  groups=groups)
             mc.runMC(mode="fixed", steps=100, equil=False)
             os.remove("test_db_ternary.db")
@@ -58,13 +58,13 @@ class TestPseudoBinary(unittest.TestCase):
         try:
             bc = get_ternary_BC()
             ecis = get_example_ecis(bc=bc)
-            calc = CE(bc, eci=ecis)
-            bc.atoms.set_calculator(calc)
+            atoms = bc.atoms.copy()
+            calc = CE(atoms, bc, eci=ecis)
 
             groups = [{"Al": 2}, {"Mg": 1, "Si": 1}]
             symbs = ["Al", "Mg", "Si"]
             T = 400
-            mc = PseudoBinarySGC(bc.atoms, T, chem_pot=-0.2, symbols=symbs,
+            mc = PseudoBinarySGC(atoms, T, chem_pot=-0.2, symbols=symbs,
                                  groups=groups)
             conc_init = PseudoBinaryConcInitializer(mc)
             reac_crd = np.linspace(0.0, 1.0, 10)

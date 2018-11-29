@@ -35,10 +35,10 @@ class TestAdaptiveBiasReacPath(unittest.TestCase):
             bc = get_ternary_BC()
             eci = get_example_ecis(bc)
 
-            calc = CE(bc, eci=eci)
-            bc.atoms.set_calculator(calc)
+            atoms = bc.atoms.copy()
+            CE(atoms, bc, eci=eci)
 
-            mc = Montecarlo(bc.atoms, 1000)
+            mc = Montecarlo(atoms, 1000)
             mc.insert_symbol_random_places("Mg", num=10, swap_symbs=["Al"])
 
             # Note: convergence_factor should never be

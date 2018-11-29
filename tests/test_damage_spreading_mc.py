@@ -31,9 +31,10 @@ class TestDMMC(unittest.TestCase):
                              db_name=db_name,
                              max_cluster_size=3, **size_arg)
         ceBulk.reconfigure_settings()
-        calc = CE(ceBulk, ecis)
-        ceBulk.atoms.set_calculator(calc)
-        return ceBulk
+        atoms = ceBulk.atoms.copy()
+        calc = CE(atoms, ceBulk, ecis)
+        #ceBulk.atoms.set_calculator(calc)
+        return ceBulk, atoms
 
     def test_no_throw(self):
         """Test that the code runs without throwing errors."""
@@ -43,10 +44,10 @@ class TestDMMC(unittest.TestCase):
         no_throw = True
         msg = ""
         try:
-            bc1 = self.init_bulk_crystal()
-            bc2 = self.init_bulk_crystal()
+            bc1, a1 = self.init_bulk_crystal()
+            bc2, a2 = self.init_bulk_crystal()
 
-            dm_mc = DamageSpreadingMC(bc1.atoms, bc2.atoms, 300,
+            dm_mc = DamageSpreadingMC(a1, a2, 300,
                                       symbols=["Al", "Mg", "Si"])
 
             chem_pot = {"c1_0": 0.0, "c1_1": 1.0}
