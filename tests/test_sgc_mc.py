@@ -35,9 +35,9 @@ class TestSGCMC(unittest.TestCase):
                              concentration=conc, db_name=db_name,
                              max_cluster_size=3, **size_arg)
         ceBulk.reconfigure_settings()
-        calc = CE(ceBulk, ecis)
-        ceBulk.atoms.set_calculator(calc)
-        return ceBulk
+        atoms = ceBulk.atoms.copy()
+        calc = CE(atoms, ceBulk, ecis)
+        return ceBulk, atoms
 
     def test_no_throw(self):
         if not has_ase_with_ce:
@@ -46,18 +46,18 @@ class TestSGCMC(unittest.TestCase):
         no_throw = True
         msg = ""
         try:
-            ceBulk = self.init_bulk_crystal()
+            ceBulk, atoms = self.init_bulk_crystal()
             chem_pots = {
                 "c1_0": 0.02,
                 "c1_1": -0.03
             }
             T = 600.0
-            mc = SGCMonteCarlo(ceBulk.atoms, T, symbols=["Al", "Mg", "Si"])
+            mc = SGCMonteCarlo(atoms, T, symbols=["Al", "Mg", "Si"])
             mc.runMC(steps=100, chem_potential=chem_pots)
             E = mc.get_thermodynamic()["energy"]
 
             # Try with recycling
-            mc = SGCMonteCarlo(ceBulk.atoms, T, symbols=["Al", "Mg", "Si"],
+            mc = SGCMonteCarlo(atoms, T, symbols=["Al", "Mg", "Si"],
                                recycle_waste=True)
             mc.runMC(steps=100, chem_potential=chem_pots)
             E2 = mc.get_thermodynamic()["energy"]
@@ -79,7 +79,7 @@ class TestSGCMC(unittest.TestCase):
             no_throw = True
             msg = ""
             try:
-                ceBulk = self.init_bulk_crystal()
+                ceBulk, atoms = self.init_bulk_crystal()
                 chem_pots = {
                     "c1_0": 0.02,
                     "c1_1": -0.03
@@ -87,7 +87,7 @@ class TestSGCMC(unittest.TestCase):
                 T = 600.0
                 comm = mpi_communicator()
                 mc = SGCMonteCarlo(
-                    ceBulk.atoms, T, symbols=["Al", "Mg", "Si"], mpicomm=comm)
+                    atoms, T, symbols=["Al", "Mg", "Si"], mpicomm=comm)
                 mc.runMC(steps=100, chem_potential=chem_pots)
                 mc.get_thermodynamic()
             except Exception as exc:
@@ -102,13 +102,13 @@ class TestSGCMC(unittest.TestCase):
         no_throw = True
         msg = ""
         try:
-            ceBulk = self.init_bulk_crystal()
+            ceBulk, atoms = self.init_bulk_crystal()
             chem_pots = {
                 "c1_0": 0.02,
                 "c1_1": -0.03
             }
             T = 600.0
-            mc = SGCMonteCarlo(ceBulk.atoms, T, symbols=["Al", "Mg", "Si"],
+            mc = SGCMonteCarlo(atoms, T, symbols=["Al", "Mg", "Si"],
                                plot_debug=False)
             mc.runMC(chem_potential=chem_pots, mode="prec",
                      prec_confidence=0.05, prec=10.0)
@@ -132,14 +132,14 @@ class TestSGCMC(unittest.TestCase):
         no_throw = True
         msg = ""
         try:
-            ceBulk = self.init_bulk_crystal()
+            ceBulk, atoms = self.init_bulk_crystal()
             chem_pots = {
                 "c1_0": 0.02,
                 "c1_1": -0.03
             }
             name = get_example_network_name(ceBulk)
             constraint = PairConstraint(
-                calc=ceBulk.atoms._calc,
+                calc=atoms.get_calculator(),
                 cluster_name=name,
                 elements=[
                     "Al",
@@ -148,7 +148,7 @@ class TestSGCMC(unittest.TestCase):
             fixed_element = FixedElement(element="Cu")
             T = 600.0
             mc = SGCMonteCarlo(
-                ceBulk.atoms, T, symbols=[
+                atoms, T, symbols=[
                     "Al", "Mg", "Si"], plot_debug=False)
             mc.add_constraint(constraint)
             mc.add_constraint(fixed_element)
