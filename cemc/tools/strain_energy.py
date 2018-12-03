@@ -16,6 +16,9 @@ class StrainEnergy(object):
         aspect = np.array(aspect)
         self.eshelby = StrainEnergy.get_eshelby(aspect, poisson)
         self.eigenstrain = np.array(eigenstrain)
+
+        if len(self.eigenstrain.shape) == 2:
+            self.eigenstrain = to_mandel(self.eigenstrain)
         self.poisson = poisson
 
     @staticmethod
@@ -31,10 +34,10 @@ class StrainEnergy(object):
 
     def _check_ellipsoid(self, ellipsoid):
         """Check that the ellipsoid arguments is correct."""
-        required_keys = ["aspect", "scale_factor"]
+        required_keys = ["aspect"]
         for key in ellipsoid.keys():
             if key not in required_keys:
-                msg = "The ellipsoid dictionary has to"
+                msg = "The ellipsoid dictionary has to "
                 msg += "include {}".format(required_keys)
                 raise ValueError(msg)
 
@@ -154,8 +157,9 @@ class StrainEnergy(object):
     def explore_orientations(self, ellipsoid, e_matrix, step=10,
                              print_summary=False):
         """Explore the strain energy as a function of ellipse orientation."""
-        self._check_ellipsoid(ellipsoid)
-        scale_factor = ellipsoid["scale_factor"]
+        #self._check_ellipsoid(ellipsoid)
+        scale_factor = ellipsoid.get("scale_factor", None)
+        C_prec = ellipsoid.get("C_prec", None)
         aspect = np.array(ellipsoid["aspect"])
         self.eshelby = StrainEnergy.get_eshelby(aspect, self.poisson)
         result = []
@@ -168,7 +172,8 @@ class StrainEnergy(object):
                 matrix = rot_matrix_spherical_coordinates(p, th)
                 strain = rotate_tensor(eigenstrain_orig, matrix)
                 self.eigenstrain = to_mandel(strain)
-                energy = self.strain_energy(scale_factor, e_matrix)
+                energy = self.strain_energy(scale_factor=scale_factor, C_matrix=e_matrix,
+                                            C_prec=C_prec)
                 res = {"energy": energy, "theta": th, "phi": p}
                 a = matrix.T.dot([1.0, 0.0, 0.0])
                 b = matrix.T.dot([0.0, 1.0, 0.0])
@@ -261,7 +266,7 @@ class StrainEnergy(object):
             phi.append(res["phi"])
             theta.append(res["theta"])
 
-        lut = SmoothSphereBivariateSpline(theta, phi, energy, s=3.5)
+        lut = SmoothSphereBivariateSpline(theta, phi, energy, s=2.0)
         th_fine = np.linspace(0.0, np.pi, 90)
         phi_fine = np.linspace(0.0, 2.0*np.pi, 90)
         data_smooth = lut(th_fine, phi_fine)
@@ -271,13 +276,30 @@ class StrainEnergy(object):
         phi_max = np.max(phi_fine) * 180.0 / np.pi
         theta_min = np.min(th_fine) * 180.0 / np.pi
         theta_max = np.max(th_fine) * 180.0 / np.pi
-        im = ax.imshow(data_smooth, cmap="inferno",
+        im = ax.imshow(data_smooth.T, cmap="inferno",
                        extent=[theta_min, theta_max, phi_min, phi_max],
                        aspect="auto", origin="lower")
         cb = fig.colorbar(im)
         cb.set_label("Strain energy (meV per angstrom cubed)")
         ax.set_xlabel("Polar angle (deg)")
         ax.set_ylabel("Azimuthal angle (deg)")
+
+        # Try to also create a 3D plot with mayavi
+        try:
+            from mayavi import mlab
+            n_angles = 20
+            theta = np.linspace(0.0, np.pi, n_angles)
+            phi = np.linspace(0.0, 2.0*np.pi, n_angles)
+            T, P = np.meshgrid(th_fine, phi_fine)
+            X = np.cos(P)*np.sin(T)
+            Y = np.sin(P)*np.sin(T)
+            Z = np.cos(T)
+            mlab.figure(bgcolor=(1, 1, 1), fgcolor=(0, 0, 0))
+            mlab.mesh(X, Y, Z, scalars=data_smooth.T)
+            mlab.colorbar()
+            mlab.show()
+        except Exception as exc:
+            print(str(exc))
         return fig
 
     @staticmethod
