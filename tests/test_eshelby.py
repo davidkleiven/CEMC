@@ -72,6 +72,20 @@ class TestEshelby(unittest.TestCase):
         mmtensor = np.loadtxt("tests/test_data/mmtensor_prolate.txt")
         self.assertTrue(np.allclose(mmtensor, mandel, atol=1E-5))
 
+    def test_mandel_transformation(self):
+        if not available:
+            self.skipTest(reason)
+        from cemc.tools import to_mandel, to_full_tensor
+        mandel_vec = np.linspace(1.0, 6.0, 6)
+        mandel_full = to_full_tensor(mandel_vec)
+        self.assertTrue(np.allclose(to_mandel(mandel_full), mandel_vec))
+
+        # Try rank for tensors
+        from cemc.tools import to_mandel_rank4, to_full_rank4
+        mandel_tensor = np.random.rand(6, 6)
+        mandel_full = to_full_rank4(mandel_tensor)
+        self.assertTrue(np.allclose(to_mandel_rank4(mandel_full), mandel_tensor))
+
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
     unittest.main(testRunner=TimeLoggingTestRunner)
