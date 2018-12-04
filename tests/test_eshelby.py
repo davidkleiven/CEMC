@@ -4,6 +4,12 @@ try:
     from cemc_cpp_code import PyEshelbyTensor, PyEshelbySphere
     from itertools import product
     import numpy as np
+    from cemc.tools import rotate_rank4_mandel
+    from cemc.tools import to_mandel
+    from cemc.tools import rotate_tensor
+    from cemc.tools import to_full_tensor, rotate_tensor
+    from cemc.tools import to_mandel, to_full_tensor
+    from cemc.tools import to_mandel_rank4, to_full_rank4
     available = True
     reason = ""
 except ImportError as exc:
@@ -75,16 +81,61 @@ class TestEshelby(unittest.TestCase):
     def test_mandel_transformation(self):
         if not available:
             self.skipTest(reason)
-        from cemc.tools import to_mandel, to_full_tensor
         mandel_vec = np.linspace(1.0, 6.0, 6)
         mandel_full = to_full_tensor(mandel_vec)
         self.assertTrue(np.allclose(to_mandel(mandel_full), mandel_vec))
 
         # Try rank for tensors
-        from cemc.tools import to_mandel_rank4, to_full_rank4
         mandel_tensor = np.random.rand(6, 6)
         mandel_full = to_full_rank4(mandel_tensor)
         self.assertTrue(np.allclose(to_mandel_rank4(mandel_full), mandel_tensor))
+
+    def test_tensor_rotation(self):
+        if not available:
+            self.skipTest(reason)
+        tens = np.linspace(1.0, 6.0, 6)
+        ca = np.cos(0.3)
+        sa = np.sin(0.3)
+        rot_matrix = np.array([[ca, sa, 0.0],
+                               [-sa, ca, 0.0],
+                               [0.0, 0.0, 1.0]])
+        
+        # Rotate the rank 2 tensor
+        full_tensor = to_full_tensor(tens)
+        rotated_tensor = rotate_tensor(full_tensor, rot_matrix)
+
+        x = np.array([-0.1, 0.5, 0.9])
+
+        x_rot = rot_matrix.dot(x)
+
+        # If we contract all indices the scalar product should remain the same
+        scalar1 = x.dot(full_tensor).dot(x)
+        scalar2 = x_rot.dot(rotated_tensor).dot(x_rot)
+        self.assertAlmostEqual(scalar1, scalar2)
+
+    def test_rank4_tensor_rotation(self):
+        if not available:
+            self.skipTest(reason)
+        
+        vec = np.random.rand(6)
+        full2x2 = to_full_tensor(vec)
+        
+        ca = np.cos(0.8)
+        sa = np.sin(0.8)
+        rot_matrix = np.array([[ca, sa, 0.0],
+                               [-sa, ca, 0.0],
+                               [0.0, 0.0, 1.0]])
+
+        tensor = np.random.rand(6, 6)
+        rotated = rotate_rank4_mandel(tensor, rot_matrix)
+
+        rotated2x2 = rotate_tensor(full2x2, rot_matrix)
+        rot_vec = to_mandel(rotated2x2)
+
+        # Contract indices
+        scalar1 = vec.dot(tensor).dot(vec)
+        scalar2 = rot_vec.dot(rotated).dot(rot_vec)
+        self.assertAlmostEqual(scalar1, scalar2)
 
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
