@@ -137,6 +137,33 @@ class TestEshelby(unittest.TestCase):
         scalar2 = rot_vec.dot(rotated).dot(rot_vec)
         self.assertAlmostEqual(scalar1, scalar2)
 
+    def test_rotation_isotropic_tensor(self):
+        if not available:
+            self.skipTest(reason)
+        
+        tensor = np.zeros((6, 6))
+
+        # Construct an isotropic elasticity tensor
+        K = 76
+        mu = 11.0
+        tensor[0, 0] = tensor[1, 1] = tensor[2, 2] = K + 4.0*mu/3.0
+        tensor[3, 3] = tensor[4, 4] = tensor[5, 5] = 2*mu
+
+        tensor[0, 1] = tensor[0, 2] = tensor[1, 0] = tensor[1, 2] = \
+        tensor[2, 0] = tensor[2, 1] = K - 2.0*mu/3.0
+
+        # Apply a sequence of rotations
+        ca = np.cos(np.pi/4.0)
+        sa = np.sin(np.pi/4.0)
+        rot_matrix = np.array([[ca, sa, 0.0],
+                               [-sa, ca, 0.0],
+                               [0.0, 0.0, 1.0]])
+        rotated = rotate_rank4_mandel(tensor, rot_matrix)
+        np.set_printoptions(precision=2)
+        self.assertTrue(np.allclose(tensor, rotated))
+
+
+
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
     unittest.main(testRunner=TimeLoggingTestRunner)

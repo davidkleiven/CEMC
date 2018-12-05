@@ -3,6 +3,7 @@ import numpy as np
 from cemc_cpp_code import PyEshelbyTensor, PyEshelbySphere
 from cemc.tools import rot_matrix, rotate_tensor, to_mandel, to_full_tensor
 from cemc.tools import rot_matrix_spherical_coordinates
+from cemc.tools import rotate_rank4_mandel
 from itertools import product
 from scipy.optimize import minimize
 
@@ -124,7 +125,7 @@ class StrainEnergy(object):
         # assert abs(matrix[0, 1] - factor*expected) < 1E-6
         return True
 
-    def explore_aspect_ratios(self, scale_factor, e_matrix,
+    def explore_aspect_ratios(self, scale_factor, C_matrix,
                               angle_step=30):
         """
         Exploring aspect ratios for needle, plate and spheres
@@ -146,7 +147,7 @@ class StrainEnergy(object):
         }
         self.log("\n")
         for key, value in ellipsoids.items():
-            res = self.explore_orientations(value, e_matrix, step=angle_step)
+            res = self.explore_orientations(value, C_matrix, step=angle_step)
 
             self.log("Minmum energy for {} inclusion:".format(key))
             E = res[0]["energy"]*1000.0
@@ -154,12 +155,16 @@ class StrainEnergy(object):
             self.log("Energy: {} meV/A^3. Rotation: {}".format(E, rot))
             self.log("\n")
 
-    def explore_orientations(self, ellipsoid, e_matrix, step=10,
+    def explore_orientations(self, ellipsoid, C_matrix, step=10,
                              print_summary=False):
         """Explore the strain energy as a function of ellipse orientation."""
+        from itertools import product
         #self._check_ellipsoid(ellipsoid)
         scale_factor = ellipsoid.get("scale_factor", None)
         C_prec = ellipsoid.get("C_prec", None)
+
+        if C_prec is None:
+            C_prec = scale_factor*C_matrix
         aspect = np.array(ellipsoid["aspect"])
         self.eshelby = StrainEnergy.get_eshelby(aspect, self.poisson)
         result = []
@@ -167,20 +172,31 @@ class StrainEnergy(object):
         theta = np.arange(0.0, np.pi, step*np.pi / 180.0)
         phi = np.arange(0.0, 2.0 * np.pi, step * np.pi / 180.0)
 
-        for th in theta:
-            for p in phi:
-                matrix = rot_matrix_spherical_coordinates(p, th)
-                strain = rotate_tensor(eigenstrain_orig, matrix)
-                self.eigenstrain = to_mandel(strain)
-                energy = self.strain_energy(scale_factor=scale_factor, C_matrix=e_matrix,
-                                            C_prec=C_prec)
-                res = {"energy": energy, "theta": th, "phi": p}
-                a = matrix.T.dot([1.0, 0.0, 0.0])
-                b = matrix.T.dot([0.0, 1.0, 0.0])
-                c = matrix.T.dot([0.0, 0.0, 1.0])
-                res["half_axes"] = {"a": a, "b": b, "c": c}
-                res["eigenstrain"] = self.eigenstrain
-                result.append(res)
+        C_matrix_orig = C_matrix.copy()
+        C_prec_orig = C_prec.copy()
+        for ang in product(theta, phi):
+            th = ang[0]
+            p = ang[1]
+            matrix = rot_matrix_spherical_coordinates(p, th)
+
+            # Rotate the strain tensor
+            strain = rotate_tensor(eigenstrain_orig, matrix)
+            self.eigenstrain = to_mandel(strain)
+
+            # Rotate the elastic tensor of the matrix material
+            C_matrix = rotate_rank4_mandel(C_matrix_orig, matrix)
+
+            # Rotate the elastic tensor of the precipitate material
+            C_prec = rotate_rank4_mandel(C_prec_orig, matrix)            
+
+            energy = self.strain_energy(C_matrix=C_matrix, C_prec=C_prec)
+            res = {"energy": energy, "theta": th, "phi": p}
+            a = matrix.T.dot([1.0, 0.0, 0.0])
+            b = matrix.T.dot([0.0, 1.0, 0.0])
+            c = matrix.T.dot([0.0, 0.0, 1.0])
+            res["half_axes"] = {"a": a, "b": b, "c": c}
+            res["eigenstrain"] = self.eigenstrain
+            result.append(res)
 
         if print_summary:
             self.summarize_orientation_serch(result)
@@ -258,6 +274,7 @@ class StrainEnergy(object):
         """Plot a diagonistic plot over the exploration result."""
         from matplotlib import pyplot as plt
         from scipy.interpolate import SmoothSphereBivariateSpline
+        from scipy.interpolate import griddata
         energy = []
         phi = []
         theta = []
@@ -265,8 +282,8 @@ class StrainEnergy(object):
             energy.append(res["energy"]*1000.0)
             phi.append(res["phi"])
             theta.append(res["theta"])
-
-        lut = SmoothSphereBivariateSpline(theta, phi, energy, s=2.0)
+        
+        lut = SmoothSphereBivariateSpline(theta, phi, energy, s=0.8)
         th_fine = np.linspace(0.0, np.pi, 90)
         phi_fine = np.linspace(0.0, 2.0*np.pi, 90)
         data_smooth = lut(th_fine, phi_fine)
@@ -283,6 +300,16 @@ class StrainEnergy(object):
         cb.set_label("Strain energy (meV per angstrom cubed)")
         ax.set_xlabel("Polar angle (deg)")
         ax.set_ylabel("Azimuthal angle (deg)")
+
+        # Create plot with griddata
+        data = np.vstack((theta, phi)).T
+        T, P = np.meshgrid(th_fine, phi_fine)
+        energy_interp = griddata(data, energy, (T, P))
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1)
+        im = ax.imshow(energy_interp, cmap="inferno",
+                       extent=[theta_min, theta_max, phi_min, phi_max],
+                       aspect="auto", origin="lower")
 
         # Try to also create a 3D plot with mayavi
         try:

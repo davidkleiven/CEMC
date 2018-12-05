@@ -99,7 +99,28 @@ def to_full_tensor(mandel):
 
 def rotate_tensor(tensor, rot_matrix):
     """Rotate a tensor."""
+    assert len(tensor.shape) == 2
     return rot_matrix.dot(tensor).dot(rot_matrix.T)
+
+
+def rotate_rank4_tensor(tensor, rot_matrix):
+    """Rotate a rank for tensor."""
+    assert len(tensor.shape) == 4
+    tensor = np.einsum("lp,mnqp->mnql", rot_matrix, tensor)
+    tensor = np.einsum("kq,mnql->mnkl", rot_matrix, tensor)
+    tensor = np.einsum("jn,mnkl->mjkl", rot_matrix, tensor)
+    tensor = np.einsum("im,mjkl->ijkl", rot_matrix, tensor)
+    # rot = rot_matrix
+    # T = tensor
+    # tensor = np.einsum('ai,bj,ck,dl,abcd->ijkl', rot, rot, rot, rot, T)
+    return tensor
+
+
+def rotate_rank4_mandel(tensor, rot_matrix):
+    assert len(tensor.shape) == 2
+    rank4_tensor = to_full_rank4(tensor)
+    rank4_tensor = rotate_rank4_tensor(rank4_tensor, rot_matrix)
+    return to_mandel_rank4(rank4_tensor)
 
 
 def rot_matrix_spherical_coordinates(phi, theta):
@@ -113,11 +134,12 @@ def rot_matrix_spherical_coordinates(phi, theta):
     """
     phi_deg = 180.0 * phi / np.pi
     theta_deg = 180.0 * theta / np.pi
-    seq = [("z", phi_deg), ("y", theta_deg)]
+    #seq = [("z", phi_deg), ("y", theta_deg)]
     seq = [("y", -theta_deg), ("z", -phi_deg)]
     matrix = rot_matrix(seq)
 
     # Make sure that the rotation is correct
+    # by checking how the z-axis is rotated
     target_z = np.array([np.cos(phi)*np.sin(theta),
                          np.sin(phi)*np.sin(theta),
                          np.cos(theta)])
@@ -125,3 +147,60 @@ def rot_matrix_spherical_coordinates(phi, theta):
     z_from_matrix = matrix.dot([0, 0, 1])
     assert np.allclose(z_from_matrix, target_z)
     return matrix
+
+
+def to_mandel_rank4(tensor):
+    """Convert rank 4 tensor to mandel notation."""
+    from itertools import product
+    assert len(tensor.shape) == 4
+    out = np.zeros((6, 6))
+    mandel_lut = {
+        (0, 0): 0,
+        (1, 1): 1,
+        (2, 2): 2,
+        (1, 2): 3,
+        (0, 2): 4,
+        (0, 1): 5
+    }
+    for ind in product([0, 1, 2], repeat=4):
+        if ind[1] < ind[0] or ind[3] < ind[2]:
+            continue
+        row = mandel_lut[(ind[0], ind[1])]
+        col = mandel_lut[(ind[2], ind[3])]
+
+        if ind[0] != ind[1] and ind[2] != ind[3]:
+            value = 2.0*tensor[ind[0], ind[1], ind[2], ind[3]]
+        elif ind[0] != ind[1]:
+            value = np.sqrt(2.0)*tensor[ind[0], ind[1], ind[2], ind[3]]
+        elif ind[2] != ind[3]:
+            value = np.sqrt(2.0)*tensor[ind[0], ind[1], ind[2], ind[3]]
+        else:
+            value = tensor[ind[0], ind[1], ind[2], ind[3]]
+        out[row, col] = value
+    return out
+
+
+def to_full_rank4(mandel_tensor):
+    """Convert Mandel representation to full tensor."""
+    from itertools import product
+    assert len(mandel_tensor.shape) == 2
+    out = np.zeros((3, 3, 3, 3))
+    mandel_lut = [(0, 0), (1, 1), (2, 2), 
+                    (1, 2), (0, 2), (0, 1)]
+    
+    for ind in product(range(6), repeat=2):
+        if ind[0] > 2 and ind[1] > 2:
+            value = mandel_tensor[ind[0], ind[1]]/2.0
+        elif ind[0] > 2 or ind[1] > 2:
+            value = mandel_tensor[ind[0], ind[1]]/np.sqrt(2.0)
+        else:
+            value = mandel_tensor[ind[0], ind[1]]
+
+        row = mandel_lut[ind[0]]
+        col = mandel_lut[ind[1]]
+
+        out[row[0], row[1], col[0], col[1]] = value
+        out[row[0], row[1], col[1], col[0]] = value
+        out[row[1], row[0], col[1], col[0]] = value
+        out[row[1], row[0], col[0], col[1]] = value
+    return out
