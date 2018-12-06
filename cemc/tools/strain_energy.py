@@ -156,7 +156,7 @@ class StrainEnergy(object):
             self.log("\n")
 
     def explore_orientations(self, ellipsoid, C_matrix, step=10,
-                             print_summary=False):
+                             print_summary=False, fname=""):
         """Explore the strain energy as a function of ellipse orientation."""
         from itertools import product
         #self._check_ellipsoid(ellipsoid)
@@ -171,6 +171,8 @@ class StrainEnergy(object):
         eigenstrain_orig = to_full_tensor(self.eigenstrain)
         theta = np.arange(0.0, np.pi, step*np.pi / 180.0)
         phi = np.arange(0.0, 2.0 * np.pi, step * np.pi / 180.0)
+        theta = np.append(theta, [np.pi])
+        phi = np.append(phi, [2.0*np.pi])
 
         C_matrix_orig = C_matrix.copy()
         C_prec_orig = C_prec.copy()
@@ -183,11 +185,14 @@ class StrainEnergy(object):
             strain = rotate_tensor(eigenstrain_orig, matrix)
             self.eigenstrain = to_mandel(strain)
 
+
             # Rotate the elastic tensor of the matrix material
             C_matrix = rotate_rank4_mandel(C_matrix_orig, matrix)
 
             # Rotate the elastic tensor of the precipitate material
             C_prec = rotate_rank4_mandel(C_prec_orig, matrix)            
+            if abs(p) < 1E-3 and (abs(th-np.pi/4.0) < 1E-3 or abs(th-3.0*np.pi/4.0) < 1E-3):
+                print(self.eshelby.aslist())
 
             energy = self.strain_energy(C_matrix=C_matrix, C_prec=C_prec)
             res = {"energy": energy, "theta": th, "phi": p}
@@ -201,6 +206,9 @@ class StrainEnergy(object):
         if print_summary:
             self.summarize_orientation_serch(result)
 
+        if fname != "":
+            self.save_orientation_result(result, fname)
+
         # Sort the result from low energy to high energy
         energies = [res["energy"] for res in result]
         sorted_indx = np.argsort(energies)
@@ -209,6 +217,17 @@ class StrainEnergy(object):
         # Reset the strain
         self.eigenstrain = to_mandel(eigenstrain_orig)
         return result
+
+    def save_orientation_result(self, result, fname):
+        """Store the orientation result."""
+        theta = [res["theta"] for res in result]
+        phi = [res["phi"] for res in result]
+        energy = [res["energy"] for res in result]
+
+        data = np.vstack((theta, phi, energy)).T
+        np.savetxt(fname, data, header="Polar angle, Azm. angle, Energy",
+                   delimiter=",")
+        print("Orientation results written to {}".format(fname))
 
     def optimize_rotation(self, ellipsoid, e_matrix, init_rot):
         """Optimize a rotation."""
@@ -283,23 +302,12 @@ class StrainEnergy(object):
             phi.append(res["phi"])
             theta.append(res["theta"])
         
-        lut = SmoothSphereBivariateSpline(theta, phi, energy, s=0.8)
         th_fine = np.linspace(0.0, np.pi, 90)
         phi_fine = np.linspace(0.0, 2.0*np.pi, 90)
-        data_smooth = lut(th_fine, phi_fine)
-        fig = plt.figure()
-        ax = fig.add_subplot(1, 1, 1)
         phi_min = np.min(phi_fine) * 180.0 / np.pi
         phi_max = np.max(phi_fine) * 180.0 / np.pi
         theta_min = np.min(th_fine) * 180.0 / np.pi
         theta_max = np.max(th_fine) * 180.0 / np.pi
-        im = ax.imshow(data_smooth.T, cmap="inferno",
-                       extent=[theta_min, theta_max, phi_min, phi_max],
-                       aspect="auto", origin="lower")
-        cb = fig.colorbar(im)
-        cb.set_label("Strain energy (meV per angstrom cubed)")
-        ax.set_xlabel("Polar angle (deg)")
-        ax.set_ylabel("Azimuthal angle (deg)")
 
         # Create plot with griddata
         data = np.vstack((theta, phi)).T
@@ -310,23 +318,10 @@ class StrainEnergy(object):
         im = ax.imshow(energy_interp, cmap="inferno",
                        extent=[theta_min, theta_max, phi_min, phi_max],
                        aspect="auto", origin="lower")
-
-        # Try to also create a 3D plot with mayavi
-        try:
-            from mayavi import mlab
-            n_angles = 20
-            theta = np.linspace(0.0, np.pi, n_angles)
-            phi = np.linspace(0.0, 2.0*np.pi, n_angles)
-            T, P = np.meshgrid(th_fine, phi_fine)
-            X = np.cos(P)*np.sin(T)
-            Y = np.sin(P)*np.sin(T)
-            Z = np.cos(T)
-            mlab.figure(bgcolor=(1, 1, 1), fgcolor=(0, 0, 0))
-            mlab.mesh(X, Y, Z, scalars=data_smooth.T)
-            mlab.colorbar()
-            mlab.show()
-        except Exception as exc:
-            print(str(exc))
+        ax.set_xlabel("Polar angle (deg)")
+        ax.set_ylabel("Azimuthal angle (deg)")
+        cbar = fig.colorbar(im)
+        cbar.set_label("Strain energy (meV per angstrom cubed)")
         return fig
 
     @staticmethod
