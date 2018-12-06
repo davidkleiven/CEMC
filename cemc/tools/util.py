@@ -110,9 +110,6 @@ def rotate_rank4_tensor(tensor, rot_matrix):
     tensor = np.einsum("kq,mnql->mnkl", rot_matrix, tensor)
     tensor = np.einsum("jn,mnkl->mjkl", rot_matrix, tensor)
     tensor = np.einsum("im,mjkl->ijkl", rot_matrix, tensor)
-    # rot = rot_matrix
-    # T = tensor
-    # tensor = np.einsum('ai,bj,ck,dl,abcd->ijkl', rot, rot, rot, rot, T)
     return tensor
 
 
