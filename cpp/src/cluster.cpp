@@ -56,7 +56,6 @@ void Cluster::construct_equivalent_deco(int n_basis_funcs)
     return;
   }
 
-
   // Convert the equivalent sites to a list of lists
   PyObject* py_eq_sites = PyList_New(equiv_sites.size());
   for (unsigned int i=0;i<equiv_sites.size();i++)
@@ -197,11 +196,11 @@ void Cluster::parse_info_dict(PyObject *info)
   PyObject* py_mx_dia = PyDict_GetItemString(info, "max_cluster_dia");
   if (size <= 1)
   {
-    max_cluster_dia = "none";
+    max_cluster_dia = 0.0;
   }
   else
   {
-    max_cluster_dia = py2string(py_mx_dia);
+    max_cluster_dia = PyFloat_AS_DOUBLE(py_mx_dia);
   }
   // Read symmetry group
   PyObject* py_symm = PyDict_GetItemString(info, "symm_group");
