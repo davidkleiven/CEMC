@@ -72,4 +72,64 @@ class IsotropicStrainEnergy(object):
 
         if show:
             plt.show()
+
+    def optimal_orientation(self, princ_misfit=[0.1, 0.1, 0.1], aspect=[1.0, 1.0, 1.0], 
+                           scale=1.0, show_map=True):
+        """Find the optimial orientation of the ellipsoid."""
+        from itertools import product
+        from cemc.tools import rot_matrix_spherical_coordinates
+        from cemc.tools import rotate_tensor
+        from scipy.interpolate import griddata
+        from matplotlib import pyplot as plt
+
+        # Quick exploration of the space
+        theta = np.linspace(0.0, np.pi/2.0, 100)
+        phi = np.linspace(0.0, np.pi/2.0, 100)
+        energy = []
+        all_theta = []
+        all_phi = []
+        for ang in product(phi, theta):
+            strain_tensor = np.diag(princ_misfit)
+            rot_matrix = rot_matrix_spherical_coordinates(ang[0], ang[1])
+            strain_tensor = rotate_tensor(strain_tensor, rot_matrix)
+
+            strain = StrainEnergy(aspect=aspect, 
+                                eigenstrain=strain_tensor, 
+                                poisson=self.poisson)
+            new_energy = strain.strain_energy(C_matrix=self.tensor, scale_factor=scale)
+            energy.append(new_energy)
+            all_theta.append(ang[1])
+            all_phi.append(ang[0])
+
+        # Locate the minimal energy
+        min_indx = np.argmin(energy)
+        theta_min = all_theta[min_indx]
+        phi_min = all_phi[min_indx]
+
+        if theta_min > np.pi/2.0:
+            theta_min = np.pi - theta_min
+        
+        print("Min. energy: {}. Theta: {} Phi. {}"
+              "".format(energy[min_indx], int(theta_min*180/np.pi), int(phi_min*180/np.pi)))
+        print("Poisson ratio: {}".format(self.poisson))
+        
+        T, P  = np.meshgrid(theta, phi)
+        data = griddata(np.vstack((all_theta, all_phi)).T, energy, (T, P))
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1)
+        im = ax.imshow(data.T, origin="lower", aspect="auto", cmap="inferno",
+                  extent=[0, 90, 0, 90])
+        cbar = fig.colorbar(im)
+        cbar.set_label("Strain energy")
+        ax.set_xlabel("Polar angle (deg)")
+        ax.set_ylabel("Azimuthal angle (deg)")
+
+        if show_map:
+            plt.show()
+
+
+
+
+
+
         

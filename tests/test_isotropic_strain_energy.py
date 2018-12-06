@@ -27,6 +27,15 @@ class TestIsotropicStrain(unittest.TestCase):
         
         self.assertTrue(no_throw, msg=msg)
 
+    def test_needle_orientation(self):
+        if not available:
+            self.skipTest(skip_reason)
+
+        iso = IsotropicStrainEnergy(bulk_mod=76, shear_mod=26)
+        iso.optimal_orientation(princ_misfit=[-0.1, 0.1, 0.1], 
+                                aspect=[100000.0, 1.0, 1.0],
+                                scale=100.0)
+
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
     unittest.main(testRunner=TimeLoggingTestRunner)
