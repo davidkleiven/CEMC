@@ -156,8 +156,27 @@ class StrainEnergy(object):
             self.log("\n")
 
     def explore_orientations(self, ellipsoid, C_matrix, step=10,
-                             print_summary=False, fname=""):
-        """Explore the strain energy as a function of ellipse orientation."""
+                             print_summary=False, fname="", 
+                             theta_ax="y", phi_ax="z"):
+        """Explore the strain energy as a function of ellipse orientation.
+        
+        :param dict ellipsoid: Dictionary with information of the ellipsoid
+            The format should be {"aspect": [1.0, 1.0, 1.0], "C_prec": ..., 
+            "scale_factor": 1.0}
+            C_prec is the elastic tensor of the precipitate material.
+            If not given, scale_factor has to be given, and the elastic
+            tensor of the precipitate material is taken as this factor
+            multiplied by the elastic tensor of the matrix material
+        :param numpy.ndarray C_matrix: Elastic tensor of the matrix material
+        :param float step: Angle step size in degree
+        :param str fname: If given the result of the exploration is 
+            stored in a csv file with this filename
+        :param str theta_ax: The first rotation is performed
+            around this axis
+        :param str phi_ax: The second rotation is performed around this
+            axis (in the new coordinate system after the first rotation
+            is performed)
+        """
         from itertools import product
         #self._check_ellipsoid(ellipsoid)
         scale_factor = ellipsoid.get("scale_factor", None)
@@ -179,7 +198,11 @@ class StrainEnergy(object):
         for ang in product(theta, phi):
             th = ang[0]
             p = ang[1]
-            matrix = rot_matrix_spherical_coordinates(p, th)
+            theta_deg = th*180/np.pi
+            phi_deg = p*180/np.pi
+            seq = [(theta_ax, -theta_deg), (phi_ax, -phi_deg)]
+            matrix = rot_matrix(seq)
+            #matrix = rot_matrix_spherical_coordinates(p, th)
 
             # Rotate the strain tensor
             strain = rotate_tensor(eigenstrain_orig, matrix)
