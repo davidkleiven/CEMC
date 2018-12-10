@@ -305,25 +305,6 @@ def combine_axes_and_angles(axes, angles):
     """Combine the list of axes and angles into a list of dict."""
     return zip(axes, angles)
 
-
-def cost_minimize_strain_energy(euler, args):
-    """Cost function used to minimize."""
-
-    ellipsoid = args["ellipsoid"]
-    scale_factor = ellipsoid["scale_factor"]
-    e_matrix = args["elast_matrix"]
-    orig_strain = args["orig_strain"]
-    obj = args["strain_energy_obj"]
-    rot_axes = args["rot_axes"]
-
-    rot_seq = combine_axes_and_angles(rot_axes, euler)
-    matrix = rot_matrix(rot_seq)
-    tensor = rotate_tensor(orig_strain, matrix)
-    tensor = to_mandel(tensor)
-    obj.misfit = tensor
-    return obj.strain_energy(scale_factor, e_matrix)
-
-
 def map_euler_angles_to_unique_float(euler):
     """Map the euler angles into one unique float."""
     return euler[0] + euler[1]*360 + euler[2]*360*360
