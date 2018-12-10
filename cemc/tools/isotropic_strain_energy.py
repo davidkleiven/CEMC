@@ -53,7 +53,7 @@ class IsotropicStrainEnergy(object):
             strain_tensor = rotate_tensor(strain_tensor, rot_matrix)
 
             strain = StrainEnergy(aspect=v, 
-                                eigenstrain=strain_tensor, 
+                                misfit=strain_tensor, 
                                 poisson=self.poisson)
             
             energy = [strain.strain_energy(C_matrix=self.tensor, scale_factor=f)
@@ -94,7 +94,7 @@ class IsotropicStrainEnergy(object):
             strain_tensor = rotate_tensor(strain_tensor, rot_matrix)
 
             strain = StrainEnergy(aspect=aspect, 
-                                eigenstrain=strain_tensor, 
+                                misfit=strain_tensor, 
                                 poisson=self.poisson)
             new_energy = strain.strain_energy(C_matrix=self.tensor, scale_factor=scale)
             energy.append(new_energy)
