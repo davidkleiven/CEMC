@@ -147,36 +147,6 @@ class StrainEnergy(object):
         # assert abs(matrix[0, 1] - factor*expected) < 1E-6
         return True
 
-    def explore_aspect_ratios(self, scale_factor, C_matrix,
-                              angle_step=30):
-        """
-        Exploring aspect ratios for needle, plate and spheres
-        """
-
-        ellipsoids = {
-            "plate": {
-                        "scale_factor": scale_factor,
-                        "aspect": [1000.0, 1000.0, 1.0]
-                    },
-            "sphere": {
-                        "scale_factor": scale_factor,
-                        "aspect": [1.0, 1.0, 1.0]
-                    },
-            "needle": {
-                        "scale_factor": scale_factor,
-                        "aspect": [1000.0, 1.0, 1.0]
-                    }
-        }
-        self.log("\n")
-        for key, value in ellipsoids.items():
-            res = self.explore_orientations(value, C_matrix, step=angle_step)
-
-            self.log("Minmum energy for {} inclusion:".format(key))
-            E = res[0]["energy"]*1000.0
-            rot = res[0]["rot_seq"]
-            self.log("Energy: {} meV/A^3. Rotation: {}".format(E, rot))
-            self.log("\n")
-
     def explore_orientations(self, ellipsoid, C_matrix, step=10,
                              fname="", theta_ax="y", phi_ax="z"):
         """Explore the strain energy as a function of ellipse orientation.
