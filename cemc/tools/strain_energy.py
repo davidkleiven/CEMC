@@ -380,60 +380,6 @@ class StrainEnergy(object):
         """Compute the volume of an ellipsoid."""
         return 4.0*np.pi*aspect[0]*aspect[1]*aspect[2]/3.0
 
-    def plot(self, scale_factor, elast_matrix, rot_seq=None, latex=False):
-        """Create a plot of the energy as different aspect ratios."""
-        from matplotlib import pyplot as plt
-        a_over_c = np.logspace(0, 3, 100)
-        b_over_c = [1, 2, 5, 10, 50, 100]
-
-        orig_strain = self.misfit.copy()
-
-        if rot_seq is not None:
-            strain = to_full_tensor(orig_strain)
-            rot_mat = rot_matrix(rot_seq)
-            strain = rotate_tensor(strain, rot_mat)
-            self.misfit = to_mandel(strain)
-
-        fig = plt.figure()
-        ax = fig.add_subplot(1, 1, 1)
-        for b in b_over_c:
-            W = []
-            a_plot = []
-            for a in a_over_c:
-                if a < b:
-                    continue
-                aspect = [a, b, 1.0]
-                self.eshelby = StrainEnergy.get_eshelby(aspect, self.poisson)
-                E = self.strain_energy(scale_factor, elast_matrix)*1000.0
-                W.append(E)
-                a_plot.append(a)
-            ax.plot(a_plot, W, label="{}".format(int(b)))
-
-        # Separation line
-        b_sep = np.logspace(0, 3, 100)
-        W = []
-        for b in b_sep:
-            aspect = [b, b, 1.0]
-            self.eshelby = StrainEnergy.get_eshelby(aspect, self.poisson)
-            E = self.strain_energy(scale_factor, elast_matrix)*1000.0
-            W.append(E)
-
-        ax.plot(b_sep, W, "--", color="grey")
-        ax.legend(frameon=False, loc="best")
-        if latex:
-            xlab = "\$a/c\$"
-            ylab = "Strain energy (meV/\$\SI{}{\\angstrom^3}\$)"
-        else:
-            xlab = "$a/c$"
-            ylab = "Strain enregy (meV/A^3)"
-        ax.set_xlabel(xlab)
-        ax.set_ylabel(ylab)
-        ax.spines["right"].set_visible(False)
-        ax.spines["top"].set_visible(False)
-        ax.set_xscale("log")
-        self.misfit = orig_strain
-        return fig
-        
 
 def unwrap_euler_angles(sequence):
     """Unwrap the list of axes and angles to separate lists."""
