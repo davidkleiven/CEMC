@@ -291,15 +291,6 @@ class StrainEnergy(object):
         return 4.0*np.pi*aspect[0]*aspect[1]*aspect[2]/3.0
 
 
-def unwrap_euler_angles(sequence):
-    """Unwrap the list of axes and angles to separate lists."""
-    axes = []
-    angles = []
-    for item in sequence:
-        axes.append(item[0])
-        angles.append(item[1])
-    return axes, angles
-
 def vec2polar_angles(vec):
     """Find the polar angles describing the direction of a vector."""
     vec /= np.sqrt(vec.dot(vec))
