@@ -253,7 +253,6 @@ class StrainEnergy(object):
     def plot_explore_result(self, explore_result, latex=False):
         """Plot a diagonistic plot over the exploration result."""
         from matplotlib import pyplot as plt
-        from scipy.interpolate import SmoothSphereBivariateSpline
         from scipy.interpolate import griddata
         energy = []
         phi = []
