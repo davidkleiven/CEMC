@@ -305,11 +305,6 @@ def combine_axes_and_angles(axes, angles):
     """Combine the list of axes and angles into a list of dict."""
     return zip(axes, angles)
 
-def map_euler_angles_to_unique_float(euler):
-    """Map the euler angles into one unique float."""
-    return euler[0] + euler[1]*360 + euler[2]*360*360
-
-
 def vec2polar_angles(vec):
     """Find the polar angles describing the direction of a vector."""
     vec /= np.sqrt(vec.dot(vec))
