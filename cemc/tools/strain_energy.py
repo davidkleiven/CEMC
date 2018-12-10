@@ -289,15 +289,3 @@ class StrainEnergy(object):
     def volume_ellipsoid(aspect):
         """Compute the volume of an ellipsoid."""
         return 4.0*np.pi*aspect[0]*aspect[1]*aspect[2]/3.0
-
-
-def vec2polar_angles(vec):
-    """Find the polar angles describing the direction of a vector."""
-    vec /= np.sqrt(vec.dot(vec))
-    theta = np.arccos(vec[2])
-    if theta < 1E-6 or theta > np.pi-1E-6:
-        phi = 0.0
-    else:
-        phi = np.arcsin(vec[1]/np.sin(theta))
-        # assert abs(abs(vec[0]) - abs(np.cos(phi)*np.sin(theta))) < 1E-6
-    return (phi, theta)
