@@ -115,7 +115,7 @@ class TestStrainEnergy(unittest.TestCase):
         mu = 0.3
         misfit = [0.05, 0.04, 0.03, 0.03, 0.02, 0.01]
         strain_eng = StrainEnergy(aspect=[2.0, 2.0, 2.0],
-                                  eigenstrain=misfit, poisson=mu)
+                                  misfit=misfit, poisson=mu)
         f = 5.0
         eq_strain = strain_eng.equivalent_eigenstrain(C_matrix=C_al, scale_factor=f)
         kato_et_al = kato_et_al_sphere(f, mu, misfit)
@@ -128,7 +128,7 @@ class TestStrainEnergy(unittest.TestCase):
         mu = 0.3
         misfit = [0.05, 0.04, 0.03, 0.03, 0.02, 0.01]
         strain_eng = StrainEnergy(aspect=[200000000.0, 51200000.0, 0.001],
-                                  eigenstrain=misfit, poisson=mu)
+                                  misfit=misfit, poisson=mu)
         f = 4.0
         eq_strain = strain_eng.equivalent_eigenstrain(C_matrix=C_al, scale_factor=f)
         kato = kato_et_al_plate(f, mu, misfit)
@@ -141,7 +141,7 @@ class TestStrainEnergy(unittest.TestCase):
         mu = 0.3
         misfit = [0.05, 0.04, 0.03, 0.03, 0.02, 0.01]
         strain_eng = StrainEnergy(aspect=[50000.0, 5.0, 5.0],
-                                  eigenstrain=misfit, poisson=mu)
+                                  misfit=misfit, poisson=mu)
         f = 9.0
         eq_strain = strain_eng.equivalent_eigenstrain(C_matrix=C_al, scale_factor=f)
         kato = kato_et_al_needle(f, mu, misfit)
