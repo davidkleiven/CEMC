@@ -280,35 +280,6 @@ class StrainEnergy(object):
                    delimiter=",")
         print("Orientation results written to {}".format(fname))
 
-    def optimize_rotation(self, ellipsoid, e_matrix, init_rot):
-        """Optimize a rotation."""
-        self._check_ellipsoid(ellipsoid)
-        axes, angles = unwrap_euler_angles(init_rot)
-        orig_strain = to_full_tensor(self.misfit.copy())
-        aspect = np.array(ellipsoid["aspect"])
-
-        self.eshelby = StrainEnergy.get_eshelby(aspect, self.poisson)
-        opt_args = {
-            "ellipsoid": ellipsoid,
-            "elast_matrix": e_matrix,
-            "strain_energy_obj": self,
-            "orig_strain": orig_strain,
-            "rot_axes": axes
-        }
-        opts = {"eps": 1.0}
-        res = minimize(cost_minimize_strain_energy, angles, args=(opt_args,),
-                       options=opts)
-        rot_seq = combine_axes_and_angles(axes, res["x"])
-        optimal_orientation = {
-            "energy": res["fun"],
-            "rot_sequence": rot_seq,
-            "rot_matrix": rot_matrix(rot_seq)
-        }
-
-        # Reset the misfit back
-        self.misfit = to_mandel(orig_strain)
-        return optimal_orientation
-
     def log(self, msg):
         """Log message to screen."""
         print(msg)
