@@ -178,8 +178,7 @@ class StrainEnergy(object):
             self.log("\n")
 
     def explore_orientations(self, ellipsoid, C_matrix, step=10,
-                             print_summary=False, fname="", 
-                             theta_ax="y", phi_ax="z"):
+                             fname="", theta_ax="y", phi_ax="z"):
         """Explore the strain energy as a function of ellipse orientation.
         
         :param dict ellipsoid: Dictionary with information of the ellipsoid
@@ -247,9 +246,6 @@ class StrainEnergy(object):
             res["half_axes"] = {"a": a, "b": b, "c": c}
             res["misfit"] = self.misfit
             result.append(res)
-
-        if print_summary:
-            self.summarize_orientation_serch(result)
 
         if fname != "":
             self.save_orientation_result(result, fname)
