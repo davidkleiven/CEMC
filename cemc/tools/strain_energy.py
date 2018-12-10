@@ -300,11 +300,6 @@ def unwrap_euler_angles(sequence):
         angles.append(item[1])
     return axes, angles
 
-
-def combine_axes_and_angles(axes, angles):
-    """Combine the list of axes and angles into a list of dict."""
-    return zip(axes, angles)
-
 def vec2polar_angles(vec):
     """Find the polar angles describing the direction of a vector."""
     vec /= np.sqrt(vec.dot(vec))
