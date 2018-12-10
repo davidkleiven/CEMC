@@ -16,6 +16,13 @@ class BiasPotential(object):
         """
         raise NotImplementedError("Has to be implemented in child classes!")
 
+    def initialize(self):
+        """Initialize the bias potential (if applicable).
+           This functions is called right before MC sampling
+           starts.
+        """
+        pass
+
     def calculate_from_scratch(self, atoms):
         """Calculate the bias potential from scratch.
 
