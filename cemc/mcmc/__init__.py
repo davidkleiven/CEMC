@@ -37,3 +37,4 @@ from cemc.mcmc.inertia_reaction_crd import InertiaCrdInitializer, InertiaRangeCo
 from cemc.mcmc.parallel_tempering import ParallelTempering
 from cemc.mcmc.adaptive_bias_reac_path import AdaptiveBiasReactionPathSampler
 from cemc.mcmc.gaussian_cluster_tracker import GaussianClusterTracker
+from solute_chain_mc import SoluteChainMC
