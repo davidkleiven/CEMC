@@ -15,7 +15,9 @@ class StrainEnergy(object):
         NOTE: The convention aspect[0] >= aspect[1] >= aspect[2]
         is used. If the ellipsoid is oriented in a different way,
         it has to be rotated after.
-    :param misfit: 
+    :param misfit: Misfit strain of the inclusion
+    :type misfit: 3x3 ndarray or list of length 6 (Mandel notation)
+    :param float poisson: Poisson ratio
     """
 
     def __init__(self, aspect=[1.0, 1.0, 1.0],
@@ -31,7 +33,10 @@ class StrainEnergy(object):
 
     @staticmethod
     def get_eshelby(aspect, poisson):
-        """Return the Eshelby tensor."""
+        """Return the Eshelby tensor.
+        
+        :param float poisson: Poisson ratio
+        """
         tol = 1E-6
         if np.all(np.abs(aspect-aspect[0]) < tol):
             eshelby = PyEshelbySphere(aspect[0], aspect[0], aspect[0], poisson)
@@ -41,7 +46,10 @@ class StrainEnergy(object):
         return eshelby
 
     def _check_ellipsoid(self, ellipsoid):
-        """Check that the ellipsoid arguments is correct."""
+        """Check that the ellipsoid arguments is correct.
+        
+        :param dict ellipsoid: Dictionary describing the ellipsoid
+        """
         required_keys = ["aspect"]
         for key in ellipsoid.keys():
             if key not in required_keys:
@@ -56,8 +64,9 @@ class StrainEnergy(object):
                                scale_factor=None):
         """Compute the equivalent eigenstrain.
 
-        :param elast_matrix: Elastic tensor of the matrix material
-        :param scale_factor: The elastic tensor of the inclustion is assumed to
+        :param ndarray C_matrix: 6x6 elastic tensor of the matrix material
+        :param ndarray C_prec: 6x6 elastic tensor of the inclusion
+        :param float scale_factor: The elastic tensor of the inclustion is assumed to
                              be scale_factor*elast_matrix
         """
         if C_matrix is None:
@@ -79,8 +88,8 @@ class StrainEnergy(object):
     def stress(self, equiv_strain, C_matrix=None):
         """Compute the stress tensor.
 
-        :param equiv_strain: Equivalent eigenstrain
-        :param elastic_matrix: Elastic tensor of the matrix material
+        :param list equiv_strain: Equivalent eigenstrain in Mandel notation
+        :param C_matrix: 6x6 elastic tensor of the matrix material (Mandel)
         """
         S = np.array(self.eshelby.aslist())
         sigma = C_matrix.dot(S.dot(equiv_strain) - equiv_strain)
@@ -88,7 +97,13 @@ class StrainEnergy(object):
 
     def strain_energy(self, C_matrix=None, C_prec=None, 
                       scale_factor=None):
-        """Compute the strain energy per volume."""
+        """Compute the strain energy per volume.
+        
+        :param ndarray C_matrix: 6x6 elastic tensor of the matrix material
+        :param ndarray C_prec: 6x6 elastic tensor of the precipitate material
+        :param float scale_factor: If given and C_prec=None, 
+            C_pref = scale_factor*C_matrix
+        """
         eq_strain = self.equivalent_eigenstrain(
             C_matrix=C_matrix, C_prec=C_prec, 
             scale_factor=scale_factor)
@@ -249,7 +264,13 @@ class StrainEnergy(object):
         return result
 
     def save_orientation_result(self, result, fname):
-        """Store the orientation result."""
+        """Store the orientation result.
+        
+        :param list result: List with result from exploration
+            each item is a dictionary with the containing keys
+            theta, phi and energy.
+        :param str fname: Filename (csv-file)
+        """
         theta = [res["theta"] for res in result]
         phi = [res["phi"] for res in result]
         energy = [res["energy"] for res in result]
