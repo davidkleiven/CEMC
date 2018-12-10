@@ -433,47 +433,7 @@ class StrainEnergy(object):
         ax.set_xscale("log")
         self.misfit = orig_strain
         return fig
-
-    def show_ellipsoid(self, ellipsoid, rot_seq):
-        """Show the ellipsoid at given orientation."""
-        from matplotlib import pyplot as plt
-        matrix = rot_matrix(rot_seq)
-        coefs = np.array(ellipsoid["aspect"])
-
-        # Spherical angles
-        u = np.linspace(0, 2.0*np.pi, 100)
-        v = np.linspace(0, np.pi, 100)
-        rx, ry, rz = coefs
-        x = rx * np.outer(np.cos(u), np.sin(v))
-        y = ry * np.outer(np.sin(u), np.sin(v))
-        z = rz * np.outer(np.ones_like(u), np.cos(v))
-
-        N_pos = x.shape[0]*x.shape[1]
-        # Pack x, y, z into a numpy matrix
-        all_coords = np.zeros((3, N_pos))
-        all_coords[0, :] = np.ravel(x)
-        all_coords[1, :] = np.ravel(y)
-        all_coords[2, :] = np.ravel(z)
-
-        # Rotate all. Use the transpose of the rotation matrix because
-        # the rotation matrix is intended to be used for rotating the
-        # coordinate system, keeping the ellipsoid fixed
-        # so the inverse rotation is required when rotating the ellipsoid
-        all_coords = matrix.T.dot(all_coords)
-        x = np.reshape(all_coords[0, :], x.shape)
-        y = np.reshape(all_coords[1, :], y.shape)
-        z = np.reshape(all_coords[2, :], z.shape)
-
-        # Adjustment of the axes, so that they all have the same span:
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.plot_surface(x, y, z, rstride=4, cstride=4, color="grey")
-
-        max_radius = max(rx, ry, rz)
-        for axis in 'xyz':
-            getattr(ax, 'set_{}lim'.format(axis))((-max_radius, max_radius))
-        return fig
-
+        
 
 def unwrap_euler_angles(sequence):
     """Unwrap the list of axes and angles to separate lists."""
