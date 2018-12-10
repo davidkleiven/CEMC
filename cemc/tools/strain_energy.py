@@ -313,33 +313,6 @@ class StrainEnergy(object):
         """Log message to screen."""
         print(msg)
 
-    def summarize_orientation_serch(self, result):
-        """Prints a summary of the orientation search."""
-        num_angles = 20
-        self.log("=========================================================")
-        self.log("==            SUMMARY FROM ORIETATION SEARCH           ==")
-        self.log("=========================================================")
-        energies = [res["energy"] for res in result]
-        max = np.max(energies)
-        min = np.min(energies)
-        indices = np.argsort(energies)[:num_angles]
-        top_20 = [result[indx] for indx in indices]
-
-        self.log("Maximum energy: {}".format(max))
-        self.log("Minumum energy: {}".format(min))
-        self.log("{} orientation with the lowest energy".format(num_angles))
-        self.log("---------------------------------------------------------")
-        for i in range(num_angles):
-            out = "{:3} \t {} \t {}".format(top_20[i]["energy"]*1000.0,
-                                            top_20[i]["theta"], top_20[i]["phi"])
-            a = np.round(top_20[i]["half_axes"]["a"], decimals=2)
-            b = np.round(top_20[i]["half_axes"]["b"], decimals=2)
-            c = np.round(top_20[i]["half_axes"]["c"], decimals=2)
-            out += "a: {} \t b: {} c: {}\t".format(a, b, c)
-            out += "{}".format(top_20[i]["misfit"])
-            self.log(out)
-        self.log("---------------------------------------------------------")
-
     def plot_explore_result(self, explore_result, latex=False):
         """Plot a diagonistic plot over the exploration result."""
         from matplotlib import pyplot as plt
