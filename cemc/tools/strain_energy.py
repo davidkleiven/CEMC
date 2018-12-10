@@ -9,17 +9,24 @@ from scipy.optimize import minimize
 
 
 class StrainEnergy(object):
-    """Class for calculating strain energy of ellipsoidal inclusions."""
+    """Class for calculating strain energy of ellipsoidal inclusions.
+    
+    :param list aspect: Aspect ratio of the ellipsoid. 
+        NOTE: The convention aspect[0] >= aspect[1] >= aspect[2]
+        is used. If the ellipsoid is oriented in a different way,
+        it has to be rotated after.
+    :param misfit: 
+    """
 
     def __init__(self, aspect=[1.0, 1.0, 1.0],
-                 eigenstrain=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0], poisson=0.3):
+                 misfit=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0], poisson=0.3):
         """Initialize Strain energy class."""
         aspect = np.array(aspect)
         self.eshelby = StrainEnergy.get_eshelby(aspect, poisson)
-        self.eigenstrain = np.array(eigenstrain)
+        self.misfit = np.array(misfit)
 
-        if len(self.eigenstrain.shape) == 2:
-            self.eigenstrain = to_mandel(self.eigenstrain)
+        if len(self.misfit.shape) == 2:
+            self.misfit = to_mandel(self.misfit)
         self.poisson = poisson
 
     @staticmethod
@@ -66,7 +73,7 @@ class StrainEnergy(object):
                              "passed")
         S = np.array(self.eshelby.aslist())
         A = (C_prec - C_matrix).dot(S) + C_matrix
-        b = C_prec.dot(self.eigenstrain)
+        b = C_prec.dot(self.misfit)
         return np.linalg.solve(A, b)
 
     def stress(self, equiv_strain, C_matrix=None):
@@ -88,7 +95,7 @@ class StrainEnergy(object):
         sigma = self.stress(eq_strain, C_matrix)
 
         # Off diagonal elements should be multiplied by sqrt(2)
-        strain = self.eigenstrain.copy()
+        strain = self.misfit.copy()
         return -0.5*sigma.dot(strain)
 
     def is_isotropic(self, matrix, mat_type="mandel"):
@@ -187,7 +194,7 @@ class StrainEnergy(object):
         aspect = np.array(ellipsoid["aspect"])
         self.eshelby = StrainEnergy.get_eshelby(aspect, self.poisson)
         result = []
-        eigenstrain_orig = to_full_tensor(self.eigenstrain)
+        misfit_orig = to_full_tensor(self.misfit)
         theta = np.arange(0.0, np.pi, step*np.pi / 180.0)
         phi = np.arange(0.0, 2.0 * np.pi, step * np.pi / 180.0)
         theta = np.append(theta, [np.pi])
@@ -205,8 +212,8 @@ class StrainEnergy(object):
             #matrix = rot_matrix_spherical_coordinates(p, th)
 
             # Rotate the strain tensor
-            strain = rotate_tensor(eigenstrain_orig, matrix)
-            self.eigenstrain = to_mandel(strain)
+            strain = rotate_tensor(misfit_orig, matrix)
+            self.misfit = to_mandel(strain)
 
 
             # Rotate the elastic tensor of the matrix material
@@ -223,7 +230,7 @@ class StrainEnergy(object):
             b = matrix.T.dot([0.0, 1.0, 0.0])
             c = matrix.T.dot([0.0, 0.0, 1.0])
             res["half_axes"] = {"a": a, "b": b, "c": c}
-            res["eigenstrain"] = self.eigenstrain
+            res["misfit"] = self.misfit
             result.append(res)
 
         if print_summary:
@@ -238,7 +245,7 @@ class StrainEnergy(object):
         result = [result[indx] for indx in sorted_indx]
 
         # Reset the strain
-        self.eigenstrain = to_mandel(eigenstrain_orig)
+        self.misfit = to_mandel(misfit_orig)
         return result
 
     def save_orientation_result(self, result, fname):
@@ -256,7 +263,7 @@ class StrainEnergy(object):
         """Optimize a rotation."""
         self._check_ellipsoid(ellipsoid)
         axes, angles = unwrap_euler_angles(init_rot)
-        orig_strain = to_full_tensor(self.eigenstrain.copy())
+        orig_strain = to_full_tensor(self.misfit.copy())
         aspect = np.array(ellipsoid["aspect"])
 
         self.eshelby = StrainEnergy.get_eshelby(aspect, self.poisson)
@@ -277,8 +284,8 @@ class StrainEnergy(object):
             "rot_matrix": rot_matrix(rot_seq)
         }
 
-        # Reset the eigenstrain back
-        self.eigenstrain = to_mandel(orig_strain)
+        # Reset the misfit back
+        self.misfit = to_mandel(orig_strain)
         return optimal_orientation
 
     def log(self, msg):
@@ -308,7 +315,7 @@ class StrainEnergy(object):
             b = np.round(top_20[i]["half_axes"]["b"], decimals=2)
             c = np.round(top_20[i]["half_axes"]["c"], decimals=2)
             out += "a: {} \t b: {} c: {}\t".format(a, b, c)
-            out += "{}".format(top_20[i]["eigenstrain"])
+            out += "{}".format(top_20[i]["misfit"])
             self.log(out)
         self.log("---------------------------------------------------------")
 
@@ -358,13 +365,13 @@ class StrainEnergy(object):
         a_over_c = np.logspace(0, 3, 100)
         b_over_c = [1, 2, 5, 10, 50, 100]
 
-        orig_strain = self.eigenstrain.copy()
+        orig_strain = self.misfit.copy()
 
         if rot_seq is not None:
             strain = to_full_tensor(orig_strain)
             rot_mat = rot_matrix(rot_seq)
             strain = rotate_tensor(strain, rot_mat)
-            self.eigenstrain = to_mandel(strain)
+            self.misfit = to_mandel(strain)
 
         fig = plt.figure()
         ax = fig.add_subplot(1, 1, 1)
@@ -403,7 +410,7 @@ class StrainEnergy(object):
         ax.spines["right"].set_visible(False)
         ax.spines["top"].set_visible(False)
         ax.set_xscale("log")
-        self.eigenstrain = orig_strain
+        self.misfit = orig_strain
         return fig
 
     def show_ellipsoid(self, ellipsoid, rot_seq):
@@ -476,7 +483,7 @@ def cost_minimize_strain_energy(euler, args):
     matrix = rot_matrix(rot_seq)
     tensor = rotate_tensor(orig_strain, matrix)
     tensor = to_mandel(tensor)
-    obj.eigenstrain = tensor
+    obj.misfit = tensor
     return obj.strain_energy(scale_factor, e_matrix)
 
 
