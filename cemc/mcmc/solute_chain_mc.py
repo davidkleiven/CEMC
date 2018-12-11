@@ -68,9 +68,11 @@ class SoluteChainMC(Montecarlo):
         else:
             rand1 = self.connectivity.get_random_single_connected()
             symb1 = self.atoms[rand1].symbol
-            rand_sol = self.atoms_tracker.get_random_indx_of_symbol(choice(self.cluster_elements))
-            rand2 = self.connectivity.get_random_neighbour_matrix_index(rand_sol)
-            symb2 = self.atoms[rand2].symbol
+            symb2 = symb1
+            while symb2 in self.cluster_elements:
+                rand_sol = self.atoms_tracker.get_random_indx_of_symbol(choice(self.cluster_elements))
+                rand2 = self.connectivity.get_random_neighbour_index(rand_sol)
+                symb2 = self.atoms[rand2].symbol
         
         assert symb1 in self.cluster_elements
         assert symb2 in self.matrix_elements
@@ -273,6 +275,8 @@ class SoluteConnectivity(MCObserver):
         for indx in indices:
             if self.is_flexible(indx) and indx not in self.flexible_indices:
                 self.flexible_indices.append(indx)
+            elif indx in self.flexible_indices:
+                self.flexible_indices.remove(indx)
 
         # There are always two end points, so there has
         # to be at least 2 single connected points
