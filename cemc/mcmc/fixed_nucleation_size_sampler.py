@@ -385,7 +385,6 @@ class FixedNucleusMC(Montecarlo):
         if init_cluster:
             self._check_nucleation_site_exists()
             self.grow_cluster(elements)
-        step = 0
         self.network.collect_statistics = False
 
         # Call one time
