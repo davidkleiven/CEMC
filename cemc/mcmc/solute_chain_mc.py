@@ -36,6 +36,7 @@ class SoluteChainMC(Montecarlo):
         """Build a chain of solute atoms."""
         self.connectivity.build_chain(num_solutes, constraints=self.constraints)
         self._build_atoms_list()
+        self.current_energy = self.atoms.get_calculator().get_energy()
 
     def _get_nn_distance(self, nn):
         """Return the neighbour distance."""
