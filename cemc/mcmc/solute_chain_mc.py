@@ -155,9 +155,11 @@ class SoluteConnectivity(MCObserver):
         symbols[start_indx] = symb
         neighbor = self._neighbour_indices(start_indx)
         inserted.append(start_indx)
+        max_constraint_violations = 100000
 
         for symb, num in num_solutes.items():
             num_inserted = 0
+            num_violations = 0
             while num_inserted < num:
                 indx = neighbor[neighbor_cnt]
                 while symbols[indx] in self.cluster_elements and neighbor_cnt < len(neighbor):
@@ -174,7 +176,12 @@ class SoluteConnectivity(MCObserver):
                 # Proposed change
                 change = [(indx, self.atoms[indx].symbol, symb)]
                 if self.violate_constraints(change, constraints):
+                    num_violations += 1
+                    if num_violations >= max_constraint_violations:
+                        raise RuntimeError("Could not construct initial chain that "
+                                           "is consistent with the constraints!")
                     continue
+                num_violations = 0
                 symbols[indx] = symb
                 self.connectivity[indx] = [prev_inserted]
                 self.connectivity[prev_inserted].append(indx)
