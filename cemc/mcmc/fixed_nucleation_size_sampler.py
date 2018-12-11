@@ -191,7 +191,12 @@ class FixedNucleusMC(Montecarlo):
         :rtype: int
         """
         element = self.network_element[0]
-        indx = self.atoms_tracker.get_random_indx_of_symbol(element)
+        try:
+            indx = self.atoms_tracker.get_random_indx_of_symbol(element)
+        except KeyError:
+            raise KeyError("Could not find any seed."
+                           "Insert one atom from network_elements "
+                           "such that it can be used as seed for the cluster.")
         return indx
 
     def _indices_in_spherical_neighborhood(self, radius, root):
