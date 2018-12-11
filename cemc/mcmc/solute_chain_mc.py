@@ -273,10 +273,12 @@ class SoluteConnectivity(MCObserver):
         indices = self.connectivity[new_indx] + [new_indx]
 
         for indx in indices:
-            if self.is_flexible(indx) and indx not in self.flexible_indices:
-                self.flexible_indices.append(indx)
-            elif indx in self.flexible_indices:
-                self.flexible_indices.remove(indx)
+            if self.is_flexible(indx):
+                if indx not in self.flexible_indices:
+                    self.flexible_indices.append(indx)
+            else:
+                if indx in self.flexible_indices:
+                    self.flexible_indices.remove(indx)
 
         # There are always two end points, so there has
         # to be at least 2 single connected points
