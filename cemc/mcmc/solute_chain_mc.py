@@ -310,9 +310,7 @@ class SoluteConnectivity(MCObserver):
         connect_preserving_indx = set(self._neighbour_indices(indx))
         for i in range(1, len(self.connectivity[root])):
             indx = self.connectivity[root][i]
-            connect_preserving_indx = connect_preserving_indx.intersection(
-                set(self._neighbour_indices(indx))
-            )
+            connect_preserving_indx &= set(self._neighbour_indices(indx))
         return list(connect_preserving_indx)
 
     def _matrix_indices_preserving_connectivity(self, root):
@@ -321,9 +319,7 @@ class SoluteConnectivity(MCObserver):
         connect_preserving_indx = set(self._neighbour_matrix_indices(indx))
         for i in range(1, len(self.connectivity[root])):
             indx = self.connectivity[root][i]
-            connect_preserving_indx = connect_preserving_indx.intersection(
-                set(self._neighbour_matrix_indices(indx))
-            )
+            connect_preserving_indx &= set(self._neighbour_matrix_indices(indx))
         return list(connect_preserving_indx)
 
     def _index_at_center(self):
