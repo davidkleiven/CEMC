@@ -63,18 +63,14 @@ class SoluteChainMC(Montecarlo):
         if self.connectivity.has_flexible_sites and randnum < 0.5:
             rand1 = self.connectivity.get_random_flexible_index()
             symb1 = self.atoms[rand1].symbol
-            symb2 = symb1
-            while symb2 in self.cluster_elements:
-                rand2 = self.connectivity.get_random_neighbour_index(rand1)
-                symb2 = self.atoms[rand2].symbol
+            rand2 = self.connectivity.get_random_neighbour_matrix_index(rand1)
+            symb2 = self.atoms[rand2].symbol
         else:
             rand1 = self.connectivity.get_random_single_connected()
             symb1 = self.atoms[rand1].symbol
-            symb2 = symb1
-            while symb2 in self.cluster_elements:
-                rand_sol = self.atoms_tracker.get_random_indx_of_symbol(choice(self.cluster_elements))
-                rand2 = self.connectivity.get_random_neighbour_index(rand_sol)
-                symb2 = self.atoms[rand2].symbol
+            rand_sol = self.atoms_tracker.get_random_indx_of_symbol(choice(self.cluster_elements))
+            rand2 = self.connectivity.get_random_neighbour_matrix_index(rand_sol)
+            symb2 = self.atoms[rand2].symbol
         
         assert symb1 in self.cluster_elements
         assert symb2 in self.matrix_elements
@@ -344,6 +340,9 @@ class SoluteConnectivity(MCObserver):
     def get_random_neighbour_index(self, root):
         """Return a random neighbour index."""
         return choice(self._neighbour_indices(root))
+
+    def get_random_neighbour_matrix_index(self, root):
+        return choice(self._neighbour_matrix_indices(root))
 
     def has_matrix_element_neighbours(self, root):
         """Check if the current element has matrix element neighbours."""
