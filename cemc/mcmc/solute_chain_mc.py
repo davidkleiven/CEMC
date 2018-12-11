@@ -5,6 +5,7 @@ from random import choice
 import numpy as np
 from copy import deepcopy
 from scipy.spatial import cKDTree as KDTree
+from itertools import filterfalse
 
 
 class SoluteChainMC(Montecarlo):
@@ -61,11 +62,13 @@ class SoluteChainMC(Montecarlo):
         """Swap a solute atom with matrix atom."""
         randnum = np.random.rand()
         if self.connectivity.has_flexible_sites and randnum < 0.5:
+            #print("flex")
             rand1 = self.connectivity.get_random_flexible_index()
             symb1 = self.atoms[rand1].symbol
-            rand2 = self.connectivity.get_random_neighbour_matrix_index(rand1)
+            rand2 = self.connectivity.get_random_matrix_preserving_connections(rand1)
             symb2 = self.atoms[rand2].symbol
         else:
+            #print("single")
             rand1 = self.connectivity.get_random_single_connected()
             symb1 = self.atoms[rand1].symbol
             symb2 = symb1
@@ -219,6 +222,10 @@ class SoluteConnectivity(MCObserver):
             # Both elements are solute elements. Swapping these have 
             # no impact on the connectivity
             return
+        elif system_changes[0][1] not in self.cluster_elements and system_changes[0][2] not in self.cluster_elements:
+            # Both elements are matrix element. Swapping these have
+            # no impact on the connectivity
+            return
 
         if system_changes[0][1] in self.cluster_elements:
             old_indx = system_changes[0][0]
@@ -239,9 +246,17 @@ class SoluteConnectivity(MCObserver):
                 self.connectivity[indx].append(new_indx)
                 self.connectivity[new_indx].append(indx)
 
-            if len(self.connectivity[indx]) == 1 and indx not in self.single_connected_points:
-                self.single_connected_points.append(indx)
+            if len(self.connectivity[indx]) == 1:
+                if indx not in self.single_connected_points:
+                    self.single_connected_points.append(indx)
+            else:
+                if indx in self.single_connected_points:
+                    self.single_connected_points.remove(indx)
 
+            assert len(self.connectivity[indx]) >= 1
+
+        #print(self.single_connected_points)
+        #print([self.atoms[i].symbol for i in self.single_connected_points])
         if old_indx in self.single_connected_points:
             self.single_connected_points.remove(old_indx)
 
@@ -254,14 +269,16 @@ class SoluteConnectivity(MCObserver):
             # There should never be no neighbours.
             # If that is the case something is wrong
             assert candidates
-
+            found_connection = False
             for cand in candidates:
                 if cand == new_indx:
                     continue
                 if self.atoms[cand].symbol in self.cluster_elements:
                     self.connectivity[new_indx].append(cand)
                     self.connectivity[cand].append(new_indx)
+                    found_connection = True
                     break
+            assert found_connection
 
         if len(self.connectivity[new_indx]) == 1:
             self.single_connected_points.append(new_indx)
@@ -271,14 +288,10 @@ class SoluteConnectivity(MCObserver):
 
         # Check if we have new flexible indices
         indices = self.connectivity[new_indx] + [new_indx]
+        #print(list(self.atoms[i].symbol for i in self.flexible_indices))
 
-        for indx in indices:
-            if self.is_flexible(indx):
-                if indx not in self.flexible_indices:
-                    self.flexible_indices.append(indx)
-            else:
-                if indx in self.flexible_indices:
-                    self.flexible_indices.remove(indx)
+        # Filter out the flexible indices, that are not flexible after the update
+        self.flexible_indices = list(filterfalse(lambda x: not self.is_flexible(x), set(self.flexible_indices + indices)))
 
         # There are always two end points, so there has
         # to be at least 2 single connected points
@@ -297,10 +310,6 @@ class SoluteConnectivity(MCObserver):
             for item in con:
                 if self.atoms[item].symbol not in self.cluster_elements:
                     return False
-
-        # Check that the chain has exactly two end points
-        if self.num_end_points != 2:
-            return False
         return True
 
     @property
@@ -316,21 +325,22 @@ class SoluteConnectivity(MCObserver):
     
     def _indices_preserving_connectivity(self, root):
         """Return a list of indices preserving the connectivity."""
-        indx = self.connectivity[root][0]
-        connect_preserving_indx = set(self._neighbour_indices(indx))
-        for i in range(1, len(self.connectivity[root])):
-            indx = self.connectivity[root][i]
-            connect_preserving_indx &= set(self._neighbour_indices(indx))
-        return list(connect_preserving_indx)
+        assert len(self.connectivity[root]) >= 1
+
+        # Calculate the intersection of the set of all matrix
+        # neighbors 
+        return list(set.intersection(*(set(self._neighbour_indices(indx)) 
+                    for indx in self.connectivity[root])))
 
     def _matrix_indices_preserving_connectivity(self, root):
         """Return a list of indices preserving the connectivity."""
-        indx = self.connectivity[root][0]
-        connect_preserving_indx = set(self._neighbour_matrix_indices(indx))
-        for i in range(1, len(self.connectivity[root])):
-            indx = self.connectivity[root][i]
-            connect_preserving_indx &= set(self._neighbour_matrix_indices(indx))
-        return list(connect_preserving_indx)
+        assert len(self.connectivity[root]) >= 1
+
+        # Calculate the intersection of all the set of all matrix
+        # elements in the neighborhood of all the solute atoms
+        # root is connected to
+        return list(set.intersection(*(set(self._neighbour_matrix_indices(indx)) 
+                    for indx in self.connectivity[root])))
 
     def _index_at_center(self):
         """Return the index of the atoms closest to the center."""
@@ -349,7 +359,7 @@ class SoluteConnectivity(MCObserver):
 
     def _neighbour_matrix_indices(self, root):
         neighbor = self._neighbour_indices(root)
-        return [index for index in neighbor if self.atoms[index].symbol not in self.cluster_elements]
+        return list(filterfalse(lambda x: self.atoms[x].symbol in self.cluster_elements, neighbor))
 
     def get_random_neighbour_index(self, root):
         """Return a random neighbour index."""
@@ -357,6 +367,9 @@ class SoluteConnectivity(MCObserver):
 
     def get_random_neighbour_matrix_index(self, root):
         return choice(self._neighbour_matrix_indices(root))
+
+    def get_random_matrix_preserving_connections(self, root):
+        return choice(self._matrix_indices_preserving_connectivity(root))
 
     def has_matrix_element_neighbours(self, root):
         """Check if the current element has matrix element neighbours."""
