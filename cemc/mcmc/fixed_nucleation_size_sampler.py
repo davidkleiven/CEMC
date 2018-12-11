@@ -330,6 +330,7 @@ class FixedNucleusMC(Montecarlo):
         # Disable network statistics to make the program
         # run faster
         self.network.collect_statistics = False
+        self.current_energy = self.atoms.get_calculator().get_energy()
 
     def get_atoms(self, atoms=None, prohib_elem=[]):
         """
@@ -371,7 +372,7 @@ class FixedNucleusMC(Montecarlo):
         self.network.collect_statistics = False
         self.network([])
 
-    def runMC(self, steps=100000, init_cluster=True, elements={}):
+    def runMC(self, steps=100000, init_cluster=True, elements={}, equil=False):
         """
         Run Monte Carlo for fixed nucleus size
 
@@ -393,12 +394,4 @@ class FixedNucleusMC(Montecarlo):
         if self.network.num_root_nodes() > 1:
             raise ValueError("Something went wrong during construction! "
                              "the system has more than one cluster!")
-        while step < steps:
-            step += 1
-            self._mc_step()
-
-            # Update the average energy
-            self.mean_energy += self.current_energy_without_vib()
-            self.energy_squared += self.current_energy_without_vib()**2
-        accpt_rate = float(self.num_accepted) / self.current_step
-        print("Acceptance rate: {}".format(accpt_rate))
+        Montecarlo.runMC(self, steps=steps, equil=equil)
