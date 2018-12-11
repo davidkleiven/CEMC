@@ -372,6 +372,12 @@ class NetworkObserver(MCObserver):
         args = (self.calc, self.cluster_name, self.element, self.nbins)
         return (self.__class__, args)
 
+    def move_involves_only_cluster_elements(self, system_changes):
+        """
+        Return True if the move involves only cluster elements
+        """
+        return all(change[1] in self.element for change in system_changes)
+
     def __call__(self, system_changes):
         """
         Collect information about atomic clusters in the system
@@ -380,7 +386,8 @@ class NetworkObserver(MCObserver):
         """
         self.n_calls += 1
         if system_changes and self.fixed_num_solutes:
-            self.fast_cluster_tracker.update_clusters(system_changes)
+            if not self.move_involves_only_cluster_elements(system_changes):
+                self.fast_cluster_tracker.update_clusters(system_changes)
         else:
             self.fast_cluster_tracker.find_clusters()
 
