@@ -33,6 +33,11 @@ class SoluteChainMC(Montecarlo):
         self.move_dist = np.cumsum([mv[1] for mv in move_weight])
         self.move_dist /= self.move_dist[-1]
 
+        print("=============================================")
+        print("== THIS MC SAMPLER IS NOT CAREFULLY TESTED ==")
+        print("==        AND SHOULD NOT BE USED           ==")
+        print("=============================================")
+
     def build_chain(self, num_solutes={}):
         """Build a chain of solute atoms."""
         self.connectivity.build_chain(num_solutes, constraints=self.constraints)
