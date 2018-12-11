@@ -176,6 +176,7 @@ class SoluteConnectivity(MCObserver):
                 # Proposed change
                 change = [(indx, self.atoms[indx].symbol, symb)]
                 if self.violate_constraints(change, constraints):
+                    neighbor_cnt += 1
                     num_violations += 1
                     if num_violations >= max_constraint_violations:
                         raise RuntimeError("Could not construct initial chain that "
