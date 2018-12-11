@@ -1,5 +1,6 @@
 from cemc.mcmc import Montecarlo
 from cemc.mcmc import MCObserver
+from cemc.mcmc import FixEdgeLayers
 from random import choice
 import numpy as np
 from copy import deepcopy
@@ -8,13 +9,19 @@ from scipy.spatial import cKDTree as KDTree
 
 class SoluteChainMC(Montecarlo):
     def __init__(self, atoms, T, cluster_elements=[], cluster_names=[], 
-                 move_weight=[("solute-solute", 0.5), ("solute-matrix", 0.5)]):
+                 move_weight=[("solute-solute", 0.5), ("solute-matrix", 0.5)],
+                 edge_layer=2):
         Montecarlo.__init__(self, atoms, T)
         if not cluster_names:
             raise ValueError("No cluster names given!")
         self.cluster_elements = cluster_elements
         self.matrix_elements = list(set(self.symbols) - set(self.cluster_elements))
         self.max_attempts = 10000
+
+        # Add edge layer constraint
+        thickness = self._get_nn_distance(edge_layer)
+        self.edge_layer = FixEdgeLayers(thickness=thickness, atoms=self.atoms)
+        self.add_constraint(self.edge_layer)
         
         tm = self.atoms.get_calculator().BC.trans_matrix
         self.connectivity = SoluteConnectivity(self.atoms, tm, cluster_elements, cluster_names)
@@ -27,8 +34,14 @@ class SoluteChainMC(Montecarlo):
 
     def build_chain(self, num_solutes={}):
         """Build a chain of solute atoms."""
-        self.connectivity.build_chain(num_solutes)
+        self.connectivity.build_chain(num_solutes, constraints=self.constraints)
         self._build_atoms_list()
+
+    def _get_nn_distance(self, nn):
+        """Return the neighbour distance."""
+        dists = self.atoms.get_distances(0, range(1, len(self.atoms)))
+        dists.sort()
+        return dists[nn]
 
     def _swap_two_solute_atoms(self):
         """Swap two solute atoms."""
@@ -118,7 +131,13 @@ class SoluteConnectivity(MCObserver):
             indices.append(indx[0])
         return indices
 
-    def build_chain(self, num_solutes={}):
+    def violate_constraints(self, change, constraints):
+        for cnst in constraints:
+            if not cnst(change):
+                return True
+        return False
+
+    def build_chain(self, num_solutes={}, constraints=[]):
         """Construct a chain with solute atoms
 
         :param dict num_solutes: Dictionary saying how many of
@@ -155,6 +174,10 @@ class SoluteConnectivity(MCObserver):
                     neighbor_cnt = 0
                     continue
 
+                # Proposed change
+                change = [(indx, self.atoms[indx].symbol, symb)]
+                if self.violate_constraints(change, constraints):
+                    continue
                 symbols[indx] = symb
                 self.connectivity[indx] = [prev_inserted]
                 self.connectivity[prev_inserted].append(indx)
