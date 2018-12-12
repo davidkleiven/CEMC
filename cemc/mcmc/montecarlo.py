@@ -253,7 +253,7 @@ class Montecarlo(object):
         self.bias_energy = 0.0
         for bias in self.bias_potentials:
             self.bias_energy += bias.calculate_from_scratch(self.atoms)
-        if (self.accept_first_trial_move_after_reset):
+        if self.accept_first_trial_move_after_reset:
             self.is_first = True
 
     def _check_symbols(self):
