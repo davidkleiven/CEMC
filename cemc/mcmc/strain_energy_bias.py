@@ -37,8 +37,8 @@ class Strain(BiasPotential):
                                misfit=misfit)
         str_energy = str_eng.strain_energy(C_matrix=C_mat, C_prec=C_prec)
 
-        # Bias potential should not alter the
-        # observer
+        # Bias potential should not alter the observer
+        # The MC object will handle this
         self.inert_obs.undo_last()
         return str_energy*self._volume
 
