@@ -28,7 +28,8 @@ class Strain(BiasPotential):
     def __call__(self, system_changes):
         self.inert_obs(system_changes)
 
-        principal, rot_matrix = np.linalg.eig(self.inert_obs.inertia)
+        principal, rot_matrix = np.linalg.eigh(self.inert_obs.inertia)
+
         C_mat = rotate_rank4_mandel(self.C_matrix, rot_matrix)
         C_prec = rotate_rank4_mandel(self.C_prec, rot_matrix)
         misfit = rotate_tensor(self.misfit, rot_matrix)
