@@ -41,3 +41,8 @@ class Strain(BiasPotential):
         # observer
         self.inert_obs.undo_last()
         return str_energy*self._volume
+
+    def calculate_from_scratch(self, atoms):
+        """Calculate the strain energy from scratch."""
+        self.inert_obs.set_atoms(atoms)
+        return self(None)
