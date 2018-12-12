@@ -330,7 +330,7 @@ class FixedNucleusMC(Montecarlo):
         # Disable network statistics to make the program
         # run faster
         self.network.collect_statistics = False
-        self.current_energy = self.atoms.get_calculator().get_energy()
+        self.update_current_energy()
 
     def get_atoms(self, atoms=None, prohib_elem=[]):
         """
