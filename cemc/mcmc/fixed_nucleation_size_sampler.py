@@ -369,8 +369,6 @@ class FixedNucleusMC(Montecarlo):
     def set_symbols(self, symbs):
         """Override parents set symbols."""
         Montecarlo.set_symbols(self, symbs)
-        self.network.collect_statistics = False
-        self.network([])
         self.init_cluster_info()
 
     def runMC(self, steps=100000, init_cluster=True, elements={}, equil=False):
