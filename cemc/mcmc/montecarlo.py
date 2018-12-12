@@ -949,7 +949,7 @@ class Montecarlo(object):
 
         # Add information from observers
         for obs in self.observers:
-            quantities.update(obs[0].get_averages())
+            quantities.update(obs[1].get_averages())
         return quantities
 
     def _get_trial_move(self):
