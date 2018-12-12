@@ -5,6 +5,7 @@ from ase.io.trajectory import TrajectoryWriter
 from cemc.mcmc.averager import Averager
 from cemc.mcmc.util import waste_recycled_average
 from cemc.mcmc.mpi_tools import num_processors, mpi_rank
+from itertools import product
 highlight_elements = ["Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na", "Mg",
                       "Al", "Si", "P", "S", "Cl", "Ar"]
 
@@ -974,7 +975,7 @@ class InertiaTensorObserver(MCObserver):
     def get_averages(self):
         """Return the average inertia tensor."""
         avg = {}
-        for indx in product(range(3)):
+        for indx in product(range(3), repeat=2):
             key = "I{}{}".format(indx[0], indx[1])
             avg[key] = self.inertia_avg[indx[0], indx[1]]/self.num_calls
         return avg
