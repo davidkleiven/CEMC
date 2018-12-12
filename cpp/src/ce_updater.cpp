@@ -316,8 +316,9 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
   }
 
   // Loop over all ECIs
-  //for ( auto iter=ecis.begin(); iter != ecis.end(); ++iter )
-  //#pragma omp parallel for
+  #ifdef PARALLEL_CF_UPDATE
+  #pragma omp parallel for
+  #endif
   for ( unsigned int i=0;i<ecis.size();i++ )
   {
     //const string &name = iter->first;

@@ -1,6 +1,14 @@
+import sys
 from setuptools import setup, Extension, find_packages
 import numpy as np
 from Cython.Build import cythonize
+
+"""Install instructions
+
+1. To parallelize the update of correlation functions
+    usng openMP run the installation with
+    pip install --install-option="--PARALLEL_CF_UPDATE"
+"""
 
 src_folder = "cpp/src"
 inc_folder = "cpp/include"
@@ -19,10 +27,23 @@ ce_updater_sources = ["ce_updater.cpp", "cf_history_tracker.cpp",
 ce_updater_sources = [src_folder+"/"+srcfile for srcfile in ce_updater_sources]
 ce_updater_sources.append("cemc/cpp_ext/cemc_cpp_code.pyx")
 
+define_macros = []
+extracted_args = []
+for arg in sys.argv:
+    if arg == "--PARALLEL_CF_UPDATE":
+        define_macros.append(("PARALLEL_CF_UPDATE", None))
+        extracted_args.append(arg)
+
+# Filter out of sys.argv
+for arg in extracted_args:
+    sys.argv.remove(arg)
+
 cemc_cpp_code = Extension("cemc_cpp_code", sources=ce_updater_sources,
                           include_dirs=[inc_folder, np.get_include()],
                           extra_compile_args=["-std=c++11", "-fopenmp"],
-                          language="c++", libraries=["gomp", "pthread"])
+                          language="c++", libraries=["gomp", "pthread"],
+                          define_macros=define_macros)
+
 setup(
     name="cemc",
     ext_modules=cythonize(cemc_cpp_code),
