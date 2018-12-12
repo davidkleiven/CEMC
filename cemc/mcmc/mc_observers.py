@@ -962,10 +962,6 @@ class InertiaTensorObserver(MCObserver):
         self.old_inertia = self.inertia.copy()
         self.old_com = self.com.copy()
 
-        if self.move_involves_only_cluster_elements(system_changes):
-            assert np.allclose(d_com, 0.0)
-            assert np.allclose(d_I, 0.0)
-
         self.com += d_com
         self.inertia += d_I
         self.inertia_avg += self.inertia
