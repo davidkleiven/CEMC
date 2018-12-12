@@ -931,6 +931,7 @@ class InertiaTensorObserver(MCObserver):
         self.num_calls = 1
 
     def move_involves_only_cluster_elements(self, system_changes):
+        """Check if the move involves only solute atoms."""
         return all([change[1] in self.cluster_elements for change in system_changes])
 
     def set_atoms(self, atoms):
@@ -964,7 +965,7 @@ class InertiaTensorObserver(MCObserver):
         if self.move_involves_only_cluster_elements(system_changes):
             assert np.allclose(d_com, 0.0)
             assert np.allclose(d_I, 0.0)
-            
+
         self.com += d_com
         self.inertia += d_I
         self.inertia_avg += self.inertia
