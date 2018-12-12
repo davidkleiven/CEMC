@@ -32,6 +32,10 @@ class MCObserver(object):
         """Reset all values of the MC observer"""
         pass
 
+    def get_averages(self):
+        """Return averages in the form of a dictionary."""
+        return {}
+
 
 class CorrelationFunctionTracker(MCObserver):
     """
@@ -107,7 +111,7 @@ class PairCorrelationObserver(MCObserver):
             self.cf[key] += new_cf[key]
             self.cf_squared[key] += new_cf[key]**2
 
-    def get_average(self):
+    def get_averages(self):
         """Returns the average.
 
         :return: Thermal averaged correlation functions
@@ -800,10 +804,13 @@ class MCBackup(MCObserver):
         a table
     :param str db_tab_name: Name of table in the database
     :param int db_id: ID in the database. If None, a new entry will be created
+    :param overwrite_db_row: If True, a row will be updated if it exits.
+        If False, a new row will be added to the database everytime
+        this function is called
     """
 
     def __init__(self, mc_obj, backup_file="montecarlo_backup.pkl", db_name="",
-                 db_tab_name="mc_backup", db_id=None):
+                 db_tab_name="mc_backup", db_id=None, overwrite_db_row=True):
         self.mc_obj = mc_obj
         self.backup_file = self._include_rank_in_filename(backup_file)
         MCObserver.__init__(self)
@@ -811,6 +818,7 @@ class MCBackup(MCObserver):
         self.db_name = db_name
         self.db_id = None
         self.db_tab_name = db_tab_name
+        self.overwrite_db_row = overwrite_db_row
 
     def _include_rank_in_filename(self, fname):
         """Include the current rank in the filename if nessecary."""
@@ -832,7 +840,9 @@ class MCBackup(MCObserver):
             tab = db[self.db_tab_name]
             if self.db_id is None:
                 # This shoud be a new entry
-                self.db_id = tab.insert(thermo)
+                db_id = tab.insert(thermo)
+                if self.overwrite_db_row:
+                    self.db_id = db_id
             else:
                 # Entry alread exists. Update that one.
                 thermo["id"] = self.db_id
@@ -893,10 +903,12 @@ class InertiaTensorObserver(MCObserver):
         self.cluster_elements = cluster_elements
         self.com = np.zeros(3)
         self.inertia = np.zeros((3, 3))
+        self.inertia_avg = np.zeros_like(self.inertia)
         self.num_atoms = 0
         self.init_com_and_inertia()
         self.old_com = None
         self.old_inertia = None
+        self.num_calls = 0
 
     def init_com_and_inertia(self):
         """Initialize the center of mass and the inertia."""
@@ -914,6 +926,8 @@ class InertiaTensorObserver(MCObserver):
                                "Atoms object provided!")
         self.com /= self.num_atoms
         self.inertia -= self.num_atoms*np.outer(self.com, self.com)
+        self.inertia_avg = self.inertia.copy()
+        self.num_calls = 1
 
     def set_atoms(self, atoms):
         """Set a new atoms object."""
@@ -945,13 +959,25 @@ class InertiaTensorObserver(MCObserver):
 
         self.com += d_com
         self.inertia += d_I
+        self.inertia_avg += self.inertia
+        self.num_calls += 1
 
     def undo_last(self):
         """Undo the last update."""
         if self.old_inertia is None:
             return
+        self.inertia_avg -= self.inertia
+        self.num_calls -= 1
         self.inertia = self.old_inertia
         self.com = self.old_com
+
+    def get_averages(self):
+        """Return the average inertia tensor."""
+        avg = {}
+        for indx in product(range(3)):
+            key = "I{}{}".format(indx[0], indx[1])
+            avg[key] = self.inertia_avg[indx[0], indx[1]]/self.num_calls
+        return avg
 
 class PairObserver(MCObserver):
     """Tracking the average number of pairs within a cutoff"""
