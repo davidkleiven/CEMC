@@ -36,7 +36,7 @@ class FixedNucleusMC(Montecarlo):
     def _init_networks(self):
         """Initialize the network observers."""
         network = NetworkObserver(
-            calc=self.atoms._calc, cluster_name=self.network_name,
+            calc=self.atoms.get_calculator(), cluster_name=self.network_name,
             element=self.network_element)
         return network
 
