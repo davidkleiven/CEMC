@@ -240,6 +240,14 @@ class Montecarlo(object):
         if attempts == max_attempts:
             raise RuntimeError("Could insert {} {} atoms!".format(num, symbol))
 
+    def update_current_energy(self):
+        """Enforce a new energy evaluation."""
+        self.current_energy = self.atoms.get_calculator().get_energy()
+        self.bias_energy = 0.0
+        for bias in self.bias_potentials:
+            self.bias_energy += bias.calculate_from_scratch(self.atoms)
+        self.current_energy += self.bias_energy
+
     def set_symbols(self, symbs):
         """Set the symbols of this Monte Carlo run.
 
@@ -248,11 +256,8 @@ class Montecarlo(object):
         """
         self.atoms.get_calculator().set_symbols(symbs)
         self._build_atoms_list()
+        self.update_current_energy()
 
-        self.current_energy = self.atoms.get_calculator().get_energy()
-        self.bias_energy = 0.0
-        for bias in self.bias_potentials:
-            self.bias_energy += bias.calculate_from_scratch(self.atoms)
         if self.accept_first_trial_move_after_reset:
             self.is_first = True
 
