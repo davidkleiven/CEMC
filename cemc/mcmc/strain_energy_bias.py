@@ -22,7 +22,7 @@ class Strain(BiasPotential):
     def initialize(self):
         """Initialize the bias potential."""
         num_solutes = self.mc.num_atoms_in_cluster
-        vol_per_atom = self.mc.atoms.volume()/len(self.mc.atoms)
+        vol_per_atom = self.mc.atoms.get_volume()/len(self.mc.atoms)
         self._volume = num_solutes*vol_per_atom
 
     def __call__(self, system_changes):
