@@ -227,7 +227,7 @@ class FixedNucleusMC(Montecarlo):
                     indices.append(atom.index)
             cluster = self.atoms[indices]
             from ase.io import write
-            fname = "invalide_cluster{}.xyz".format(self.rank)
+            fname = "invalid_cluster{}.xyz".format(self.rank)
             write(fname, cluster)
             raise RuntimeError("There are {} clusters present! "
                                "Initial structure written to {}\n"
