@@ -1,6 +1,7 @@
 from cemc.mcmc import Montecarlo
 from cemc.mcmc import NetworkObserver
 import numpy as np
+from random import choice, shuffle
 
 
 class FixedNucleusMC(Montecarlo):
@@ -91,12 +92,19 @@ class FixedNucleusMC(Montecarlo):
         return np.unique(network_indx)
 
     def _get_trial_move(self):
+        """Generate a trial move."""
+        rand_num = np.random.rand()
+
+        if rand_num < 0.5:
+            return self._get_solute_matrix_trial_move()
+        return self._get_random_move()
+        
+    def _get_random_move(self):
         """Generate a trial move.
 
         :return: Proposed move
         :rtype: list of tuples
         """
-        from random import choice, shuffle
         ref_element = choice(self.network_element)
         rand_a = self.atoms_tracker.get_random_indx_of_symbol(ref_element)
 
@@ -114,6 +122,22 @@ class FixedNucleusMC(Montecarlo):
 
         symb_a = self.atoms[rand_a].symbol
         assert symb_a == ref_element
+        system_changes = [(rand_a, symb_a, symb_b),
+                          (rand_b, symb_b, symb_a)]
+        return system_changes
+
+    def _get_solute_matrix_trial_move(self):
+        """Generate a trial move that swaps a solute and a matrix element."""
+        symb_a = choice(self.network_element)
+        rand_a = self.atoms_tracker.get_random_indx_of_symbol(symb_a)
+        rand_b = rand_a
+        symb_b = symb_a
+        while symb_b in self.network_element:
+            new_ref_element = choice(self.network_element)
+            ref_indx = self.atoms_tracker.get_random_indx_of_symbol(new_ref_element)
+            clst_indx = choice(self.network_clust_indx)
+            rand_b = self.bc.trans_matrix[ref_indx][clst_indx]
+            symb_b = self.atoms[rand_b].symbol
         system_changes = [(rand_a, symb_a, symb_b),
                           (rand_b, symb_b, symb_a)]
         return system_changes
