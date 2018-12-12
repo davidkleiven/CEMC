@@ -28,12 +28,12 @@ class Strain(BiasPotential):
     def __call__(self, system_changes):
         self.inert_obs(system_changes)
 
-        _, rot_matrix = np.linalg.eig(self.inert_obs.inertia)
+        principal, rot_matrix = np.linalg.eig(self.inert_obs.inertia)
         C_mat = rotate_rank4_mandel(self.C_matrix, rot_matrix)
         C_prec = rotate_rank4_mandel(self.C_prec, rot_matrix)
         misfit = rotate_tensor(self.misfit, rot_matrix)
 
-        str_eng = StrainEnergy(aspect=self.inert_obs.ellipsoid_axes(), 
+        str_eng = StrainEnergy(aspect=self.ellipsoid_axes(principal), 
                                misfit=misfit)
         str_energy = str_eng.strain_energy(C_matrix=C_mat, C_prec=C_prec)
 
@@ -46,3 +46,17 @@ class Strain(BiasPotential):
         """Calculate the strain energy from scratch."""
         self.inert_obs.set_atoms(atoms)
         return self([])
+
+    def ellipsoid_axes(self, princ):
+        """Calculate the ellipsoid principal axes.
+        
+        :return: Numpy array of length 3 (a, b, c)
+        :rtype: numpy.ndarray
+        """
+        princ_axes = np.zeros(3)
+        princ_axes[0] = (princ[1] + princ[2] - princ[0])
+        princ_axes[1] = (princ[0] + princ[2] - princ[1])
+        princ_axes[2] = (princ[0] + princ[1] - princ[2])
+        princ_axes *= 5.0/2.0
+        princ_axes[princ_axes<0.0] = 0.0
+        return np.sqrt(princ_axes)

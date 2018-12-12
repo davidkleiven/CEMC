@@ -953,21 +953,6 @@ class InertiaTensorObserver(MCObserver):
         self.inertia = self.old_inertia
         self.com = self.old_com
 
-    def ellipsoid_axes(self):
-        """Calculate the ellipsoid principal axes.
-        
-        :return: Numpy array of length 3 (a, b, c)
-        :rtype: numpy.ndarray
-        """
-        princ = np.linalg.eigvals(self.inertia)
-        princ_axes = np.zeros(3)
-        princ_axes[0] = (princ[1] + princ[2] - princ[0])
-        princ_axes[1] = (princ[0] + princ[2] - princ[1])
-        princ_axes[2] = (princ[0] + princ[1] - princ[2])
-        princ_axes *= 5.0/2.0
-        princ_axes[princ_axes<0.0] = 0.0
-        return np.sqrt(princ_axes)
-
 class PairObserver(MCObserver):
     """Tracking the average number of pairs within a cutoff"""
     def __init__(self, atoms, cutoff=4.0, elements=[]):
