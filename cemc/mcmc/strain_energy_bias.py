@@ -34,14 +34,15 @@ class Strain(BiasPotential):
         C_prec = rotate_rank4_mandel(self.C_prec, rot_matrix)
         misfit = rotate_tensor(self.misfit, rot_matrix)
 
-        str_eng = StrainEnergy(aspect=self.ellipsoid_axes(principal), 
+        axes = self.ellipsoid_axes(principal)
+        str_eng = StrainEnergy(aspect=axes, 
                                misfit=misfit)
         str_energy = str_eng.strain_energy(C_matrix=C_mat, C_prec=C_prec)
 
         # Bias potential should not alter the observer
         # The MC object will handle this
         self.inert_obs.undo_last()
-        return str_energy*self._volume
+        return str_energy*ellipsoid_volume(axes)
 
     def calculate_from_scratch(self, atoms):
         """Calculate the strain energy from scratch."""
@@ -62,3 +63,7 @@ class Strain(BiasPotential):
         princ_axes *= 5.0/2.0
         princ_axes[princ_axes<0.0] = 0.0
         return np.sqrt(princ_axes)
+
+def ellipsoid_volume(principal_axes):
+    """Calculate the volume of an elipsoid."""
+    return 4.0*np.pi*np.prod(principal_axes)/3.0
