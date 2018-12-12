@@ -45,4 +45,4 @@ class Strain(BiasPotential):
     def calculate_from_scratch(self, atoms):
         """Calculate the strain energy from scratch."""
         self.inert_obs.set_atoms(atoms)
-        return self(None)
+        return self([])
