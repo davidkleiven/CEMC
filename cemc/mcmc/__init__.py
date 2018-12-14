@@ -38,4 +38,5 @@ from cemc.mcmc.parallel_tempering import ParallelTempering
 from cemc.mcmc.adaptive_bias_reac_path import AdaptiveBiasReactionPathSampler
 from cemc.mcmc.gaussian_cluster_tracker import GaussianClusterTracker
 from cemc.mcmc.solute_chain_mc import SoluteChainMC
-from cemc.mcmc.strain_energy_bias import Strain
+from cemc.mcmc.mc_constraints import ConstrainElementByTag
+#from cemc.mcmc.strain_energy_bias import Strain
