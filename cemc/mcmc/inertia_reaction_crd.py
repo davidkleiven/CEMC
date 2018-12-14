@@ -291,7 +291,7 @@ class CovarianceCrdInitializer(ReactionCrdInitializer):
                                               "{}!".format(value))
 
 
-class InertiaRangeConstraint(ReactionCrdRangeConstraint):
+class CovarianceRangeConstraint(ReactionCrdRangeConstraint):
     """Constraint to ensure that the system stays without its bounds.
 
     :param FixedNucleusMC fixed_nuc_mc: Monte Carlo object
@@ -303,7 +303,7 @@ class InertiaRangeConstraint(ReactionCrdRangeConstraint):
 
     def __init__(self, fixed_nuc_mc=None, range=[0.0, 1.0], inertia_init=None,
                  verbose=False):
-        super(InertiaRangeConstraint, self).__init__()
+        super(CovarianceRangeConstraint, self).__init__()
         self.update_range(range)
         self.mc = fixed_nuc_mc
         self._inertia_init = inertia_init

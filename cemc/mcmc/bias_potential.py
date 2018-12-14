@@ -201,11 +201,11 @@ class PseudoBinaryFreeEnergyBias(SampledBiasPotential):
 class CovarianceBiasPotential(SampledBiasPotential):
     """
     Bias potential to be used together with
-    :py:class:`cemc.mcmc.inertia_reac_crd.InertiaRangeConstraint`
+    :py:class:`cemc.mcmc.inertia_reac_crd.CovarianceRangeConstraint`
 
     :param inertia_range: Range constraints, mainly used to calculating the
         value of the reaction coordinate.
-    :type inertia_range: InertiaRangeConstraint or None
+    :type inertia_range: CovarianceRangeConstraint or None
     :param reac_crd: Reaction coordinates
     :type reac_crd: list or numpy array
     :param free_eng: Free energy at each reaction coordinate
@@ -218,10 +218,10 @@ class CovarianceBiasPotential(SampledBiasPotential):
 
     @property
     def inertia_range(self):
-        from cemc.mcmc import InertiaRangeConstraint
-        if not isinstance(self._inertia_range, InertiaRangeConstraint):
+        from cemc.mcmc import CovarianceRangeConstraint
+        if not isinstance(self._inertia_range, CovarianceRangeConstraint):
             raise TypeError("inertia_range has to be of type "
-                            "InertiaRangeConstraint")
+                            "CovarianceRangeConstraint")
         return self._inertia_range
 
     @inertia_range.setter
