@@ -32,7 +32,7 @@ from cemc.mcmc.reaction_path_sampler import ReactionPathSampler
 from cemc.mcmc.pseudo_binary_react_path import PseudoBinaryReactPath
 from cemc.mcmc.bias_potential import BiasPotential, SampledBiasPotential
 from cemc.mcmc.bias_potential import PseudoBinaryFreeEnergyBias
-from cemc.mcmc.bias_potential import InertiaBiasPotential
+from cemc.mcmc.bias_potential import CovarianceBiasPotential
 from cemc.mcmc.inertia_reaction_crd import InertiaCrdInitializer, InertiaRangeConstraint
 from cemc.mcmc.parallel_tempering import ParallelTempering
 from cemc.mcmc.adaptive_bias_reac_path import AdaptiveBiasReactionPathSampler

@@ -12,5 +12,5 @@ in some wanted region of configurational space.
 .. autoclass:: cemc.mcmc.PseudoBinaryFreeEnergyBias
   :members:
 
-.. autoclass:: cemc.mcmc.InertiaBiasPotential
+.. autoclass:: cemc.mcmc.CovarianceBiasPotential
   :members:

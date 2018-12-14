@@ -198,7 +198,7 @@ class PseudoBinaryFreeEnergyBias(SampledBiasPotential):
         return self.bias_interp(reac_crd)
 
 
-class InertiaBiasPotential(SampledBiasPotential):
+class CovarianceBiasPotential(SampledBiasPotential):
     """
     Bias potential to be used together with
     :py:class:`cemc.mcmc.inertia_reac_crd.InertiaRangeConstraint`
@@ -213,7 +213,7 @@ class InertiaBiasPotential(SampledBiasPotential):
     """
 
     def __init__(self, inertia_range=None, reac_crd=[], free_eng=[]):
-        super(InertiaBiasPotential, self).__init__(reac_crd, free_eng)
+        super(CovarianceBiasPotential, self).__init__(reac_crd, free_eng)
         self._inertia_range = inertia_range
 
     @property
