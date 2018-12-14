@@ -11,7 +11,7 @@ class CouldNotFindValidStateError(Exception):
     pass
 
 
-class InertiaCrdInitializer(ReactionCrdInitializer):
+class CovarianceCrdInitializer(ReactionCrdInitializer):
     """Initializer for various version of principal moment of inertia.
 
     :param FixedNucleusMC fixed_nuc_mc: Monte Carlo object
@@ -34,7 +34,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
                  output_every=10, formula="I1/I3"):
         from cemc.mcmc import CovarianceMatrixObserver
         if matrix_element in cluster_elements:
-            raise ValueError("InertiaCrdInitializer works only when "
+            raise ValueError("CovarianceCrdInitializer works only when "
                              "the matrix element is not present in the "
                              "clustering element!")
         allowed_types = ["I1/I3", "2*I1/(I2+I3)", "(I1+I2)/(2*I3)"]
@@ -296,7 +296,7 @@ class InertiaRangeConstraint(ReactionCrdRangeConstraint):
 
     :param FixedNucleusMC fixed_nuc_mc: Monte Carlo object
     :param list range: Upper and lower bound of the reaction coordinate
-    :param InertiaCrdInitializer inertia_init: Initializer
+    :param CovarianceCrdInitializer inertia_init: Initializer
     :param bool verbose: If True print messages every 10 sec
         if the constraint is violated
     """

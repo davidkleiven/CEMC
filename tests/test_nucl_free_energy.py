@@ -5,7 +5,7 @@ try:
     from cemc.mcmc import CanonicalNucleationMC, FixedNucleusMC
     from ase.clease import CEBulk, Concentration
     from ase.clease import CorrFunction
-    from cemc.mcmc import InertiaCrdInitializer
+    from cemc.mcmc import CovarianceCrdInitializer
     from cemc import CE
     from cemc import get_atoms_with_ce_calc
     import numpy as np
@@ -203,7 +203,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             elements = {"Mg": 4, "Si": 4}
             mc.insert_symbol_random_places("Mg", num=1, swap_symbs=["Al"])
             mc.grow_cluster(elements)
-            conc_init = InertiaCrdInitializer(
+            conc_init = CovarianceCrdInitializer(
                 fixed_nucl_mc=mc, matrix_element="Al",
                 cluster_elements=["Mg", "Si"])
             
