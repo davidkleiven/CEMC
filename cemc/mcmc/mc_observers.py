@@ -903,31 +903,31 @@ class CovarianceMatrixObserver(MCObserver):
         self.pos = atoms.get_positions()
         self.cluster_elements = cluster_elements
         self.com = np.zeros(3)
-        self.inertia = np.zeros((3, 3))
-        self.inertia_avg = np.zeros_like(self.inertia)
+        self.cov_matrix = np.zeros((3, 3))
+        self.cov_matrix_avg = np.zeros_like(self.cov_matrix)
         self.num_atoms = 0
-        self.init_com_and_inertia()
+        self.init_com_and_covariance()
         self.old_com = None
-        self.old_inertia = None
+        self.old_cov = None
         self.num_calls = 0
 
-    def init_com_and_inertia(self):
-        """Initialize the center of mass and the inertia."""
+    def init_com_and_covariance(self):
+        """Initialize the center of mass and the covariance."""
         self.num_atoms = 0
         self.com[:] = 0.0
-        self.inertia[: ,:] = 0.0
+        self.cov_matrix[: ,:] = 0.0
         for atom in self.atoms:
             if atom.symbol in self.cluster_elements:
                 self.com += atom.position
-                self.inertia += np.outer(atom.position, atom.position)
+                self.cov_matrix += np.outer(atom.position, atom.position)
                 self.num_atoms += 1
 
         if self.num_atoms == 0:
             raise RuntimeError("No cluster elements are present in the "
                                "Atoms object provided!")
         self.com /= self.num_atoms
-        self.inertia -= self.num_atoms*np.outer(self.com, self.com)
-        self.inertia_avg = self.inertia.copy()
+        self.cov_matrix -= self.num_atoms*np.outer(self.com, self.com)
+        self.cov_matrix_avg = self.cov_matrix.copy()
         self.num_calls = 1
 
     def move_involves_only_cluster_elements(self, system_changes):
@@ -938,10 +938,10 @@ class CovarianceMatrixObserver(MCObserver):
         """Set a new atoms object."""
         self.atoms = atoms
         self.pos = atoms.get_positions()
-        self.init_com_and_inertia()
+        self.init_com_and_covariance()
 
     def __call__(self, system_changes):
-        """Update the inertia tensor."""
+        """Update the covariance matrix."""
         d_com = np.zeros(3)
         d_I = np.zeros((3, 3))
         for change in system_changes:
@@ -959,29 +959,29 @@ class CovarianceMatrixObserver(MCObserver):
         d_com /= self.num_atoms
 
         d_I -= self.num_atoms*(np.outer(d_com, self.com) + np.outer(self.com, d_com) + np.outer(d_com, d_com))
-        self.old_inertia = self.inertia.copy()
+        self.old_cov = self.cov_matrix.copy()
         self.old_com = self.com.copy()
 
         self.com += d_com
-        self.inertia += d_I
-        self.inertia_avg += self.inertia
+        self.cov_matrix += d_I
+        self.cov_matrix_avg += self.cov_matrix
         self.num_calls += 1
 
     def undo_last(self):
         """Undo the last update."""
-        if self.old_inertia is None:
+        if self.old_cov is None:
             return
-        self.inertia_avg -= self.inertia
+        self.cov_matrix_avg -= self.cov_matrix
         self.num_calls -= 1
-        self.inertia = self.old_inertia
+        self.cov_matrix = self.old_cov
         self.com = self.old_com
 
     def get_averages(self):
-        """Return the average inertia tensor."""
+        """Return the average covariance matrix."""
         avg = {}
         for indx in product(range(3), repeat=2):
             key = "I{}{}".format(indx[0], indx[1])
-            avg[key] = self.inertia_avg[indx[0], indx[1]]/self.num_calls
+            avg[key] = self.cov_matrix_avg[indx[0], indx[1]]/self.num_calls
         return avg
 
 class PairObserver(MCObserver):

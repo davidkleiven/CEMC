@@ -12,9 +12,9 @@ class Strain(BiasPotential):
             raise TypeError("mc_sampler has to be of type FixedNuceus sampler!")
         self.mc = mc_sampler
         self._volume = 10.0
-        self.inert_obs = CovarianceMatrixObserver(atoms=self.mc.atoms, 
-                                               cluster_elements=cluster_elements)
-        self.mc.attach(self.inert_obs)
+        self.cov_obs = CovarianceMatrixObserver(atoms=self.mc.atoms, 
+                                                cluster_elements=cluster_elements)
+        self.mc.attach(self.cov_obs)
         self.misfit = misfit
         self.C_matrix = C_matrix
         self.C_prec = C_prec
@@ -27,9 +27,9 @@ class Strain(BiasPotential):
         self._volume = num_solutes*vol_per_atom
 
     def __call__(self, system_changes):
-        self.inert_obs(system_changes)
+        self.cov_obs(system_changes)
 
-        inertia_tensor = np.trace(self.inert_obs.inertia)*np.eye(3) - self.inert_obs.inertia
+        inertia_tensor = np.trace(self.cov_obs.cov_matrix)*np.eye(3) - self.cov_obs.cov_matrix
         principal, rot_matrix = np.linalg.eigh(inertia_tensor)
 
         # The rotation to be applied to the material properties
@@ -46,12 +46,12 @@ class Strain(BiasPotential):
 
         # Bias potential should not alter the observer
         # The MC object will handle this
-        self.inert_obs.undo_last()
+        self.cov_obs.undo_last()
         return str_energy*ellipsoid_volume(axes)
 
     def calculate_from_scratch(self, atoms):
         """Calculate the strain energy from scratch."""
-        self.inert_obs.set_atoms(atoms)
+        self.cov_obs.set_atoms(atoms)
         self.initialize()
         return self([])
 

@@ -103,20 +103,20 @@ class TestNuclFreeEnergy( unittest.TestCase ):
         for atom in nanoparticle:
             atom.symbol = choice(symbs)
         inert1, inert2 = self._nano_particle_matches(conc_init, nanoparticle)
-        match, msg = self._two_inertia_tensors_matches(inert1, inert2)
+        match, msg = self._two_covariance_tensors_matches(inert1, inert2)
         return match, msg
 
-    def _two_inertia_tensors_matches(self, inert1, inert2):
+    def _two_covariance_tensors_matches(self, inert1, inert2):
         if not np.allclose(inert1, inert2, rtol=1E-4):
-            msg = "Inertia tensor does not match\n"
+            msg = "covariance tensor does not match\n"
             msg += "Original: {}\n".format(inert1)
             msg += "Calculated from bulk: {}\n".format(inert2)
             return False, msg
         return True, ""
 
     def _nano_particle_matches(self, conc_init, nanoparticle):
-        """Check the inertial tensor of a fixed nano particle is conserved."""
-        # Test some inertia calculation
+        """Check the covariancel tensor of a fixed nano particle is conserved."""
+        # Test some covariance calculation
         from ase.build import bulk
         from itertools import product
         from ase.clease.tools import wrap_and_sort_by_position
@@ -126,16 +126,16 @@ class TestNuclFreeEnergy( unittest.TestCase ):
         com = np.sum(pos, axis=0) / pos.shape[0]
         nanoparticle.translate(-com)
         pos = nanoparticle.get_positions()
-        orig_inertia = np.zeros((3, 3))
+        orig_covariance = np.zeros((3, 3))
         for comb in product(list(range(3)), repeat=2):
             i1 = comb[0]
             i2 = comb[1]
-            orig_inertia[i1, i2] = np.sum(pos[:, i1] * pos[:, i2])
+            orig_covariance[i1, i2] = np.sum(pos[:, i1] * pos[:, i2])
 
-        if not np.allclose(orig_inertia, orig_inertia.T):
+        if not np.allclose(orig_covariance, orig_covariance.T):
             raise ValueError("Intertia tensor of nano particle is not "
                              "symmetric!")
-        orig_principal = np.linalg.eigvalsh(orig_inertia)
+        orig_principal = np.linalg.eigvalsh(orig_covariance)
 
         # Now find the atom in the nanopartorig_principalicle closest to the origin
         # and put it exactly at the origin
@@ -173,13 +173,13 @@ class TestNuclFreeEnergy( unittest.TestCase ):
         conc_init.inert_obs.atoms = blk
         conc_init.inert_obs.pos = blk.get_positions()
 
-        # Inertia tensor
-        conc_init.inert_obs.init_com_and_inertia()
-        inertia_tens = conc_init.principal_inertia(None, [])
-        return inertia_tens, orig_principal
+        # covariance tensor
+        conc_init.inert_obs.init_com_and_covariance()
+        covariance_tens = conc_init.principal_covariance(None, [])
+        return covariance_tens, orig_principal
 
 
-    def test_with_inertia_reac_crd(self):
+    def test_with_covariance_reac_crd(self):
         if not available:
             self.skipTest("ASE version does not have CE!")
 
@@ -217,8 +217,8 @@ class TestNuclFreeEnergy( unittest.TestCase ):
 
         self.assertTrue(no_throw, msg=msg)
 
-    def test_inertia_observer(self):
-        """Test the inertia observer."""
+    def test_covariance_observer(self):
+        """Test the covariance observer."""
         if not available:
             self.skipTest("ASE version does not have CE!")
 
@@ -229,7 +229,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             from cemc.mcmc import CovarianceMatrixObserver
             bc, args = get_ternary_BC(ret_args=True)
             ecis = get_example_ecis(bc=bc)
-            atoms = get_atoms_with_ce_calc(bc, args, eci=ecis, size=[8, 8, 8], db_name="inertia_obs.db")
+            atoms = get_atoms_with_ce_calc(bc, args, eci=ecis, size=[8, 8, 8], db_name="covariance_obs.db")
 
             T = 200
             nn_names = [name for name in bc.cluster_family_names
@@ -250,7 +250,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             for _ in range(10):
                 mc.runMC(steps=100, elements=elements, init_cluster=False)
 
-                obs_I = inert_obs.inertia
+                obs_I = inert_obs.cov_matrix
                 indices = []
                 for atom in mc.atoms:
                     if atom.symbol in ["Mg", "Si"]:
@@ -259,12 +259,12 @@ class TestNuclFreeEnergy( unittest.TestCase ):
                 pos = cluster.get_positions()
                 com = np.mean(pos, axis=0)
                 pos -= com
-                inertia = np.zeros((3, 3))
+                cov_matrix = np.zeros((3, 3))
                 for i in range(pos.shape[0]):
                     x = pos[i, :]
-                    inertia += np.outer(x, x)
-                self.assertTrue(np.allclose(obs_I, inertia))
-            os.remove("inertia_obs.db")
+                    cov_matrix += np.outer(x, x)
+                self.assertTrue(np.allclose(obs_I, cov_matrix))
+            os.remove("covariance_obs.db")
         except Exception as exc:
             no_throw = False
             msg = type(exc).__name__ + str(exc)
