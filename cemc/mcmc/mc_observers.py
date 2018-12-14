@@ -897,7 +897,7 @@ class BiasPotentialContribution(MCObserver):
         print("Histogram data written to {}".format(fname))
 
 
-class InertiaTensorObserver(MCObserver):
+class CovarianceMatrixObserver(MCObserver):
     def __init__(self, atoms=None, cluster_elements=None):
         self.atoms = atoms
         self.pos = atoms.get_positions()

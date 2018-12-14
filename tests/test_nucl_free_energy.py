@@ -226,7 +226,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
         no_throw = True
         try:
             from cemc.mcmc import FixEdgeLayers
-            from cemc.mcmc import InertiaTensorObserver
+            from cemc.mcmc import CovarianceMatrixObserver
             bc, args = get_ternary_BC(ret_args=True)
             ecis = get_example_ecis(bc=bc)
             atoms = get_atoms_with_ce_calc(bc, args, eci=ecis, size=[8, 8, 8], db_name="inertia_obs.db")
@@ -245,7 +245,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             mc.insert_symbol_random_places("Mg", num=1, swap_symbs=["Al"])
             mc.grow_cluster(elements)
             
-            inert_obs = InertiaTensorObserver(atoms=mc.atoms, cluster_elements=["Mg", "Si"])
+            inert_obs = CovarianceMatrixObserver(atoms=mc.atoms, cluster_elements=["Mg", "Si"])
             mc.attach(inert_obs)
             for _ in range(10):
                 mc.runMC(steps=100, elements=elements, init_cluster=False)

@@ -8,7 +8,7 @@ from cemc.mcmc.mc_observers import MCObserver, CorrelationFunctionTracker, PairC
 LowestEnergyStructure, SGCObserver, Snapshot, NetworkObserver, SiteOrderParameter
 from cemc.mcmc.mc_observers import EnergyEvolution, EnergyHistogram, MCBackup
 from cemc.mcmc.mc_observers import BiasPotentialContribution
-from cemc.mcmc.mc_observers import InertiaTensorObserver
+from cemc.mcmc.mc_observers import CovarianceMatrixObserver
 from cemc.mcmc.mc_observers import PairObserver
 from cemc.mcmc.sa_canonical import SimulatedAnnealingCanonical
 from cemc.mcmc.multidim_comp_dos import CompositionDOS

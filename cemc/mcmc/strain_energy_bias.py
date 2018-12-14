@@ -1,5 +1,5 @@
 from cemc.mcmc import BiasPotential
-from cemc.mcmc import InertiaTensorObserver
+from cemc.mcmc import CovarianceMatrixObserver
 from cemc.tools import StrainEnergy
 from cemc.tools import rotate_tensor, rotate_rank4_mandel
 import numpy as np
@@ -12,7 +12,7 @@ class Strain(BiasPotential):
             raise TypeError("mc_sampler has to be of type FixedNuceus sampler!")
         self.mc = mc_sampler
         self._volume = 10.0
-        self.inert_obs = InertiaTensorObserver(atoms=self.mc.atoms, 
+        self.inert_obs = CovarianceMatrixObserver(atoms=self.mc.atoms, 
                                                cluster_elements=cluster_elements)
         self.mc.attach(self.inert_obs)
         self.misfit = misfit

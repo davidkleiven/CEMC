@@ -32,7 +32,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
                  traj_file="full_system_insertia.traj",
                  traj_file_clst="clusters_inertial.traj",
                  output_every=10, formula="I1/I3"):
-        from cemc.mcmc import InertiaTensorObserver
+        from cemc.mcmc import CovarianceMatrixObserver
         if matrix_element in cluster_elements:
             raise ValueError("InertiaCrdInitializer works only when "
                              "the matrix element is not present in the "
@@ -47,7 +47,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         self.fixed_nucl_mc = fixed_nucl_mc
         self.num_matrix_atoms_surface = num_matrix_atoms_surface
         self.output_every = output_every
-        self.inert_obs = InertiaTensorObserver(atoms=fixed_nucl_mc.atoms, cluster_elements=cluster_elements)
+        self.inert_obs = CovarianceMatrixObserver(atoms=fixed_nucl_mc.atoms, cluster_elements=cluster_elements)
 
         # Attach the inertia observer to the 
         # fixed nucleation sampler
