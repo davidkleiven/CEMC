@@ -230,16 +230,19 @@ double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const Cluster &c
   const vector< vector<int> >& order = cluster.get_order();
   unsigned int num_indx = indx_list.size();
   unsigned int n_memb = indx_list[0].size();
-  
+
   for ( unsigned int i=0;i<num_indx;i++ )
   {
     double sp_temp = 1.0;
     
     int indices[n_memb+1];
     indices[0] = ref_indx;
+
+    // Use pointer arithmetics in the inner most loop
+    const int *indx_list_ptr = &indx_list[i][0];
     for (unsigned int j=0;j<n_memb;j++)
     {
-      indices[j+1] = trans_matrix(ref_indx, indx_list[i][j]);
+      indices[j+1] = trans_matrix(ref_indx, *(indx_list_ptr+j));
     }
     sort_indices(indices, order[i], n_memb+1);
     for ( unsigned int j=0;j<n_memb+1;j++ )
