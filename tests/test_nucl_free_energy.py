@@ -170,12 +170,12 @@ class TestNuclFreeEnergy( unittest.TestCase ):
         blk = wrap_and_sort_by_position(blk)
 
         # Manually alter the atoms object and rebuild the atoms list
-        conc_init.inert_obs.atoms = blk
-        conc_init.inert_obs.pos = blk.get_positions()
+        conc_init.cov_obs.atoms = blk
+        conc_init.cov_obs.pos = blk.get_positions()
 
         # covariance tensor
-        conc_init.inert_obs.init_com_and_covariance()
-        covariance_tens = conc_init.principal_covariance(None, [])
+        conc_init.cov_obs.init_com_and_covariance()
+        covariance_tens = conc_init.principal_variance(None, [])
         return covariance_tens, orig_principal
 
 
@@ -245,12 +245,12 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             mc.insert_symbol_random_places("Mg", num=1, swap_symbs=["Al"])
             mc.grow_cluster(elements)
             
-            inert_obs = CovarianceMatrixObserver(atoms=mc.atoms, cluster_elements=["Mg", "Si"])
-            mc.attach(inert_obs)
+            cov_obs = CovarianceMatrixObserver(atoms=mc.atoms, cluster_elements=["Mg", "Si"])
+            mc.attach(cov_obs)
             for _ in range(10):
                 mc.runMC(steps=100, elements=elements, init_cluster=False)
 
-                obs_I = inert_obs.cov_matrix
+                obs_I = cov_obs.cov_matrix
                 indices = []
                 for atom in mc.atoms:
                     if atom.symbol in ["Mg", "Si"]:
