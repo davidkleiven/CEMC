@@ -25,7 +25,6 @@ import test_pseudo_binary_sgc
 import test_parallel_tempering
 import test_adaptive_bias_potential
 import test_isotropic_strain_energy
-import test_solute_chain_mc
 
 try:
     os.mkdir("data")
