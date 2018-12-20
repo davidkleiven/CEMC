@@ -245,6 +245,10 @@ double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const Cluster &c
       indices[j+1] = trans_matrix(ref_indx, *(indx_list_ptr+j));
     }
     sort_indices(indices, order[i], n_memb+1);
+
+    // TODO: Basis functions is a vector of dictionaries
+    // it hurts performance to lookup values in a map
+    // with string key.
     for ( unsigned int j=0;j<n_memb+1;j++ )
     {
       if (indices[j] == ref_indx)
