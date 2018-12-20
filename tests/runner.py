@@ -62,7 +62,6 @@ suite.addTests(loader.loadTestsFromModule(test_pseudo_binary_sgc))
 suite.addTests(loader.loadTestsFromModule(test_parallel_tempering))
 suite.addTests(loader.loadTestsFromModule(test_adaptive_bias_potential))
 suite.addTest(loader.loadTestsFromModule(test_isotropic_strain_energy))
-suite.addTest(loader.loadTestsFromModule(test_solute_chain_mc))
 
 runner = TimeLoggingTestRunner()
 result = runner.run(suite)
