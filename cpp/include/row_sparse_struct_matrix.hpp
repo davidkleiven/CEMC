@@ -26,6 +26,7 @@ class RowSparseStructMatrix
 {
 public:
   RowSparseStructMatrix(){};
+  ~RowSparseStructMatrix(){deallocate();};
 
   /** Initialize the size arrays */
   void set_size( unsigned int n_rows, unsigned int n_non_zero_per_row, unsigned int max_lut_value );
@@ -49,9 +50,14 @@ public:
   /** Access function that verifies that the lookup is valid */
   int get_with_validity_check( unsigned int row, unsigned int col ) const;
 private:
-  std::vector<int> allowed_lookup_values;
-  std::vector<int> lookup;
-  std::vector< std::vector<int> > values;
+  int *allowed_lookup_values{nullptr};
+  int *lookup{nullptr};
+  int **values{nullptr};
+  unsigned int num_rows{0};
+  unsigned int max_lookup_value{0};
+  unsigned int num_non_zero{0};
+  bool lut_values_set{false};
   void invalid_col_msg( unsigned int col_provided, std::string& msg ) const;
+  void deallocate();
 };
 #endif
