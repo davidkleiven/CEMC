@@ -1,6 +1,7 @@
 from cemc.mcmc import Montecarlo
 from cemc.mcmc import NetworkObserver
 import numpy as np
+from random import choice, shuffle
 
 
 class FixedNucleusMC(Montecarlo):
@@ -96,7 +97,6 @@ class FixedNucleusMC(Montecarlo):
         :return: Proposed move
         :rtype: list of tuples
         """
-        from random import choice, shuffle
         ref_element = choice(self.network_element)
         rand_a = self.atoms_tracker.get_random_indx_of_symbol(ref_element)
 
@@ -330,7 +330,7 @@ class FixedNucleusMC(Montecarlo):
         # Disable network statistics to make the program
         # run faster
         self.network.collect_statistics = False
-        self.current_energy = self.atoms.get_calculator().get_energy()
+        self.update_current_energy()
 
     def get_atoms(self, atoms=None, prohib_elem=[]):
         """

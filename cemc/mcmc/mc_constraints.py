@@ -171,3 +171,21 @@ class FixEdgeLayers(MCConstraint):
                 indices.append(i)
         return self.atoms[indices]
         
+
+class ConstrainElementByTag(MCConstraint):
+    def __init__(self, atoms=None, element_by_tag=[]):
+        self.element_by_tag = element_by_tag
+        self.allowed_elements = self._get_allowed_elements(atoms)
+
+    def _get_allowed_elements(self, atoms):
+        """Return a list with the allowed elements."""
+        elems = [[]]*len(atoms)
+        for atom in atoms:
+            elems[atom.index] = self.element_by_tag[atom.tag]
+        return elems
+
+    def __call__(self, system_changes):
+        for change in system_changes:
+            if change[2] not in self.allowed_elements[change[0]]:
+                return False
+        return True

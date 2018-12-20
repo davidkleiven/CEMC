@@ -8,7 +8,7 @@ from cemc.mcmc.mc_observers import MCObserver, CorrelationFunctionTracker, PairC
 LowestEnergyStructure, SGCObserver, Snapshot, NetworkObserver, SiteOrderParameter
 from cemc.mcmc.mc_observers import EnergyEvolution, EnergyHistogram, MCBackup
 from cemc.mcmc.mc_observers import BiasPotentialContribution
-from cemc.mcmc.mc_observers import InertiaTensorObserver
+from cemc.mcmc.mc_observers import CovarianceMatrixObserver
 from cemc.mcmc.mc_observers import PairObserver
 from cemc.mcmc.sa_canonical import SimulatedAnnealingCanonical
 from cemc.mcmc.multidim_comp_dos import CompositionDOS
@@ -32,9 +32,10 @@ from cemc.mcmc.reaction_path_sampler import ReactionPathSampler
 from cemc.mcmc.pseudo_binary_react_path import PseudoBinaryReactPath
 from cemc.mcmc.bias_potential import BiasPotential, SampledBiasPotential
 from cemc.mcmc.bias_potential import PseudoBinaryFreeEnergyBias
-from cemc.mcmc.bias_potential import InertiaBiasPotential
-from cemc.mcmc.inertia_reaction_crd import InertiaCrdInitializer, InertiaRangeConstraint
+from cemc.mcmc.bias_potential import CovarianceBiasPotential
+from cemc.mcmc.cov_reaction_crd import CovarianceCrdInitializer, CovarianceRangeConstraint
 from cemc.mcmc.parallel_tempering import ParallelTempering
 from cemc.mcmc.adaptive_bias_reac_path import AdaptiveBiasReactionPathSampler
 from cemc.mcmc.gaussian_cluster_tracker import GaussianClusterTracker
-from cemc.mcmc.solute_chain_mc import SoluteChainMC
+from cemc.mcmc.mc_constraints import ConstrainElementByTag
+#from cemc.mcmc.strain_energy_bias import Strain

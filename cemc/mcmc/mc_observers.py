@@ -5,6 +5,7 @@ from ase.io.trajectory import TrajectoryWriter
 from cemc.mcmc.averager import Averager
 from cemc.mcmc.util import waste_recycled_average
 from cemc.mcmc.mpi_tools import num_processors, mpi_rank
+from itertools import product
 highlight_elements = ["Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na", "Mg",
                       "Al", "Si", "P", "S", "Cl", "Ar"]
 
@@ -31,6 +32,10 @@ class MCObserver(object):
     def reset(self):
         """Reset all values of the MC observer"""
         pass
+
+    def get_averages(self):
+        """Return averages in the form of a dictionary."""
+        return {}
 
 
 class CorrelationFunctionTracker(MCObserver):
@@ -107,7 +112,7 @@ class PairCorrelationObserver(MCObserver):
             self.cf[key] += new_cf[key]
             self.cf_squared[key] += new_cf[key]**2
 
-    def get_average(self):
+    def get_averages(self):
         """Returns the average.
 
         :return: Thermal averaged correlation functions
@@ -800,10 +805,13 @@ class MCBackup(MCObserver):
         a table
     :param str db_tab_name: Name of table in the database
     :param int db_id: ID in the database. If None, a new entry will be created
+    :param overwrite_db_row: If True, a row will be updated if it exits.
+        If False, a new row will be added to the database everytime
+        this function is called
     """
 
     def __init__(self, mc_obj, backup_file="montecarlo_backup.pkl", db_name="",
-                 db_tab_name="mc_backup", db_id=None):
+                 db_tab_name="mc_backup", db_id=None, overwrite_db_row=True):
         self.mc_obj = mc_obj
         self.backup_file = self._include_rank_in_filename(backup_file)
         MCObserver.__init__(self)
@@ -811,6 +819,7 @@ class MCBackup(MCObserver):
         self.db_name = db_name
         self.db_id = None
         self.db_tab_name = db_tab_name
+        self.overwrite_db_row = overwrite_db_row
 
     def _include_rank_in_filename(self, fname):
         """Include the current rank in the filename if nessecary."""
@@ -832,7 +841,9 @@ class MCBackup(MCObserver):
             tab = db[self.db_tab_name]
             if self.db_id is None:
                 # This shoud be a new entry
-                self.db_id = tab.insert(thermo)
+                db_id = tab.insert(thermo)
+                if self.overwrite_db_row:
+                    self.db_id = db_id
             else:
                 # Entry alread exists. Update that one.
                 thermo["id"] = self.db_id
@@ -886,43 +897,51 @@ class BiasPotentialContribution(MCObserver):
         print("Histogram data written to {}".format(fname))
 
 
-class InertiaTensorObserver(MCObserver):
+class CovarianceMatrixObserver(MCObserver):
     def __init__(self, atoms=None, cluster_elements=None):
         self.atoms = atoms
         self.pos = atoms.get_positions()
         self.cluster_elements = cluster_elements
         self.com = np.zeros(3)
-        self.inertia = np.zeros((3, 3))
+        self.cov_matrix = np.zeros((3, 3))
+        self.cov_matrix_avg = np.zeros_like(self.cov_matrix)
         self.num_atoms = 0
-        self.init_com_and_inertia()
+        self.init_com_and_covariance()
         self.old_com = None
-        self.old_inertia = None
+        self.old_cov = None
+        self.num_calls = 0
 
-    def init_com_and_inertia(self):
-        """Initialize the center of mass and the inertia."""
+    def init_com_and_covariance(self):
+        """Initialize the center of mass and the covariance."""
         self.num_atoms = 0
         self.com[:] = 0.0
-        self.inertia[: ,:] = 0.0
+        self.cov_matrix[: ,:] = 0.0
         for atom in self.atoms:
             if atom.symbol in self.cluster_elements:
                 self.com += atom.position
-                self.inertia += np.outer(atom.position, atom.position)
+                self.cov_matrix += np.outer(atom.position, atom.position)
                 self.num_atoms += 1
 
         if self.num_atoms == 0:
             raise RuntimeError("No cluster elements are present in the "
                                "Atoms object provided!")
         self.com /= self.num_atoms
-        self.inertia -= self.num_atoms*np.outer(self.com, self.com)
+        self.cov_matrix -= self.num_atoms*np.outer(self.com, self.com)
+        self.cov_matrix_avg = self.cov_matrix.copy()
+        self.num_calls = 1
+
+    def move_involves_only_cluster_elements(self, system_changes):
+        """Check if the move involves only solute atoms."""
+        return all([change[1] in self.cluster_elements for change in system_changes])
 
     def set_atoms(self, atoms):
         """Set a new atoms object."""
         self.atoms = atoms
         self.pos = atoms.get_positions()
-        self.init_com_and_inertia()
+        self.init_com_and_covariance()
 
     def __call__(self, system_changes):
-        """Update the inertia tensor."""
+        """Update the covariance matrix."""
         d_com = np.zeros(3)
         d_I = np.zeros((3, 3))
         for change in system_changes:
@@ -940,33 +959,30 @@ class InertiaTensorObserver(MCObserver):
         d_com /= self.num_atoms
 
         d_I -= self.num_atoms*(np.outer(d_com, self.com) + np.outer(self.com, d_com) + np.outer(d_com, d_com))
-        self.old_inertia = self.inertia.copy()
+        self.old_cov = self.cov_matrix.copy()
         self.old_com = self.com.copy()
 
         self.com += d_com
-        self.inertia += d_I
+        self.cov_matrix += d_I
+        self.cov_matrix_avg += self.cov_matrix
+        self.num_calls += 1
 
     def undo_last(self):
         """Undo the last update."""
-        if self.old_inertia is None:
+        if self.old_cov is None:
             return
-        self.inertia = self.old_inertia
+        self.cov_matrix_avg -= self.cov_matrix
+        self.num_calls -= 1
+        self.cov_matrix = self.old_cov
         self.com = self.old_com
 
-    def ellipsoid_axes(self):
-        """Calculate the ellipsoid principal axes.
-        
-        :return: Numpy array of length 3 (a, b, c)
-        :rtype: numpy.ndarray
-        """
-        princ = np.linalg.eigvals(self.inertia)
-        princ_axes = np.zeros(3)
-        princ_axes[0] = (princ[1] + princ[2] - princ[0])
-        princ_axes[1] = (princ[0] + princ[2] - princ[1])
-        princ_axes[2] = (princ[0] + princ[1] - princ[2])
-        princ_axes *= 5.0/2.0
-        princ_axes[princ_axes<0.0] = 0.0
-        return np.sqrt(princ_axes)
+    def get_averages(self):
+        """Return the average covariance matrix."""
+        avg = {}
+        for indx in product(range(3), repeat=2):
+            key = "I{}{}".format(indx[0], indx[1])
+            avg[key] = self.cov_matrix_avg[indx[0], indx[1]]/self.num_calls
+        return avg
 
 class PairObserver(MCObserver):
     """Tracking the average number of pairs within a cutoff"""

@@ -11,8 +11,8 @@ class CouldNotFindValidStateError(Exception):
     pass
 
 
-class InertiaCrdInitializer(ReactionCrdInitializer):
-    """Initializer for various version of principal moment of inertia.
+class CovarianceCrdInitializer(ReactionCrdInitializer):
+    """Initializer for various version of principal moment of covariance matrix.
 
     :param FixedNucleusMC fixed_nuc_mc: Monte Carlo object
     :param str matrix_element: Matrix element
@@ -30,11 +30,11 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
     def __init__(self, fixed_nucl_mc=None, matrix_element=None,
                  cluster_elements=[], num_matrix_atoms_surface=1,
                  traj_file="full_system_insertia.traj",
-                 traj_file_clst="clusters_inertial.traj",
+                 traj_file_clst="clusters_covl.traj",
                  output_every=10, formula="I1/I3"):
-        from cemc.mcmc import InertiaTensorObserver
+        from cemc.mcmc import CovarianceMatrixObserver
         if matrix_element in cluster_elements:
-            raise ValueError("InertiaCrdInitializer works only when "
+            raise ValueError("CovarianceCrdInitializer works only when "
                              "the matrix element is not present in the "
                              "clustering element!")
         allowed_types = ["I1/I3", "2*I1/(I2+I3)", "(I1+I2)/(2*I3)"]
@@ -47,11 +47,11 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         self.fixed_nucl_mc = fixed_nucl_mc
         self.num_matrix_atoms_surface = num_matrix_atoms_surface
         self.output_every = output_every
-        self.inert_obs = InertiaTensorObserver(atoms=fixed_nucl_mc.atoms, cluster_elements=cluster_elements)
+        self.cov_obs = CovarianceMatrixObserver(atoms=fixed_nucl_mc.atoms, cluster_elements=cluster_elements)
 
-        # Attach the inertia observer to the 
+        # Attach the covariance matrix observer to the 
         # fixed nucleation sampler
-        self.fixed_nucl_mc.attach(self.inert_obs)
+        self.fixed_nucl_mc.attach(self.cov_obs)
 
         size = num_processors()
         rank = mpi_rank()
@@ -64,33 +64,33 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         self.traj_file = traj_file
         self.traj_file_clst = traj_file_clst
 
-    def inertia_tensor(self, atoms, system_changes):
-        """Calculate the inertial tensor of the cluster.
+    def covariance_matrix(self, atoms, system_changes):
+        """Calculate the covariance matrix of the cluster.
 
-        :return: Inertia tensor
+        :return: Covariance matrix
         :rtype: Numpy 3x3 matrix
         """
         if system_changes:
-            self.inert_obs(system_changes)
+            self.cov_obs(system_changes)
         elif atoms is not None:
             # Perform a new calculation from scratch
-            self.inert_obs.set_atoms(atoms)
+            self.cov_obs.set_atoms(atoms)
 
-        inertia = self.inert_obs.inertia
+        cov = self.cov_obs.cov_matrix
 
         # This class should not alter the intertia tensor
         # so we undo the changes
         if system_changes:
-            self.inert_obs.undo_last()
-        return inertia
+            self.cov_obs.undo_last()
+        return cov
 
-    def principal_inertia(self, atoms, system_changes):
-        """Calculate the inertia of the atoms in cluster elements.
+    def principal_variance(self, atoms, system_changes):
+        """Calculate the covariance of the atoms in cluster elements.
 
-        :return: Principal moment of inertia
+        :return: Principal variances
         :rtype: numpy 1D array of length 3
         """
-        eigv = np.linalg.eigvals(self.inertia_tensor(atoms, system_changes))
+        eigv = np.linalg.eigvals(self.covariance_matrix(atoms, system_changes))
         return eigv
 
     @property
@@ -105,14 +105,14 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
             include += self.fixed_nucl_mc.atoms_tracker.tracker[symb]
         return include
 
-    def normalized_principal_inertia(self, atoms, system_changes):
-        """Principal inertia normalized by the largest component.
+    def normalized_principal_variance(self, atoms, system_changes):
+        """Principal covariance normalized by the largest component.
 
-        :return: Normalized principal inertia
+        :return: Normalized principal variance
         :rtype: 1D numpy array of length 3
         """
-        princ_inertia = self.principal_inertia(atoms, system_changes)
-        return princ_inertia / np.max(princ_inertia)
+        princ_var = self.principal_variance(atoms, system_changes)
+        return princ_var / np.max(princ_var)
 
     @property
     def dist_all_to_all(self):
@@ -145,14 +145,14 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         return flat_list
 
     def get(self, atoms, system_changes=[]):
-        """Get the inertial reaction coordinate.
+        """Get the covariance reaction coordinate.
 
         :param Atoms atoms: Not used. Using the atoms object of fixed_nucl_mc.
 
         :return: The reaction coordinate
         :rtype: float
         """
-        princ = self.principal_inertia(atoms, system_changes)
+        princ = self.principal_variance(atoms, system_changes)
         princ = np.sort(princ)
 
         # Make sure they are sorted in the correct order
@@ -202,7 +202,7 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
         from random import choice, shuffle
 
         # Make sure that the observer is initialized correctly
-        self.inert_obs.init_com_and_inertia()
+        self.cov_obs.init_com_and_covariance()
         self.fixed_nucl_mc.network([])
 
         max_attempts = 1000 * len(self.fixed_nucl_mc.atoms)
@@ -265,8 +265,8 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
                 # target value, so we accept this move
                 current_diff = new_diff
 
-                # We need to update the inertia observer
-                self.inert_obs(system_changes)
+                # We need to update the covariance observer
+                self.cov_obs(system_changes)
 
                 # Update the network
                 assert self.fixed_nucl_mc.network.num_root_nodes() == 1
@@ -291,22 +291,22 @@ class InertiaCrdInitializer(ReactionCrdInitializer):
                                               "{}!".format(value))
 
 
-class InertiaRangeConstraint(ReactionCrdRangeConstraint):
+class CovarianceRangeConstraint(ReactionCrdRangeConstraint):
     """Constraint to ensure that the system stays without its bounds.
 
     :param FixedNucleusMC fixed_nuc_mc: Monte Carlo object
     :param list range: Upper and lower bound of the reaction coordinate
-    :param InertiaCrdInitializer inertia_init: Initializer
+    :param CovarianceCrdInitializer cov_init: Initializer
     :param bool verbose: If True print messages every 10 sec
         if the constraint is violated
     """
 
-    def __init__(self, fixed_nuc_mc=None, range=[0.0, 1.0], inertia_init=None,
+    def __init__(self, fixed_nuc_mc=None, range=[0.0, 1.0], cov_init=None,
                  verbose=False):
-        super(InertiaRangeConstraint, self).__init__()
+        super(CovarianceRangeConstraint, self).__init__()
         self.update_range(range)
         self.mc = fixed_nuc_mc
-        self._inertia_init = inertia_init
+        self._cov_init = cov_init
         self.last_print = time.time()
         self.verbose = verbose
 
@@ -320,7 +320,7 @@ class InertiaRangeConstraint(ReactionCrdRangeConstraint):
         """
 
         # Get the new value of the observer
-        new_val = self._inertia_init.get(None, system_changes=system_changes)
+        new_val = self._cov_init.get(None, system_changes=system_changes)
         return new_val
 
     def __call__(self, system_changes):
