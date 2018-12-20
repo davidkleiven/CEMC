@@ -233,7 +233,7 @@ double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const Cluster &c
   {
     double sp_temp = 1.0;
     unsigned int n_memb = indx_list[i].size();
-    //vector<int> indices(n_memb+1);
+    
     int indices[n_memb+1];
     indices[0] = ref_indx;
     for (unsigned int j=0;j<n_memb;j++)
