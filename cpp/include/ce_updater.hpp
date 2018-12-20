@@ -24,6 +24,8 @@ typedef std::vector< std::vector< std::vector<std::string> > > name_list;
 typedef std::vector< std::vector< std::vector< std::vector<std::vector<int> > > > > cluster_list;
 typedef std::vector< std::map<std::string,double> > bf_list;
 typedef std::array<SymbolChange,2> swap_move;
+typedef std::unordered_map<std::string, Cluster> cluster_dict;
+
 //typedef std::unordered_map<std::string,double> cf;
 typedef NamedArray cf;
 
@@ -107,7 +109,7 @@ public:
   const std::vector<std::string>& get_symbols() const { return symbols; };
 
   /** Returns the cluster members */
-  const std::vector< std::map<std::string,Cluster> >& get_clusters() const {return clusters;};
+  const std::vector<cluster_dict>& get_clusters() const {return clusters;};
 
   /** Return the cluster with the given name
   * The key in the map is the symmetry group
@@ -145,7 +147,7 @@ private:
   unsigned int get_max_indx_of_zero_site() const;
 
   std::vector<std::string> symbols;
-  std::vector< std::map<std::string, Cluster> > clusters;
+  std::vector<cluster_dict> clusters;
   std::vector<int> trans_symm_group;
   std::vector<int> trans_symm_group_count;
   std::map<std::string,int> cluster_symm_group_count;

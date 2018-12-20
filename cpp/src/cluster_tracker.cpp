@@ -203,7 +203,7 @@ PyObject* ClusterTracker::atomic_clusters2group_indx_python() const
 
 void ClusterTracker::verify_cluster_name_exists() const
 {
-  const vector< map<string,Cluster> >& clusters = updater->get_clusters();
+  const vector< cluster_dict>& clusters = updater->get_clusters();
   vector<string> all_names;
   for ( unsigned int i=0;i<clusters.size();i++ )
   {
@@ -295,7 +295,7 @@ bool ClusterTracker::is_connected(unsigned int indx1, unsigned int indx2) const{
 void ClusterTracker::surface( map<int,int> &surf ) const
 {
   const vector<string>& symbs = updater->get_symbols();
-  const vector< map<string,Cluster> >& clusters = updater->get_clusters();
+  const vector< cluster_dict>& clusters = updater->get_clusters();
   const auto& trans_mat = updater->get_trans_matrix();
 
   for ( unsigned int i=0;i<atomic_clusters.size();i++ )
@@ -529,8 +529,8 @@ bool ClusterTracker::detach_neighbours(int ref_indx, bool can_create_new_cluster
 }
 
 void ClusterTracker::init_cluster_indices(){
-  const vector< map<string,Cluster> >& clusters = updater->get_clusters();
-  for ( const map<string,Cluster> &cluster : clusters )
+  const vector< cluster_dict>& clusters = updater->get_clusters();
+  for ( const cluster_dict&cluster : clusters )
   {
     for (const string &cname : cnames )
     {

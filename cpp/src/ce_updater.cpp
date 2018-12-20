@@ -107,7 +107,7 @@ void CEUpdater::init(PyObject *py_atoms, PyObject *BC, PyObject *corrFunc, PyObj
   for (unsigned int i=0;i<num_trans_symm;i++)
   {
     PyObject *info_dicts = PyList_GetItem(cluster_info, i);
-    map<string, Cluster> new_clusters;
+    cluster_dict new_clusters;
     Py_ssize_t pos = 0;
     PyObject *key;
     PyObject *value;
