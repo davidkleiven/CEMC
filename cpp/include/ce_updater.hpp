@@ -199,6 +199,7 @@ private:
   bool is_swap_move(const swap_move &move) const;
 
   /** Sort indices according to order */
-  static void sort_indices(std::vector<int> &indx, const std::vector<int> &order);
+  //static void sort_indices(std::vector<int> &indx, const std::vector<int> &order);
+  static void sort_indices(int indices[], const std::vector<int> &order, unsigned int n_indices);
 };
 #endif

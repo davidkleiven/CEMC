@@ -233,14 +233,15 @@ double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const Cluster &c
   {
     double sp_temp = 1.0;
     unsigned int n_memb = indx_list[i].size();
-    vector<int> indices(n_memb+1);
+    //vector<int> indices(n_memb+1);
+    int indices[n_memb+1];
     indices[0] = ref_indx;
     for (unsigned int j=0;j<n_memb;j++)
     {
       indices[j+1] = trans_matrix(ref_indx, indx_list[i][j]);
     }
-    sort_indices(indices, order[i]);
-    for ( unsigned int j=0;j<indices.size();j++ )
+    sort_indices(indices, order[i], n_memb+1);
+    for ( unsigned int j=0;j<n_memb+1;j++ )
     {
       if (indices[j] == ref_indx)
       {
@@ -950,14 +951,19 @@ void CEUpdater::read_trans_matrix( PyObject* py_trans_mat )
   }*/
 }
 
-void CEUpdater::sort_indices(vector<int> &indices, const vector<int> &order)
+void CEUpdater::sort_indices(int indices[], const vector<int> &order, unsigned int n_indices)
 {
-  vector<int> sorted(indices.size());
-  for (unsigned int i=0;i<indices.size();i++)
+  // This function is called many times
+  // profiling (with YEP) revealed that
+  // [] operator of the vector used quite a bit of time
+  // Therefore we here use raw C-arrays or pointer arithmetics
+  int sorted[4];
+  const int *ptr = &order[0];
+  for (unsigned int i=0;i<n_indices;i++)
   {
-    sorted[i] = indices[order[i]];
+    sorted[i] = indices[*(ptr+i)];
   }
-  indices = sorted;
+  memcpy(indices, sorted, n_indices*sizeof(int));
 }
 
 bool CEUpdater::is_swap_move(const swap_move &move) const
