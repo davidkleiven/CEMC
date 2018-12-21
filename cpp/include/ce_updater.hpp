@@ -77,7 +77,7 @@ public:
   void update_cf( SymbolChange &single_change );
 
   /** Computes the spin product for one element */
-  double spin_product_one_atom( unsigned int ref_indx, const Cluster &indx_list, const std::vector<int> &dec, unsigned int ref_id);
+  double spin_product_one_atom(int ref_indx, const Cluster &indx_list, const std::vector<int> &dec, int ref_id);
 
   /**
   Calculates the new energy given a set of system changes

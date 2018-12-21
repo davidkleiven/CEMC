@@ -41,7 +41,7 @@ void CEUpdater::init(PyObject *py_atoms, PyObject *BC, PyObject *corrFunc, PyObj
     cerr << "Getting symbols from BC object\n";
   #endif
 
-  int n_atoms = PyObject_Length( atoms );
+  unsigned int n_atoms = PyObject_Length( atoms );
   if (n_atoms < 0)
   {
     throw invalid_argument("Could not retrieve the length of the atoms object!");
@@ -241,7 +241,7 @@ double CEUpdater::get_energy()
   return energy*symbols_with_id->size();
 }
 
-double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const Cluster &cluster, const vector<int> &dec, unsigned int ref_id )
+double CEUpdater::spin_product_one_atom(int ref_indx, const Cluster &cluster, const vector<int> &dec, int ref_id)
 {
   double sp = 0.0;
 
@@ -301,7 +301,7 @@ SymbolChange& CEUpdater::py_tuple_to_symbol_change( PyObject *single_change, Sym
 
 void CEUpdater::py_changes2_symb_changes( PyObject* all_changes, vector<SymbolChange> &symb_changes )
 {
-  int size = list_size(all_changes);
+  unsigned int size = list_size(all_changes);
   for (unsigned int i=0;i<size;i++ )
   {
     SymbolChange symb_change;
@@ -384,7 +384,6 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
     }
     const Cluster& cluster = clusters[symm].at(prefix);
     unsigned int size = cluster.size;
-    double normalization = cluster.num_subclusters();
     assert( cluster_indices[0].size() == size );
     assert( bfs.size() == size );
 
@@ -395,7 +394,6 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
     {
       double sp_ref = spin_product_one_atom( symb_change.indx, cluster, deco, old_symb_id );
       double sp_new = spin_product_one_atom( symb_change.indx, cluster, deco, new_symb_id );
-      int bf_ref = bfs[0];
       delta_sp += sp_new - sp_ref;
     }
 
@@ -421,7 +419,7 @@ void CEUpdater::undo_changes(int num_steps)
     return;
   }
 
-  unsigned int buf_size = history->history_size();
+  int buf_size = history->history_size();
 
   if (num_steps > buf_size-1)
   {
@@ -429,7 +427,7 @@ void CEUpdater::undo_changes(int num_steps)
   }
 
   SymbolChange *last_changes;
-  for ( unsigned int i=0;i<num_steps;i++ )
+  for (int i=0;i<num_steps;i++)
   {
     history->pop( &last_changes );
     symbols_with_id->set_symbol(last_changes->indx, last_changes->old_symb);
@@ -455,7 +453,7 @@ void CEUpdater::undo_changes_tracker(int num_steps)
   SymbolChange *last_change;
   SymbolChange *first_change;
   tracker_t& trk = *tracker;
-  for (unsigned int i=0;i<num_steps;i++)
+  for (int i=0;i<num_steps;i++)
   {
     history->pop(&last_change);
     history->pop(&first_change);
@@ -473,14 +471,14 @@ void CEUpdater::undo_changes_tracker(int num_steps)
 double CEUpdater::calculate( PyObject *system_changes )
 {
 
-  int size = list_size(system_changes);
+  unsigned int size = list_size(system_changes);
   if ( size == 0 )
   {
     return get_energy();
   }
   else if ( size == 1 )
   {
-    for ( int i=0;i<size;i++ )
+    for (unsigned int i=0;i<size;i++)
     {
       update_cf( PyList_GetItem(system_changes,i) );
     }
@@ -491,7 +489,7 @@ double CEUpdater::calculate( PyObject *system_changes )
   {
     bool sequence_arbitrary_moves = false;
     vector<swap_move> sequence;
-    for ( unsigned int i=0;i<size/2;i++ )
+    for (unsigned int i=0;i<size/2;i++)
     {
       swap_move changes;
       py_tuple_to_symbol_change( PyList_GetItem(system_changes,2*i), changes[0] );
@@ -657,11 +655,12 @@ bool CEUpdater::all_decoration_nums_equal( const vector<int> &dec_nums ) const
 void CEUpdater::get_singlets( PyObject *npy_obj ) const
 {
   PyObject *npy_array = PyArray_FROM_OTF( npy_obj, NPY_DOUBLE, NPY_OUT_ARRAY );
-  if ( PyArray_SIZE(npy_array) < singlets.size() )
+  unsigned int npy_array_size = PyArray_SIZE(npy_array);
+  if (npy_array_size < singlets.size())
   {
     string msg("The passed Numpy array is too small to hold all the singlets terms!\n");
     stringstream ss;
-    ss << "Minimum size: " << singlets.size() << ". Given size: " << PyArray_SIZE(npy_array);
+    ss << "Minimum size: " << singlets.size() << ". Given size: " << npy_array_size;
     msg += ss.str();
     Py_DECREF( npy_array );
     throw runtime_error( msg );
@@ -677,7 +676,7 @@ void CEUpdater::get_singlets( PyObject *npy_obj ) const
 
 PyObject* CEUpdater::get_singlets() const
 {
-  npy_intp dims[1] = {singlets.size()};
+  npy_intp dims[1] = {static_cast<npy_intp>(singlets.size())};
   PyObject* npy_array = PyArray_SimpleNew( 1, dims, NPY_DOUBLE );
   get_singlets(npy_array);
   return npy_array;
@@ -740,10 +739,10 @@ void CEUpdater::build_trans_symm_group( PyObject *py_trans_symm_group )
   }
 
   unsigned int py_list_size = list_size(py_trans_symm_group);
-  for ( int i=0;i<py_list_size;i++ )
+  for (unsigned int i=0;i<py_list_size;i++)
   {
     PyObject *sublist = PyList_GetItem( py_trans_symm_group, i );
-    int n_sites = list_size( sublist );
+    unsigned int n_sites = list_size( sublist );
     for ( unsigned int j=0;j<n_sites;j++ )
     {
       int indx = py2int( PyList_GetItem( sublist, j ) );
@@ -784,7 +783,7 @@ bool CEUpdater::all_eci_corresponds_to_cf()
 
 unsigned int CEUpdater::get_max_indx_of_zero_site() const
 {
-  unsigned int max_indx = 0;
+  int max_indx = 0;
   // Loop over cluster sizes
   for ( auto iter=clusters.begin(); iter != clusters.end(); ++iter )
   {
@@ -915,7 +914,7 @@ void CEUpdater::read_trans_matrix( PyObject* py_trans_mat )
 
   if ( is_list )
   {
-    int size = list_size(py_trans_mat);
+    unsigned int size = list_size(py_trans_mat);
     trans_matrix.set_size( size, unique_indx_vec.size(), max_indx );
     trans_matrix.set_lookup_values(unique_indx_vec);
     cout << "Reading translation matrix from list of dictionaries\n";
