@@ -66,8 +66,8 @@ public:
   PyObject* surface_python() const;
 private:
   CEUpdater *updater; // Do not own this
-  vecstr elements;
   vecstr cnames;
+  vecstr elements;
   std::vector<int> atomic_clusters;
   std::set<int> indices_in_cluster;
   std::set<int> solute_atoms_indices;
