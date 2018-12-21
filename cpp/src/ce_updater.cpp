@@ -52,7 +52,7 @@ void CEUpdater::init(PyObject *py_atoms, PyObject *BC, PyObject *corrFunc, PyObj
   {
     PyObject *pyindx = int2py(i);
     PyObject *atom = PyObject_GetItem(atoms, pyindx);
-    PyObject *pysymb = PyObject_GetAttrString(atom, "symbol");
+    PyObject *pysymb = get_attr(atom, "symbol");
 
     if (pysymb == nullptr)
     {
@@ -67,7 +67,7 @@ void CEUpdater::init(PyObject *py_atoms, PyObject *BC, PyObject *corrFunc, PyObj
   set<string> unique_symbols;
 
   // Extract unique symbols from settings
-  PyObject *py_unique_symb = PyObject_GetAttrString(BC, "unique_elements");
+  PyObject *py_unique_symb = get_attr(BC, "unique_elements");
   for (unsigned int i=0;i<PyList_Size(py_unique_symb);i++)
   {
     unique_symbols.insert(py2string(PyList_GetItem(py_unique_symb, i)));
@@ -78,7 +78,7 @@ void CEUpdater::init(PyObject *py_atoms, PyObject *BC, PyObject *corrFunc, PyObj
   symbols_with_id = new Symbols(symbols, unique_symbols);
 
   // Build read the translational sites
-  PyObject* py_trans_symm_group = PyObject_GetAttrString( BC, "index_by_trans_symm" );
+  PyObject* py_trans_symm_group = get_attr( BC, "index_by_trans_symm" );
 
   if (py_trans_symm_group == nullptr)
   {
@@ -89,7 +89,7 @@ void CEUpdater::init(PyObject *py_atoms, PyObject *BC, PyObject *corrFunc, PyObj
     cerr << "Reading background indices\n";
   #endif
   // Read the backgound indices from settings
-  PyObject *bkg_indx = PyObject_GetAttrString(BC, "background_indices");
+  PyObject *bkg_indx = get_attr(BC, "background_indices");
   read_background_indices(bkg_indx);
   Py_DECREF(bkg_indx);
 
@@ -103,7 +103,7 @@ void CEUpdater::init(PyObject *py_atoms, PyObject *BC, PyObject *corrFunc, PyObj
   // Read cluster names
   create_cname_with_dec( corrFunc );
 
-  PyObject *py_num_elements = PyObject_GetAttrString(BC, "num_unique_elements");
+  PyObject *py_num_elements = get_attr(BC, "num_unique_elements");
 
   if (py_num_elements == nullptr)
   {
@@ -112,7 +112,7 @@ void CEUpdater::init(PyObject *py_atoms, PyObject *BC, PyObject *corrFunc, PyObj
   int num_bfs = py2int(py_num_elements)-1;
   Py_DECREF(py_num_elements);
 
-  PyObject* cluster_info = PyObject_GetAttrString(BC, "cluster_info");
+  PyObject* cluster_info = get_attr(BC, "cluster_info");
 
   if (cluster_info == nullptr)
   {
@@ -154,7 +154,7 @@ void CEUpdater::init(PyObject *py_atoms, PyObject *BC, PyObject *corrFunc, PyObj
     cerr << "Reading basis functions from BC object\n";
   #endif
 
-  PyObject* bfs = PyObject_GetAttrString( BC, "basis_functions" );
+  PyObject* bfs = get_attr( BC, "basis_functions" );
   if ( bfs == NULL )
   {
     status = Status_t::INIT_FAILED;
@@ -183,7 +183,7 @@ void CEUpdater::init(PyObject *py_atoms, PyObject *BC, PyObject *corrFunc, PyObj
   #ifdef CE_DEBUG
     cerr << "Reading translation matrix from BC\n";
   #endif
-  PyObject* trans_mat_orig = PyObject_GetAttrString(BC,"trans_matrix");
+  PyObject* trans_mat_orig = get_attr(BC,"trans_matrix");
   if ( trans_mat_orig == NULL )
   {
     status = Status_t::INIT_FAILED;

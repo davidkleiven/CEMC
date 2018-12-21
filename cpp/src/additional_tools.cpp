@@ -1,5 +1,7 @@
 #include "additional_tools.hpp"
 #include "cf_history_tracker.hpp"
+#include <stdexcept>
+#include <sstream>
 
 using namespace std;
 
@@ -89,4 +91,16 @@ void py_change2swap_move(PyObject* all_changes, swap_move &symb_changes)
     py_tuple_to_symbol_change( PyList_GetItem(all_changes,i), symb_change );
     symb_changes[i]  = symb_change;
   }
+}
+
+PyObject* get_attr(PyObject* obj, const char* name)
+{
+  PyObject* attr = PyObject_GetAttrString(obj, name);
+  if (attr == nullptr)
+  {
+    stringstream ss;
+    ss << "Python object has not attribute " << name;
+    throw invalid_argument(ss.str());
+  }
+  return attr;
 }

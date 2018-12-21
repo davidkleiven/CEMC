@@ -46,6 +46,8 @@ std::string py2string(PyObject *str);
 PyObject* int2py(int integer);
 int py2int(PyObject *integer);
 
+PyObject *get_attr(PyObject *obj, const char* name);
+
 SymbolChange& py_tuple_to_symbol_change( PyObject *single_change, SymbolChange &symb_change );
 void py_changes2symb_changes( PyObject* all_changes, std::vector<SymbolChange> &symb_changes );
 void py_change2swap_move(PyObject *all_changes, swap_move &symb_changes);
