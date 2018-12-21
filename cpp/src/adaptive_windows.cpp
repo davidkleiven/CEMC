@@ -58,7 +58,6 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
     }
   }
   bool min_ok = false;
-  bool max_ok = false;
   double mean_dbl = 0.0;
 
   // Identify the largest window from the upper energy range that is locally converged
@@ -82,7 +81,6 @@ bool AdaptiveWindowHistogram::is_flat( double criteria )
 
     mean_dbl = static_cast<double>(mean)/count;
     min_ok =  minimum_ok(mean_dbl,criteria,minimum);
-    max_ok =  maximum_ok(mean_dbl,criteria,maximum);
 
     // Check if the window contains the minimum number of bins to check for local convergence
     if ( (count > minimum_width) || (count >= maximum_possible_number_of_converged_bins) )
