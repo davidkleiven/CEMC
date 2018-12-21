@@ -103,7 +103,7 @@ void Cluster::construct_equivalent_deco(int n_basis_funcs)
 
     // Create a nested vector based on the result from Python
     vector< vector<int> > eq_dec;
-    int size = PyList_Size(py_equiv);
+    int size = list_size(py_equiv);
     for (unsigned int i=0;i<size;i++)
     {
       vector<int> one_dec;
@@ -233,7 +233,7 @@ void Cluster::parse_info_dict(PyObject *info)
 
 void Cluster::nested_list_to_cluster(PyObject *py_list, cluster_t &vec)
 {
-  int size = PyList_Size(py_list);
+  int size = list_size(py_list);
   for (int i=0;i<size;i++)
   {
     vector<int> one_cluster;

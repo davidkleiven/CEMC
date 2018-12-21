@@ -62,7 +62,7 @@ WangLandauSampler::WangLandauSampler(PyObject *atoms, PyObject *BC, PyObject *co
     {
       throw invalid_argument("Expected list when parsing position track!");
     }
-    int size = PyList_Size(value);
+    int size = list_size(value);
     for ( int i=0;i<size;i++ )
     {
       pos.push_back( py2int(PyList_GetItem(value,i)) );
@@ -106,7 +106,7 @@ WangLandauSampler::WangLandauSampler(PyObject *atoms, PyObject *BC, PyObject *co
     throw invalid_argument("Expected list when parsing site_types!");
   }
 
-  int size = PyList_Size(py_site_types);
+  int size = list_size(py_site_types);
   for ( int i=0;i<size;i++ )
   {
     site_types.push_back( py2int( PyList_GetItem(py_site_types,i)) );
@@ -119,7 +119,7 @@ WangLandauSampler::WangLandauSampler(PyObject *atoms, PyObject *BC, PyObject *co
     throw invalid_argument("Expected list when parsing symbols!");
   }
 
-  size = PyList_Size( py_symbols );
+  size = list_size( py_symbols );
   for ( int i=0;i<size;i++ )
   {
     symbols.push_back( py2string(PyList_GetItem(py_symbols,i)) );

@@ -104,3 +104,12 @@ PyObject* get_attr(PyObject* obj, const char* name)
   }
   return attr;
 }
+
+unsigned int list_size(PyObject *list)
+{
+  if (!PyList_Check(list))
+  {
+    throw invalid_argument("Python object is not a list. Cannot retrieve the length!");
+  }
+  return PyList_Size(list);
+}
