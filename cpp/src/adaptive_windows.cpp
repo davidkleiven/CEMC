@@ -200,7 +200,7 @@ void AdaptiveWindowHistogram::make_dos_continous()
 
 bool AdaptiveWindowHistogram::bin_in_range( int bin ) const
 {
-  return (bin>=0) && (bin<current_upper_bin);
+  return (bin>=0) && (bin<static_cast<int>(current_upper_bin));
 }
 
 void AdaptiveWindowHistogram::clear_updater_states()
