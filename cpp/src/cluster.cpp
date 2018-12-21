@@ -103,7 +103,7 @@ void Cluster::construct_equivalent_deco(int n_basis_funcs)
 
     // Create a nested vector based on the result from Python
     vector< vector<int> > eq_dec;
-    int size = list_size(py_equiv);
+    unsigned int size = list_size(py_equiv);
     for (unsigned int i=0;i<size;i++)
     {
       vector<int> one_dec;
@@ -136,8 +136,8 @@ void Cluster::all_deco(int num_bfs, vector< vector<int> > &deco) const
   }
   else if (get_size() == 2)
   {
-    for (unsigned int i=0;i<num_bfs;i++)
-    for (unsigned int j=0;j<num_bfs;j++)
+    for (int i=0;i<num_bfs;i++)
+    for (int j=0;j<num_bfs;j++)
     {
       vector<int> vec = {i, j};
       deco.push_back(vec);
@@ -145,9 +145,9 @@ void Cluster::all_deco(int num_bfs, vector< vector<int> > &deco) const
   }
   else if (get_size() == 3)
   {
-    for (unsigned int i=0;i<num_bfs;i++)
-    for (unsigned int j=0;j<num_bfs;j++)
-    for (unsigned int k=0;k<num_bfs;k++)
+    for (int i=0;i<num_bfs;i++)
+    for (int j=0;j<num_bfs;j++)
+    for (int k=0;k<num_bfs;k++)
     {
       vector<int> vec = {i, j, k};
       deco.push_back(vec);
@@ -155,10 +155,10 @@ void Cluster::all_deco(int num_bfs, vector< vector<int> > &deco) const
   }
   else if(get_size() == 4)
   {
-    for (unsigned int i=0;i<num_bfs;i++)
-    for (unsigned int j=0;j<num_bfs;j++)
-    for (unsigned int k=0;k<num_bfs;k++)
-    for (unsigned int l=0;l<num_bfs;l++)
+    for (int i=0;i<num_bfs;i++)
+    for (int j=0;j<num_bfs;j++)
+    for (int k=0;k<num_bfs;k++)
+    for (int l=0;l<num_bfs;l++)
     {
       vector<int> vec = {i, j, k, l};
       deco.push_back(vec);
