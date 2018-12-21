@@ -15,6 +15,7 @@
 #include "cluster.hpp"
 #include "named_array.hpp"
 #include "symbols_with_numbers.hpp"
+#include "basis_function.hpp"
 
 // Read values from name_list
 // name_list[symm_group][cluster_size] = vector of string variables of all the cluster names
@@ -76,7 +77,7 @@ public:
   void update_cf( SymbolChange &single_change );
 
   /** Computes the spin product for one element */
-  double spin_product_one_atom( unsigned int ref_indx, const Cluster &indx_list, const std::vector<int> &dec, const std::string &ref_symb );
+  double spin_product_one_atom( unsigned int ref_indx, const Cluster &indx_list, const std::vector<int> &dec, unsigned int ref_id);
 
   /**
   Calculates the new energy given a set of system changes
@@ -153,7 +154,8 @@ private:
   std::vector<int> trans_symm_group;
   std::vector<int> trans_symm_group_count;
   std::map<std::string,int> cluster_symm_group_count;
-  bf_list basis_functions;
+  //bf_list basis_functions;
+  BasisFunction *basis_functions{nullptr};
 
   Status_t status{Status_t::NOT_INITIALIZED};
   //Matrix<int> trans_matrix;

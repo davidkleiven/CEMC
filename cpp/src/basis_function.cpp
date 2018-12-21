@@ -1,10 +1,12 @@
 #include "basis_function.hpp"
+#include "additional_tools.hpp"
 
+using namespace std;
 BasisFunction::BasisFunction(const bf_raw_t &raw_bfs, const Symbols &symb_with_num): \
     raw_bf_data(raw_bfs), symb_ptr(&symb_with_num)
     {
         num_bfs = raw_bf_data.size();
-        num_bf_values = symb_ptr->num_unique_symbols()-1;
+        num_bf_values = symb_ptr->num_unique_symbols();
         bfs = new double[num_bfs*num_bf_values];
 
         // Transfer the raw bf array to the flattened array
@@ -29,4 +31,17 @@ unsigned int BasisFunction::get_index(unsigned int dec_num, unsigned int symb_id
 double BasisFunction::get(unsigned int dec_num, unsigned int symb_id) const
 {
     return bfs[get_index(dec_num, symb_id)];
+}
+
+ostream& operator<<(ostream &out, const BasisFunction &bf)
+{
+    out << "Basis Function object\n";
+    out << "Raw data\n";
+    out << bf.raw_bf_data << "\n";
+    out << "Flattened array\n";
+    for (unsigned int i=0;i<bf.num_bfs*bf.num_bf_values;i++)
+    {
+        out << bf.bfs[i] << " ";
+    }
+    return out;
 }

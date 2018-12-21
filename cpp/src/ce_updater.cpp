@@ -2,6 +2,7 @@
 #include <iostream>
 #include "use_numpy.hpp"
 #include "additional_tools.hpp"
+#include "basis_function.hpp"
 #include <iostream>
 #include <sstream>
 #include <algorithm>
@@ -25,6 +26,7 @@ CEUpdater::~CEUpdater()
     delete observers[i];
   }
   delete symbols_with_id; symbols_with_id=nullptr;
+  delete basis_functions; basis_functions=nullptr;
 }
 
 void CEUpdater::init(PyObject *py_atoms, PyObject *BC, PyObject *corrFunc, PyObject *pyeci)
@@ -63,6 +65,15 @@ void CEUpdater::init(PyObject *py_atoms, PyObject *BC, PyObject *corrFunc, PyObj
   }
   trans_symm_group.resize(n_atoms);
   set<string> unique_symbols;
+
+  // Extract unique symbols from settings
+  PyObject *py_unique_symb = PyObject_GetAttrString(BC, "unique_elements");
+  for (unsigned int i=0;i<PyList_Size(py_unique_symb);i++)
+  {
+    unique_symbols.insert(py2string(PyList_GetItem(py_unique_symb, i)));
+  }
+  Py_DECREF(py_unique_symb);
+
   insert_in_set(symbols, unique_symbols);
   symbols_with_id = new Symbols(symbols, unique_symbols);
 
@@ -154,6 +165,7 @@ void CEUpdater::init(PyObject *py_atoms, PyObject *BC, PyObject *corrFunc, PyObj
   PyObject *key;
   PyObject *value;
   unsigned int n_bfs = PyList_Size(bfs);
+  bf_list basis_func_raw;
   for ( unsigned int i=0;i<n_bfs;i++ )
   {
     Py_ssize_t pos = 0;
@@ -163,8 +175,10 @@ void CEUpdater::init(PyObject *py_atoms, PyObject *BC, PyObject *corrFunc, PyObj
     {
       new_entry[py2string(key)] = PyFloat_AS_DOUBLE(value);
     }
-    basis_functions.push_back(new_entry);
+    basis_func_raw.push_back(new_entry);
   }
+
+  basis_functions = new BasisFunction(basis_func_raw, *symbols_with_id);
 
   #ifdef CE_DEBUG
     cerr << "Reading translation matrix from BC\n";
@@ -227,7 +241,7 @@ double CEUpdater::get_energy()
   return energy*symbols_with_id->size();
 }
 
-double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const Cluster &cluster, const vector<int> &dec, const string &ref_symb )
+double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const Cluster &cluster, const vector<int> &dec, unsigned int ref_id )
 {
   double sp = 0.0;
 
@@ -258,11 +272,11 @@ double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const Cluster &c
     {
       if (indices[j] == ref_indx)
       {
-        sp_temp *= basis_functions[dec[j]][ref_symb];
+        sp_temp *= basis_functions->get(dec[j], ref_id);
       }
       else
       {
-        sp_temp *= basis_functions[dec[j]][symbols_with_id->get_symbol(indices[j])];
+        sp_temp *= basis_functions->get(dec[j], symbols_with_id->id(indices[j]));
       }
     }
     sp += sp_temp;
@@ -317,7 +331,10 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
     throw runtime_error("Attempting to move a background atom!");
   }
 
+  unsigned int old_symb_id = symbols_with_id->id(symb_change.indx);
   symbols_with_id->set_symbol(symb_change.indx, symb_change.new_symb);
+  unsigned int new_symb_id = symbols_with_id->id(symb_change.indx);
+
   if ( atoms != nullptr )
   {
     PyObject *symb_str = string2py(symb_change.new_symb.c_str());
@@ -349,8 +366,7 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
     if ( name.find("c1") == 0 )
     {
       int dec = bfs[0];
-      //next_cf[name] = current_cf[name] + (basis_functions[dec][symb_change.new_symb] - basis_functions[dec][symb_change.old_symb])/symbols.size();
-      next_cf[i] = current_cf[i] + (basis_functions[dec][symb_change.new_symb] - basis_functions[dec][symb_change.old_symb])/symbols_with_id->size();
+      next_cf[i] = current_cf[i] + (basis_functions->get(dec, new_symb_id) - basis_functions->get(dec, old_symb_id))/symbols_with_id->size();
       continue;
     }
 
@@ -377,8 +393,8 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
 
     for (const vector<int>& deco : equiv_deco)
     {
-      double sp_ref = spin_product_one_atom( symb_change.indx, cluster, deco, symb_change.old_symb );
-      double sp_new = spin_product_one_atom( symb_change.indx, cluster, deco, symb_change.new_symb );
+      double sp_ref = spin_product_one_atom( symb_change.indx, cluster, deco, old_symb_id );
+      double sp_new = spin_product_one_atom( symb_change.indx, cluster, deco, new_symb_id );
       int bf_ref = bfs[0];
       delta_sp += sp_new - sp_ref;
     }
@@ -616,7 +632,7 @@ void CEUpdater::set_ecis( PyObject *new_ecis )
 
 int CEUpdater::get_decoration_number( const string &cname ) const
 {
-  if ( basis_functions.size() == 1 )
+  if ( basis_functions->size() == 1 )
   {
     return 0;
   }

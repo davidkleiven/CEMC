@@ -3,6 +3,7 @@
 #include "symbols_with_numbers.hpp"
 #include <map>
 #include <vector>
+#include <iostream>
 
 typedef std::map<std::string, double> dict_dbl_t;
 typedef std::vector<dict_dbl_t> bf_raw_t;
@@ -15,6 +16,12 @@ public:
 
     /** Return the basis function value for a given decoration number and symbol ID */
     double get(unsigned int dec_num, unsigned int symb_id) const;
+
+    /** Return the size (number of basis functions) */
+    unsigned int size() const {return num_bfs;};
+
+    /** Stream operator */
+    friend std::ostream& operator<<(std::ostream &out, const BasisFunction &bf);
 private:
     const Symbols *symb_ptr{nullptr};
     bf_raw_t raw_bf_data;
