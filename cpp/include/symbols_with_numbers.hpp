@@ -36,6 +36,12 @@ public:
 
     /** Re-initialize all symbols */
     void set_symbols(const vec_str_t& new_symbs);
+
+    /** Get the ID of a particular symbol */
+    unsigned int get_symbol_id(const std::string &symb) const{return symb_id_translation.at(symb);};
+
+    /** Return the number of uniquee symbols */
+    unsigned int num_unique_symbols() const{return symb_id_translation.size();};
 private:
     unsigned int *symb_ids{nullptr};
     vec_str_t symbols;
