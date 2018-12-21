@@ -254,7 +254,7 @@ void WangLandauSampler::step()
     updaters[uid]->undo_changes();
     if ( is_first[uid] ) return;
 
-    int num_active = histogram->get_number_of_active_bins()
+    int num_active = histogram->get_number_of_active_bins();
     if (bin > num_active) update_current();
     return;
   }
