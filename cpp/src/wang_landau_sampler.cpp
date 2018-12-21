@@ -523,7 +523,6 @@ void WangLandauSampler::run_until_valid_energy( double emin, double emax )
       {
         updaters[0]->clear_history();
         current_bin[0] = bin;
-        update_atom_position_track(0,change,select1,select2);
       }
       else
       {
@@ -538,7 +537,6 @@ void WangLandauSampler::run_until_valid_energy( double emin, double emax )
       {
         updaters[0]->clear_history();
         current_bin[0] = bin;
-        update_atom_position_track(0,change,select1,select2);
       }
       else
       {
