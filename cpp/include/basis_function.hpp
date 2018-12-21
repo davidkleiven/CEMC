@@ -12,6 +12,8 @@ class BasisFunction
 {
 public:
     BasisFunction(const bf_raw_t &raw_bfs, const Symbols &symb_with_num);
+    BasisFunction(const BasisFunction &other);
+    BasisFunction& operator=(const BasisFunction &other);
     ~BasisFunction();
 
     /** Return the basis function value for a given decoration number and symbol ID */
@@ -31,6 +33,7 @@ private:
 
     /** Return the corresponding index into the flattened array */
     unsigned int get_index(unsigned int dec_num, unsigned int symb_id) const;
+    void swap(const BasisFunction &other);
 };
 
 #endif

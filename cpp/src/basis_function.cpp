@@ -18,10 +18,18 @@ BasisFunction::BasisFunction(const bf_raw_t &raw_bfs, const Symbols &symb_with_n
         }
     };
 
-BasisFunction::~BasisFunction(){
-    delete [] bfs; bfs = nullptr;
+BasisFunction::BasisFunction(const BasisFunction &other){
+    this->swap(other);
 }
 
+BasisFunction& BasisFunction::operator=(const BasisFunction &other){
+    this->swap(other);
+    return *this;
+}
+
+BasisFunction::~BasisFunction(){
+    delete [] bfs;
+}
 
 unsigned int BasisFunction::get_index(unsigned int dec_num, unsigned int symb_id) const
 {
@@ -31,6 +39,17 @@ unsigned int BasisFunction::get_index(unsigned int dec_num, unsigned int symb_id
 double BasisFunction::get(unsigned int dec_num, unsigned int symb_id) const
 {
     return bfs[get_index(dec_num, symb_id)];
+}
+
+void BasisFunction::swap(const BasisFunction &other)
+{
+    this->raw_bf_data = other.raw_bf_data;
+    this->symb_ptr = other.symb_ptr;
+    this->num_bfs = other.num_bfs;
+    this->num_bf_values = other.num_bf_values;
+    if (this->bfs != nullptr) delete [] this->bfs;
+    this->bfs = new double[num_bfs*num_bf_values];
+    memcpy(this->bfs, other.bfs, num_bfs*num_bf_values*sizeof(double));
 }
 
 ostream& operator<<(ostream &out, const BasisFunction &bf)

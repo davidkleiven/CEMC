@@ -590,7 +590,7 @@ CEUpdater* CEUpdater::copy() const
   obj->trans_symm_group = trans_symm_group;
   obj->trans_symm_group_count = trans_symm_group_count;
   obj->cluster_symm_group_count = cluster_symm_group_count;
-  obj->basis_functions = basis_functions;
+  obj->basis_functions = new BasisFunction(*basis_functions);
   obj->status = status;
   obj->trans_matrix = trans_matrix;
   obj->ctype_lookup = ctype_lookup;
