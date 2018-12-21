@@ -23,8 +23,8 @@ public:
     /** Stream operator */
     friend std::ostream& operator<<(std::ostream &out, const BasisFunction &bf);
 private:
-    const Symbols *symb_ptr{nullptr};
     bf_raw_t raw_bf_data;
+    const Symbols *symb_ptr{nullptr};
     double *bfs{nullptr};
     unsigned int num_bfs{0};
     unsigned int num_bf_values{0};
