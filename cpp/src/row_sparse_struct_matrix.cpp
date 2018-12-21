@@ -60,7 +60,7 @@ void RowSparseStructMatrix::set_lookup_values( const vector<int> &lut_values )
   
   memcpy(allowed_lookup_values, &lut_values[0], lut_values.size()*sizeof(int));
 
-  int max_value = *max_element(lut_values.begin(), lut_values.end() );
+  unsigned int max_value = *max_element(lut_values.begin(), lut_values.end() );
   if ( max_value > max_lookup_value )
   {
     throw invalid_argument( "The maximum lookup value exceeds the number given when the size was specified!" );
@@ -77,7 +77,7 @@ void RowSparseStructMatrix::set_lookup_values( const vector<int> &lut_values )
   }
 }
 
-bool RowSparseStructMatrix::is_allowed_lut( unsigned int col ) const
+bool RowSparseStructMatrix::is_allowed_lut(int col) const
 {
   for ( unsigned int i=0;i<num_non_zero;i++ )
   {

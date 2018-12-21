@@ -39,7 +39,7 @@ public:
   void insert( unsigned int row, unsigned int col, int value );
 
   /** Check if the provided value is allowed */
-  bool is_allowed_lut( unsigned int col ) const;
+  bool is_allowed_lut(int col) const;
 
   /** Matrix-like access operator. NOTE: For max performance this function does not perform any validity checks */
   const int& operator()( unsigned int row, unsigned int col ) const;
