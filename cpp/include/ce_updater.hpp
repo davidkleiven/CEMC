@@ -14,6 +14,7 @@
 #include "linear_vib_correction.hpp"
 #include "cluster.hpp"
 #include "named_array.hpp"
+#include "symbols_with_numbers.hpp"
 
 // Read values from name_list
 // name_list[symm_group][cluster_size] = vector of string variables of all the cluster names
@@ -106,7 +107,7 @@ public:
   const CFHistoryTracker& get_history() const{ return *history; };
 
   /** Read-only reference to the symbols */
-  const std::vector<std::string>& get_symbols() const { return symbols; };
+  const std::vector<std::string>& get_symbols() const { return symbols_with_id->get_symbols(); };
 
   /** Returns the cluster members */
   const std::vector<cluster_dict>& get_clusters() const {return clusters;};
@@ -146,7 +147,8 @@ private:
   /** Returns the maximum index occuring in the cluster indices */
   unsigned int get_max_indx_of_zero_site() const;
 
-  std::vector<std::string> symbols;
+  //std::vector<std::string> symbols;
+  Symbols *symbols_with_id{nullptr};
   std::vector<cluster_dict> clusters;
   std::vector<int> trans_symm_group;
   std::vector<int> trans_symm_group_count;

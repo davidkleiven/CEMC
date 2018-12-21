@@ -24,6 +24,7 @@ CEUpdater::~CEUpdater()
   {
     delete observers[i];
   }
+  delete symbols_with_id; symbols_with_id=nullptr;
 }
 
 void CEUpdater::init(PyObject *py_atoms, PyObject *BC, PyObject *corrFunc, PyObject *pyeci)
@@ -44,6 +45,7 @@ void CEUpdater::init(PyObject *py_atoms, PyObject *BC, PyObject *corrFunc, PyObj
     throw invalid_argument("Could not retrieve the length of the atoms object!");
   }
   
+  vector<string> symbols;
   for ( unsigned int i=0;i<n_atoms;i++ )
   {
     PyObject *pyindx = int2py(i);
@@ -60,6 +62,9 @@ void CEUpdater::init(PyObject *py_atoms, PyObject *BC, PyObject *corrFunc, PyObj
     Py_DECREF(pysymb);
   }
   trans_symm_group.resize(n_atoms);
+  set<string> unique_symbols;
+  insert_in_set(symbols, unique_symbols);
+  symbols_with_id = new Symbols(symbols, unique_symbols);
 
   // Build read the translational sites
   PyObject* py_trans_symm_group = PyObject_GetAttrString( BC, "index_by_trans_symm" );
@@ -219,7 +224,7 @@ double CEUpdater::get_energy()
   double energy = 0.0;
   cf& corr_func = history->get_current();
   energy = ecis.dot( corr_func );
-  return energy*symbols.size();
+  return energy*symbols_with_id->size();
 }
 
 double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const Cluster &cluster, const vector<int> &dec, const string &ref_symb )
@@ -257,7 +262,7 @@ double CEUpdater::spin_product_one_atom( unsigned int ref_indx, const Cluster &c
       }
       else
       {
-        sp_temp *= basis_functions[dec[j]][symbols[indices[j]]];
+        sp_temp *= basis_functions[dec[j]][symbols_with_id->get_symbol(indices[j])];
       }
     }
     sp += sp_temp;
@@ -312,7 +317,7 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
     throw runtime_error("Attempting to move a background atom!");
   }
 
-  symbols[symb_change.indx] = symb_change.new_symb;
+  symbols_with_id->set_symbol(symb_change.indx, symb_change.new_symb);
   if ( atoms != nullptr )
   {
     PyObject *symb_str = string2py(symb_change.new_symb.c_str());
@@ -345,7 +350,7 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
     {
       int dec = bfs[0];
       //next_cf[name] = current_cf[name] + (basis_functions[dec][symb_change.new_symb] - basis_functions[dec][symb_change.old_symb])/symbols.size();
-      next_cf[i] = current_cf[i] + (basis_functions[dec][symb_change.new_symb] - basis_functions[dec][symb_change.old_symb])/symbols.size();
+      next_cf[i] = current_cf[i] + (basis_functions[dec][symb_change.new_symb] - basis_functions[dec][symb_change.old_symb])/symbols_with_id->size();
       continue;
     }
 
@@ -411,8 +416,7 @@ void CEUpdater::undo_changes(int num_steps)
   for ( unsigned int i=0;i<num_steps;i++ )
   {
     history->pop( &last_changes );
-    //cout <<"Undo changing " << last_changes->indx << " from " << symbols[last_changes->indx] << " to " << last_changes->old_symb << endl;
-    symbols[last_changes->indx] = last_changes->old_symb;
+    symbols_with_id->set_symbol(last_changes->indx, last_changes->old_symb);
 
     if ( atoms != nullptr )
     {
@@ -439,13 +443,13 @@ void CEUpdater::undo_changes_tracker(int num_steps)
   {
     history->pop(&last_change);
     history->pop(&first_change);
-    symbols[last_change->indx] = last_change->old_symb;
-    symbols[first_change->indx] = first_change->old_symb;
+    symbols_with_id->set_symbol(last_change->indx, last_change->old_symb);
+    symbols_with_id->set_symbol(first_change->indx, first_change->old_symb);
     trk[first_change->old_symb][first_change->track_indx] = first_change->indx;
     trk[last_change->old_symb][last_change->track_indx] = last_change->indx;
   }
-  symbols[first_change->indx] = first_change->old_symb;
-  symbols[last_change->indx] = last_change->old_symb;
+  symbols_with_id->set_symbol(first_change->indx, first_change->old_symb);
+  symbols_with_id->set_symbol(last_change->indx, last_change->old_symb);
   //cerr << "History cleaned!\n";
   //cerr << history->history_size() << endl;
 }
@@ -502,18 +506,18 @@ double CEUpdater::calculate( PyObject *system_changes )
 
 double CEUpdater::calculate( swap_move &system_changes )
 {
-  if ( symbols[system_changes[0].indx] == symbols[system_changes[1].indx] )
+  if (symbols_with_id->id(system_changes[0].indx) == symbols_with_id->id(system_changes[1].indx))
   {
     cout << system_changes[0] << endl;
     cout << system_changes[1] << endl;
     throw runtime_error( "This version of the calculate function assumes that the provided update is swapping two atoms\n");
   }
 
-  if ( symbols[system_changes[0].indx] != system_changes[0].old_symb )
+  if ( symbols_with_id->get_symbol(system_changes[0].indx) != system_changes[0].old_symb )
   {
     throw runtime_error( "The atom position tracker does not match the current state\n" );
   }
-  else if ( symbols[system_changes[1].indx] != system_changes[1].old_symb )
+  else if ( symbols_with_id->get_symbol(system_changes[1].indx) != system_changes[1].old_symb )
   {
     throw runtime_error( "The atom position tracker does not match the current state\n" );
   }
@@ -567,7 +571,7 @@ PyObject* CEUpdater::get_cf()
 CEUpdater* CEUpdater::copy() const
 {
   CEUpdater* obj = new CEUpdater();
-  obj->symbols = symbols;
+  obj->symbols_with_id = new Symbols(*symbols_with_id);
   obj->clusters = clusters;
   obj->trans_symm_group = trans_symm_group;
   obj->trans_symm_group_count = trans_symm_group_count;
@@ -587,11 +591,11 @@ CEUpdater* CEUpdater::copy() const
 
 void CEUpdater::set_symbols( const vector<string> &new_symbs )
 {
-  if ( new_symbs.size() != symbols.size() )
+  if ( new_symbs.size() != symbols_with_id->size() )
   {
     throw runtime_error( "The number of atoms in the updater cannot be changed via the set_symbols function\n");
   }
-  symbols = new_symbs;
+  symbols_with_id->set_symbols(new_symbs);
 }
 
 void CEUpdater::set_ecis( PyObject *new_ecis )
@@ -995,7 +999,7 @@ void CEUpdater::add_linear_vib_correction(PyObject *dict)
 
 void CEUpdater::read_background_indices(PyObject *bkg_indices){
   // Fill array with false
-  is_background_index.resize(symbols.size());
+  is_background_index.resize(symbols_with_id->size());
   fill(is_background_index.begin(), is_background_index.end(), false);
 
   // Set to true if index is in bkg_indices
