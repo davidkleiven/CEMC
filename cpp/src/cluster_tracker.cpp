@@ -92,7 +92,7 @@ void ClusterTracker::get_cluster_size( map<int,int> &num_members_in_cluster ) co
 {
   for ( unsigned int i=0;i<atomic_clusters.size();i++ )
   {
-    int r_indx = root_indx(i);
+    unsigned int r_indx = root_indx(i);
 
     if ( r_indx != i )
     {
@@ -153,7 +153,7 @@ PyObject* ClusterTracker::get_cluster_statistics_python() const
   }
 
   PyObject* size_list = PyList_New(0);
-  for ( int i=0; i< cluster_sizes.size();i++ )
+  for (unsigned int i=0; i< cluster_sizes.size();i++ )
   {
     PyObject *value = int2py( cluster_sizes[i] );
     PyList_Append( size_list, value );
@@ -247,7 +247,7 @@ void ClusterTracker::get_members_of_largest_cluster( vector<int> &members )
 {
   unsigned int root_indx_largest = root_indx_largest_cluster();
   members.clear();
-  for ( int id=0;id<atomic_clusters.size();id++ )
+  for (unsigned int id=0;id<atomic_clusters.size();id++ )
   {
     if ( root_indx(id) == root_indx_largest )
     {
@@ -276,7 +276,7 @@ unsigned int ClusterTracker::root_indx( unsigned int indx ) const
 bool ClusterTracker::is_connected(unsigned int indx1, unsigned int indx2) const{
   unsigned int counter = 0;
   unsigned int max_cluster_size = atomic_clusters.size();
-  int root = indx1;
+  unsigned int root = indx1;
   while((atomic_clusters[root] != -1) && (counter<max_cluster_size))
   {
     counter += 1;
@@ -320,7 +320,7 @@ void ClusterTracker::surface( map<int,int> &surf ) const
             continue;
           }
           const vector< vector<int> >& members = clusters[symm_group].at(cname).get();
-          for ( int subgroup=0;subgroup<members.size();subgroup++ )
+          for (unsigned int subgroup=0;subgroup<members.size();subgroup++)
           {
             int indx = trans_mat( i,members[subgroup][0] );
             if (!is_cluster_element(symbs[indx]))
@@ -564,7 +564,7 @@ void ClusterTracker::rebuild_cluster(){
 
     // Find all sites belonging to this cluster
     vector<int> indx_in_group;
-    for (int i=0;i<grp_indx.size();i++){
+    for (unsigned int i=0;i<grp_indx.size();i++){
       if (grp_indx[i] == grp){
         indx_in_group.push_back(i);
       }
@@ -579,7 +579,7 @@ void ClusterTracker::rebuild_cluster(){
 
     atomic_clusters[indx_in_group[0]] = -1;
     already_inserted[indx_in_group[0]] = true;
-    for (int i=0;i<indx_in_group.size();i++){
+    for (unsigned int i=0;i<indx_in_group.size();i++){
       // Attach all neighbours to the current site
       for (auto iter=indices_in_cluster.begin(); iter != indices_in_cluster.end(); ++iter){
         int indx = trans_mat(indx_in_group[i], *iter);
@@ -594,7 +594,7 @@ void ClusterTracker::rebuild_cluster(){
 
 bool ClusterTracker::has_minimal_connectivity() const{
   const auto& trans_mat = updater->get_trans_matrix();
-  for (int i=0;i<atomic_clusters.size();i++){
+  for (unsigned int i=0;i<atomic_clusters.size();i++){
     if (atomic_clusters[i] != -1){
       bool found_neighbor = false;
       for (auto iter=indices_in_cluster.begin(); iter != indices_in_cluster.end(); ++iter){
