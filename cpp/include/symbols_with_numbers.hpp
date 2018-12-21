@@ -23,6 +23,9 @@ public:
 
     /** Get the array of symbols */
     const vec_str_t& get_symbols() const {return symbols;};
+
+    /** Return the size of the symbol container */
+    unsigned int size() const {return symbols.size();};
 private:
     unsigned int *symb_ids{nullptr};
     vec_str_t symbols;
