@@ -26,6 +26,8 @@ class RowSparseStructMatrix
 {
 public:
   RowSparseStructMatrix(){};
+  RowSparseStructMatrix(const RowSparseStructMatrix &other);
+  RowSparseStructMatrix& operator=(const RowSparseStructMatrix &other);
   ~RowSparseStructMatrix(){deallocate();};
 
   /** Initialize the size arrays */
@@ -59,5 +61,6 @@ private:
   bool lut_values_set{false};
   void invalid_col_msg( unsigned int col_provided, std::string& msg ) const;
   void deallocate();
+  void swap(const RowSparseStructMatrix &other);
 };
 #endif

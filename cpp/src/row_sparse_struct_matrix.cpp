@@ -27,6 +27,16 @@ void RowSparseStructMatrix::set_size( unsigned int n_rows, unsigned int n_non_ze
   allowed_lookup_values = new int[num_non_zero];
 }
 
+RowSparseStructMatrix::RowSparseStructMatrix(const RowSparseStructMatrix &other)
+{
+  this->swap(other);
+}
+
+RowSparseStructMatrix& RowSparseStructMatrix::operator=(const RowSparseStructMatrix &other){
+  this->swap(other);
+  return *this;
+}
+
 void RowSparseStructMatrix::deallocate()
 {
   delete [] allowed_lookup_values;
@@ -141,4 +151,24 @@ void RowSparseStructMatrix::invalid_col_msg( unsigned int col_provided, string &
       ss << allowed_lookup_values[i] << endl;
   }
   msg = ss.str();
+}
+
+void RowSparseStructMatrix::swap(const RowSparseStructMatrix &other)
+{
+  this->num_rows = other.num_rows;
+  this->max_lookup_value = other.max_lookup_value;
+  this->num_non_zero = other.num_non_zero;
+
+  this->allowed_lookup_values = new int[num_non_zero];
+  this->lookup = new int[num_non_zero];
+  this->values = new int*[num_rows];
+  for (unsigned int i=0;i<num_rows;i++)
+  {
+    this->values[i] = new int[num_non_zero];
+    memcpy(this->values[i], other.values[i], num_non_zero*sizeof(int));
+  }
+
+  // Copy content
+  memcpy(this->allowed_lookup_values, other.allowed_lookup_values, num_non_zero*sizeof(int));
+  memcpy(this->lookup, other.lookup, num_non_zero*sizeof(int));
 }
