@@ -135,7 +135,6 @@ void EshelbyTensor::I_matrix_oblate_sphere(mat3x3 &result, const vec3 &princ) co
   semi_axes[0] = a*a;
   semi_axes[1] = b*b;
   semi_axes[2] = c*c;
-  double tol = 1E-6;
 
   // First row
   result[0][2] = princ[0] - 4.0*PI/3.0;
@@ -369,7 +368,7 @@ void EshelbyTensor::array_to_key(string &key, int array[4])
 void EshelbyTensor::circular_shift(double data[], int size)
 {
   double first = data[0];
-  for (unsigned int i=0;i<size-1;i++)
+  for (int i=0;i<size-1;i++)
   {
     data[i] = data[i+1];
   }

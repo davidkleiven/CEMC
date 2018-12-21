@@ -14,7 +14,7 @@ typedef std::map<std::string, equiv_deco_t > all_equiv_deco_t;
 class Cluster
 {
 public:
-  Cluster():size(0),name("noname"){};
+  Cluster():size(0), name("noname"){};
   Cluster(PyObject *info_dict);
 
   /** Returns the built in list */
@@ -30,8 +30,8 @@ public:
   void construct_equivalent_deco(int n_basis_funcs);
 
   /** Public attributes */
-  std::string name;
   int size;
+  std::string name;
   unsigned int ref_indx;
   unsigned int symm_group;
   double max_cluster_dia;

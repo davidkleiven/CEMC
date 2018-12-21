@@ -65,9 +65,9 @@ public:
   /** Compute the surface of the clusters and return the result in a Python dict */
   PyObject* surface_python() const;
 private:
-  vecstr elements;
-  vecstr cnames;
   CEUpdater *updater; // Do not own this
+  vecstr cnames;
+  vecstr elements;
   std::vector<int> atomic_clusters;
   std::set<int> indices_in_cluster;
   std::set<int> solute_atoms_indices;

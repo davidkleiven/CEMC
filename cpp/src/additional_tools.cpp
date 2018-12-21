@@ -1,5 +1,7 @@
 #include "additional_tools.hpp"
 #include "cf_history_tracker.hpp"
+#include <stdexcept>
+#include <sstream>
 
 using namespace std;
 
@@ -71,7 +73,7 @@ SymbolChange& py_tuple_to_symbol_change( PyObject *single_change, SymbolChange &
 
 void py_changes2symb_changes( PyObject* all_changes, vector<SymbolChange> &symb_changes )
 {
-  int size = PyList_Size(all_changes);
+  unsigned int size = list_size(all_changes);
   for (unsigned int i=0;i<size;i++ )
   {
     SymbolChange symb_change;
@@ -82,11 +84,32 @@ void py_changes2symb_changes( PyObject* all_changes, vector<SymbolChange> &symb_
 
 void py_change2swap_move(PyObject* all_changes, swap_move &symb_changes)
 {
-  int size = PyList_Size(all_changes);
+  unsigned int size = list_size(all_changes);
   for (unsigned int i=0;i<size;i++ )
   {
     SymbolChange symb_change;
     py_tuple_to_symbol_change( PyList_GetItem(all_changes,i), symb_change );
     symb_changes[i]  = symb_change;
   }
+}
+
+PyObject* get_attr(PyObject* obj, const char* name)
+{
+  PyObject* attr = PyObject_GetAttrString(obj, name);
+  if (attr == nullptr)
+  {
+    stringstream ss;
+    ss << "Python object has not attribute " << name;
+    throw invalid_argument(ss.str());
+  }
+  return attr;
+}
+
+unsigned int list_size(PyObject *list)
+{
+  if (!PyList_Check(list))
+  {
+    throw invalid_argument("Python object is not a list. Cannot retrieve the length!");
+  }
+  return PyList_Size(list);
 }

@@ -81,3 +81,10 @@ bool is_in_vector(const T& value, const std::vector<T> &vector){
   }
   return false;
 }
+
+template<class T>
+void insert_in_set(const std::vector<T> &vec, std::set<T> &unique){
+  for (const T& elem : vec){
+    unique.insert(elem);
+  }
+}
