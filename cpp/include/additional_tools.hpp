@@ -54,5 +54,8 @@ void py_change2swap_move(PyObject *all_changes, swap_move &symb_changes);
 template<class T>
 bool is_in_vector(const T &value, const std::vector<T> &vec);
 
+template<class T>
+void insert_in_set(const std::vector<T> &vec, std::set<T> &unique);
+
 #include "additional_tools.tpp"
 #endif
