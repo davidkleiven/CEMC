@@ -247,7 +247,6 @@ void WangLandauSampler::step()
   avg_bin_change += abs(bin-current_bin[uid]);
   //cout << bin << " " << current_bin[uid] << endl;
 
-  bool inside_range = histogram->bin_in_range(bin);
   // Check if the proposed bin is in the sampling range. If not undo changes and return.
   if ( !histogram->bin_in_range(bin) )
   {
@@ -255,7 +254,8 @@ void WangLandauSampler::step()
     updaters[uid]->undo_changes();
     if ( is_first[uid] ) return;
 
-    if ( bin > histogram->get_number_of_active_bins() ) update_current();
+    int num_active = histogram->get_number_of_active_bins()
+    if (bin > num_active) update_current();
     return;
   }
   else if ( bin == current_bin[uid] )
@@ -478,7 +478,7 @@ void WangLandauSampler::run_until_valid_energy( double emin, double emax )
 
       // Update the updaters. Set all processors outside the energy range equal
       // to the proc_in_valid_state
-      for ( int i=0;i<current_bin.size();i++ )
+      for (unsigned int i=0;i<current_bin.size();i++)
       {
         if ( histogram->bin_in_range(current_bin[i]) ) continue;
 
@@ -576,9 +576,6 @@ void WangLandauSampler::run_until_valid_energy( double emin, double emax )
 
 void WangLandauSampler::use_adaptive_windows( unsigned int minimum_window_width )
 {
-  unsigned int Nbins = histogram->get_nbins();
-  double Emin = histogram->get_emin();
-  double Emax = histogram->get_emax();
   Histogram *new_histogram = new AdaptiveWindowHistogram( *histogram, minimum_window_width, *this );
   delete histogram;
   histogram = new_histogram;
@@ -607,21 +604,6 @@ void WangLandauSampler::set_updaters( const vector<CEUpdater*> &new_updaters, li
     updaters[i]->set_atom_position_tracker(atom_positions_track[i]); // This line should not be nessecary, just in case
   }
   current_bin = new_current_bin;
-}
-
-void WangLandauSampler::update_atom_position_track( unsigned int uid, array<SymbolChange,2> &change, unsigned int select1, unsigned int select2 )
-{
-  const string& symb1_old = change[0].old_symb;
-  const string& symb2_old = change[1].old_symb;
-  unsigned int indx1 = change[0].indx;
-  unsigned int indx2 = change[1].indx;
-
-  // NOTE: The following lines are commentet because the
-  // CEupdater updates the tracker.
-  // This function will be removed in the future
-
-  //atom_positions_track[uid][symb1_old][select1] = indx2;
-  //atom_positions_track[uid][symb2_old][select2] = indx1;
 }
 
 double WangLandauSampler::get_mc_time() const
