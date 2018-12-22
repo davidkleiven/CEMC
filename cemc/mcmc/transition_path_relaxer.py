@@ -180,6 +180,7 @@ class TransitionPathRelaxer(object):
             self.nuc_mc.network.reset()
             self.nuc_mc.sweep(nsteps=self.nsteps_per_sweep)
             self.nuc_mc.network(None)
+            print(self.nuc_mc.network.get_statistics())
             new_path["energy"].append(self.nuc_mc.current_energy)
             new_path["symbols"].append( [atom.symbol for atom in self.nuc_mc.atoms] )
 
@@ -290,8 +291,8 @@ class TransitionPathRelaxer(object):
         reactant_indicator = []
         product_indicator = []
         for state in path["symbols"]:
+            self.nuc_mc.set_state(state)
             self.nuc_mc.network.reset()
-            self.nuc_mc.set_state( state )
             self.nuc_mc.network(None)
             if ( self.nuc_mc.is_reactant() ):
                 reactant_indicator.append(1)

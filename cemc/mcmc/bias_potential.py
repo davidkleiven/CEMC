@@ -16,6 +16,20 @@ class BiasPotential(object):
         """
         raise NotImplementedError("Has to be implemented in child classes!")
 
+    def initialize(self):
+        """Initialize the bias potential (if applicable).
+           This functions is called right before MC sampling
+           starts.
+        """
+        pass
+
+    def calculate_from_scratch(self, atoms):
+        """Calculate the bias potential from scratch.
+
+        :param Atoms atoms: Structure to evaluate the bias poential for
+        """
+        raise NotImplementedError("Class has not implemented a calculate_from_scratch method!")
+
     def save(self, fname="pseudo_binary_free_energy.pkl"):
         """Save the computed bias potential to a file.
 
@@ -171,6 +185,11 @@ class PseudoBinaryFreeEnergyBias(SampledBiasPotential):
                 q += 1.0 / self.conc_init.num_per_unit
         return self.bias_interp(q)
 
+    def calculate_from_scratch(self, atoms):
+        """Calculate the value from scratch."""
+        q = self.conc_init.get(atoms)
+        return self.bias_interp(q)
+
     def get(self, reac_crd):
         """Get the bias potential as a function of reaction coordinate.
 
@@ -179,35 +198,35 @@ class PseudoBinaryFreeEnergyBias(SampledBiasPotential):
         return self.bias_interp(reac_crd)
 
 
-class InertiaBiasPotential(SampledBiasPotential):
+class CovarianceBiasPotential(SampledBiasPotential):
     """
     Bias potential to be used together with
-    :py:class:`cemc.mcmc.inertia_reac_crd.InertiaRangeConstraint`
+    :py:class:`cemc.mcmc.cov_reac_crd.CovarianceRangeConstraint`
 
-    :param inertia_range: Range constraints, mainly used to calculating the
+    :param cov_range: Range constraints, mainly used to calculating the
         value of the reaction coordinate.
-    :type inertia_range: InertiaRangeConstraint or None
+    :type cov_range: CovarianceRangeConstraint or None
     :param reac_crd: Reaction coordinates
     :type reac_crd: list or numpy array
     :param free_eng: Free energy at each reaction coordinate
     :type free_eng: list or numpy array
     """
 
-    def __init__(self, inertia_range=None, reac_crd=[], free_eng=[]):
-        super(InertiaBiasPotential, self).__init__(reac_crd, free_eng)
-        self._inertia_range = inertia_range
+    def __init__(self, cov_range=None, reac_crd=[], free_eng=[]):
+        super(CovarianceBiasPotential, self).__init__(reac_crd, free_eng)
+        self._cov_range = cov_range
 
     @property
-    def inertia_range(self):
-        from cemc.mcmc import InertiaRangeConstraint
-        if not isinstance(self._inertia_range, InertiaRangeConstraint):
-            raise TypeError("inertia_range has to be of type "
-                            "InertiaRangeConstraint")
-        return self._inertia_range
+    def cov_range(self):
+        from cemc.mcmc import CovarianceRangeConstraint
+        if not isinstance(self._cov_range, CovarianceRangeConstraint):
+            raise TypeError("cov_range has to be of type "
+                            "CovarianceRangeConstraint")
+        return self._cov_range
 
-    @inertia_range.setter
-    def inertia_range(self, obj):
-        self._inertia_range = obj
+    @cov_range.setter
+    def cov_range(self, obj):
+        self._cov_range = obj
 
     def __call__(self, system_changes):
         """Get the value for the bias potential.
@@ -217,12 +236,17 @@ class InertiaBiasPotential(SampledBiasPotential):
         :return: Value of the bias potential after the move
         :rtype: float
         """
-        reac_crd = self.inertia_range.get_new_value(system_changes)
+        reac_crd = self.cov_range.get_new_value(system_changes)
+        return self.bias_interp(reac_crd)
+
+    def calculate_from_scratch(self, atoms):
+        """Calculate the value from scratch."""
+        reac_crd = self.cov_range._cov_init.get(atoms, None)
         return self.bias_interp(reac_crd)
 
     def get(self, reac_crd):
         """Get the bias as a function reaction coordinate.abs
 
-        :param reac_crd: Reaction coordinate
+        :param float reac_crd: Reaction coordinate
         """
         return self.bias_interp(reac_crd)

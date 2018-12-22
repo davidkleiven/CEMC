@@ -51,3 +51,5 @@ Tools
   free_energy_canonical
   dataset_averager
   peak_extractor
+  wulff_construction
+  strain_energy

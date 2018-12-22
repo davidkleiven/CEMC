@@ -4,8 +4,8 @@ from cemc.cpp_ext.wang_landau_sampler cimport WangLandauSampler
 cdef class PyWangLandauSampler:
     cdef WangLandauSampler *thisptr
 
-    def __cinit__(self, bc, corr_func, eci, pywl):
-        self.thisptr = new WangLandauSampler(bc, corr_func, eci, pywl)
+    def __cinit__(self, atoms, bc, corr_func, eci, pywl):
+        self.thisptr = new WangLandauSampler(atoms, bc, corr_func, eci, pywl)
 
     def __dealloc__(self):
         del self.thisptr

@@ -56,7 +56,6 @@ void Cluster::construct_equivalent_deco(int n_basis_funcs)
     return;
   }
 
-
   // Convert the equivalent sites to a list of lists
   PyObject* py_eq_sites = PyList_New(equiv_sites.size());
   for (unsigned int i=0;i<equiv_sites.size();i++)
@@ -76,7 +75,7 @@ void Cluster::construct_equivalent_deco(int n_basis_funcs)
   }
 
   // Use the python methods due to the convenient itertools module
-  string mod_name("ase.ce.tools");
+  string mod_name("ase.clease.tools");
   PyObject *mod_string = string2py(mod_name);
   PyObject *ce_tools_mod = PyImport_Import(mod_string);
   PyObject *equiv_deco_func = PyObject_GetAttrString(ce_tools_mod, "equivalent_deco");
@@ -104,7 +103,7 @@ void Cluster::construct_equivalent_deco(int n_basis_funcs)
 
     // Create a nested vector based on the result from Python
     vector< vector<int> > eq_dec;
-    int size = PyList_Size(py_equiv);
+    unsigned int size = list_size(py_equiv);
     for (unsigned int i=0;i<size;i++)
     {
       vector<int> one_dec;
@@ -137,8 +136,8 @@ void Cluster::all_deco(int num_bfs, vector< vector<int> > &deco) const
   }
   else if (get_size() == 2)
   {
-    for (unsigned int i=0;i<num_bfs;i++)
-    for (unsigned int j=0;j<num_bfs;j++)
+    for (int i=0;i<num_bfs;i++)
+    for (int j=0;j<num_bfs;j++)
     {
       vector<int> vec = {i, j};
       deco.push_back(vec);
@@ -146,9 +145,9 @@ void Cluster::all_deco(int num_bfs, vector< vector<int> > &deco) const
   }
   else if (get_size() == 3)
   {
-    for (unsigned int i=0;i<num_bfs;i++)
-    for (unsigned int j=0;j<num_bfs;j++)
-    for (unsigned int k=0;k<num_bfs;k++)
+    for (int i=0;i<num_bfs;i++)
+    for (int j=0;j<num_bfs;j++)
+    for (int k=0;k<num_bfs;k++)
     {
       vector<int> vec = {i, j, k};
       deco.push_back(vec);
@@ -156,10 +155,10 @@ void Cluster::all_deco(int num_bfs, vector< vector<int> > &deco) const
   }
   else if(get_size() == 4)
   {
-    for (unsigned int i=0;i<num_bfs;i++)
-    for (unsigned int j=0;j<num_bfs;j++)
-    for (unsigned int k=0;k<num_bfs;k++)
-    for (unsigned int l=0;l<num_bfs;l++)
+    for (int i=0;i<num_bfs;i++)
+    for (int j=0;j<num_bfs;j++)
+    for (int k=0;k<num_bfs;k++)
+    for (int l=0;l<num_bfs;l++)
     {
       vector<int> vec = {i, j, k, l};
       deco.push_back(vec);
@@ -197,11 +196,11 @@ void Cluster::parse_info_dict(PyObject *info)
   PyObject* py_mx_dia = PyDict_GetItemString(info, "max_cluster_dia");
   if (size <= 1)
   {
-    max_cluster_dia = "none";
+    max_cluster_dia = 0.0;
   }
   else
   {
-    max_cluster_dia = py2string(py_mx_dia);
+    max_cluster_dia = PyFloat_AS_DOUBLE(py_mx_dia);
   }
   // Read symmetry group
   PyObject* py_symm = PyDict_GetItemString(info, "symm_group");
@@ -234,7 +233,7 @@ void Cluster::parse_info_dict(PyObject *info)
 
 void Cluster::nested_list_to_cluster(PyObject *py_list, cluster_t &vec)
 {
-  int size = PyList_Size(py_list);
+  int size = list_size(py_list);
   for (int i=0;i<size;i++)
   {
     vector<int> one_cluster;

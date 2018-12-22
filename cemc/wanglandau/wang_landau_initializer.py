@@ -1,6 +1,6 @@
 from ase.db import connect
-from cemc import get_ce_calc, CE
-from ase.ce import BulkCrystal, BulkSpacegroup
+from cemc import get_atoms_with_ce_calc, CE
+from ase.clease import CEBulk, CECrystal
 from cemc.mcmc import SimulatedAnnealingCanonical
 from ase.calculators.singlepoint import SinglePointCalculator
 import pickle as pck
@@ -15,14 +15,14 @@ class WangLandauInit(object):
     def __init__( self, wl_db_name ):
         self.wl_db_name = wl_db_name
 
-    def insert_atoms( self, bc_kwargs, size=[1,1,1], composition=None, cetype="BulkCrystal", \
+    def insert_atoms( self, bc_kwargs, size=[1,1,1], composition=None, cetype="CEBulk", \
                       T=None, n_steps_per_temp=10000, eci=None ):
         """
         Insert a new atoms object into the database
         """
         if ( composition is None ):
             raise TypeError( "No composition given" )
-        allowed_ce_types = ["BulkCrystal","BulkSpacegroup"]
+        allowed_ce_types = ["CEBulk","CECrystal"]
         if ( not cetype in allowed_ce_types ):
             raise ValueError( "cetype has to be one of {}".format(allowed_ce_types) )
         self.cetype = cetype
@@ -30,40 +30,39 @@ class WangLandauInit(object):
         if ( eci is None ):
             raise ValueError( "No ECIs given! Cannot determine required energy range!")
 
-        if ( cetype == "BulkCrystal" ):
-            small_bc = BulkCrystal(**bc_kwargs )
+        if ( cetype == "CEBulk" ):
+            small_bc = CEBulk(**bc_kwargs )
             small_bc.reconfigure_settings()
-        elif( ctype == "BulkSpacegroup" ):
-            small_bc = BulkSpacegroup(**bc_kwargs)
+        elif( cetype == "CECrystal" ):
+            small_bc = CECrystal(**bc_kwargs)
             small_bc.reconfigure_settings()
 
         self._check_eci(small_bc,eci)
 
-        calc = get_ce_calc( small_bc, bc_kwargs, eci=eci, size=size )
-        calc.set_composition( composition )
-        bc = calc.BC
-        bc.atoms.set_calculator(calc)
+        atoms = get_atoms_with_ce_calc( small_bc, bc_kwargs, eci=eci, size=size )
+        calc = atoms.get_calculator()
+        calc.set_composition(composition)
 
-        formula = bc.atoms.get_chemical_formula()
+        formula = atoms.get_chemical_formula()
         if ( self.template_atoms_exists(formula) ):
             raise AtomExistsError( "An atom object with the specified composition already exists in the database" )
 
-        Emin, Emax = self._find_energy_range( bc.atoms, T, n_steps_per_temp )
+        Emin, Emax = self._find_energy_range(atoms, T, n_steps_per_temp)
         cf = calc.get_cf()
         data = {"cf":cf}
         # Store this entry into the database
         db = connect( self.wl_db_name )
-        scalc = SinglePointCalculator( bc.atoms, energy=Emin )
-        bc.atoms.set_calculator(scalc)
+        scalc = SinglePointCalculator( atoms, energy=Emin )
+        atoms.set_calculator(scalc)
 
-        outfname = "BC_wanglandau_{}.pkl".format( bc.atoms.get_chemical_formula() )
+        outfname = "BC_wanglandau_{}.pkl".format(atoms.get_chemical_formula())
         with open( outfname, 'wb' ) as outfile:
-            pck.dump( bc, outfile )
+            pck.dump( (calc.BC, atoms), outfile )
 
         kvp = {"Emin":Emin,"Emax":Emax,"bcfile":outfname,"cetype":self.cetype}
-        data["bc_kwargs"] = bc_kwargs
+        data["bc_kwargs"] = small_bc.kwargs
         data["supercell_size"] = size
-        db.write( calc.BC.atoms, key_value_pairs=kvp, data=data )
+        db.write( atoms, key_value_pairs=kvp, data=data )
 
     def _check_eci(self,bc,eci):
         """
@@ -83,10 +82,10 @@ class WangLandauInit(object):
         Finds the maximum and minimum energy by Simulated Annealing
         """
         print ( "Finding minimum energy")
-        sa = SimulatedAnnealingCanonical( atoms, T, mode="minimize" )
+        sa = SimulatedAnnealingCanonical(atoms, T, mode="minimize")
         sa.run( steps_per_temp=nsteps_per_temp )
         Emin = sa.extremal_energy
-        sa = SimulatedAnnealingCanonical( atoms, T, mode="maximize" )
+        sa = SimulatedAnnealingCanonical(atoms, T, mode="maximize")
         print ("Finding maximum energy.")
         sa.run( steps_per_temp=nsteps_per_temp )
         Emax = sa.extremal_energy
@@ -147,31 +146,29 @@ class WangLandauInit(object):
         init_cf = row.data["cf"]
         try:
             with open(bcfname,'rb') as infile:
-                bc = pck.load(infile)
-            calc = CE( bc, eci, initial_cf=init_cf )
-            bc.atoms.set_calculator( calc )
-            return bc.atoms
+                bc, atoms = pck.load(infile)
+            calc = CE(atoms, bc, eci, initial_cf=init_cf)
+            return atoms
         except IOError as exc:
             print (str(exc))
-            print ("Will try to recover the BulkCrystal object" )
+            print ("Will try to recover the CEBulk object" )
             bc_kwargs = row.data["bc_kwargs"]
             cetype = row.key_value_pairs["cetype"]
-            if ( cetype == "BulkCrystal" ):
-                small_bc = BulkCrystal( **bc_kwargs )
+            if ( cetype == "CEBulk" ):
+                small_bc = CEBulk( **bc_kwargs )
                 small_bc.reconfigure_settings()
             else:
-                small_bc = BulkSpacegroup( **bc_kwargs )
+                small_bc = CECrystal( **bc_kwargs )
                 small_bc.reconfigure_settings()
             size = row.data["supercell_size"]
-            calc = get_ce_calc( small_bc, bc_kwargs, eci=eci, size=size )
+            atoms = get_atoms_with_ce_calc( small_bc, bc_kwargs, eci=eci, size=size )
+            calc = atoms.get_calculator()
 
             # Determine the composition
             count = row.count_atoms()
             for key in count.keys():
                 count /= float( row.natoms )
             calc.set_composition( count )
-            bc = calc.BC
-            bc.atoms.set_calculator( calc )
-            return bc.atoms
+            return atoms
         except:
             raise RuntimeError( "Did not manage to return the atoms object with the proper calculator attached..." )

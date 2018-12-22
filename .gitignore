@@ -23,3 +23,9 @@ relaxed_path.traj
 calculator.json
 *.vtp
 energy_data.json
+.nfs000000000495beaf000000a1
+*.swp
+.nfs000000000495a0fa000003c7
+.nfs*
+.vscode/*
+settings.json

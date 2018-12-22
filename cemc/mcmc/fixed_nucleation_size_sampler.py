@@ -1,6 +1,7 @@
 from cemc.mcmc import Montecarlo
 from cemc.mcmc import NetworkObserver
 import numpy as np
+from random import choice, shuffle
 
 
 class FixedNucleusMC(Montecarlo):
@@ -31,11 +32,12 @@ class FixedNucleusMC(Montecarlo):
         self.bc = self.atoms.get_calculator().BC
         self.network_clust_indx = self.find_cluster_indx()
         self.initial_num_atoms_in_cluster = 0
+        self.attach(self.network)
 
     def _init_networks(self):
         """Initialize the network observers."""
         network = NetworkObserver(
-            calc=self.atoms._calc, cluster_name=self.network_name,
+            calc=self.atoms.get_calculator(), cluster_name=self.network_name,
             element=self.network_element)
         return network
 
@@ -95,7 +97,6 @@ class FixedNucleusMC(Montecarlo):
         :return: Proposed move
         :rtype: list of tuples
         """
-        from random import choice, shuffle
         ref_element = choice(self.network_element)
         rand_a = self.atoms_tracker.get_random_indx_of_symbol(ref_element)
 
@@ -152,6 +153,7 @@ class FixedNucleusMC(Montecarlo):
         mv_ok = n_in_clst == self.initial_num_atoms_in_cluster
         mv_ok = mv_ok and stat["number_of_clusters"] == 1
         return mv_ok
+        #return self.network.move_creates_new_clusters()
 
     def _accept(self, system_changes):
         """Accept trial move.
@@ -161,10 +163,16 @@ class FixedNucleusMC(Montecarlo):
         :return: True/False, if True the move is accepted
         :rtype: bool
         """
+        # Note that we have to call the parent's accept first,
+        # as the _mc_step function assumes that an energy 
+        # evaluation have been performed, prior to accepting
+        # or rejecting the move
         move_accepted = Montecarlo._accept(self, system_changes)
-
-        if not self.move_ok():
+        if self.network.move_creates_new_cluster(system_changes):
             return False
+
+        # if not self.move_ok():
+        #     return False
         return move_accepted
 
     def _check_nucleation_site_exists(self):
@@ -183,7 +191,12 @@ class FixedNucleusMC(Montecarlo):
         :rtype: int
         """
         element = self.network_element[0]
-        indx = self.atoms_tracker.get_random_indx_of_symbol(element)
+        try:
+            indx = self.atoms_tracker.get_random_indx_of_symbol(element)
+        except KeyError:
+            raise KeyError("Could not find any seed."
+                           "Insert one atom from network_elements "
+                           "such that it can be used as seed for the cluster.")
         return indx
 
     def _indices_in_spherical_neighborhood(self, radius, root):
@@ -199,6 +212,7 @@ class FixedNucleusMC(Montecarlo):
 
     def init_cluster_info(self):
         """Initialize cluster info."""
+        self.network.collect_statistics = True
         self.network.reset()
         self.network(None)
         stat = self.network.get_statistics()
@@ -209,15 +223,17 @@ class FixedNucleusMC(Montecarlo):
             print(stat)
             indices = []
             for atom in self.atoms:
-                if atom.symbol in unique_solute_elements:
+                if atom.symbol in self.network_element:
                     indices.append(atom.index)
             cluster = self.atoms[indices]
             from ase.io import write
-            fname = "invalide_cluster{}.xyz".format(self.rank)
+            fname = "invalid_cluster{}.xyz".format(self.rank)
             write(fname, cluster)
             raise RuntimeError("There are {} clusters present! "
                                "Initial structure written to {}\n"
                                "".format(stat["number_of_clusters"], fname))
+        
+        self.network.collect_statistics = False
 
     def grow_cluster(self, elements, shape="arbitrary", radius=10.0):
         """Grow a cluster of a certain size.
@@ -231,6 +247,7 @@ class FixedNucleusMC(Montecarlo):
         if shape not in valid_shapes:
             raise ValueError("shape has to be one of {}".format(valid_shapes))
 
+        self.network.collect_statistics = True
         all_elems = []
         at_count = self.count_atoms()
         unique_solute_elements = list(elements.keys())
@@ -310,6 +327,11 @@ class FixedNucleusMC(Montecarlo):
                                  "Contains: {}".format(elements, at_count))
         self.init_cluster_info()
 
+        # Disable network statistics to make the program
+        # run faster
+        self.network.collect_statistics = False
+        self.update_current_energy()
+
     def get_atoms(self, atoms=None, prohib_elem=[]):
         """
         Return the atoms object with the clusters highlighted
@@ -344,7 +366,12 @@ class FixedNucleusMC(Montecarlo):
         atoms.wrap()
         return atoms, atoms[indices]
 
-    def runMC(self, steps=100000, init_cluster=True, elements={}):
+    def set_symbols(self, symbs):
+        """Override parents set symbols."""
+        Montecarlo.set_symbols(self, symbs)
+        self.init_cluster_info()
+
+    def runMC(self, steps=100000, init_cluster=True, elements={}, equil=False):
         """
         Run Monte Carlo for fixed nucleus size
 
@@ -357,9 +384,12 @@ class FixedNucleusMC(Montecarlo):
         if init_cluster:
             self._check_nucleation_site_exists()
             self.grow_cluster(elements)
-        step = 0
-        while step < steps:
-            step += 1
-            self._mc_step()
-        accpt_rate = float(self.num_accepted) / self.current_step
-        print("Acceptance rate: {}".format(accpt_rate))
+        self.network.collect_statistics = False
+
+        # Call one time
+        self.network([])
+
+        if self.network.num_root_nodes() > 1:
+            raise ValueError("Something went wrong during construction! "
+                             "the system has more than one cluster!")
+        Montecarlo.runMC(self, steps=steps, equil=equil)

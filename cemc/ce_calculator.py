@@ -1,14 +1,15 @@
 from ase.calculators.calculator import Calculator
-from ase.ce.corrFunc import CorrFunction
-from ase.ce import BulkCrystal
-from ase.ce import BulkSpacegroup
+from ase.clease.corrFunc import CorrFunction
+from ase.clease import CEBulk
+from ase.clease import CECrystal
 import os
 import numpy as np
 from cemc.mcmc import linear_vib_correction as lvc
+from cemc.mcmc.mpi_tools import num_processors, mpi_allreduce
+from cemc.mcmc.mpi_tools import mpi_allgather, mpi_bcast
 from inspect import getargspec
 from cemc_cpp_code import PyCEUpdater
 
-from mpi4py import MPI
 try:
     use_cpp = True
 except Exception as exc:
@@ -22,14 +23,14 @@ def get_max_dia_name():
     In the past max_cluster_dist was named max_cluster_dia.
     We support both version here
     """
-    args = getargspec(BulkCrystal.__init__).args
+    args = getargspec(CEBulk.__init__).args
     if "max_cluster_dia" in args:
         return "max_cluster_dia"
     return "max_cluster_dist"
 
 
-def get_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
-                db_name="temp_db.db"):
+def get_atoms_with_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
+                           db_name="temp_db.db"):
     """
     Constructs a CE calculator for a supercell.
 
@@ -47,7 +48,7 @@ def get_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
     :return: CE calculator for the large cell
     :rtype: CE
     """
-    nproc = MPI.COMM_WORLD.Get_size()
+    nproc = num_processors()
     unknown_type = False
     large_bc = small_bc
     init_cf = None
@@ -56,17 +57,17 @@ def get_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
 
     if not os.path.exists(db_name) and nproc > 1:
         raise IOError("The database has to be prepared prior to calling "
-                      "get_ce_calc")
+                      "get_atoms_with_ce_calc")
     try:
         max_size_eci = get_max_size_eci(eci)
-        if "max_cluster_dia" in bc_kwargs.keys():
-            if max_size_eci > bc_kwargs["max_cluster_dia"]:
+        if "max_cluster_size" in bc_kwargs.keys():
+            if max_size_eci > bc_kwargs["max_cluster_size"]:
                 msg = "ECI specifies a cluster size larger than "
                 msg += "ClusterExpansionSetting tracks!"
                 raise ValueError(msg)
             print("Initializing calculator with small BC")
-
-        calc1 = CE(small_bc, eci)
+        atoms = small_bc.atoms.copy()
+        calc1 = CE(atoms, small_bc, eci)
         print("Initialization finished")
         init_cf = calc1.get_cf()
         min_length = small_bc.max_cluster_dia
@@ -75,10 +76,10 @@ def get_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
         bc_kwargs[size_name] = min_length
         bc_kwargs["db_name"] = db_name
 
-        if isinstance(small_bc, BulkCrystal):
-            large_bc = BulkCrystal(**bc_kwargs)
-        elif isinstance(small_bc, BulkSpacegroup):
-            large_bc = BulkSpacegroup(**bc_kwargs)
+        if isinstance(small_bc, CEBulk):
+            large_bc = CEBulk(**bc_kwargs)
+        elif isinstance(small_bc, CECrystal):
+            large_bc = CECrystal(**bc_kwargs)
         else:
             unknown_type = True
     except MemoryError:
@@ -92,8 +93,8 @@ def get_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
         print(msg)
 
     # Broad cast the error flag and raise error on all processes
-    error_happened = MPI.COMM_WORLD.allreduce(error_happened)
-    all_msg = MPI.COMM_WORLD.allgather(msg)
+    error_happened = mpi_allreduce(error_happened)
+    all_msg = mpi_allgather(msg)
     for item in all_msg:
         if item != "":
             msg = item
@@ -102,16 +103,17 @@ def get_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
     if error_happened:
         raise RuntimeError(msg)
 
-    unknown_type = MPI.COMM_WORLD.bcast(unknown_type, root=0)
+    unknown_type = mpi_bcast(unknown_type, root=0)
     if unknown_type:
         msg = "The small_bc argument has to by of type "
-        msg += "BulkCrystal or BulkSpacegroup"
+        msg += "CEBulk or CECrystal"
         raise TypeError(msg)
-    # large_bc = MPI.COMM_WORLD.bcast(large_bc, root=0)
-    # init_cf = MPI.COMM_WORLD.bcast(init_cf, root=0)
-    calc2 = CE(large_bc, eci, initial_cf=init_cf)
-    return calc2
+    atoms = large_bc.atoms.copy()
 
+    # Note this automatically attach the calculator to the 
+    # atoms object
+    CE(atoms, large_bc, eci, initial_cf=init_cf)
+    return atoms
 
 def get_max_size_eci(eci):
     """Find the maximum cluster name given in the ECIs.
@@ -140,7 +142,7 @@ class CE(Calculator):
 
     implemented_properties = ["energy"]
 
-    def __init__(self, BC, eci=None, initial_cf=None):
+    def __init__(self, atoms, BC, eci=None, initial_cf=None):
         Calculator.__init__(self)
         self.BC = BC
 
@@ -152,23 +154,22 @@ class CE(Calculator):
             msg = "Calculating {} correlation ".format(len(cf_names))
             msg += "functions from scratch"
             print(msg)
-            self.cf = self.corrFunc.get_cf_by_cluster_names(self.BC.atoms,
-                                                            cf_names)
+            self.cf = self.corrFunc.get_cf_by_cluster_names(atoms, cf_names)
         else:
             self.cf = initial_cf
         print("Correlation functions initialized...")
 
         self.eci = eci
 
-        self.atoms = self.BC.atoms
+        self.atoms = atoms
+
+        # Attach the calculator to the atoms object
+        self.atoms.set_calculator(self)
 
         # Keep a copy of the original symbols
-        symbols = [atom.symbol for atom in self.BC.atoms]
+        symbols = [atom.symbol for atom in self.atoms]
         self._check_trans_mat_dimensions()
 
-        self.old_cfs = []
-        self.old_atoms = self.atoms.copy()
-        self.changes = []
         self.ctype = {}
         # self.convert_cluster_indx_to_list()
 
@@ -180,8 +181,7 @@ class CE(Calculator):
         self.updater = None
         if use_cpp:
             print("Initializing C++ calculator...")
-            self.updater = PyCEUpdater(self.BC, self.cf, self.eci)
-            # self.updater.init(self.BC, self.cf, self.eci)
+            self.updater = PyCEUpdater(self.atoms, self.BC, self.cf, self.eci)
             print("C++ module initialized...")
 
         if use_cpp:
@@ -205,8 +205,9 @@ class CE(Calculator):
         self.atoms.set_calculator(None)
         new_bc = deepcopy(self.BC)
         self.atoms.set_calculator(self)
-        new_calc = CE(new_bc, eci=self.eci, initial_cf=self.get_cf())
-        new_calc.atoms.set_calculator(new_calc)
+        atoms = self.atoms.copy()
+        new_calc = CE(atoms, new_bc, eci=self.eci, initial_cf=self.get_cf())
+        #new_calc.atoms.set_calculator(new_calc)
         return new_calc
 
     def _check_trans_mat_dimensions(self):
@@ -219,10 +220,10 @@ class CE(Calculator):
             n_sites = self.BC.trans_matrix.shape[0]
 
         # Make sure that the database information fits
-        if len(self.BC.atoms) != n_sites:
+        if len(self.atoms) != n_sites:
             msg = "The number of atoms and the dimension of the translation "
             msg += "matrix is inconsistent\n"
-            msg += "Num atoms: {}. ".format(len(self.BC.atoms))
+            msg += "Num atoms: {}. ".format(len(self.atoms))
             msg += "Num row trans mat: {}".format(n_sites)
             raise ValueError(msg)
 
@@ -557,17 +558,19 @@ class CE(Calculator):
 
         :param dict backup_data: All nessecary arguments
         """
-        from ase.ce import BulkCrystal, BulkSpacegroup
+        from ase.clease import CEBulk, CECrystal
 
         classtype = backup_data["setting_kwargs"].pop("classtype")
-        if classtype == "BulkCrystal":
-            bc = BulkCrystal(**backup_data["setting_kwargs"])
-        elif classtype == "BulkSpacegroup":
-            bc = BulkSpacegroup(**backup_data["setting_kwargs"])
+        if classtype == "CEBulk":
+            bc = CEBulk(**backup_data["setting_kwargs"])
+        elif classtype == "CECrystal":
+            bc = CECrystal(**backup_data["setting_kwargs"])
         else:
             raise ValueError("Unknown setting classtype: {}"
                              "".format(backup_data["setting_kwargs"]))
 
+        atoms = bc.atoms.copy()
         for symb in backup_data["symbols"]:
-            bc.atoms.symbol = symb
-        return CE(bc, eci=backup_data["eci"], initial_cf=backup_data["cf"])
+            atoms.symbol = symb
+        
+        return CE(atoms, bc, eci=backup_data["eci"], initial_cf=backup_data["cf"])

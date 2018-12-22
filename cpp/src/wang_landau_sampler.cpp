@@ -14,7 +14,7 @@ using namespace std;
 
 const unsigned int WangLandauSampler::num_threads = omp_get_max_threads(); // Use the maximum number of threads
 
-WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject *ecis, PyObject *py_wl_in )
+WangLandauSampler::WangLandauSampler(PyObject *atoms, PyObject *BC, PyObject *corrFunc, PyObject *ecis, PyObject *py_wl_in )
 {
 
   // Initialize the seeds for the different threads
@@ -25,7 +25,7 @@ WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject
   }
 
   CEUpdater updater;
-  updater.init(BC, corrFunc, ecis);
+  updater.init(atoms, BC, corrFunc, ecis);
 
   #ifdef WANG_LANDAU_DEBUG
     cout << "Initializing the wanglandau object\n";
@@ -62,7 +62,7 @@ WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject
     {
       throw invalid_argument("Expected list when parsing position track!");
     }
-    int size = PyList_Size(value);
+    int size = list_size(value);
     for ( int i=0;i<size;i++ )
     {
       pos.push_back( py2int(PyList_GetItem(value,i)) );
@@ -106,7 +106,7 @@ WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject
     throw invalid_argument("Expected list when parsing site_types!");
   }
 
-  int size = PyList_Size(py_site_types);
+  int size = list_size(py_site_types);
   for ( int i=0;i<size;i++ )
   {
     site_types.push_back( py2int( PyList_GetItem(py_site_types,i)) );
@@ -119,7 +119,7 @@ WangLandauSampler::WangLandauSampler( PyObject *BC, PyObject *corrFunc, PyObject
     throw invalid_argument("Expected list when parsing symbols!");
   }
 
-  size = PyList_Size( py_symbols );
+  size = list_size( py_symbols );
   for ( int i=0;i<size;i++ )
   {
     symbols.push_back( py2string(PyList_GetItem(py_symbols,i)) );
@@ -247,7 +247,6 @@ void WangLandauSampler::step()
   avg_bin_change += abs(bin-current_bin[uid]);
   //cout << bin << " " << current_bin[uid] << endl;
 
-  bool inside_range = histogram->bin_in_range(bin);
   // Check if the proposed bin is in the sampling range. If not undo changes and return.
   if ( !histogram->bin_in_range(bin) )
   {
@@ -255,7 +254,8 @@ void WangLandauSampler::step()
     updaters[uid]->undo_changes();
     if ( is_first[uid] ) return;
 
-    if ( bin > histogram->get_number_of_active_bins() ) update_current();
+    int num_active = histogram->get_number_of_active_bins();
+    if (bin > num_active) update_current();
     return;
   }
   else if ( bin == current_bin[uid] )
@@ -478,7 +478,7 @@ void WangLandauSampler::run_until_valid_energy( double emin, double emax )
 
       // Update the updaters. Set all processors outside the energy range equal
       // to the proc_in_valid_state
-      for ( int i=0;i<current_bin.size();i++ )
+      for (unsigned int i=0;i<current_bin.size();i++)
       {
         if ( histogram->bin_in_range(current_bin[i]) ) continue;
 
@@ -523,7 +523,6 @@ void WangLandauSampler::run_until_valid_energy( double emin, double emax )
       {
         updaters[0]->clear_history();
         current_bin[0] = bin;
-        update_atom_position_track(0,change,select1,select2);
       }
       else
       {
@@ -538,7 +537,6 @@ void WangLandauSampler::run_until_valid_energy( double emin, double emax )
       {
         updaters[0]->clear_history();
         current_bin[0] = bin;
-        update_atom_position_track(0,change,select1,select2);
       }
       else
       {
@@ -576,9 +574,6 @@ void WangLandauSampler::run_until_valid_energy( double emin, double emax )
 
 void WangLandauSampler::use_adaptive_windows( unsigned int minimum_window_width )
 {
-  unsigned int Nbins = histogram->get_nbins();
-  double Emin = histogram->get_emin();
-  double Emax = histogram->get_emax();
   Histogram *new_histogram = new AdaptiveWindowHistogram( *histogram, minimum_window_width, *this );
   delete histogram;
   histogram = new_histogram;
@@ -607,21 +602,6 @@ void WangLandauSampler::set_updaters( const vector<CEUpdater*> &new_updaters, li
     updaters[i]->set_atom_position_tracker(atom_positions_track[i]); // This line should not be nessecary, just in case
   }
   current_bin = new_current_bin;
-}
-
-void WangLandauSampler::update_atom_position_track( unsigned int uid, array<SymbolChange,2> &change, unsigned int select1, unsigned int select2 )
-{
-  const string& symb1_old = change[0].old_symb;
-  const string& symb2_old = change[1].old_symb;
-  unsigned int indx1 = change[0].indx;
-  unsigned int indx2 = change[1].indx;
-
-  // NOTE: The following lines are commentet because the
-  // CEupdater updates the tracker.
-  // This function will be removed in the future
-
-  //atom_positions_track[uid][symb1_old][select1] = indx2;
-  //atom_positions_track[uid][symb2_old][select2] = indx1;
 }
 
 double WangLandauSampler::get_mc_time() const

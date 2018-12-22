@@ -7,7 +7,7 @@ cdef extern from "wang_landau_sampler.hpp":
     cdef cppclass WangLandauSampler:
         bool use_inverse_time_algorithm
 
-        WangLandauSampler(object BC, object corrFunc, object ecis, object py_wl )
+        WangLandauSampler(object atoms, object BC, object corrFunc, object ecis, object py_wl )
 
         void use_adaptive_windows(unsigned int min_window_width)
 

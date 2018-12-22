@@ -21,11 +21,29 @@ class ReactionPathSampler(object):
     :param int n_bins: Number of bins inside each window
     :param str data_file: HDF5-file where all data acquired during the run
         is stored
+    :param bool log_bin_stat: If True statistics on bin changes will be
+        logged
+    :param str init_scheme: Determines how the samplers are initialized when 
+        changing window. 
+
+        1. uniform 
+            All samplers will be initialized
+            uniformly distributed inside the window. If there is only
+            one core, it will be initialized at the center of the window.
+        2. random
+            All samplers are initialized at a random place in the 
+            window.
     """
 
     def __init__(self, mc_obj=None, react_crd=[0.0, 1.0],
                  react_crd_init=None, react_crd_range_constraint=None,
-                 n_windows=10, n_bins=10, data_file="reaction_path.h5"):
+                 n_windows=10, n_bins=10, data_file="reaction_path.h5",
+                 log_bin_stat=True, init_scheme="uniform"):
+        self.log_bin_stat = log_bin_stat
+        allowed_init_schemes = ["uniform", "random"]
+        if init_scheme not in allowed_init_schemes:
+            raise ValueError("Init scheme has to be one of {}".format())
+        self.init_scheme = init_scheme
         self.mc = mc_obj
         self.react_crd = react_crd
         self.n_windows = n_windows
@@ -54,6 +72,17 @@ class ReactionPathSampler(object):
         self.data = [np.ones(n_bins+1) for _ in range(n_windows)]
         self.window_range = (self.react_crd[1] - self.react_crd[0])/n_windows
         self.bin_range = self.window_range / n_bins
+
+        # Dictionary tracking how often the bins change
+        self.current_bin = 0
+        self.num_in_current_bin = 0
+        self.bin_change_statistics = {
+            "mean_time": 0.0,
+            "max_time": 0.0,
+            "min_time": 100000.0,
+            "num_updates": 0
+        }
+        self.supress_bin_change_warning = False
 
     def _get_window_limits(self, window):
         """
@@ -96,6 +125,44 @@ class ReactionPathSampler(object):
         indx = (value - min_lim) / self.bin_range
         return int(indx)
 
+    def _update_bin_statistics(self, new_bin):
+        """Update the bin statistics.
+        
+        :param int new_bin: The active bin after current move
+        """
+        is_first = self.num_in_current_bin == 0
+        more_than_one = abs(new_bin - self.current_bin) > 1 
+        if  more_than_one and not self.supress_bin_change_warning and not is_first:
+            self.log("Warning! Jumped more than one bin! "
+                     "Consider to increase the bin size.")
+            self.supress_bin_change_warning = True
+
+        if new_bin == self.current_bin:
+            self.num_in_current_bin += 1
+        else:
+            self.bin_change_statistics["mean_time"] += self.num_in_current_bin
+            if self.num_in_current_bin < self.bin_change_statistics["min_time"] and not is_first:
+                self.bin_change_statistics["min_time"] = self.num_in_current_bin
+
+            if self.num_in_current_bin > self.bin_change_statistics["max_time"]:
+                self.bin_change_statistics["max_time"] = self.num_in_current_bin
+            self.bin_change_statistics["num_updates"] += 1
+            self.current_bin = new_bin
+            self.num_in_current_bin = 1
+
+    @property
+    def bin_statistics_string(self):
+        """Return the bin change statistics as a string."""
+        string_repr = "\n=== Bin statistics ===\n"
+        for k, v in self.bin_change_statistics.items():
+            if k == "mean_time":
+                value = v/self.bin_change_statistics["num_updates"]
+            else:
+                value = v
+            string_repr += "{}: {}\n".format(k, value)
+        string_repr += "======================\n"
+        return string_repr
+
     def _update_records(self):
         """
         Update the data arrays
@@ -103,13 +170,14 @@ class ReactionPathSampler(object):
         try:
             reac_crd = self.initializer.get(self.mc.atoms)
             indx = self._get_window_indx(self.current_window, reac_crd)
+            self._update_bin_statistics(indx)
 
             # Add a safety in case it is marginally larger
             if indx >= len(self.data[self.current_window]):
                 indx -= 1
             self.data[self.current_window][indx] += 1
         except Exception as exc:
-            print("Error on rank: {}".self.rank)
+            print("Error on rank: {}".format(self.rank))
             print("{}: {}".format(type(exc).__name__, str(exc)))
             print("Errors here will not be handled, because it will lead "
                   "to tremendous communication overhead.")
@@ -138,10 +206,24 @@ class ReactionPathSampler(object):
         result["x"] = np.linspace(self.react_crd[0], self.react_crd[1], len(G))
         return result
 
+    def _get_initial_value(self):
+        """Return the initial value in window."""
+        minval, maxval = self._get_window_limits(self.current_window)
+        if self.init_scheme == "random":
+            value = np.random.rand()*(maxval-minval) + minval
+        elif self.init_scheme == "uniform":
+            if self.mpicomm is None:
+                value = 0.5*(minval + maxval)
+            else:
+                size = self.mpicomm.Get_size()
+                rank = self.mpicomm.Get_rank()
+                delta = (maxval-minval)/(size+1)
+                value = minval+ delta*(rank + 1)
+        return value
+
     def _bring_system_into_window(self):
         """Bring the system into the current window."""
-        min, max = self._get_window_limits(self.current_window)
-        val = 0.5 * (min + max)
+        val = self._get_initial_value()
 
         # We need to temporary release the concentration range
         # constraint when moving from a window
@@ -188,6 +270,9 @@ class ReactionPathSampler(object):
         mean = np.mean(self.data[window])
         msg = "Window: {}. Min: {} Max: {} ".format(window, min, max)
         msg += "Mean: {}".format(mean)
+
+        if self.log_bin_stat:
+            msg += self.bin_statistics_string
         self.log(msg)
 
     def save_current_window(self):

@@ -51,6 +51,7 @@ class SGCNucleation(SGCMonteCarlo):
         self.network = NetworkObserver(
             calc=self.atoms._calc, cluster_name=self.network_name,
             element=self.network_element)
+        self.network.fixed_num_solutes = False
         self.attach(self.network)
 
         if self.allow_solutes:
@@ -144,7 +145,6 @@ class SGCNucleation(SGCMonteCarlo):
         if self.max_size_reactant is None:
             raise ValueError("Maximum cluster size to be characterized as "
                              "reactant is not set!")
-
         stat = self.network.get_statistics()
         return stat["max_size"] < self.max_size_reactant
 
@@ -307,7 +307,8 @@ class SGCNucleation(SGCMonteCarlo):
 
         :param list symbols: List of symbols
         """
-        self.atoms._calc.set_symbols(symbols)
+        self.set_symbols(symbols)
+        # self.atoms._calc.set_symbols(symbols)
 
     def show_statistics(self, path):
         """

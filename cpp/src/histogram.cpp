@@ -134,9 +134,9 @@ double Histogram::get_dos_ratio_old_divided_by_new( unsigned int old_bin, unsign
   return exp(diff);
 }
 
-bool Histogram::bin_in_range( int bin ) const
+bool Histogram::bin_in_range(int bin) const
 {
-  return (bin >= 0) && ( bin < hist.size() );
+  return (bin >= 0) && (bin < static_cast<int>(hist.size()));
 }
 
 void Histogram::send_to_python_hist( PyObject *py_hist )
@@ -176,7 +176,6 @@ void Histogram::init_from_pyhist( PyObject *py_hist )
   PyObject *py_logdos = PyObject_GetAttrString( py_hist, "logdos" );
   PyObject *py_logdos_npy = PyArray_FROM_OTF( py_logdos, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY );
   PyObject *py_known_struct = PyObject_GetAttrString( py_hist, "known_state" );
-  PyObject *py_known_struct_npy = PyArray_FROM_OTF( py_known_struct, NPY_UINT8, NPY_ARRAY_IN_ARRAY );
   npy_intp *dims = PyArray_DIMS( py_logdos_npy );
   logdos.resize( dims[0] );
   known_structures.resize( dims[0] );

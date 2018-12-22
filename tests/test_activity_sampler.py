@@ -1,20 +1,21 @@
 
 import unittest
+import os
 try:
     from cemc.mcmc import ActivitySampler
+    from cemc.mcmc.mpi_tools import mpi_communicator
     from cemc import CE
-    from ase.ce import BulkCrystal
-    from ase.ce import CorrFunction
+    from ase.clease import CEBulk
+    from ase.clease import Concentration
+    from ase.clease import CorrFunction
     available = True
     reason = ""
+    comm = mpi_communicator()
 except Exception as exc:
     reason = str(exc)
     print(reason)
     available = False
-
-from mpi4py import MPI
-comm = MPI.COMM_WORLD
-
+    comm = None
 
 class TestActivitySampler(unittest.TestCase):
     def test_no_throw(self):
@@ -23,40 +24,36 @@ class TestActivitySampler(unittest.TestCase):
             self.skipTest(reason)
             return
         msg = ""
-        # try:
-        conc_args = {
-                    "conc_ratio_min_1": [[1, 0]],
-                    "conc_ratio_max_1": [[0, 1]],
-                }
-        kwargs = {
-            "crystalstructure": "fcc",
-            "a": 4.05, "size": [4, 4, 4],
-            "basis_elements": [["Al", "Mg"]],
-            "conc_args": conc_args,
-            "db_name": "data/temporary_bcnucleationdb.db",
-            "max_cluster_size": 3
-        }
-        ceBulk = BulkCrystal(**kwargs)
-        ceBulk.reconfigure_settings()
-        cf = CorrFunction(ceBulk)
-        cf = cf.get_cf(ceBulk.atoms)
-        ecis = {key: 1.0 for key in cf.keys()}
-        calc = CE(ceBulk, ecis)
-        ceBulk = calc.BC
-        ceBulk.atoms.set_calculator(calc)
+        try:
+            conc = Concentration(basis_elements=[["Al", "Mg"]])
+            kwargs = {
+                "crystalstructure": "fcc",
+                "a": 4.05, "size": [4, 4, 4],
+                "concentration": conc,
+                "db_name": "data/temporary_bcnucleationdb_activity.db",
+                "max_cluster_size": 3
+            }
+            ceBulk = CEBulk(**kwargs)
+            ceBulk.reconfigure_settings()
+            cf = CorrFunction(ceBulk)
+            cf = cf.get_cf(ceBulk.atoms)
+            ecis = {key: 1.0 for key in cf.keys()}
+            atoms = ceBulk.atoms.copy()
+            calc = CE(atoms, ceBulk, ecis)
 
-        T = 500
-        c_mg = 0.4
-        comp = {"Mg": c_mg, "Al": 1.0-c_mg}
-        calc.set_composition(comp)
-        act_sampler = ActivitySampler(ceBulk.atoms, T,
-                                      moves=[("Al", "Mg")], mpicomm=comm)
-        act_sampler.runMC(mode="fixed", steps=1000)
-        act_sampler.get_thermodynamic()
-        # except Exception as exc:
-        #     msg = str(exc)
-        #     no_throw = False
+            T = 500
+            c_mg = 0.4
+            comp = {"Mg": c_mg, "Al": 1.0-c_mg}
+            calc.set_composition(comp)
+            act_sampler = ActivitySampler(atoms, T,
+                                        moves=[("Al", "Mg")], mpicomm=comm)
+            act_sampler.runMC(mode="fixed", steps=1000)
+            act_sampler.get_thermodynamic()
+        except Exception as exc:
+            msg = str(exc)
+            no_throw = False
         self.assertTrue(no_throw, msg=msg)
+        os.remove("data/temporary_bcnucleationdb_activity.db")
 
 
 if __name__ == "__main__":

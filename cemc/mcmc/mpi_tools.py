@@ -36,3 +36,101 @@ def set_seeds(comm):
             msg = "The seeding does not appear to have any effect on Numpy's "
             msg += "rand functions!"
             raise RuntimeError(msg)
+
+
+def num_processors():
+    """Return the number of processors."""
+    try:
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        num_proc = comm.Get_size()
+    except ImportError:
+        num_proc = 1
+    return num_proc
+
+
+def mpi_allreduce(msg):
+    """Wraps the allreduce method."""
+    try:
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        value = comm.allreduce(msg)
+    except ImportError:
+        value = msg
+    return value
+
+
+def mpi_bcast(msg, root=0):
+    """Wraps the broadcast method."""
+    try:
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        value = comm.bcast(msg, root=root)
+    except ImportError:
+        value = msg
+    return value
+
+
+def mpi_rank():
+    try:
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+    except ImportError:
+        rank = 0
+    return rank
+
+
+def mpi_allgather(msg):
+    """Wraps the allgather method."""
+    try:
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        value = comm.allgather(msg)
+    except ImportError:
+        value = [msg]
+    return value
+
+def mpi_barrier():
+    try:
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        comm.barrier()
+    except ImportError:
+        pass
+
+
+def has_mpi():
+    try:
+        from mpi4py import MPI
+        return True
+    except ImportError:
+        pass
+    return False
+
+
+def mpi_communicator():
+    try:
+        from mpi4py import MPI
+        return MPI.COMM_WORLD
+    except ImportError:
+        pass
+    return None
+
+
+def mpi_max():
+    try:
+        from mpi4py import MPI
+        return MPI.MAX
+    except ImportError:
+        pass
+    return None
+
+
+def mpi_sum():
+    try:
+        from mpi4py import MPI
+        return MPI.SUM
+    except ImportError:
+        pass
+    return None

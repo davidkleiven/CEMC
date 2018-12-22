@@ -4,25 +4,23 @@ This example shows how the ground state of a structure can be found
 using Cluster Expansion
 
 Features
-1. Initialize a BulkCrystal object
+1. Initialize a CEBulk object
 2. Initialize a Cluster Expansion calculator
 3. Initialize a the Monte Carlo object
 4. Simple use of Monte Carlo observers
 """
 
-# First we import the BulkCrystal object from ASE
-from ase.ce import BulkCrystal
+# First we import the CEBulk object from ASE
+from ase.clease import CEBulk
+from ase.clease import Concentration
 from util import get_example_ecis
 
-# Initialize the BulkCrystal object for a 4x4x4 expansion of a
+# Initialize the CEBulk object for a 4x4x4 expansion of a
 # primitive FCC unitcell
-conc_args = {
-    "conc_ratio_min_1":[[0,1]],
-    "conc_ratio_max_1":[[1,0]]
-}
-bc = BulkCrystal(crystalstructure="fcc", a=4.05, conc_args=conc_args,
+conc = Concentration([["Al","Mg"]])
+bc = CEBulk(crystalstructure="fcc", a=4.05,
                  db_name="test_gs_db.db", size=[3, 3, 3],
-                 basis_elements=[["Al","Mg"]], max_cluster_size=3)
+                 concentration=conc, max_cluster_size=3)
 bc.reconfigure_settings()  # Nessecary for unittests to pass
 
 # Just use some example ECIs
@@ -30,8 +28,8 @@ eci = get_example_ecis(bc=bc)
 
 # Initialize a Cluster Expansion calculator (C++ version is required)
 from cemc import CE
-calc = CE( bc, eci )
-bc.atoms.set_calculator(calc)
+atoms = bc.atoms.copy()
+calc = CE(atoms, bc, eci)
 
 # NOTE: At this point all changes to the atoms object has to be done via
 # the calculator. The reason is that the calculator keeps track of the
@@ -64,7 +62,7 @@ from cemc.mcmc.montecarlo import Montecarlo
 
 # Loop over temperatures
 for T in temps:
-    mc_obj = Montecarlo( bc.atoms, T )
+    mc_obj = Montecarlo(atoms, T)
 
     # Give the Lowest Energy Structure a reference to the monte carlo object
     obs.mc_obj = mc_obj
@@ -80,7 +78,7 @@ gs_atoms = obs.lowest_energy_atoms
 # as above is to use the GSFinder class
 from cemc.tools import GSFinder
 gs_search = GSFinder()
-gs = gs_search.get_gs(bc, eci, temps=temps, n_steps_per_temp=100)
+gs = gs_search.get_gs(bc, eci, temps=temps, n_steps_per_temp=100, composition=composition)
 
 """
 gs is now a dictionary with the following form

@@ -8,15 +8,15 @@ import logging
 
 import numpy as np
 from scipy.interpolate import UnivariateSpline
-from mpi4py import MPI
 import h5py as h5
 from ase.units import kB
 
 from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
 from cemc.tools.phase_track_utils import PhaseBoundarySolution
 from cemc.tools.phase_track_utils import CECalculators
-
-COMM = MPI.COMM_WORLD
+from cemc.mcmc.mpi_tools import num_processors, mpi_rank
+from cemc.mcmc.mpi_tools import mpi_bcast, mpi_communicator
+from cemc.mcmc.mpi_tools import mpi_barrier
 
 
 class PhaseChangedOnFirstIterationError(Exception):
@@ -33,8 +33,8 @@ class PhaseBoundaryTracker(object):
     NOTE: Has only been confirmed to work for binary systems!
 
     :params ground_state: List of dictionaries containing the following fields
-        * *bc* BulkCrystal object
-        * *cf* Correlation function of the state of the atoms object in BulkCrystal
+        * *bc* CEBulk object
+        * *cf* Correlation function of the state of the atoms object in CEBulk
         * *eci* Effective Cluster Interactions
     :param logfile: Filename where log messages should be written
     :param max_singlet_change: The maximum amount the singlet
@@ -86,7 +86,7 @@ class PhaseBoundaryTracker(object):
             gs_energy = 0.0
             for key in ground_state["eci"].keys():
                 gs_energy += ground_state["eci"][key] * ground_state["cf"][key]
-            energy.append(len(ground_state["bc"].atoms) * gs_energy)
+            energy.append(len(ground_state["atoms"]) * gs_energy)
         return energy
 
     def _get_init_chem_pot(self):
@@ -103,8 +103,8 @@ class PhaseBoundaryTracker(object):
                 ref_singlet = self._ground_states[0]["cf"][self._singlet_names[j]]
                 singlet = self._ground_states[i + 1]["cf"][self._singlet_names[j]]
                 matrix[i, j] = (ref_singlet - singlet)
-            energy_ref = gs_energies[0] / len(self._ground_states[0]["bc"].atoms)
-            energy = gs_energies[i + 1] / len(self._ground_states[i + 1]["bc"].atoms)
+            energy_ref = gs_energies[0] / len(self._ground_states[0]["atoms"])
+            energy = gs_energies[i + 1] / len(self._ground_states[i + 1]["atoms"])
             energy_vector[i] = energy_ref - energy
 
         mu_boundary = np.linalg.solve(matrix, energy_vector)
@@ -115,7 +115,7 @@ class PhaseBoundaryTracker(object):
         """
         Print message for logging
         """
-        rank = COMM.Get_rank()
+        rank = mpi_rank()
         if rank == 0:
             if mode == "info":
                 self._logger.info(msg)
@@ -153,7 +153,7 @@ class PhaseBoundaryTracker(object):
         :param data: Dictionary of data to be backed up
         :param dsetname: Basename for all datasets in the h5 file
         """
-        rank = COMM.Get_rank()
+        rank = mpi_rank()
         if rank == 0:
             with h5.File(self._backupfile, 'a') as hfile:
                 grp = hfile.create_group(
@@ -178,7 +178,7 @@ class PhaseBoundaryTracker(object):
                     else:
                         grp.create_dataset(key, data=value)
             self._current_backup_indx += 1
-        COMM.barrier()
+        mpi_barrier()
 
 
     def _singlet_comparison(self, thermo):
@@ -227,9 +227,9 @@ class PhaseBoundaryTracker(object):
                                  1][get_singlet_name(self._singlet_names[j])]
                 matrix[i, j] = ref_singlet - singlet
             ref_energy = thermo[0]["energy"] / \
-                len(self._ground_states[0]["bc"].atoms)
+                len(self._ground_states[0]["atoms"])
             energy = thermo[i + 1]["energy"] / \
-                len(self._ground_states[i + 1]["bc"].atoms)
+                len(self._ground_states[i + 1]["atoms"])
             energy_vector[i] = ref_energy - energy
         inv_matrix = np.linalg.inv(matrix)
         rhs = inv_matrix.dot(energy_vector) / beta - chem_pot_array / beta
@@ -342,7 +342,7 @@ class PhaseBoundaryTracker(object):
         for ground_state in self._ground_states:
             self._sgc_obj.append(
                 SGCMonteCarlo(
-                    ground_state["bc"].atoms,
+                    ground_state["atoms"],
                     init_temp,
                     symbols=symbols,
                     mpicomm=mpicomm))
@@ -381,10 +381,8 @@ class PhaseBoundaryTracker(object):
         else:
             # Use the user provided chemical potential is initial value
             chem_pot = np.array(init_mu)
-        if COMM.Get_size() > 1:
-            mpicomm = COMM
-        else:
-            mpicomm = None
+
+        mpicomm = mpi_communicator() 
 
         calcs = CECalculators(self._ground_states)
         self._init_sgc(init_temp, symbols, mpicomm)
@@ -496,7 +494,7 @@ def check_gs_argument(ground_state):
 
     :param ground_state: Ground state structure
     """
-    required_fields = ["bc", "cf", "eci"]
+    required_fields = ["bc", "cf", "eci", "atoms"]
     keys = ground_state.keys()
     for key in keys:
         if key not in required_fields:
@@ -559,7 +557,7 @@ def predict_composition(
     predicted_comp = spl(target_temp)
 
     rgbimage = np.zeros(1)
-    rank = COMM.Get_rank()
+    rank = mpi_rank()
     if rank == 0 and has_matplotlib:
         # Create a plot of how the spline performs
         fig = plt.figure()
@@ -579,7 +577,7 @@ def predict_composition(
         axis.legend()
         rgbimage = fig2rgb(fig)
         plt.close("all")
-    rgbimage = COMM.bcast(rgbimage, root=0)
+    rgbimage = mpi_bcast(rgbimage, root=0)
     return predicted_comp, rgbimage
 
 def get_singlet_evolution(singlet_history, phase_indx, singlet_indx):

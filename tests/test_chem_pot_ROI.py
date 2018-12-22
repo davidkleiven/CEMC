@@ -19,8 +19,8 @@ class TestChemPotROI(unittest.TestCase):
         msg = ""
 
         try:
-            bc = get_small_BC_with_ce_calc()
-            roi = ChemicalPotentialROI(bc.atoms, symbols=["Al","Mg"])
+            bc, calc = get_small_BC_with_ce_calc()
+            roi = ChemicalPotentialROI(calc.atoms, symbols=["Al","Mg"])
             chem_pots = roi.chemical_potential_roi()
             sampling, names = roi.suggest_mu(mu_roi=chem_pots,N=10)
         except Exception as exc:

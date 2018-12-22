@@ -1,8 +1,9 @@
 import unittest
 try:
-    from ase.ce.settings_bulk import BulkCrystal
-    from ase.ce import CorrFunction
-    from ase.calculators.cluster_expansion.cluster_expansion import ClusterExpansion
+    from ase.clease.settings_bulk import CEBulk
+    from ase.clease import CorrFunction
+    from ase.calculators.clease import Clease
+    from ase.clease import Concentration
     from cemc.mfa.mean_field_approx import MeanFieldApprox
     from cemc.mfa import CanonicalMeanField
     from ase.units import kB
@@ -24,21 +25,20 @@ class TestMFA( unittest.TestCase ):
         msg = ""
         try:
             db_name = "test_db.db"
-            conc_args = {
-                "conc_ratio_min_1":[[1,0]],
-                "conc_ratio_max_1":[[0,1]],
-            }
-            ceBulk = BulkCrystal(
+            conc = Concentration(basis_elements=[["Al","Mg"]])
+            ceBulk = CEBulk(
                 crystalstructure="fcc",
-                a=4.05, size=[3, 3, 3], basis_elements=[["Al","Mg"]],
-                conc_args=conc_args, db_name=db_name, max_cluster_size=3)
+                a=4.05, size=[3, 3, 3],
+                concentration=conc, db_name=db_name, max_cluster_size=3)
             ceBulk.reconfigure_settings()
             cf = CorrFunction(ceBulk)
             cf = cf.get_cf(ceBulk.atoms)
             ecis = {key:0.001 for key in cf.keys()}
-            calc = ClusterExpansion( ceBulk, cluster_name_eci=ecis ) # Bug in the update
-            ceBulk.atoms.set_calculator( calc )
-            mf = MeanFieldApprox( ceBulk )
+            atoms = ceBulk.atoms.copy()
+            calc = Clease( ceBulk, cluster_name_eci=ecis ) # Bug in the update
+            atoms.set_calculator(calc)
+            #ceBulk.atoms.set_calculator( calc )
+            mf = MeanFieldApprox(atoms, ceBulk)
             chem_pot = {"c1_0":-1.05}
             betas = np.linspace( 1.0/(kB*100), 1.0/(kB*800), 50 )
             G = mf.free_energy( betas, chem_pot=chem_pot)
@@ -48,13 +48,14 @@ class TestMFA( unittest.TestCase ):
             Cv = mf.heat_capacity( betas, chem_pot=chem_pot )
             Cv = mf.heat_capacity( betas )
 
-            ceBulk.atoms[0].symbol = "Mg"
-            ceBulk.atoms[1].symbol = "Mg"
-            calc = CE( ceBulk, eci=ecis )
-            ceBulk.atoms.set_calculator(calc)
+            atoms = ceBulk.atoms.copy()
+            atoms[0].symbol = "Mg"
+            atoms[1].symbol = "Mg"
+            calc = CE(atoms, ceBulk, eci=ecis)
+            #ceBulk.atoms.set_calculator(calc)
             # Test the Canonical MFA
-            T = [500,400,300,200,100]
-            canonical_mfa = CanonicalMeanField( atoms=ceBulk.atoms, T=T )
+            T = [500, 400, 300, 200, 100]
+            canonical_mfa = CanonicalMeanField(atoms=atoms, T=T)
             res = canonical_mfa.calculate()
         except Exception as exc:
             no_throw = False

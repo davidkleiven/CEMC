@@ -12,4 +12,4 @@ C++ Cluster Expansion Calculator
   :members:
 
 .. automodule:: cemc.ce_calculator
-  :members: get_ce_calc
+  :members: get_atoms_with_ce_calc

@@ -2,8 +2,9 @@ import unittest
 import os
 from ase.build import bulk
 try:
-    from ase.ce import BulkCrystal
-    from ase.ce import CorrFunction
+    from ase.clease import CEBulk
+    from ase.clease import Concentration
+    from ase.clease import CorrFunction
     from cemc.wanglandau import WangLandauInit, WangLandau, WangLandauDBManager
     from cemc.wanglandau import AtomExistsError
     has_CE = True
@@ -11,21 +12,26 @@ except Exception as exc:
     print (exc)
     has_CE = False
 
+    # Define a dummy class in case of import error
+    class Concentration(object):
+        def __init__(self, basis_elements=None):
+            pass
+
 db_name = "temp_db_wanglandau.db"
 wl_db_name = "wanglandau_test_init.db"
+conc = Concentration(basis_elements=[["Al", "Mg"]])
 bc_kwargs = {
     "crystalstructure": "fcc",
     "size": [3, 3, 3],
-    "basis_elements": [["Al", "Mg"]],
+    "concentration": conc,
     "db_name": db_name,
-    "conc_args": {"conc_ratio_min_1": [[1, 0]], "conc_ratio_max_1": [[0, 1]]},
     "max_cluster_size": 3,
     "a": 4.05
 }
 
 
 def get_eci():
-    bc = BulkCrystal(**bc_kwargs)
+    bc = CEBulk(**bc_kwargs)
     bc.reconfigure_settings()
     cf = CorrFunction(bc)
     cf = cf.get_cf(bc.atoms)

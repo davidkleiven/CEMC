@@ -4,6 +4,8 @@ from cemc_cpp_code import PyClusterTracker
 from ase.io.trajectory import TrajectoryWriter
 from cemc.mcmc.averager import Averager
 from cemc.mcmc.util import waste_recycled_average
+from cemc.mcmc.mpi_tools import num_processors, mpi_rank
+from itertools import product
 highlight_elements = ["Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na", "Mg",
                       "Al", "Si", "P", "S", "Cl", "Ar"]
 
@@ -30,6 +32,10 @@ class MCObserver(object):
     def reset(self):
         """Reset all values of the MC observer"""
         pass
+
+    def get_averages(self):
+        """Return averages in the form of a dictionary."""
+        return {}
 
 
 class CorrelationFunctionTracker(MCObserver):
@@ -90,7 +96,7 @@ class PairCorrelationObserver(MCObserver):
         self.n_entries = 0
         self.name = "PairCorrelationObserver"
 
-        for key, value in self.ce_calc.eci.items():
+        for key in self.ce_calc.eci.keys():
             if key.startswith("c2_"):
                 self.cf[key] = 0.0
                 self.cf_squared[key] = 0.0
@@ -106,7 +112,7 @@ class PairCorrelationObserver(MCObserver):
             self.cf[key] += new_cf[key]
             self.cf_squared[key] += new_cf[key]**2
 
-    def get_average(self):
+    def get_averages(self):
         """Returns the average.
 
         :return: Thermal averaged correlation functions
@@ -364,10 +370,18 @@ class NetworkObserver(MCObserver):
         self.num_clusters = 0
         self.nbins = nbins
         self.size_histogram = np.zeros(self.nbins)
+        self.collect_statistics = True
+        self.fixed_num_solutes = True
 
     def __reduce__(self):
         args = (self.calc, self.cluster_name, self.element, self.nbins)
         return (self.__class__, args)
+
+    def move_involves_only_cluster_elements(self, system_changes):
+        """
+        Return True if the move involves only cluster elements
+        """
+        return all(change[1] in self.element for change in system_changes)
 
     def __call__(self, system_changes):
         """
@@ -376,20 +390,39 @@ class NetworkObserver(MCObserver):
         :param list system_changes: Last changes to the system
         """
         self.n_calls += 1
-        self.fast_cluster_tracker.find_clusters()
-        new_res = self.fast_cluster_tracker.get_cluster_statistics_python()
-        for key in self.res.keys():
-            self.res[key] += new_res[key]
+        if system_changes and self.fixed_num_solutes:
+            if not self.move_involves_only_cluster_elements(system_changes):
+                self.fast_cluster_tracker.update_clusters(system_changes)
+        else:
+            self.fast_cluster_tracker.find_clusters()
 
-        self.update_histogram(new_res["cluster_sizes"])
-        self.n_atoms_in_cluster += np.sum(new_res["cluster_sizes"])
-        if new_res["max_size"] > self.max_size:
-            self.max_size = new_res["max_size"]
-            self.atoms_max_cluster = self.calc.atoms.copy()
-            clust_indx = \
-                self.fast_cluster_tracker.atomic_clusters2group_indx_python()
-            self.indx_max_cluster = clust_indx
-            self.num_clusters = len(new_res["cluster_sizes"])
+        if self.collect_statistics:
+            new_res = self.fast_cluster_tracker.get_cluster_statistics_python()
+            for key in self.res.keys():
+                self.res[key] += new_res[key]
+
+            self.update_histogram(new_res["cluster_sizes"])
+            self.n_atoms_in_cluster += np.sum(new_res["cluster_sizes"])
+            if new_res["max_size"] > self.max_size:
+                self.max_size = new_res["max_size"]
+                self.atoms_max_cluster = self.calc.atoms.copy()
+                clust_indx = \
+                    self.fast_cluster_tracker.atomic_clusters2group_indx_python()
+                self.indx_max_cluster = clust_indx
+                self.num_clusters = len(new_res["cluster_sizes"])
+
+    def has_minimal_connectivity(self):
+        return self.fast_cluster_tracker.has_minimal_connectivity()
+
+    def retrieve_clusters_from_scratch(self):
+        """Retrieve the all the clusters from scratch."""
+        self.fast_cluster_tracker.find_clusters()
+
+    def move_creates_new_cluster(self, system_changes):
+        return self.fast_cluster_tracker.move_creates_new_cluster(system_changes)
+
+    def num_root_nodes(self):
+        return self.fast_cluster_tracker.num_root_nodes()
 
     def update_histogram(self, sizes):
         """
@@ -557,6 +590,11 @@ class NetworkObserver(MCObserver):
             msg += "by get_statisttics() is not collected yet."
             print(msg)
 
+    def get_current_cluster_info(self):
+        """Return the info dict for the current state."""
+        self.fast_cluster_tracker.find_clusters()
+        return self.fast_cluster_tracker.get_cluster_statistics_python()
+
     def get_statistics(self):
         """Compute network size statistics.
 
@@ -564,6 +602,7 @@ class NetworkObserver(MCObserver):
         :rtype: dict
         """
         self.collect_stat_MPI()
+
         stat = {}
         if self.res["number_of_clusters"] == 0:
             stat["avg_size"] = 0
@@ -767,22 +806,32 @@ class MCBackup(MCObserver):
     :param Montecarlo mc_obj: Monte Carlo object
     :param str backup_file: Filename where backup will be written. Note that
         the content of this file will be overwritten everytime.
+    :param str db_name: Database name. If given, results will be written to 
+        a table
+    :param str db_tab_name: Name of table in the database
+    :param int db_id: ID in the database. If None, a new entry will be created
+    :param overwrite_db_row: If True, a row will be updated if it exits.
+        If False, a new row will be added to the database everytime
+        this function is called
     """
 
-    def __init__(self, mc_obj, backup_file="montecarlo_backup.pkl"):
+    def __init__(self, mc_obj, backup_file="montecarlo_backup.pkl", db_name="",
+                 db_tab_name="mc_backup", db_id=None, overwrite_db_row=True):
         self.mc_obj = mc_obj
         self.backup_file = self._include_rank_in_filename(backup_file)
         MCObserver.__init__(self)
         self.name = "MCBackup"
+        self.db_name = db_name
+        self.db_id = None
+        self.db_tab_name = db_tab_name
+        self.overwrite_db_row = overwrite_db_row
 
     def _include_rank_in_filename(self, fname):
         """Include the current rank in the filename if nessecary."""
-        from mpi4py import MPI
-        comm = MPI.COMM_WORLD
-        size = comm.Get_size()
+        size = num_processors()
         if size > 1:
             # We have to include the rank in the filename to avoid problems
-            rank = comm.Get_size()
+            rank = mpi_rank()
             prefix = fname.rpartition(".")[0]
             return prefix + "_rank{}.pkl".format(rank)
         return fname
@@ -790,3 +839,227 @@ class MCBackup(MCObserver):
     def __call__(self, system_changes):
         """Write a copy of the Monte Carlo object to file."""
         self.mc_obj.save(self.backup_file)
+        if self.db_name != "":
+            import dataset
+            thermo = self.mc_obj.get_thermodynamic()
+            db = dataset.connect("sqlite:///{}".format(self.db_name))
+            tab = db[self.db_tab_name]
+            if self.db_id is None:
+                # This shoud be a new entry
+                db_id = tab.insert(thermo)
+                if self.overwrite_db_row:
+                    self.db_id = db_id
+            else:
+                # Entry alread exists. Update that one.
+                thermo["id"] = self.db_id
+                tab.update(thermo, ["id"])
+
+
+class BiasPotentialContribution(MCObserver):
+    def __init__(self, mc=None, buffer_size=10000, n_bins=100):
+        self.mc = mc
+        self.buffer = np.zeros(buffer_size)
+        self.hist = np.zeros(n_bins)
+        self.hist_max = None
+        self.hist_min = None
+        self.buffer_indx = 0
+
+    def __call__(self, system_changes):
+        diff = self.mc.new_bias_energy - self.mc.bias_energy
+        self.buffer[self.buffer_indx] = diff
+        self.buffer_indx += 1
+
+        if self.buffer_indx == len(self.buffer):
+            self._update_histogram()
+
+    def _update_histogram(self):
+        """Updates the histogram with the current buffer."""
+        if self.hist_max is None:
+            self.hist_max = np.max(self.buffer)
+            self.hist_min = np.min(self.buffer)
+            hist_range = self.hist_max - self.hist_min
+
+            # We double the range in case the first
+            # buffer did not cover all cases
+            self.hist_max += hist_range/2.0
+            self.hist_min -= hist_range/2.0
+
+        hist_indx = (self.buffer - self.hist_min)*len(self.hist) \
+                    /(self.hist_max - self.hist_min)
+        
+        for indx in hist_indx:
+            if indx < len(self.hist) and indx >= 0:
+                self.hist[indx] += 1
+
+    def save(self, fname="bias_potential_hist.csv"):
+        """Store the histogram to a text file."""
+        if self.hist_max is None:
+            # There is not histogram
+            return
+        x = np.linspace(self.hist_min, self.hist_max, len(self.hist))
+        data = np.vstack((x, self.hist))
+        np.savetxt(fname, data.T, delimiter=",")
+        print("Histogram data written to {}".format(fname))
+
+
+class CovarianceMatrixObserver(MCObserver):
+    def __init__(self, atoms=None, cluster_elements=None):
+        self.atoms = atoms
+        self.pos = atoms.get_positions()
+        self.cluster_elements = cluster_elements
+        self.com = np.zeros(3)
+        self.cov_matrix = np.zeros((3, 3))
+        self.cov_matrix_avg = np.zeros_like(self.cov_matrix)
+        self.num_atoms = 0
+        self.init_com_and_covariance()
+        self.old_com = None
+        self.old_cov = None
+        self.num_calls = 0
+
+    def init_com_and_covariance(self):
+        """Initialize the center of mass and the covariance."""
+        self.num_atoms = 0
+        self.com[:] = 0.0
+        self.cov_matrix[: ,:] = 0.0
+        for atom in self.atoms:
+            if atom.symbol in self.cluster_elements:
+                self.com += atom.position
+                self.cov_matrix += np.outer(atom.position, atom.position)
+                self.num_atoms += 1
+
+        if self.num_atoms == 0:
+            raise RuntimeError("No cluster elements are present in the "
+                               "Atoms object provided!")
+        self.com /= self.num_atoms
+        self.cov_matrix -= self.num_atoms*np.outer(self.com, self.com)
+        self.cov_matrix_avg = self.cov_matrix.copy()
+        self.num_calls = 1
+
+    def move_involves_only_cluster_elements(self, system_changes):
+        """Check if the move involves only solute atoms."""
+        return all([change[1] in self.cluster_elements for change in system_changes])
+
+    def set_atoms(self, atoms):
+        """Set a new atoms object."""
+        self.atoms = atoms
+        self.pos = atoms.get_positions()
+        self.init_com_and_covariance()
+
+    def __call__(self, system_changes):
+        """Update the covariance matrix."""
+        d_com = np.zeros(3)
+        d_I = np.zeros((3, 3))
+        for change in system_changes:
+            if change[1] in self.cluster_elements and change[2] in self.cluster_elements:
+                continue
+
+            x = self.pos[change[0], :]
+            if change[2] in self.cluster_elements:
+                d_com += x
+                d_I += np.outer(x, x)
+            elif change[1] in self.cluster_elements:
+                d_com -= x
+                d_I -= np.outer(x, x)
+        
+        d_com /= self.num_atoms
+
+        d_I -= self.num_atoms*(np.outer(d_com, self.com) + np.outer(self.com, d_com) + np.outer(d_com, d_com))
+        self.old_cov = self.cov_matrix.copy()
+        self.old_com = self.com.copy()
+
+        self.com += d_com
+        self.cov_matrix += d_I
+        self.cov_matrix_avg += self.cov_matrix
+        self.num_calls += 1
+
+    def undo_last(self):
+        """Undo the last update."""
+        if self.old_cov is None:
+            return
+        self.cov_matrix_avg -= self.cov_matrix
+        self.num_calls -= 1
+        self.cov_matrix = self.old_cov
+        self.com = self.old_com
+
+    def get_averages(self):
+        """Return the average covariance matrix."""
+        avg = {}
+        for indx in product(range(3), repeat=2):
+            key = "I{}{}".format(indx[0], indx[1])
+            avg[key] = self.cov_matrix_avg[indx[0], indx[1]]/self.num_calls
+        return avg
+
+class PairObserver(MCObserver):
+    """Tracking the average number of pairs within a cutoff"""
+    def __init__(self, atoms, cutoff=4.0, elements=[]):
+        from ase.neighborlist import neighbor_list
+        self.atoms = atoms
+        self.cutoff = cutoff
+        self.elements = elements
+        first_indx, second_indx, self.dist = neighbor_list("ijd", atoms, cutoff)
+
+        # neighbors
+        self.neighbors = [[] for _ in range(len(self.atoms))]
+        for i1, i2 in zip(first_indx, second_indx):
+            self.neighbors[i1].append(i2)
+
+        # Count how many pairs inside cutoff
+        self.num_pairs = self.num_pairs_brute_force()
+        self.avg_num_pairs = 0
+        self.num_calls = 0
+        self.symbols = [atom.symbol for atom in self.atoms]
+
+    def __call__(self, system_changes):
+        # Update how many pairs there are present
+        # at this point the atoms object is already 
+        num_new_pairs = 0
+        for change in system_changes:
+            if change[1] in self.elements and change[2] not in self.elements:
+                neighbors = self.neighbors[change[0]]
+                pairs_in_site = len([self.symbols[indx] for indx in neighbors
+                                     if self.symbols[indx] in self.elements])
+
+                # We loose some pairs (factor 2 due to double counting)
+                num_new_pairs -= 2*pairs_in_site
+
+            elif change[1] not in self.elements and change[2] in self.elements:
+                neighbors = self.neighbors[change[0]]
+                pairs_in_site = len([self.symbols[indx] for indx in neighbors
+                                     if self.symbols[indx] in self.elements])
+                # Add pairs (factor 2 due to double counting)
+                num_new_pairs += 2*pairs_in_site
+            self.symbols[change[0]] = change[2]
+
+        self.num_pairs += num_new_pairs
+        self.avg_num_pairs += float(self.num_pairs)/len(self.atoms)
+        self.num_calls += 1
+
+    def reset(self):
+        self.num_calls = 0
+        self.avg_num_pairs = 0
+
+    def symbols_is_synced(self):
+        """Sanity check to ensure that the symbols array is syncronized."""
+        symbs_atoms = [atom.symbol for atom in self.atoms]
+        return symbs_atoms == self.symbols
+
+    def num_pairs_brute_force(self):
+        """Calculate the number pairs by brute force loop."""
+        num_pairs = 0
+        for i1 in range(len(self.neighbors)):
+            if self.atoms[i1].symbol in self.elements:
+                for i2 in self.neighbors[i1]:
+                    if self.atoms[i2].symbol in self.elements:
+                        num_pairs += 1
+        return num_pairs
+
+    @property
+    def mean_number_of_pairs(self):
+        if self.num_calls == 0:
+            return 0
+        return self.avg_num_pairs/self.num_calls
+
+
+
+
+

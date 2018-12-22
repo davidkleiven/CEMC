@@ -2,7 +2,8 @@ import unittest
 import copy
 import numpy as np
 try:
-    from ase.ce.settings_bulk import BulkCrystal
+    from ase.clease.settings_bulk import CEBulk
+    from ase.clease import Concentration
     from cemc.tools.phase_boundary_tracker import PhaseBoundaryTracker, PhaseChangedOnFirstIterationError
     from cemc.tools import save_phase_boundary, process_phase_boundary
     from cemc.mcmc import linear_vib_correction as lvc
@@ -20,18 +21,19 @@ ecivib = {
 db_name = "test_phase_boundary.db"
 class TestPhaseBoundaryMC( unittest.TestCase ):
     def init_bulk_crystal(self):
-        conc_args = {
-            "conc_ratio_min_1":[[1,0]],
-            "conc_ratio_max_1":[[0,1]],
-        }
-        ceBulk1 = BulkCrystal( crystalstructure="fcc", a=4.05, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, db_name=db_name)
+        conc1 = Concentration(basis_elements=[["Al","Mg"]])
+        conc2 = Concentration(basis_elements=[["Al","Mg"]])
+        ceBulk1 = CEBulk( crystalstructure="fcc", a=4.05, size=[3,3,3], concentration=conc1, db_name=db_name)
         ceBulk1.reconfigure_settings()
-        ceBulk2 = BulkCrystal( crystalstructure="fcc", a=4.05, size=[3,3,3], basis_elements=[["Al","Mg"]], conc_args=conc_args, db_name=db_name)
+        ceBulk2 = CEBulk( crystalstructure="fcc", a=4.05, size=[3,3,3], concentration=conc2, db_name=db_name)
         ceBulk2.reconfigure_settings()
 
-        for atom in ceBulk2.atoms:
+        atoms1 = ceBulk1.atoms.copy()
+        atoms2 = ceBulk2.atoms.copy()
+
+        for atom in atoms2:
             atom.symbol = "Mg"
-        return ceBulk1, ceBulk2
+        return ceBulk1, ceBulk2, atoms1, atoms2
 
     def test_adaptive_euler(self):
         if ( not has_ase_with_ce ):
@@ -41,31 +43,33 @@ class TestPhaseBoundaryMC( unittest.TestCase ):
         no_throw = True
         msg = ""
         try:
-            b1, b2 = self.init_bulk_crystal()
-            gs1 = {
-                "bc":b1,
-                "eci":get_example_ecis(bc=b1),
-                "cf":get_example_cf(bc=b1)
-            }
+                b1, b2, a1, a2 = self.init_bulk_crystal()
+                gs1 = {
+                    "atoms": a1,
+                    "bc":b1,
+                    "eci":get_example_ecis(bc=b1),
+                    "cf":get_example_cf(bc=b1, atoms=a1)
+                }
 
-            gs2 = {
-                "bc":b2,
-                "eci":get_example_ecis(bc=b2),
-                "cf":get_example_cf(bc=b2)
-            }
-            ground_states = [gs1, gs2]
+                gs2 = {
+                    "atoms": a2,
+                    "bc":b2,
+                    "eci":get_example_ecis(bc=b2),
+                    "cf":get_example_cf(bc=b2, atoms=a2)
+                }
+                ground_states = [gs1, gs2]
 
-            boundary = PhaseBoundaryTracker( ground_states )
-            T = [10,20]
-            mc_args = {
-                "steps":10,
-                "mode":"fixed",
-                "equil":False
-            }
-            res = boundary.separation_line_adaptive_euler( init_temp=100, min_step=99,stepsize=100, mc_args=mc_args, symbols=["Al","Mg"] )
-            fname = "test_phase_boundary.h5"
-            save_phase_boundary(fname, res)
-            process_phase_boundary(fname)
+                boundary = PhaseBoundaryTracker( ground_states )
+                T = [10,20]
+                mc_args = {
+                    "steps":10,
+                    "mode":"fixed",
+                    "equil":False
+                }
+                res = boundary.separation_line_adaptive_euler(init_temp=100, min_step=99,stepsize=100, mc_args=mc_args, symbols=["Al","Mg"])
+                fname = "test_phase_boundary.h5"
+                save_phase_boundary(fname, res)
+                process_phase_boundary(fname)
         except Exception as exc:
             no_throw = False
             msg = str(exc)
@@ -84,12 +88,14 @@ class TestPhaseBoundaryMC( unittest.TestCase ):
             for i in range(3):
                 ce_bulk = get_ternary_BC()
                 eci = get_example_ecis(bc=ce_bulk)
-                for atom in ce_bulk.atoms:
+                atoms = ce_bulk.atoms.copy()
+                for atom in atoms:
                     atom.symbol = elements[i]
                 gs = {
+                    "atoms": atoms,
                     "bc":ce_bulk,
                     "eci":eci,
-                    "cf":get_example_cf(bc=ce_bulk)
+                    "cf":get_example_cf(bc=ce_bulk, atoms=atoms)
                 }
                 ground_states.append(gs)
 

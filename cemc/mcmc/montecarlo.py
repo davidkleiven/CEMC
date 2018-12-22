@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 """Monte Carlo method for ase."""
 from __future__ import division
-
+import sys
 import numpy as np
 import ase.units as units
 import time
 import logging
-from mpi4py import MPI
 from scipy import stats
 from ase.units import kJ, mol
 from cemc.mcmc import mpi_tools
@@ -16,21 +15,27 @@ from cemc.mcmc.util import waste_recycled_average, waste_recycled_accept_prob
 from cemc.mcmc.util import get_new_state
 from cemc.mcmc import BiasPotential
 from cemc.mcmc.swap_move_index_tracker import SwapMoveIndexTracker
+from cemc.mcmc.mpi_tools import mpi_max, mpi_sum
+
+# Set the pickle protocol
+if sys.version_info[0] == 2:
+    PICKLE_PROTOCOL = 2
+elif sys.version_info[0] == 3:
+    PICKLE_PROTOCOL = 4
+else:
+    raise ImportError("Expected system info to be 2 or 3!")
 
 
 class DidNotReachEquillibriumError(Exception):
-    def __init__(self, msg):
-        super(DidNotReachEquillibriumError, self).__init__(msg)
+    pass
 
 
 class TooFewElementsError(Exception):
-    def __init__(self, msg):
-        super(TooFewElementsError, self).__init__(msg)
+    pass
 
 
 class CanNotFindLegalMoveError(Exception):
-    def __init__(self, msg):
-        super(CanNotFindLegalMoveError, self).__init__(msg)
+    pass
 
 
 class Montecarlo(object):
@@ -51,11 +56,14 @@ class Montecarlo(object):
         for finding a candidate move that does not violate the constraints.
         A CanNotFindLegalMoveError is raised if the maximum number of attempts
         is reaced.
+    :param bool accept_first_trial_move_after_reset: If True the first trial
+        move after reset and set_symbols will be accepted
     """
 
     def __init__(self, atoms, temp, indeces=None, mpicomm=None, logfile="",
                  plot_debug=False, min_acc_rate=0.0, recycle_waste=False,
-                 max_constraint_attempts=10000):
+                 max_constraint_attempts=10000,
+                 accept_first_trial_move_after_reset=False):
         self.name = "MonteCarlo"
         self.atoms = atoms
         self.T = temp
@@ -86,6 +94,8 @@ class Montecarlo(object):
         self._build_atoms_list()
         E0 = self.atoms.get_calculator().get_energy()
         self.current_energy = E0
+        self.bias_energy = 0.0
+        self.new_bias_energy = self.bias_energy
         self.new_energy = self.current_energy
 
         # Keep the energy of old and trial state
@@ -118,12 +128,14 @@ class Montecarlo(object):
         # Set to false if pyplot should not block when plt.show() is called
         self.pyplot_block = True
         self._linear_vib_correction = None
-        self.is_first = True
         self.filter = ExponentialFilter(min_time=0.2*len(self.atoms),
                                         max_time=20*len(self.atoms),
                                         n_subfilters=10)
 
-        self.accept_first_trial_move_after_reset = True
+        self.accept_first_trial_move_after_reset = accept_first_trial_move_after_reset
+        self.is_first = False
+        if self.accept_first_trial_move_after_reset:
+            self.is_first = True
 
     def _init_loggers(self):
         self.logger = logging.getLogger("MonteCarlo")
@@ -228,6 +240,14 @@ class Montecarlo(object):
         if attempts == max_attempts:
             raise RuntimeError("Could insert {} {} atoms!".format(num, symbol))
 
+    def update_current_energy(self):
+        """Enforce a new energy evaluation."""
+        self.current_energy = self.atoms.get_calculator().get_energy()
+        self.bias_energy = 0.0
+        for bias in self.bias_potentials:
+            self.bias_energy += bias.calculate_from_scratch(self.atoms)
+        self.current_energy += self.bias_energy
+
     def set_symbols(self, symbs):
         """Set the symbols of this Monte Carlo run.
 
@@ -236,6 +256,10 @@ class Montecarlo(object):
         """
         self.atoms.get_calculator().set_symbols(symbs)
         self._build_atoms_list()
+        self.update_current_energy()
+
+        if self.accept_first_trial_move_after_reset:
+            self.is_first = True
 
     def _check_symbols(self):
         """
@@ -614,13 +638,13 @@ class Montecarlo(object):
             if self.mpicomm is not None:
                 eng_conv = np.array(energy_conv, dtype=np.uint8)
                 eng_conv_recv = np.zeros(1, dtype=np.uint8)
-                self.mpicomm.Allreduce(eng_conv, eng_conv_recv, op=MPI.MAX)
+                self.mpicomm.Allreduce(eng_conv, eng_conv_recv, op=mpi_max())
                 energy_conv = eng_conv_recv[0]
 
                 comp_conv_arr = np.array(comp_conv, dtype=np.uint8)
                 comp_conv_recv = np.zeros(1, dtype=np.uint8)
                 self.mpicomm.Allreduce(
-                    comp_conv_arr, comp_conv_recv, op=MPI.MAX)
+                    comp_conv_arr, comp_conv_recv, op=mpi_max())
                 comp_conv = comp_conv_recv[0]
 
             if (energy_conv and comp_conv):
@@ -880,9 +904,24 @@ class Montecarlo(object):
         if (self.mpicomm is None):
             return
 
-        self.mean_energy = self.mpicomm.allreduce(self.mean_energy, op=MPI.SUM)
+        self.mean_energy = self.mpicomm.allreduce(self.mean_energy, op=mpi_sum())
         self.energy_squared = self.mpicomm.allreduce(
-            self.energy_squared, op=MPI.SUM)
+            self.energy_squared, op=mpi_sum())
+
+    @property
+    def meta_info(self):
+        """Return dict with meta info."""
+        import sys
+        import datetime
+        import time
+        ts = time.time()
+        st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+        v_info = sys.version_info
+        meta_info = {
+            "timestamp": st,
+            "python_version": "{}.{}.{}".format(v_info.major, v_info.minor, v_info.micro)
+        }
+        return meta_info
 
     def get_thermodynamic(self):
         """
@@ -904,6 +943,13 @@ class Montecarlo(object):
             name = "{}_conc".format(key)
             conc = float(value) / len(self.atoms)
             quantities[name] = conc
+
+        # Add some more info that can be useful
+        quantities.update(self.meta_info)
+
+        # Add information from observers
+        for obs in self.observers:
+            quantities.update(obs[1].get_averages())
         return quantities
 
     def _get_trial_move(self):
@@ -943,12 +989,13 @@ class Montecarlo(object):
 
         # NOTE: As this is called after calculate, the changes has
         # already been introduced to the system
+        self.new_bias_energy = 0.0
         for bias in self.bias_potentials:
-            self.new_energy += bias(system_changes)
-
+            self.new_bias_energy += bias(system_changes)
+        self.new_energy += self.new_bias_energy
         self.last_energies[1] = self.new_energy
-
         if (self.is_first):
+            self.log("Move accepted because accept_first_move_after_reset was activated")
             self.is_first = False
             return True
 
@@ -1011,6 +1058,7 @@ class Montecarlo(object):
 
         if (move_accepted):
             self.current_energy = self.new_energy
+            self.bias_energy = self.new_bias_energy
             self.num_accepted += 1
         else:
             # Reset the sytem back to original
@@ -1065,7 +1113,7 @@ class Montecarlo(object):
         self.flush_log = None
         import dill
         with open(fname, 'wb') as outfile:
-            dill.dump(self, outfile)
+            dill.dump(self, outfile, protocol=PICKLE_PROTOCOL)
 
         # Initialize the loggers again
         self._init_loggers()

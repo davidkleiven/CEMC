@@ -3,11 +3,11 @@ import os
 try:
     from cemc.mcmc import NucleationSampler, SGCNucleation
     from cemc.mcmc import CanonicalNucleationMC, FixedNucleusMC
-    from ase.ce import BulkCrystal
-    from ase.ce import CorrFunction
-    from cemc.mcmc import InertiaCrdInitializer
+    from ase.clease import CEBulk, Concentration
+    from ase.clease import CorrFunction
+    from cemc.mcmc import CovarianceCrdInitializer
     from cemc import CE
-    from cemc import get_ce_calc
+    from cemc import get_atoms_with_ce_calc
     import numpy as np
     from helper_functions import get_ternary_BC, get_example_ecis
     available = True
@@ -31,30 +31,24 @@ class TestNuclFreeEnergy( unittest.TestCase ):
         no_throw = True
         msg = ""
         try:
-            conc_args = {
-                "conc_ratio_min_1": [[1, 0]],
-                "conc_ratio_max_1": [[0, 1]],
-            }
             db_name = "temp_nuc_db.db"
             if os.path.exists(db_name):
                 os.remove(db_name)
+            conc = Concentration(basis_elements=[["Al", "Mg"]])
             kwargs = {
                 "crystalstructure": "fcc", "a": 4.05,
                 "size": [3, 3, 3],
-                "basis_elements": [["Al", "Mg"]],
-                "conc_args": conc_args, "db_name": db_name,
+                "concentration": conc, "db_name": db_name,
                 "max_cluster_size": 3
             }
-            ceBulk = BulkCrystal(**kwargs)
+            ceBulk = CEBulk(**kwargs)
             ceBulk.reconfigure_settings()
             cf = CorrFunction(ceBulk)
             cf = cf.get_cf(ceBulk.atoms)
 
             ecis = {key: 0.001 for key in cf.keys()}
-            calc = get_ce_calc(ceBulk, kwargs, ecis, size=[5, 5, 5],
+            atoms = get_atoms_with_ce_calc(ceBulk, kwargs, ecis, size=[5, 5, 5],
                                db_name="sc5x5x5.db")
-            ceBulk = calc.BC
-            ceBulk.atoms.set_calculator(calc)
 
             chem_pot = {"c1_0": -1.0651526881167124}
             sampler = NucleationSampler(
@@ -65,26 +59,30 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             nn_name = get_network_name(ceBulk.cluster_family_names_by_size)
 
             mc = SGCNucleation(
-                ceBulk.atoms, 300, nucleation_sampler=sampler,
+                atoms, 30000, nucleation_sampler=sampler,
                 network_name=[nn_name],  network_element=["Mg"],
                 symbols=["Al", "Mg"], chem_pot=chem_pot)
-
             mc.runMC(steps=2)
             sampler.save(fname="test_nucl.h5")
 
             mc = CanonicalNucleationMC(
-                ceBulk.atoms, 300, nucleation_sampler=sampler,
+                atoms, 300, nucleation_sampler=sampler,
                 network_name=[nn_name],  network_element=["Mg"],
                 concentration={"Al": 0.8, "Mg": 0.2}
                 )
+            symbs = [atom.symbol for atom in atoms]
+            symbs[0] = "Mg"
+            symbs[1] = "Mg"
+            mc.set_symbols(symbs)
             mc.runMC(steps=2)
             sampler.save(fname="test_nucl_canonical.h5")
             elements = {"Mg": 6}
+            calc = atoms.get_calculator()
             calc.set_composition({"Al": 1.0, "Mg": 0.0})
-            mc = FixedNucleusMC(ceBulk.atoms, 300,
+            mc = FixedNucleusMC(atoms, 300,
                                 network_name=[nn_name], network_element=["Mg"])
             mc.insert_symbol_random_places("Mg", num=1, swap_symbs=["Al"])
-            mc.runMC(steps=2, elements=elements)
+            mc.runMC(steps=2, elements=elements, init_cluster=True)
             os.remove("sc5x5x5.db")
         except Exception as exc:
             msg = str(exc)
@@ -105,39 +103,39 @@ class TestNuclFreeEnergy( unittest.TestCase ):
         for atom in nanoparticle:
             atom.symbol = choice(symbs)
         inert1, inert2 = self._nano_particle_matches(conc_init, nanoparticle)
-        match, msg = self._two_inertia_tensors_matches(inert1, inert2)
+        match, msg = self._two_covariance_tensors_matches(inert1, inert2)
         return match, msg
 
-    def _two_inertia_tensors_matches(self, inert1, inert2):
+    def _two_covariance_tensors_matches(self, inert1, inert2):
         if not np.allclose(inert1, inert2, rtol=1E-4):
-            msg = "Inertia tensor does not match\n"
+            msg = "covariance tensor does not match\n"
             msg += "Original: {}\n".format(inert1)
             msg += "Calculated from bulk: {}\n".format(inert2)
             return False, msg
         return True, ""
 
     def _nano_particle_matches(self, conc_init, nanoparticle):
-        """Check the inertial tensor of a fixed nano particle is conserved."""
-        # Test some inertia calculation
+        """Check the covariancel tensor of a fixed nano particle is conserved."""
+        # Test some covariance calculation
         from ase.build import bulk
         from itertools import product
-        from ase.ce.tools import wrap_and_sort_by_position
+        from ase.clease.tools import wrap_and_sort_by_position
 
         lc = nanoparticle.info["lc"]
         pos = nanoparticle.get_positions()
         com = np.sum(pos, axis=0) / pos.shape[0]
         nanoparticle.translate(-com)
         pos = nanoparticle.get_positions()
-        orig_inertia = np.zeros((3, 3))
+        orig_covariance = np.zeros((3, 3))
         for comb in product(list(range(3)), repeat=2):
             i1 = comb[0]
             i2 = comb[1]
-            orig_inertia[i1, i2] = np.sum(pos[:, i1] * pos[:, i2])
+            orig_covariance[i1, i2] = np.sum(pos[:, i1] * pos[:, i2])
 
-        if not np.allclose(orig_inertia, orig_inertia.T):
+        if not np.allclose(orig_covariance, orig_covariance.T):
             raise ValueError("Intertia tensor of nano particle is not "
                              "symmetric!")
-        orig_principal = np.linalg.eigvalsh(orig_inertia)
+        orig_principal = np.linalg.eigvalsh(orig_covariance)
 
         # Now find the atom in the nanopartorig_principalicle closest to the origin
         # and put it exactly at the origin
@@ -167,20 +165,21 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             used_sites.append(indx)
 
         # Apply some translation
-        trans = 1.2 * diag
+        trans = 0.2 * diag
         blk.translate(trans)
         blk = wrap_and_sort_by_position(blk)
 
         # Manually alter the atoms object and rebuild the atoms list
-        conc_init.fixed_nucl_mc.atoms = blk
-        conc_init.fixed_nucl_mc._build_atoms_list()
+        conc_init.cov_obs.atoms = blk
+        conc_init.cov_obs.pos = blk.get_positions()
 
-        # Inertia tensor
-        inertia_tens = conc_init.principal_inertia
-        return inertia_tens, orig_principal
+        # covariance tensor
+        conc_init.cov_obs.init_com_and_covariance()
+        covariance_tens = conc_init.principal_variance(None, [])
+        return covariance_tens, orig_principal
 
 
-    def test_with_inertia_reac_crd(self):
+    def test_with_covariance_reac_crd(self):
         if not available:
             self.skipTest("ASE version does not have CE!")
 
@@ -188,31 +187,87 @@ class TestNuclFreeEnergy( unittest.TestCase ):
         no_throw = True
         try:
             bc = get_ternary_BC()
+            atoms = bc.atoms.copy()
             ecis = get_example_ecis(bc=bc)
-            calc = CE(bc, eci=ecis)
-            bc.atoms.set_calculator(calc)
+            calc = CE(atoms, bc, eci=ecis)
+            #bc.atoms.set_calculator(calc)
 
             T = 200
             nn_names = [name for name in bc.cluster_family_names
                         if int(name[1]) == 2]
 
             mc = FixedNucleusMC(
-                bc.atoms, T, network_name=nn_names,
+                atoms, T, network_name=nn_names,
                 network_element=["Mg", "Si"])
 
-            conc_init = InertiaCrdInitializer(
-                fixed_nucl_mc=mc, matrix_element="Al",
-                cluster_elements=["Mg", "Si"])
             elements = {"Mg": 4, "Si": 4}
             mc.insert_symbol_random_places("Mg", num=1, swap_symbs=["Al"])
-            # mc.insert_symbol_random_places("Si", num=4, swap_symbs=["Al"])
-            mc.runMC(steps=100, elements=elements)
+            mc.grow_cluster(elements)
+            conc_init = CovarianceCrdInitializer(
+                fixed_nucl_mc=mc, matrix_element="Al",
+                cluster_elements=["Mg", "Si"])
+            
+            mc.runMC(steps=100, init_cluster=False)
 
             match, match_msg = self._spherical_nano_particle_matches(conc_init)
             self.assertTrue(match, msg=match_msg)
         except Exception as exc:
             no_throw = False
             msg = str(exc)
+
+        self.assertTrue(no_throw, msg=msg)
+
+    def test_covariance_observer(self):
+        """Test the covariance observer."""
+        if not available:
+            self.skipTest("ASE version does not have CE!")
+
+        msg = ""
+        no_throw = True
+        try:
+            from cemc.mcmc import FixEdgeLayers
+            from cemc.mcmc import CovarianceMatrixObserver
+            bc, args = get_ternary_BC(ret_args=True)
+            ecis = get_example_ecis(bc=bc)
+            atoms = get_atoms_with_ce_calc(bc, args, eci=ecis, size=[8, 8, 8], db_name="covariance_obs.db")
+
+            T = 200
+            nn_names = [name for name in bc.cluster_family_names
+                        if int(name[1]) == 2]
+
+            mc = FixedNucleusMC(
+                atoms, T, network_name=nn_names,
+                network_element=["Mg", "Si"])
+
+            fixed_layers = FixEdgeLayers(atoms=mc.atoms, thickness=3.0)
+            mc.add_constraint(fixed_layers)
+            elements = {"Mg": 6, "Si": 6}
+            mc.insert_symbol_random_places("Mg", num=1, swap_symbs=["Al"])
+            mc.grow_cluster(elements)
+            
+            cov_obs = CovarianceMatrixObserver(atoms=mc.atoms, cluster_elements=["Mg", "Si"])
+            mc.attach(cov_obs)
+            for _ in range(10):
+                mc.runMC(steps=100, elements=elements, init_cluster=False)
+
+                obs_I = cov_obs.cov_matrix
+                indices = []
+                for atom in mc.atoms:
+                    if atom.symbol in ["Mg", "Si"]:
+                        indices.append(atom.index)
+                cluster = mc.atoms[indices]
+                pos = cluster.get_positions()
+                com = np.mean(pos, axis=0)
+                pos -= com
+                cov_matrix = np.zeros((3, 3))
+                for i in range(pos.shape[0]):
+                    x = pos[i, :]
+                    cov_matrix += np.outer(x, x)
+                self.assertTrue(np.allclose(obs_I, cov_matrix))
+            os.remove("covariance_obs.db")
+        except Exception as exc:
+            no_throw = False
+            msg = type(exc).__name__ + str(exc)
 
         self.assertTrue(no_throw, msg=msg)
 

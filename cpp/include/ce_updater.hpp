@@ -14,6 +14,8 @@
 #include "linear_vib_correction.hpp"
 #include "cluster.hpp"
 #include "named_array.hpp"
+#include "symbols_with_numbers.hpp"
+#include "basis_function.hpp"
 
 // Read values from name_list
 // name_list[symm_group][cluster_size] = vector of string variables of all the cluster names
@@ -24,6 +26,8 @@ typedef std::vector< std::vector< std::vector<std::string> > > name_list;
 typedef std::vector< std::vector< std::vector< std::vector<std::vector<int> > > > > cluster_list;
 typedef std::vector< std::map<std::string,double> > bf_list;
 typedef std::array<SymbolChange,2> swap_move;
+typedef std::unordered_map<std::string, Cluster> cluster_dict;
+
 //typedef std::unordered_map<std::string,double> cf;
 typedef NamedArray cf;
 
@@ -50,7 +54,7 @@ public:
   CEUpdater* copy() const;
 
   /** Initialize the object */
-  void init(PyObject *BC, PyObject *corrFunc, PyObject *ecis);
+  void init(PyObject *py_atoms, PyObject *BC, PyObject *corrFunc, PyObject *ecis);
 
   /** Change values of ecis */
   void set_ecis( PyObject *ecis );
@@ -73,7 +77,7 @@ public:
   void update_cf( SymbolChange &single_change );
 
   /** Computes the spin product for one element */
-  double spin_product_one_atom( unsigned int ref_indx, const Cluster &indx_list, const std::vector<int> &dec, const std::string &ref_symb );
+  double spin_product_one_atom(int ref_indx, const Cluster &indx_list, const std::vector<int> &dec, int ref_id);
 
   /**
   Calculates the new energy given a set of system changes
@@ -104,10 +108,10 @@ public:
   const CFHistoryTracker& get_history() const{ return *history; };
 
   /** Read-only reference to the symbols */
-  const std::vector<std::string>& get_symbols() const { return symbols; };
+  const std::vector<std::string>& get_symbols() const { return symbols_with_id->get_symbols(); };
 
   /** Returns the cluster members */
-  const std::vector< std::map<std::string,Cluster> >& get_clusters() const {return clusters;};
+  const std::vector<cluster_dict>& get_clusters() const {return clusters;};
 
   /** Return the cluster with the given name
   * The key in the map is the symmetry group
@@ -144,12 +148,14 @@ private:
   /** Returns the maximum index occuring in the cluster indices */
   unsigned int get_max_indx_of_zero_site() const;
 
-  std::vector<std::string> symbols;
-  std::vector< std::map<std::string, Cluster> > clusters;
+  //std::vector<std::string> symbols;
+  Symbols *symbols_with_id{nullptr};
+  std::vector<cluster_dict> clusters;
   std::vector<int> trans_symm_group;
   std::vector<int> trans_symm_group_count;
   std::map<std::string,int> cluster_symm_group_count;
-  bf_list basis_functions;
+  //bf_list basis_functions;
+  BasisFunction *basis_functions{nullptr};
 
   Status_t status{Status_t::NOT_INITIALIZED};
   //Matrix<int> trans_matrix;
@@ -158,6 +164,7 @@ private:
   //std::map<std::string,double> ecis;
   NamedArray ecis;
   std::map<std::string,std::string> cname_with_dec;
+  std::vector<bool> is_background_index;
   CFHistoryTracker *history{nullptr};
   PyObject *atoms{nullptr};
   std::vector<MCObserver*> observers; // TODO: Not used at the moment. The accept/rejection is done in the Python code
@@ -189,10 +196,14 @@ private:
   /** Reads the translation matrix */
   void read_trans_matrix( PyObject* py_trans_mat );
 
+  /** Read background indices */
+  void read_background_indices(PyObject *bkg_indices);
+
   /** Check if a move is a swap move */
   bool is_swap_move(const swap_move &move) const;
 
   /** Sort indices according to order */
-  static void sort_indices(std::vector<int> &indx, const std::vector<int> &order);
+  //static void sort_indices(std::vector<int> &indx, const std::vector<int> &order);
+  static void sort_indices(int indices[], const std::vector<int> &order, unsigned int n_indices);
 };
 #endif

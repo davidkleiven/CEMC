@@ -2,46 +2,38 @@
 This example shows how one can use the Monte Carlo observers
 """
 
-# First we import the BulkCrystal object from ASE
-from ase.ce import BulkCrystal
+# First we import the CEBulk object from ASE
+from ase.clease import CEBulk
+from ase.clease import Concentration
 from util import get_example_ecis, get_example_network_name
-
-# Specify the concentration arguments (they really don't matter here)
-# They only have effect when generating structure of Cluster Expansion
-conc_args = {
-            "conc_ratio_min_1":[[1,0]],
-            "conc_ratio_max_1":[[0,1]],
-        }
 
 db_name = "database_with_dft_structures.db"
 
 # In order to be able to construct a large Monte Carlo cell we have to
-# but the arguments used to construct the BulkCrystal object in a
+# but the arguments used to construct the CEBulk object in a
 # dictionary
+conc = Concentration(basis_elements=[["Al","Mg"]])
 kwargs = {
     "crystalstructure":"fcc",
     "a":4.05,
     "size":[3, 3, 3],
-    "basis_elements":[["Al","Mg"]],
     "db_name": db_name,
-    "conc_args": conc_args,
-    "max_cluster_size": 3
+    "max_cluster_size": 3,
+    "concentration": conc
 }
 
 # In this example, we just use some example ecis
 eci = get_example_ecis(bc_kwargs=kwargs)
 
-# Initialize a template BulkCrystal Object
-ceBulk = BulkCrystal( **kwargs )
+# Initialize a template CEBulk Object
+ceBulk = CEBulk( **kwargs )
 ceBulk.reconfigure_settings()  # Nessecary for the unittests to pass
 # Now we want to get a Cluster Expansion calculator for a big cell
 mc_cell_size = [10,10,10]
-from cemc import get_ce_calc
+from cemc import get_atoms_with_ce_calc
 
-calc = get_ce_calc( ceBulk, kwargs, eci=eci, size=mc_cell_size, db_name="mc_obs.db")
-ceBulk = calc.BC
-ceBulk.atoms.set_calculator(calc)
-
+atoms = get_atoms_with_ce_calc(ceBulk, kwargs, eci=eci, size=mc_cell_size, db_name="mc_obs.db")
+calc = atoms.get_calculator()
 conc = {
     "Al":0.8,
     "Mg":0.2
@@ -51,7 +43,7 @@ calc.set_composition(conc)
 # Now we import the Monte Carlo class
 from cemc.mcmc.montecarlo import Montecarlo
 T = 400 # Run the simulation at 400K
-mc_obj = Montecarlo( ceBulk.atoms, T )
+mc_obj = Montecarlo(atoms, T)
 
 # Now we define the observers
 from cemc.mcmc import CorrelationFunctionTracker, PairCorrelationObserver, Snapshot, LowestEnergyStructure, NetworkObserver
@@ -70,7 +62,7 @@ pair_obs = PairCorrelationObserver(calc)
 
 # This function takes a snap shot of the system and collects
 # them in a trajectory file
-snapshot = Snapshot( trajfile="demo.traj", atoms=ceBulk.atoms )
+snapshot = Snapshot( trajfile="demo.traj", atoms=atoms )
 
 # This observer stores the structure having the lowest energy
 low_en = LowestEnergyStructure( calc, mc_obj )
@@ -79,7 +71,7 @@ low_en = LowestEnergyStructure( calc, mc_obj )
 network_obs = NetworkObserver( calc=calc, cluster_name=[get_example_network_name(ceBulk)], element=["Mg"])
 
 # This tracks the average number of sites that where the symbol as changed
-site_order = SiteOrderParameter(ceBulk.atoms)
+site_order = SiteOrderParameter(atoms)
 
 # Energy evolution. Useful to check if the system has been equilibrated
 energy_evol = EnergyEvolution(mc_obj)
@@ -88,7 +80,7 @@ energy_evol = EnergyEvolution(mc_obj)
 energy_hist = EnergyHistogram(mc_obj, n_bins=100)
 
 # Make backup at regular intervals
-mc_backup = MCBackup(mc_obj, backup_file="montecarlo_example_backup.pkl")
+mc_backup = MCBackup(mc_obj, backup_file="montecarlo_example_backup.pkl", db_name="mc_ex_backup.db")
 
 # Now we can attach the observers to the mc_obj
 mc_obj.attach( corr_func_obs, interval=1 )
@@ -125,3 +117,4 @@ import os
 os.remove("mc_obs.db")
 os.remove("montecarlo.pkl")
 os.remove("montecarlo_example_backup.pkl")
+os.remove("mc_ex_backup.db")
