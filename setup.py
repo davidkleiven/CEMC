@@ -26,7 +26,7 @@ ce_updater_sources = ["ce_updater.cpp", "cf_history_tracker.cpp",
                       "eshelby_tensor.cpp", "eshelby_sphere.cpp",
                       "eshelby_cylinder.cpp", "init_numpy_api.cpp",
                       "symbols_with_numbers.cpp", "basis_function.cpp",
-                      "mat4D.cpp"]
+                      "mat4D.cpp", "khacaturyan.cpp"]
 
 ce_updater_sources = [src_folder+"/"+srcfile for srcfile in ce_updater_sources]
 ce_updater_sources.append("cemc/cpp_ext/cemc_cpp_code.pyx")

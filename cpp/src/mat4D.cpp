@@ -65,3 +65,13 @@ PyObject* Mat4D::to_numpy() const{
     }
     return npy;
 }
+
+double Mat4D::operator()(unsigned int i, unsigned int j, 
+                         unsigned int k, unsigned int l) const{
+                             return data[get_index(i, j, k, l)];
+                         }
+
+double& Mat4D::operator()(unsigned int i, unsigned int j, 
+                         unsigned int k, unsigned int l){
+                             return data[get_index(i, j, k, l)];
+                         }

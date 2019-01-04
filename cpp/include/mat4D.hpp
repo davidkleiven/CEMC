@@ -9,11 +9,11 @@ public:
     Mat4D(){};
     ~Mat4D();
 
-    // double operator()(unsigned int i, unsigned int j, \
-    //                   unsigned int k, unsigned int l) const;
+    double operator()(unsigned int i, unsigned int j, \
+                      unsigned int k, unsigned int l) const;
 
-    // double& operator()(unsigned int i, unsigned int j, \
-    //                    unsigned int k, unsigned int l);
+    double& operator()(unsigned int i, unsigned int j, \
+                       unsigned int k, unsigned int l);
 
     /** Return the total size of the matrix */
     unsigned int size() const {return n1*n2*n3*n4;};

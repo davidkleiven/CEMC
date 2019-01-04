@@ -1,8 +1,11 @@
 import unittest
 import numpy as np
+from itertools import product
 
 try:
     from cemc.tools import Khachaturyan
+    from cemc_cpp_code import PyKhachaturyan
+    from cemc.tools import to_full_rank4
     available = True
     reason = ""
 except ImportError as exc:
@@ -29,16 +32,64 @@ class TestKhacaturyan(unittest.TestCase):
     def isotropic_green_function(self, k):
         return np.eye(3)/self.G - 0.5*np.outer(k, k)/(self.G*(1.0 - self.poisson))
 
+    def get_sphere_voxels(self, N):
+        shape_func = np.zeros((N, N, N), dtype=np.uint8)
+        indx = np.array(range(N))
+        ix, iy, iz = np.meshgrid(indx, indx, indx)
+        r_sq = (ix-N/2)**2 + (iy-N/2)**2 + (iz-N/2)**2
+        r = N/8.0
+        shape_func[r_sq<r] = 1
+        return shape_func
+
     def test_isotropic(self):
         if not available:
             self.skipTest(reason)
         
-        strain = Khachaturyan(elastic_tensor=self.get_isotropic_tensor())
+        misfit = np.eye(3)*0.05
+        strain = Khachaturyan(elastic_tensor=self.get_isotropic_tensor(),
+                              misfit_strain=misfit)
         k = np.array([5.0, -2.0, 7.0])
         khat = k/np.sqrt(k.dot(k))
         zeroth = strain.zeroth_order_green_function(khat)
         self.assertTrue(np.allclose(zeroth, self.isotropic_green_function(khat)))
 
+    def eshelby_strain_energy_sphere(self, misfit):
+        return 2*(1+self.poisson)*self.G*misfit**2/(1-self.poisson)
+
+    def test_green_function_cpp(self):
+        misfit = np.eye(3)*0.05
+        ft = np.zeros((8, 8, 8))
+        elastic = to_full_rank4(self.get_isotropic_tensor())
+        pykhach = PyKhachaturyan(ft, elastic, misfit)
+        k = np.array([-1.0, 3.0, 2.5])
+        k /= np.sqrt(k.dot(k))
+        gf = pykhach.green_function(k)
+        self.assertTrue(np.allclose(gf, self.isotropic_green_function(k)))
+
+    def test_frequency(self):
+        misfit = np.eye(3)*0.05
+        ft = np.zeros((8, 8, 8))
+        elastic = to_full_rank4(self.get_isotropic_tensor())
+        pykhach = PyKhachaturyan(ft, elastic, misfit)
+
+        freq = np.fft.fftfreq(ft.shape[0])
+        for i in range(ft.shape[0]):
+            indx = np.array([i, 0, 0])
+            self.assertAlmostEqual(freq[i], pykhach.wave_vector(indx)[0])
+
+    # def test_sphere(self):
+    #     if not available:
+    #         self.skipTest(reason)
+    #     eps = 0.05
+    #     misfit = np.eye(3)*eps
+    #     strain = Khachaturyan(elastic_tensor=self.get_isotropic_tensor(),
+    #                           misfit_strain=misfit)
+    #     sph = self.get_sphere_voxels(128)
+    #     V = np.sum(sph)
+    #     E = strain.strain_energy_voxels(sph)
+    #     print(E)
+    #     print(self.eshelby_strain_energy_sphere(eps))
+        
 
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
