@@ -21,6 +21,9 @@ public:
 
     /** Calculate the frequency corresponding to a set indx ({ix, iy, iz })*/
     void wave_vector(unsigned int indx[3], double vec[3]) const;
+
+    /** Calculate the zeroth order integral */
+    double zeroth_order_integral();
 private:
     mat3x3 misfit;
     Mat4D elastic;
@@ -28,5 +31,7 @@ private:
 
     void convertMisfit(PyObject *pymisfit);
     void convertShapeFunc(PyObject *ft_shp);
+    static void unit_vector(double vec[3]);
+    static double contract_green_function(const mat3x3 &G, const mat3x3 &eff_stress, double uvec[3]);
 };
 #endif

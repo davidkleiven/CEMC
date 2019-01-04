@@ -7,3 +7,5 @@ cdef extern from "khachaturyan.hpp":
     object green_function(object direction) const
 
     void wave_vector(unsigned int indx[3], double direction[3]) const
+
+    double zeroth_order_integral()

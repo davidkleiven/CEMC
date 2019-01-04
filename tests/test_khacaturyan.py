@@ -11,6 +11,7 @@ try:
 except ImportError as exc:
     available = False
     reason = str(exc)
+    print(reason)
 
 class TestKhacaturyan(unittest.TestCase):
     K = 50.0
@@ -57,6 +58,8 @@ class TestKhacaturyan(unittest.TestCase):
         return 2*(1+self.poisson)*self.G*misfit**2/(1-self.poisson)
 
     def test_green_function_cpp(self):
+        if not available:
+            self.skipTest(available)
         misfit = np.eye(3)*0.05
         ft = np.zeros((8, 8, 8))
         elastic = to_full_rank4(self.get_isotropic_tensor())
@@ -67,6 +70,8 @@ class TestKhacaturyan(unittest.TestCase):
         self.assertTrue(np.allclose(gf, self.isotropic_green_function(k)))
 
     def test_frequency(self):
+        if not available:
+            self.skipTest(reason)
         misfit = np.eye(3)*0.05
         ft = np.zeros((8, 8, 8))
         elastic = to_full_rank4(self.get_isotropic_tensor())
@@ -77,18 +82,31 @@ class TestKhacaturyan(unittest.TestCase):
             indx = np.array([i, 0, 0])
             self.assertAlmostEqual(freq[i], pykhach.wave_vector(indx)[0])
 
-    # def test_sphere(self):
-    #     if not available:
-    #         self.skipTest(reason)
-    #     eps = 0.05
-    #     misfit = np.eye(3)*eps
-    #     strain = Khachaturyan(elastic_tensor=self.get_isotropic_tensor(),
-    #                           misfit_strain=misfit)
-    #     sph = self.get_sphere_voxels(128)
-    #     V = np.sum(sph)
-    #     E = strain.strain_energy_voxels(sph)
-    #     print(E)
-    #     print(self.eshelby_strain_energy_sphere(eps))
+    def test_sphere(self):
+        if not available:
+            self.skipTest(reason)
+        eps = 0.05
+        misfit = np.eye(3)*eps
+        strain = Khachaturyan(elastic_tensor=self.get_isotropic_tensor(),
+                              misfit_strain=misfit)
+        sph = self.get_sphere_voxels(256)
+        V = np.sum(sph)
+        E = strain.strain_energy_voxels(sph)
+        E_eshelby = self.eshelby_strain_energy_sphere(eps)
+        self.assertAlmostEqual(E, E_eshelby, places=3)
+
+    def test_sphere_pure_python(self):
+        if not available:
+            self.skipTest(reason)
+        eps = 0.05
+        misfit = np.eye(3)*eps
+        strain = Khachaturyan(elastic_tensor=self.get_isotropic_tensor(),
+                              misfit_strain=misfit)
+        sph = self.get_sphere_voxels(32)
+        V = np.sum(sph)
+        E = strain.strain_energy_voxels(sph)
+        E_eshelby = self.eshelby_strain_energy_sphere(eps)
+        self.assertAlmostEqual(E, E_eshelby, places=3)
         
 
 if __name__ == "__main__":

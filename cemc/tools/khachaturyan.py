@@ -1,6 +1,7 @@
 import numpy as np
 from cemc.tools import to_full_rank4
 from itertools import product
+from cemc_cpp_code import PyKhachaturyan
 
 class Khachaturyan(object):
     def __init__(self, elastic_tensor=None, uniform_strain=None, 
@@ -31,14 +32,10 @@ class Khachaturyan(object):
         """
         return np.einsum("ijkl,kl", self.C, self.misfit_strain)
 
-    def strain_energy_voxels(self, shape_function):
-        """Calculate the strain energy for the given shape function."""
-        V = np.sum(shape_function)
-        ft = np.abs(np.fft.fftn(shape_function))**2
-        ft /= np.prod(ft.shape)
+    def zeroth_order_integral_pure_python(self, ft):
         freqs = []
-        for i in range(len(shape_function.shape)):
-            freqs.append(np.fft.fftfreq(shape_function.shape[i]))
+        for i in range(len(ft.shape)):
+            freqs.append(np.fft.fftfreq(ft.shape[i]))
         eff = self.effective_stress()
 
         indices = [range(len(f)) for f in freqs]
@@ -50,9 +47,22 @@ class Khachaturyan(object):
             G = self.zeroth_order_green_function(khat)
             val = np.einsum("ik,k,ij,jl,l", eff, khat, G, eff, khat)
             ft[indx[0], indx[1], indx[2]] *= val
-        
+        return np.sum(ft)
+
+    def strain_energy_voxels(self, shape_function, pure_python=False):
+        """Calculate the strain energy for the given shape function."""
+        V = np.sum(shape_function)
+        ft = np.abs(np.fft.fftn(shape_function))**2
+        ft /= np.prod(ft.shape)
+
+        if pure_python:
+            integral = self.zeroth_order_integral_pure_python()
+        else:
+            pykhach = PyKhachaturyan(ft, self.C, self.misfit_strain)
+            integral = pykhach.zeroth_order_integral()
+
         diff = self.misfit_strain - self.uniform_strain
         energy = 0.5*np.einsum("ijkl,ij,kl", self.C, diff, diff)
-        return energy - 0.5*np.sum(ft)/V
+        return energy - 0.5*integral/V
 
     

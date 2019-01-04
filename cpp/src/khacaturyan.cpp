@@ -97,3 +97,65 @@ void Khachaturyan::wave_vector(unsigned int indx[3], double vec[3]) const{
         }
     }
 }
+
+double Khachaturyan::zeroth_order_integral(){
+    mat3x3 eff_stress;
+    effective_stress(eff_stress);
+    
+    double integral = 0.0;
+    for (unsigned int i=0;i<ft_shape_func.size();i++)
+    for (unsigned int j=0;j<ft_shape_func[i].size();j++)
+    for (unsigned int k=0;k<ft_shape_func[i][j].size();k++)
+    {
+        // Handle this case separately!
+        if ((i==0) && (j==0) && (k==0)) continue;
+
+        unsigned int indx[3] = {i, j, k};
+        double kvec[3];
+        wave_vector(indx, kvec);
+        unit_vector(kvec);
+        mat3x3 G;
+        green_function(G, kvec);
+
+        double res = contract_green_function(G, eff_stress, kvec);
+        integral += res*ft_shape_func[i][j][k];
+    }
+    return integral;
+}
+
+void Khachaturyan::unit_vector(double vec[3]){
+    double length  = 0.0;
+    for (unsigned int i=0;i<3;i++){
+        length += vec[i]*vec[i];
+    }
+
+    length = sqrt(length);
+    if (length < 1E-8) return;
+
+    for (unsigned int i=0;i<3;i++){
+        vec[i] /= length;
+    }
+}
+
+double Khachaturyan::contract_green_function(const mat3x3 &G, const mat3x3 &eff_stress, double uvec[3]){
+    double result = 0.0;
+    double temp_vec[3] = {0.0, 0.0, 0.0};
+
+    // Stress with unit vector
+    for (unsigned int i=0;i<3;i++)
+    for (unsigned int j=0;j<3;j++){
+        temp_vec[i] += eff_stress[i][j]*uvec[j];
+    }
+
+    // Green function with temp_vec
+    double temp_vec2[3] = {0.0, 0.0, 0.0};
+    for (unsigned int i=0;i<3;i++)
+    for (unsigned int j=0;j<3;j++){
+        temp_vec2[i] += G[i][j]*temp_vec[j];
+    }
+
+    for (unsigned int i=0;i<3;i++){
+        result += temp_vec[i]*temp_vec2[i];
+    }
+    return result;
+}

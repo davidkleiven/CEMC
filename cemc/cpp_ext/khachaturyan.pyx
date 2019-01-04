@@ -28,4 +28,7 @@ cdef class PyKhachaturyan:
         for i in range(3):
             out[i] = dir_c[i]
         return out
+
+    def zeroth_order_integral(self):
+        return self._self.zeroth_order_integral()
         
