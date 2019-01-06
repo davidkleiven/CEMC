@@ -42,6 +42,18 @@ class TestKhacaturyan(unittest.TestCase):
         shape_func[r_sq<r] = 1
         return shape_func
 
+    def get_plate_voxels(self, N):
+        shape_func = np.zeros((N, N, N), dtype=np.uint8)
+        width = int(N/4)
+        shape_func[:width, :width, :2] = 1
+        return shape_func
+
+    def get_needle_voxels(self, N):
+        shape_func = np.zeros((N, N, N), dtype=np.uint8)
+        width = int(N/4)
+        shape_func[:width, :2, :2] = 1
+        return shape_func
+
     def test_isotropic(self):
         if not available:
             self.skipTest(reason)
@@ -55,6 +67,12 @@ class TestKhacaturyan(unittest.TestCase):
         self.assertTrue(np.allclose(zeroth, self.isotropic_green_function(khat)))
 
     def eshelby_strain_energy_sphere(self, misfit):
+        return 2*(1+self.poisson)*self.G*misfit**2/(1-self.poisson)
+
+    def eshelby_strain_energy_plate(self, misfit):
+        return 2*(1+self.poisson)*self.G*misfit**2/(1-self.poisson)
+
+    def eshelby_strain_energy_needle(self, misfit):
         return 2*(1+self.poisson)*self.G*misfit**2/(1-self.poisson)
 
     def test_green_function_cpp(self):
@@ -107,7 +125,32 @@ class TestKhacaturyan(unittest.TestCase):
         E = strain.strain_energy_voxels(sph)
         E_eshelby = self.eshelby_strain_energy_sphere(eps)
         self.assertAlmostEqual(E, E_eshelby, places=3)
+
+    def test_plate_voxels(self):
+        if not available:
+            self.skipTest(reason)
         
+        eps = 0.05
+        misfit = np.eye(3)*eps
+        strain = Khachaturyan(elastic_tensor=self.get_isotropic_tensor(),
+                              misfit_strain=misfit)
+        plate = self.get_plate_voxels(256)
+        E = strain.strain_energy_voxels(plate)
+        E_eshelby = self.eshelby_strain_energy_plate(eps)
+        self.assertAlmostEqual(E, E_eshelby, places=3)
+
+    def test_needle_voxels(self):
+        if not available:
+            self.skipTest(reason)
+        
+        eps = 0.05
+        misfit = np.eye(3)*eps
+        strain = Khachaturyan(elastic_tensor=self.get_isotropic_tensor(),
+                              misfit_strain=misfit)
+        needle = self.get_needle_voxels(256)
+        E = strain.strain_energy_voxels(needle)
+        E_eshelby = self.eshelby_strain_energy_needle(eps)
+        self.assertAlmostEqual(E, E_eshelby, places=3)
 
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
