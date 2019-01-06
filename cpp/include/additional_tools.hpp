@@ -9,6 +9,7 @@
 #include <Python.h>
 
 typedef std::array<SymbolChange, 2> swap_move;
+typedef std::array<std::array<double,3>, 3> mat3x3;
 
 
 //class SymbolChange;
@@ -61,6 +62,9 @@ bool is_in_vector(const T &value, const std::vector<T> &vec);
 
 template<class T>
 void insert_in_set(const std::vector<T> &vec, std::set<T> &unique);
+
+/** Calculate the inverse of a 3x3 matrix */
+void inverse3x3(const mat3x3 &inarray, mat3x3 &inv);
 
 #include "additional_tools.tpp"
 #endif
