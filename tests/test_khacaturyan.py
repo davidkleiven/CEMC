@@ -108,7 +108,6 @@ class TestKhacaturyan(unittest.TestCase):
         strain = Khachaturyan(elastic_tensor=self.get_isotropic_tensor(),
                               misfit_strain=misfit)
         sph = self.get_sphere_voxels(256)
-        V = np.sum(sph)
         E = strain.strain_energy_voxels(sph)
         E_eshelby = self.eshelby_strain_energy_sphere(eps)
         self.assertAlmostEqual(E, E_eshelby, places=3)
@@ -121,7 +120,6 @@ class TestKhacaturyan(unittest.TestCase):
         strain = Khachaturyan(elastic_tensor=self.get_isotropic_tensor(),
                               misfit_strain=misfit)
         sph = self.get_sphere_voxels(32)
-        V = np.sum(sph)
         E = strain.strain_energy_voxels(sph)
         E_eshelby = self.eshelby_strain_energy_sphere(eps)
         self.assertAlmostEqual(E, E_eshelby, places=3)
