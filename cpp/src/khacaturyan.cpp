@@ -108,17 +108,34 @@ double Khachaturyan::zeroth_order_integral(){
     for (unsigned int k=0;k<ft_shape_func[i][j].size();k++)
     {
         // Handle this case separately!
-        if ((i==0) && (j==0) && (k==0)) continue;
+        if ((i==0) && (j==0) && (k==0)){
+            // G is not continuos
+            // Average over 8 directions
+            double weight = 1.0/8.0;
+            double shape_val = ft_shape_func[0][0][0];
+            for (int x=-1;x<=1;x+=2)
+            for (int y=-1;y<=1;y+=2)
+            for (int z=-1;z<=1;z+=2){
+                unsigned int indx[3] = {1, 0, 0};
+                double kvec[3];
+                wave_vector(indx, kvec);
+                mat3x3 G;
+                green_function(G, kvec);
+                double res = contract_green_function(G, eff_stress, kvec);
+                integral += weight*res*shape_val;
+            }
+        }
+        else{
+            unsigned int indx[3] = {i, j, k};
+            double kvec[3];
+            wave_vector(indx, kvec);
+            unit_vector(kvec);
+            mat3x3 G;
+            green_function(G, kvec);
 
-        unsigned int indx[3] = {i, j, k};
-        double kvec[3];
-        wave_vector(indx, kvec);
-        unit_vector(kvec);
-        mat3x3 G;
-        green_function(G, kvec);
-
-        double res = contract_green_function(G, eff_stress, kvec);
-        integral += res*ft_shape_func[i][j][k];
+            double res = contract_green_function(G, eff_stress, kvec);
+            integral += res*ft_shape_func[i][j][k];
+        }
     }
     return integral;
 }
