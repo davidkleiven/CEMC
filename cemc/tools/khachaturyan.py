@@ -2,7 +2,7 @@ import numpy as np
 from cemc.tools import to_full_rank4
 from itertools import product
 from cemc_cpp_code import PyKhachaturyan
-from cemc.tools import rotate_tensor, rot_matrix
+from cemc.tools import rotate_tensor, rot_matrix, rotate_rank4_tensor
 import time
 import datetime
 
@@ -87,6 +87,7 @@ class Khachaturyan(object):
         ph = list(range(phi_min, phi_max, step))
 
         misfit_orig = self.misfit_strain.copy()
+        orig_C = self.C.copy()
         result = []
         now = time.time()
         status_interval = 30
@@ -99,6 +100,7 @@ class Khachaturyan(object):
 
             # Rotate the strain tensor
             self.misfit_strain = rotate_tensor(misfit_orig, matrix)
+            self.C = rotate_rank4_tensor(orig_C.copy(), matrix)
             energy = self.strain_energy_voxels(voxels)
             result.append([ang[0], ang[1], energy])
 
