@@ -17,6 +17,7 @@ void Khachaturyan::convertMisfit(PyObject *pymisfit){
         double *val = static_cast<double*>(PyArray_GETPTR2(npy, i, j));
         misfit[i][j] = *val;
     }
+    Py_DECREF(npy);
 }
 
 void Khachaturyan::convertShapeFunc(PyObject *ft_shp){
@@ -37,6 +38,7 @@ void Khachaturyan::convertShapeFunc(PyObject *ft_shp){
         }
         ft_shape_func.push_back(vec_outer);
     } 
+    Py_DECREF(npy);
 }
 
 void Khachaturyan::green_function(mat3x3 &G, double direction[3]) const{
