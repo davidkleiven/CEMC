@@ -45,6 +45,41 @@ class StrainEnergy(object):
                                     poisson)
         return eshelby
 
+    def make_isotropic(self, C):
+        """Convert the elastic tensor to an isotropic tensor by 
+            averaging.
+
+        :param np.ndarray C: Elastic tensor in Mandel format    
+        """
+
+        # Calculate Bulk and shear modulus according to 
+        # https://wiki.materialsproject.org/Elasticity_calculations
+
+        B = C[0, 0] + C[1, 1] + C[2, 2] + \
+            2*(C[0, 1] + C[1, 2] + C[0, 2])
+        B /= 9.0
+
+        # NOTE: 0.5 on the last line is because the tensor is assumed
+        # by given by its Mandel representation and the webpage listed
+        # above assumes Voigt representation
+        G = C[0, 0] + C[1, 1] + C[2, 2] - \
+            (C[0, 1] + C[1, 2] + C[0, 2]) + \
+            3*0.5*(C[3, 3] + C[4, 4] + C[5, 5])
+        G /= 15.0
+
+        print(B, G)
+        
+        isotropic = np.zeros((6, 6))
+        isotropic[0, 0] = isotropic[1, 1] = isotropic[2, 2] = B + 4*G/3
+
+        isotropic[0, 1] = isotropic[0, 2] = \
+        isotropic[1, 0] = isotropic[1, 2] = \
+        isotropic[2, 0] = isotropic[2, 1] = B - 2*G/3
+
+        isotropic[3, 3] = isotropic[4, 4] = isotropic[5, 5] = \
+            2*G
+        return isotropic
+
     def _check_ellipsoid(self, ellipsoid):
         """Check that the ellipsoid arguments is correct.
         
@@ -175,6 +210,11 @@ class StrainEnergy(object):
 
         if C_prec is None:
             C_prec = scale_factor*C_matrix
+
+        # Convert the tensors to their isotropic representation
+        C_matrix = self.make_isotropic(C_matrix)
+        C_prec = self.make_isotropic(C_prec)
+
         aspect = np.array(ellipsoid["aspect"])
         self.eshelby = StrainEnergy.get_eshelby(aspect, self.poisson)
         result = []
