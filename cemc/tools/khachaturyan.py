@@ -2,6 +2,9 @@ import numpy as np
 from cemc.tools import to_full_rank4
 from itertools import product
 from cemc_cpp_code import PyKhachaturyan
+from cemc.tools import rotate_tensor, rot_matrix, rotate_rank4_tensor
+import time
+import datetime
 
 class Khachaturyan(object):
     def __init__(self, elastic_tensor=None, uniform_strain=None, 
@@ -56,7 +59,7 @@ class Khachaturyan(object):
         ft /= np.prod(ft.shape)
 
         if pure_python:
-            integral = self.zeroth_order_integral_pure_python()
+            integral = self.zeroth_order_integral_pure_python(ft)
         else:
             pykhach = PyKhachaturyan(ft, self.C, self.misfit_strain)
             integral = pykhach.zeroth_order_integral()
@@ -64,5 +67,56 @@ class Khachaturyan(object):
         diff = self.misfit_strain - self.uniform_strain
         energy = 0.5*np.einsum("ijkl,ij,kl", self.C, diff, diff)
         return energy - 0.5*integral/V
+
+    def explore_orientations(self, voxels, theta_ax="y", phi_ax="z", step=5,
+                             theta_min=0, theta_max=180, phi_min=0, phi_max=360,
+                             fname=None):
+        """Explore orientation dependency of the strain energy.
+        
+        :param np.ndarray voxels: Voxel representation of the geometry
+        :param str theta_ax: Rotation axis for theta angle
+        :param str phi_ax: Rotation axis for phi angle
+        :param int step: Angle change in degress
+        :param int theta_min: Start angle for theta
+        :param int theta_max: End angle for theta
+        :param int phi_min: Start angle for phi
+        :param int phi_max: End angle for phi
+        :param fname str: Filename for storing the output result
+        """
+        th = list(range(theta_min, theta_max, step))
+        ph = list(range(phi_min, phi_max, step))
+
+        misfit_orig = self.misfit_strain.copy()
+        orig_C = self.C.copy()
+        result = []
+        now = time.time()
+        status_interval = 30
+        for ang in product(th, ph):
+            if time.time() - now > status_interval:
+                print("Theta: {}, Phi: {}".format(ang[0], ang[1]))
+                now = time.time()
+            seq = [(theta_ax, -ang[0]), (phi_ax, -ang[1])]
+            matrix = rot_matrix(seq)
+
+            # Rotate the strain tensor
+            self.misfit_strain = rotate_tensor(misfit_orig, matrix)
+            self.C = rotate_rank4_tensor(orig_C.copy(), matrix)
+            energy = self.strain_energy_voxels(voxels)
+            result.append([ang[0], ang[1], energy])
+
+        if fname is None:
+            fname = "khacaturyan_orientaions{}.csv".format(timestamp)
+        
+        np.savetxt(fname, np.array(result), delimiter=",", header=
+                   "Theta ({}) deg, Phi ({}) deg, Energy (eV)".format(theta_ax, phi_ax))
+        print("Results of orientation exploration written to {}".format(fname))
+
+def timestamp():
+    ts = time.time()
+    return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d_%H:%M:%S')
+
+
+
+
 
     

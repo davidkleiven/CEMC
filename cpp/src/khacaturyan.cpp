@@ -1,6 +1,7 @@
 #include "khachaturyan.hpp"
 #include "use_numpy.hpp"
 #include "additional_tools.hpp"
+#include <omp.h>
 
 using namespace std;
 Khachaturyan::Khachaturyan(PyObject *ft_shape_func, PyObject *elastic_tensor, PyObject *misfit_strain){
@@ -17,6 +18,7 @@ void Khachaturyan::convertMisfit(PyObject *pymisfit){
         double *val = static_cast<double*>(PyArray_GETPTR2(npy, i, j));
         misfit[i][j] = *val;
     }
+    Py_DECREF(npy);
 }
 
 void Khachaturyan::convertShapeFunc(PyObject *ft_shp){
@@ -37,6 +39,7 @@ void Khachaturyan::convertShapeFunc(PyObject *ft_shp){
         }
         ft_shape_func.push_back(vec_outer);
     } 
+    Py_DECREF(npy);
 }
 
 void Khachaturyan::green_function(mat3x3 &G, double direction[3]) const{
@@ -103,9 +106,16 @@ double Khachaturyan::zeroth_order_integral(){
     effective_stress(eff_stress);
     
     double integral = 0.0;
-    for (unsigned int i=0;i<ft_shape_func.size();i++)
-    for (unsigned int j=0;j<ft_shape_func[i].size();j++)
-    for (unsigned int k=0;k<ft_shape_func[i][j].size();k++)
+    unsigned int nx = ft_shape_func.size();
+    unsigned int ny = ft_shape_func[0].size();
+    unsigned int nz = ft_shape_func[0][0].size();
+
+    #ifdef PARALLEL_KHACHATURYAN_INTEGRAL
+    #pragma omp parallel for collapse(3) reduction(+:integral)
+    #endif
+    for (unsigned int i=0;i<nx;i++)
+    for (unsigned int j=0;j<ny;j++)
+    for (unsigned int k=0;k<nz;k++)
     {
         // Handle this case separately!
         if ((i==0) && (j==0) && (k==0)){
