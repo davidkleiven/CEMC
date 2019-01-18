@@ -2,51 +2,79 @@ import sys
 import numpy as np
 from itertools import combinations_with_replacement, filterfalse
 from itertools import permutations
-from scipy.optimize import minimize, curve_fit
+from scipy.optimize import minimize, root, brentq
 from copy import deepcopy
 
 class MultivariatePolynomial(object):
-    def __init__(self, coeff=[], powers=[], cyclic=False):
+    def __init__(self, coeff=[], powers=[], cyclic=False, center=0.0):
         self.powers = powers
-        self.coeff = coeff
+        self._coeff = coeff
         self.cyclic = cyclic
+        self.center = 0.0
 
-    def __call__(self, x):
-        if len(x) != len(self.powers[0]):
+    @property
+    def coeff(self):
+        return self._coeff
+
+    @coeff.setter
+    def coeff(self, new_coeff):
+        if len(new_coeff) != len(self._coeff):
+            raise ValueError("New coefficients has the wrong length!")
+        self._coeff = new_coeff
+
+    def get_all_terms(self, x):
+        try:
+            n = len(x)
+        except:
+            x = np.array([x])
+            n = len(x)
+
+        if n != len(self.powers[0]):
             raise TypeError("The length of x needs to match!")
 
         def get_terms(powers):
             if self.cyclic:
-                terms = [np.prod(np.power(x, np.roll(powers, i))) for i in range(3)]
+                terms = [np.prod(np.power(x-self.center, np.roll(powers, i))) for i in range(3)]
             else:
-                terms = [np.prod(np.power(x, powers))]
+                terms = [np.prod(np.power(x-self.center, powers))]
             return sum(terms)
 
-        terms = list(map(get_terms, self.powers))
-        return np.array(terms).dot(self.coeff)
+        return list(map(get_terms, self.powers))
+
+    def __call__(self, x):
+        x = np.array(x)
+        terms = self.get_all_terms(x)
+        return np.array(terms).dot(self._coeff)
 
     def deriv(self, x, dim=0):
-        if len(x) != len(self.powers[0]):
+        try:
+            n = len(x)
+        except:
+            x = np.array([x])
+            n = len(x)
+
+        if n != len(self.powers[0]):
             raise TypeError("The length of x needs to match!")
 
+        x = np.array(x)
         def get_terms(powers):
             if self.cyclic:
                 terms = []
                 for i in range(3):
                     rolled_power = np.roll(powers, i)
-                    terms.append(rolled_power[dim]*np.prod(np.power(x, rolled_power)))
+                    terms.append(rolled_power[dim]*np.prod(np.power(x-self.center, rolled_power)))
             else:
                 prefactors = deepcopy(powers)
                 powers = list(powers)
                 powers[dim] -= 1
-                terms = [prefactors[dim]*np.prod(np.power(x, powers))]
+                if powers[dim] < 0:
+                    assert prefactors[dim] == 0
+                    powers[dim] = 0
+                terms = [prefactors[dim]*np.prod(np.power(x-self.center, powers))]
             return sum(terms)
 
         terms = list(map(get_terms, self.powers))
-        return np.array(terms).dot(self.coeff)
-        
-
-
+        return np.array(terms).dot(self._coeff)
 
 class TwoPhaseLandauPolynomial(object):
     def __init__(self, conc_order=2, strain_order=6, c1=0.0, c2=1.0,
@@ -56,141 +84,101 @@ class TwoPhaseLandauPolynomial(object):
         self.c1 = c1
         self.c2 = c2
         self.num_dir = num_dir
-        self.coefficients = {
-            "conc1": np.zeros(int(self.conc_order/2)),
-            "conc2": np.zeros(int(self.conc_order/2)),
-            "shape": np.zeros(self.num_strain_coeff)
+        n = int(conc_order/2)
+        cnc_pow = [(x,) for x in range(2, conc_order+1, 2)]
+        shape_pow = np.array(list(self.shape_powers))/2
+        self.polynomials = {
+            "phase1": MultivariatePolynomial(coeff=np.zeros(n), powers=cnc_pow, center=c1),
+            "phase2": MultivariatePolynomial(coeff=np.zeros(1), powers=[(1,)], center=c2),
+            "shape": MultivariatePolynomial(coeff=np.zeros(self.num_strain_coeff), 
+                                            powers=shape_pow, cyclic=True)
         }
         self.optimal_shape_var = None
 
     @property
     def num_strain_coeff(self):
-        return len(list(self.shape_powers)) - 1
+        return len(list(self.shape_powers))
 
     @property
     def shape_powers(self):
         exponents = range(0, self.strain_order+1, 2)
 
         def condition(x):
-            return sum(x) > self.strain_order or sum(x) == 0
+            return sum(x) > self.strain_order or sum(x) <= 2
         return filterfalse(condition, combinations_with_replacement(exponents, r=self.num_dir))
-
-    def conc1_terms(self, conc):
-        powers = range(2, self.conc_order+1, 2)
-        return map(lambda x: (conc-self.c1)**x, powers)
-
-    def conc2_terms(self, conc):
-        powers = range(2, self.conc_order+1, 2)
-        return map(lambda x: (conc-self.c2)**x, powers)
-
-    def shape_terms(self, shape):
-        powers = list(self.shape_powers)
-        def sum_shape_term(powers):
-            terms = [np.prod(np.power(shape, np.roll(powers, i))) for i in range(3)]
-            return sum(terms)
-        return map(sum_shape_term, powers)
-
-    def contribution_from_conc2(self, conc, shape):
-        conc2_contrib = (conc - self.c2)*self.coefficients["conc2"][0]
-        conc2_contrib *= np.sum(shape**2)
-        return conc2_contrib
 
     def evaluate(self, conc, shape):
         """Evaluate the polynomial."""
-        conc1_terms = list(self.conc1_terms(conc))
-        conc1_contrib = np.array(conc1_terms).dot(self.coefficients["conc1"])
-
-        conc2_contrib = self.contribution_from_conc2(conc, shape)
-        shape_terms = list(self.shape_terms(shape))[1:]
-        shape_contrib = np.array(shape_terms).dot(self.coefficients["shape"])
-        return conc1_contrib + conc2_contrib + shape_contrib
+        return self.polynomials["phase1"](conc) + \
+            self.polynomials["phase2"](conc)*np.sum(np.array(shape)**2) + \
+            self.polynomials["shape"](np.array(shape)**2)
 
     def fit(self, conc1, free_energy1, conc2, free_energy2, tol=1E-4, penalty=1E-8,
             fname=""):
         """Fit a free energy polynomial."""
         # First we fit to the first phase, where there are no
         # impact of the shape parameters
-        terms = np.array(list(self.conc1_terms(conc1))).T
-        coeff, _, _, _ = np.linalg.lstsq(terms, free_energy1, rcond=None)
-        self.coefficients["conc1"] = coeff
+        if len(conc1.shape) == 1:
+            conc1 = conc1.reshape((conc1.shape[0], 1))
+            assert len(conc1.shape) == 2
+        fit_polynomial(self.polynomials["phase1"], conc1, free_energy1)
 
-        # Fit the second term
-        conc1_terms = self.conc1_terms(conc2)
-        conc1_contrib = np.zeros_like(conc2)
-        for i, term in enumerate(conc1_terms):
-            conc1_contrib += term*self.coefficients["conc1"][i]
+        # Fit the remaining coefficients
+        # Define some functions to be used during the optimization
+        def derivative_wrt_shape(x, conc):
+            full_shape = np.array([x, x, x])
+            deriv = self.polynomials["shape"].deriv(full_shape**2)
+            return deriv + self.polynomials["phase2"](conc)
+
+        conc1_contrib = np.array([self.polynomials["phase1"](c) for c in list(conc2)])
         rhs = free_energy2 - conc1_contrib
+        # Cost function to minimize
+        def cost_func(x):
+            self.polynomials["phase2"].coeff[0] = x[0]
+            self.polynomials["shape"].coeff = x[1:]
+            
+            # Optimize the cost function
+            pred = np.zeros(len(conc2))
+            for i in range(len(conc2)):
+                #res = root(derivative_wrt_shape, 0.2, args=(conc2[i],))
+                try:
+                    shape = brentq(derivative_wrt_shape, 0.0, 1.0, args=(conc2[i],))
+                except Exception:
+                    shape = 1.0
+                full_shape = [shape, shape, shape]
+                pred[i] = self.evaluate(conc2[i], full_shape)
+            mse = np.sum((pred-rhs)**2)
+            #print(np.sqrt(mse), x, pred[0], rhs[0], pred[-1], rhs[-1])
+            return mse
 
+        options = {"eps": 0.05}
+        x0 = -np.ones(len(self.polynomials["phase2"].coeff) + len(self.polynomials["shape"].coeff))
 
-        converged = False
-        old_coeff = None
-        init_shape = np.linspace(0.0, 1.0, len(conc2))
-        self.optimal_shape_var = [init_shape[i]*np.ones(3) for i in range(len(conc2))]
-        best_coeff = None
-        best_rmse = 10000000.0
-        best_optimal_slaved = None
-        
-        while not converged:
-            terms = list(self.shape_terms(self.optimal_shape_var))
-            terms = terms[1:]
+        def callback_log(x):
+            print(x)
+        res = minimize(cost_func, x0, options=options, method="BFGS", callback=callback_log)
+        self.polynomials["phase2"].coeff[0] = res["x"][0]
+        self.polynomials["shape"].coeff = res["x"][1:]
 
-            X = np.zeros((len(conc2), 2))
-            X[:, 0] = 1
-            X[:, 1] = [(conc2[i] - self.c2)*np.sum(shape**2)
-                       for i, shape in enumerate(self.optimal_shape_var)]
-            coeff, _, _, _ = np.linalg.lstsq(X, rhs)
-            print(coeff)
-            exit()
+       
 
+def fit_polynomial(multipoly, x, y):
+    """Fit the coefficient of a Multivariate Polynomial.
+    
+    :param MultivariatePolynomial multipoly: Instance of a Multivariate Polynomial
+    :param numpy.ndarray x: X-parameters (shape NxM) where M is the
+        number of free parameters and N is the number of datapoints
+    :param numpy.ndarray y: Datapoints length N
+    """
+    num_terms = len(multipoly.coeff)
+    num_pts = len(y)
 
-            for j in range(0, len(conc2)):
-                terms =  list(self.shape_terms(self.optimal_shape_var[j]))
-                X[j, 1:] = terms[1:]
-            prec = (X.T.dot(X) + penalty*np.eye(X.shape[1]))
-            coeff = np.linalg.inv(prec).dot(X.T.dot(rhs))
-            self.coefficients["conc2"][0] = coeff[0]
-            self.coefficients["shape"][:] = coeff[1:]
+    X = np.zeros((num_pts, num_terms))
+    for i in range(len(y)):
+        X[i, :] = multipoly.get_all_terms(x[i, :])
 
-            self.optimize_shape_variables(conc2)
-
-            if best_coeff is None:
-                best_coeff = deepcopy(self.coefficients)
-                best_optimal_slaved = deepcopy(self.optimal_shape_var)
-
-            if old_coeff is None:
-                old_coeff = coeff.copy()
-            else:
-                diff = np.max(np.abs(coeff - old_coeff))
-                if  diff < tol:
-                    converged = True
-                old_coeff = coeff.copy()
-                rmse = np.sqrt(np.mean((rhs - X.dot(coeff))**2))
-                if rmse < best_rmse:
-                    best_rmse = rmse
-                    best_coeff = deepcopy(self.coefficients)
-                    best_optimal_slaved = deepcopy(self.optimal_shape_var)
-
-                print("Difference: {}. Residual: {}".format(diff, rmse))
-            self.coefficients = best_coeff
-
-        if fname != "":
-            slaved_params = np.array(best_optimal_slaved).T
-            data = np.vstack((conc2, free_energy2, slaved_params)).T
-            description = ", ".join(["param{}".format(x) for x in range(self.num_dir)])
-            np.savetxt(fname, data, delimiter=",", header="Concentration, free energy" + description)
-
-    def optimize_shape_variables(self, conc):
-        """Optimize the shape variable given two concentrations."""
-
-        for i, c in enumerate(conc):
-            def optimize_cost(x):
-                x_full = np.zeros(self.num_dir)
-                x_full[:] = x
-                return self.evaluate(c, x_full)
-
-            res = minimize(optimize_cost, x0=self.optimal_shape_var[i][0],
-                           bounds=[(0, 1)])
-            self.optimal_shape_var[i] = np.ones(self.num_dir)*res["x"]
+    coeff, _, _, _ = np.linalg.lstsq(X, y, rcond=None)
+    multipoly.coeff = coeff
         
         
 
