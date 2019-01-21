@@ -263,6 +263,7 @@ class SGCMonteCarlo(mc.Montecarlo):
             eci[key] -= chem_potential[key]
         self.atoms._calc.update_ecis(eci)
         self.chem_pot_in_ecis = True
+        self.current_energy = self.atoms.get_calculator().get_energy()
         return eci
 
     def _reset_eci_to_original(self, eci_with_chem_pot):
@@ -275,6 +276,7 @@ class SGCMonteCarlo(mc.Montecarlo):
             eci_with_chem_pot[name] += val
         self.atoms._calc.update_ecis(eci_with_chem_pot)
         self.chem_pot_in_ecis = False
+        self.current_energy = self.atoms.get_calculator().get_energy()
         return eci_with_chem_pot
 
     def _reset_ecis(self):
