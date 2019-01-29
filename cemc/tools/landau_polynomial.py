@@ -1,9 +1,5 @@
-import sys
 import numpy as np
-from itertools import combinations_with_replacement, filterfalse
-from itertools import permutations
-from scipy.optimize import minimize, root, brentq
-from copy import deepcopy
+from scipy.optimize import minimize
 
 class TwoPhaseLandauPolynomial(object):
     """Class for fitting a Landau polynomial to free energy data
