@@ -77,90 +77,71 @@ class MultivariatePolynomial(object):
         return np.array(terms).dot(self._coeff)
 
 class TwoPhaseLandauPolynomial(object):
-    def __init__(self, conc_order=2, strain_order=6, c1=0.0, c2=1.0,
-                 num_dir=3):
-        self.conc_order = conc_order
-        self.strain_order = strain_order
+    def __init__(self, c1=0.0, c2=1.0, num_dir=3, init_guess=None):
+        self.coeff = np.zeros(4)
         self.c1 = c1
         self.c2 = c2
-        self.num_dir = num_dir
-        n = int(conc_order/2)
-        cnc_pow = [(x,) for x in range(2, conc_order+1, 2)]
-        shape_pow = np.array(list(self.shape_powers))/2
-        self.polynomials = {
-            "phase1": MultivariatePolynomial(coeff=np.zeros(n), powers=cnc_pow, center=c1),
-            "phase2": MultivariatePolynomial(coeff=np.zeros(1), powers=[(1,)], center=c2),
-            "shape": MultivariatePolynomial(coeff=np.zeros(self.num_strain_coeff), 
-                                            powers=shape_pow, cyclic=True)
-        }
-        self.optimal_shape_var = None
+        self.init_guess = init_guess
 
-    @property
-    def num_strain_coeff(self):
-        return len(list(self.shape_powers))
+    def equil_shape_order(self, conc):
+        if abs(self.coeff[3] < 1E-8):
+            n_eq = -0.5*self.coeff[1]*(conc - self.c2)/self.coeff[2]
+            print(conc, n_eq)
+            if n_eq < 0.0:
+                return 0.0
+            return n_eq
+        delta = (self.coeff[2]/(3.0*self.coeff[3]))**2 - \
+            self.coeff[1]*(conc-self.c2)/(3.0*self.coeff[3])
 
-    @property
-    def shape_powers(self):
-        exponents = range(0, self.strain_order+1, 2)
+        if delta < 0.0:
+            return 0.0
+        
+        n_eq = -self.coeff[2]/(3.0*self.coeff[3]) + np.sqrt(delta)
+        if n_eq < 0.0:
+            return 0.0
+        return n_eq
 
-        def condition(x):
-            return sum(x) > self.strain_order or sum(x) <= 2
-        return filterfalse(condition, combinations_with_replacement(exponents, r=self.num_dir))
+    def eval_at_equil(self, conc, on_off_center=False):
+        """Evaluate the free energy at equillibrium order."""
+        n_eq_sq = self.equil_shape_order(conc)
+        return self.coeff[0]*(conc-self.c1)**2 + \
+            self.coeff[1]*(conc - self.c2)*n_eq_sq + \
+            self.coeff[2]*n_eq_sq**2 + \
+            self.coeff[3]*n_eq_sq**3
 
-    def evaluate(self, conc, shape):
-        """Evaluate the polynomial."""
-        return self.polynomials["phase1"](conc) + \
-            self.polynomials["phase2"](conc)*np.sum(np.array(shape)**2) + \
-            self.polynomials["shape"](np.array(shape)**2)
+    def fit(self, conc1, F1, conc2, F2):
+        """Fit the free energy functional."""
 
-    def fit(self, conc1, free_energy1, conc2, free_energy2, tol=1E-4, penalty=1E-8,
-            fname=""):
-        """Fit a free energy polynomial."""
-        # First we fit to the first phase, where there are no
-        # impact of the shape parameters
-        if len(conc1.shape) == 1:
-            conc1 = conc1.reshape((conc1.shape[0], 1))
-            assert len(conc1.shape) == 2
-        fit_polynomial(self.polynomials["phase1"], conc1, free_energy1)
+        conc = np.concatenate((conc1, conc2))
+        free_energy = np.concatenate((F1, F2))
+        S1 = np.sum(F1*(conc1 - self.c1)**2)
+        S2 = np.sum((conc1 - self.c1)**4)
+        A = S1/S2
+        remains = F2 - A*(conc2 - self.c1)**2
+        
+        S1 = np.sum(remains*(conc2 - self.c2))
+        S2 = np.sum((conc2 - self.c2)**2)
+        B = S1/S2
 
-        # Fit the remaining coefficients
-        # Define some functions to be used during the optimization
-        def derivative_wrt_shape(x, conc):
-            full_shape = np.array([x, x, x])
-            deriv = self.polynomials["shape"].deriv(full_shape**2)
-            return deriv + self.polynomials["phase2"](conc)
+        S1 = np.sum((conc2 - self.c2))
+        S2 = np.sum((conc2 - self.c2)**2)
+        K = S1/S2
+        C = -B/(2.0*K)
 
-        conc1_contrib = np.array([self.polynomials["phase1"](c) for c in list(conc2)])
-        rhs = free_energy2 - conc1_contrib
-        # Cost function to minimize
-        def cost_func(x):
-            self.polynomials["phase2"].coeff[0] = x[0]
-            self.polynomials["shape"].coeff = x[1:]
-            
-            # Optimize the cost function
-            pred = np.zeros(len(conc2))
-            for i in range(len(conc2)):
-                #res = root(derivative_wrt_shape, 0.2, args=(conc2[i],))
-                try:
-                    shape = brentq(derivative_wrt_shape, 0.0, 1.0, args=(conc2[i],))
-                except Exception:
-                    shape = 1.0
-                full_shape = [shape, shape, shape]
-                pred[i] = self.evaluate(conc2[i], full_shape)
-            mse = np.sum((pred-rhs)**2)
-            #print(np.sqrt(mse), x, pred[0], rhs[0], pred[-1], rhs[-1])
+        if self.init_guess is not None:
+            x0 = self.init_guess
+        else:
+            x0 = np.array([A, B, C, 15.0])
+
+        def mse(x):
+            self.coeff = x
+            pred = [self.eval_at_equil(conc[i]) for i in range(len(conc))]
+            pred = np.array(pred)
+            mse = np.mean((pred - free_energy)**2)
             return mse
 
-        options = {"eps": 0.05}
-        x0 = -np.ones(len(self.polynomials["phase2"].coeff) + len(self.polynomials["shape"].coeff))
-
-        def callback_log(x):
-            print(x)
-        res = minimize(cost_func, x0, options=options, method="BFGS", callback=callback_log)
-        self.polynomials["phase2"].coeff[0] = res["x"][0]
-        self.polynomials["shape"].coeff = res["x"][1:]
-
-       
+        res = minimize(mse, x0=x0)
+        self.coeff = res["x"]
 
 def fit_polynomial(multipoly, x, y):
     """Fit the coefficient of a Multivariate Polynomial.
