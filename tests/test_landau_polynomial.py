@@ -2,7 +2,6 @@ import unittest
 import numpy as np
 try:
     from cemc.tools import TwoPhaseLandauPolynomial
-    from cemc.tools.landau_polynomial import MultivariatePolynomial
     available = True
     reason = ""
 except ImportError as exc:
