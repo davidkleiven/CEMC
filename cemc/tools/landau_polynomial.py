@@ -5,77 +5,6 @@ from itertools import permutations
 from scipy.optimize import minimize, root, brentq
 from copy import deepcopy
 
-class MultivariatePolynomial(object):
-    def __init__(self, coeff=[], powers=[], cyclic=False, center=0.0):
-        self.powers = powers
-        self._coeff = coeff
-        self.cyclic = cyclic
-        self.center = 0.0
-
-    @property
-    def coeff(self):
-        return self._coeff
-
-    @coeff.setter
-    def coeff(self, new_coeff):
-        if len(new_coeff) != len(self._coeff):
-            raise ValueError("New coefficients has the wrong length!")
-        self._coeff = new_coeff
-
-    def get_all_terms(self, x):
-        try:
-            n = len(x)
-        except:
-            x = np.array([x])
-            n = len(x)
-
-        if n != len(self.powers[0]):
-            raise TypeError("The length of x needs to match!")
-
-        def get_terms(powers):
-            if self.cyclic:
-                terms = [np.prod(np.power(x-self.center, np.roll(powers, i))) for i in range(3)]
-            else:
-                terms = [np.prod(np.power(x-self.center, powers))]
-            return sum(terms)
-
-        return list(map(get_terms, self.powers))
-
-    def __call__(self, x):
-        x = np.array(x)
-        terms = self.get_all_terms(x)
-        return np.array(terms).dot(self._coeff)
-
-    def deriv(self, x, dim=0):
-        try:
-            n = len(x)
-        except:
-            x = np.array([x])
-            n = len(x)
-
-        if n != len(self.powers[0]):
-            raise TypeError("The length of x needs to match!")
-
-        x = np.array(x)
-        def get_terms(powers):
-            if self.cyclic:
-                terms = []
-                for i in range(3):
-                    rolled_power = np.roll(powers, i)
-                    terms.append(rolled_power[dim]*np.prod(np.power(x-self.center, rolled_power)))
-            else:
-                prefactors = deepcopy(powers)
-                powers = list(powers)
-                powers[dim] -= 1
-                if powers[dim] < 0:
-                    assert prefactors[dim] == 0
-                    powers[dim] = 0
-                terms = [prefactors[dim]*np.prod(np.power(x-self.center, powers))]
-            return sum(terms)
-
-        terms = list(map(get_terms, self.powers))
-        return np.array(terms).dot(self._coeff)
-
 class TwoPhaseLandauPolynomial(object):
     def __init__(self, c1=0.0, c2=1.0, num_dir=3, init_guess=None):
         self.coeff = np.zeros(4)
@@ -142,26 +71,6 @@ class TwoPhaseLandauPolynomial(object):
 
         res = minimize(mse, x0=x0)
         self.coeff = res["x"]
-
-def fit_polynomial(multipoly, x, y):
-    """Fit the coefficient of a Multivariate Polynomial.
-    
-    :param MultivariatePolynomial multipoly: Instance of a Multivariate Polynomial
-    :param numpy.ndarray x: X-parameters (shape NxM) where M is the
-        number of free parameters and N is the number of datapoints
-    :param numpy.ndarray y: Datapoints length N
-    """
-    num_terms = len(multipoly.coeff)
-    num_pts = len(y)
-
-    X = np.zeros((num_pts, num_terms))
-    for i in range(len(y)):
-        X[i, :] = multipoly.get_all_terms(x[i, :])
-
-    coeff, _, _, _ = np.linalg.lstsq(X, y, rcond=None)
-    multipoly.coeff = coeff
-        
-        
 
 
     
