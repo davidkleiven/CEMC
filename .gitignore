@@ -29,3 +29,4 @@ energy_data.json
 .nfs*
 .vscode/*
 settings.json
+phasefield_cxx.cpp

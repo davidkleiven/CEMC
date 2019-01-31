@@ -33,6 +33,11 @@ ce_updater_sources = ["ce_updater.cpp", "cf_history_tracker.cpp",
 ce_updater_sources = [src_folder+"/"+srcfile for srcfile in ce_updater_sources]
 ce_updater_sources.append("cemc/cpp_ext/cemc_cpp_code.pyx")
 
+src_phase = "phasefield_cxx/src"
+phasefield_sources = ["two_phase_landau.cpp"]
+phasefield_sources = [src_phase + "/" + x for x in phasefield_sources]
+phasefield_sources.append("cemc/phasefield/cython/phasefield_cxx.pyx")
+
 define_macros = [("PARALLEL_KHACHATURYAN_INTEGRAL", None)]
 extra_comp_args = ["-std=c++11", "-fopenmp"]
 extracted_args = []
@@ -57,9 +62,13 @@ cemc_cpp_code = Extension("cemc_cpp_code", sources=ce_updater_sources,
                           language="c++", libraries=["gomp", "pthread"],
                           define_macros=define_macros)
 
+phase_field_mod = Extension("phasefield_cxx", sources=phasefield_sources,
+                            include_dirs=["phasefield_cxx/include"],
+                            extra_compile_args=extra_comp_args,
+                            language="c++", define_macros=define_macros)
 setup(
     name="cemc",
-    ext_modules=cythonize(cemc_cpp_code),
+    ext_modules=cythonize(cemc_cpp_code) + cythonize(phase_field_mod),
     version=1.0,
     author="David Kleiven",
     author_email="davidkleiven446@gmail.com",

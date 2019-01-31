@@ -2,6 +2,7 @@ import unittest
 import numpy as np
 try:
     from cemc.tools import TwoPhaseLandauPolynomial
+    from phasefield_cxx import PyTwoPhaseLandau
     available = True
     reason = ""
 except ImportError as exc:
@@ -29,6 +30,21 @@ class TestLandauPolynomial(unittest.TestCase):
             msg = str(exc)
 
         self.assertFalse(error, msg=msg)
+
+    def test_Cxx_poly(self):
+        c1 = 0.0
+        c2 = 0.8
+        coeff = [1.0, 2.0, 3.0, 4.0]
+        pypoly = PyTwoPhaseLandau(c1, c2, coeff)
+
+        shape = [1.0, 0.0, 0.0]
+        shape_npy = np.array(shape)
+        c = 0.5
+        expect = coeff[0]*(c-c1)**2 + \
+            coeff[1]*(c - c2)*np.sum(shape_npy**2) + \
+            coeff[2]*np.sum(shape_npy**4) + coeff[3]*np.sum(shape_npy**2)**3
+        self.assertAlmostEqual(pypoly.evaluate(c, shape), expect)
+
 
 def show_fit(poly, conc1, conc2, F1, F2):
     import matplotlib as mpl
