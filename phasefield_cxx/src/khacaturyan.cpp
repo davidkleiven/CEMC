@@ -1,6 +1,6 @@
 #include "khachaturyan.hpp"
 #include "use_numpy.hpp"
-#include "additional_tools.hpp"
+#include "linalg.hpp"
 #include <omp.h>
 
 using namespace std;

@@ -4,7 +4,7 @@ from itertools import product
 
 try:
     from cemc.tools import Khachaturyan
-    from cemc_cpp_code import PyKhachaturyan
+    from phasefield_cxx import PyKhachaturyan
     from cemc.tools import to_full_rank4
     available = True
     reason = ""

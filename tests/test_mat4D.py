@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 
 try:
-    from cemc_cpp_code import PyMat4D
+    from phasefield_cxx import PyMat4D
     available = True
     reason = ""
 except ImportError as exc:

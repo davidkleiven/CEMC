@@ -1,8 +1,5 @@
 # distutils: language = c++
 
-cdef extern from "init_numpy.hpp":
-  pass
-
 cdef extern from "mat4D.hpp":
   cdef cppclass Mat4D:
     Mat4D()
