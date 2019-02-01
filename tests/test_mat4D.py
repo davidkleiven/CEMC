@@ -8,8 +8,8 @@ try:
 except ImportError as exc:
     available = False
     reason = str(exc)
+    print(reason)
 
-print(reason)
 
 class TestMat4D(unittest.TestCase):
     def test_numpy(self):

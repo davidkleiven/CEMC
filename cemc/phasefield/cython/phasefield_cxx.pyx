@@ -3,9 +3,9 @@
 
 cdef extern from "init_numpy.hpp":
     pass
-    
+
 cimport numpy as np
-#np.import_array()
+np.import_array()
 
 include "pymat4D.pyx"
 include "khachaturyan.pyx"

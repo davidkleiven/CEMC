@@ -13,6 +13,7 @@ except ImportError as exc:
     reason = str(exc)
     print(reason)
 
+
 class TestKhacaturyan(unittest.TestCase):
     K = 50.0
     G = 26.0

@@ -1,10 +1,11 @@
 import numpy as np
 from cemc.tools import to_full_rank4
 from itertools import product
-from cemc_cpp_code import PyKhachaturyan
+from phasefield_cxx import PyKhachaturyan
 from cemc.tools import rotate_tensor, rot_matrix, rotate_rank4_tensor
 import time
 import datetime
+
 
 class Khachaturyan(object):
     def __init__(self, elastic_tensor=None, uniform_strain=None, 
