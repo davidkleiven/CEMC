@@ -33,6 +33,10 @@ class PseudoBinarySGC(SGCMonteCarlo):
         # but since the number of elements of each symbol is not constant,
         # we need apply a different datastructure
         self.atoms_indx = self._init_symbol_tracker()
+        self.group_by_symbol = {}
+        for i, gr in enumerate(groups):
+            for key in gr.keys():
+                self.group_by_symbol[key] = i
 
     def _init_symbol_tracker(self):
         """Initialize the symbol tracker."""
