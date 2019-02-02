@@ -240,8 +240,8 @@ class SGCMonteCarlo(mc.Montecarlo):
         self._chemical_potential = chem_pot
         if self.chem_pot_in_ecis:
             self._reset_eci_to_original(self.atoms.get_calculator().eci)
-        self._include_chemcical_potential_in_ecis(chem_pot,
-                                                  self.atoms.get_calculator().eci)
+        self._include_chemcical_potential_in_ecis(
+            chem_pot, self.atoms.get_calculator().eci)
 
     def _include_chemcical_potential_in_ecis(self, chem_potential, eci):
         """
