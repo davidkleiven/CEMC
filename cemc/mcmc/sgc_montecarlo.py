@@ -279,11 +279,12 @@ class SGCMonteCarlo(mc.Montecarlo):
         self.current_energy = self.atoms.get_calculator().get_energy()
         return eci_with_chem_pot
 
-    def _reset_ecis(self):
+    def reset_ecis(self):
         """
         Return the ECIs
         """
-        return self._reset_eci_to_original(self.atoms.bc._calc.eci)
+        if self.chem_pot_in_ecis:
+            self._reset_eci_to_original(self.atoms.get_calculator().eci)
 
     def _estimate_correlation_time_composition(self, window_length=1000,
                                                restart=False):

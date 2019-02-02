@@ -79,6 +79,38 @@ class TestPseudoBinary(unittest.TestCase):
             no_throw = False
         self.assertTrue(no_throw, msg)
 
+    def test_chemical_potential(self):
+        if not available:
+            self.skipTest(avail_msg)
+
+        bc = get_ternary_BC()
+        ecis = {"c1_0": 0.0, "c1_1": 0.0}
+        atoms = bc.atoms.copy()
+        bf = bc.basis_functions
+        calc = CE(atoms, bc, eci=ecis)
+
+        groups = [{"Al": 2}, {"Mg": 1, "Si": 1}]
+        symbs = ["Al", "Mg", "Si"]
+        T = 400
+        chem_pots = [-0.2, -0.1, 0.0, 0.1, 0.2, 1.0]
+        all_al = ["Al" for _ in range(len(atoms))]
+        num_atom_per_fu = 2
+        for mu in chem_pots:
+            calc.set_symbols(all_al)
+            mc = PseudoBinarySGC(atoms, T, chem_pot=mu,
+                                 symbols=symbs, groups=groups)
+
+            # At this point the chemical potentials should
+            # be updated
+            changes = [(0, "Al", "Mg"), (1, "Al", "Si")]
+            energy = calc.get_energy()
+            for change in changes:
+                calc.update_cf(change)
+
+            new_energy = calc.get_energy()
+            self.assertAlmostEqual(new_energy - energy, mu)
+            mc.reset_ecis()
+
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
     unittest.main(testRunner=TimeLoggingTestRunner)
