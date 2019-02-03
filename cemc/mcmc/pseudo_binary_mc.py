@@ -253,3 +253,8 @@ class PseudoBinarySGC(SGCMonteCarlo):
         if "chem_potential" in kwargs.keys():
             kwargs.pop("chem_potential")
         SGCMonteCarlo.runMC(self, **kwargs)
+
+    def _get_var_average_singlets(self):
+        """Override: Only a fraction of the steps alter the composition."""
+        var_singl = super(PseudoBinarySGC, self)._get_var_average_singlets()
+        return var_singl/self._ins_prob
