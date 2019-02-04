@@ -145,20 +145,23 @@ class SGCMonteCarlo(mc.Montecarlo):
         """
         energy_converged = super(SGCMonteCarlo, self)._has_converged_prec_mode(
             prec=prec, confidence_level=confidence_level,
-            log_status=log_status)
+            log_status=False)
         percentile = stats.norm.ppf(1.0-confidence_level)
         var_n = self._get_var_average_singlets()
         if self.mpicomm is not None:
             var_n /= self.mpicomm.Get_size()
         singlet_converged = (np.max(var_n) < (prec/percentile)**2)
 
-        result = singlet_converged and energy_converged
+        result = singlet_converged
         if self.mpicomm is not None:
             send_buf = np.zeros(1, dtype=np.uint8)
             recv_buf = np.zeros(1, dtype=np.uint8)
             send_buf[0] = result
             self.mpicomm.Allreduce(send_buf, recv_buf)
             result = (recv_buf[0] == self.mpicomm.Get_size())
+
+        if log_status:
+            print("Singlet std: {}".format(np.sqrt(var_n)))
         return result
 
     def _on_converged_log(self):
@@ -240,8 +243,8 @@ class SGCMonteCarlo(mc.Montecarlo):
         self._chemical_potential = chem_pot
         if self.chem_pot_in_ecis:
             self._reset_eci_to_original(self.atoms.get_calculator().eci)
-        self._include_chemcical_potential_in_ecis(chem_pot,
-                                                  self.atoms.get_calculator().eci)
+        self._include_chemcical_potential_in_ecis(
+            chem_pot, self.atoms.get_calculator().eci)
 
     def _include_chemcical_potential_in_ecis(self, chem_potential, eci):
         """
@@ -279,11 +282,12 @@ class SGCMonteCarlo(mc.Montecarlo):
         self.current_energy = self.atoms.get_calculator().get_energy()
         return eci_with_chem_pot
 
-    def _reset_ecis(self):
+    def reset_ecis(self):
         """
         Return the ECIs
         """
-        return self._reset_eci_to_original(self.atoms.bc._calc.eci)
+        if self.chem_pot_in_ecis:
+            self._reset_eci_to_original(self.atoms.get_calculator().eci)
 
     def _estimate_correlation_time_composition(self, window_length=1000,
                                                restart=False):
