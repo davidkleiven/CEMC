@@ -335,7 +335,7 @@ class BinaryPhaseDiagram(object):
 
         if temperature is None and mu is None:
             raise ValueError("Temperature or mu has to be given!")
-    
+
         db = dataset.connect(self.db_name)
         tbl = db[self.table]
 
