@@ -465,6 +465,28 @@ class SGCMonteCarlo(mc.Montecarlo):
         self.averager.quantities = self.mpicomm.bcast(self.averager.quantities,
                                                       root=0)
 
+    def singlet2composition(self, avg_singlets):
+        """Convert singlets to composition."""
+        bf = self.atoms.get_calculator().BC.basis_functions
+        matrix = np.zeros((len(self.symbols), len(self.symbols)))
+
+        index = {s: i for i, s in enumerate(self.symbols)}
+        for i, b in enumerate(bf):
+            for s, col in index.items():
+                matrix[i, col] = b[s]
+        
+        matrix[-1, :] = 1.0
+        rhs = np.zeros(len(self.symbols))
+        rhs[:-1] = avg_singlets
+        rhs[-1] = 1.0
+        x = np.linalg.solve(matrix, rhs)
+
+        res = {}
+        for s, i in index.items():
+            name = s + "_conc"
+            res[name] = x[i]
+        return res
+
     def get_thermodynamic(self, reset_ecis=True):
         """
         Compute thermodynamic quantities
@@ -506,6 +528,14 @@ class SGCMonteCarlo(mc.Montecarlo):
             quantities[name] = self.chem_pots[i]
 
         quantities.update(self.meta_info)
+
+        try:
+            avg_conc = self.singlet2composition(singlets)
+            quantities.update(avg_conc)
+        except Exception as exc:
+            print("Could not find average singlets!")
+            print(exc)
+
         if reset_ecis:
             self._reset_eci_to_original(self.atoms.get_calculator().eci)
         return quantities
