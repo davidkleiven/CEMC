@@ -105,7 +105,8 @@ class BinaryPhaseDiagram(object):
                              "free_energy": gibbs[i]}
                     tbl_pp.upsert(entry, ["systemID"])
 
-    def fixed_temperature_line(self, temperature=None, phases=[], polyorder=2):
+    def phase_intersection(self, temperature=None, mu=None, phases=[],
+                           polyorder=2):
         """Construct a phase separation line between two phases."""
         from cemc.tools.phasediagram import Polynomial
         db = dataset.connect(self.db_name)
@@ -113,20 +114,31 @@ class BinaryPhaseDiagram(object):
         tbl_pp = db[self.postproc_table]
         ids = {p: [] for p in phases}
         mus = {p: [] for p in phases}
+        temperatures = {p: [] for p in phases}
         grand_pot = {p: [] for p in phases}
+
+        if mu is None and temperature is None:
+            raise ValueError("Temperature or chemical potential has to "
+                             "be specified")
 
         # Retrieve the IDs
         for ph in phases:
-            query = {self.temp_col: {'between': [temperature-self.tol,
-                                                 temperature+self.tol]},
-                     self.phase_id: ph}
+            if mu is None:
+                query = {self.temp_col: {'between': [temperature-self.tol,
+                                                     temperature+self.tol]},
+                         self.phase_id: ph}
+            elif temperature is None:
+                query = {self.chem_pot: {'between': [mu-self.tol,
+                                                     mu+self.tol]},
+                         self.phase_id: ph}
 
             for row in tbl.find(**query):
                 ids[ph].append(row["id"])
                 mus[ph].append(row[self.chem_pot])
+                temperatures[ph].append(row[self.temp_col])
 
         for ph in phases:
-            if len(ids[ph]) <= 3:
+            if len(ids[ph]) <= 2:
                 return None
 
         # Extract the grand potential
@@ -147,12 +159,22 @@ class BinaryPhaseDiagram(object):
                 polyorder = new_polyorder
 
             poly = Polynomial(order=polyorder)
-            polys[p] = poly.fit(mus[p], grand_pot[p])
+
+            if mu is None:
+                x = mus[p]
+            elif temperature is None:
+                x = temperatures[p]
+            polys[p] = poly.fit(x, grand_pot[p])
 
         # Find intersection point
         x0 = 0.0
-        for _, v in mus.items():
-            x0 += np.mean(v)
+        if mu is None:
+            for _, v in mus.items():
+                x0 += np.mean(v)
+        elif temperature is None:
+            for _, v in temperatures.items():
+                x0 += np.mean(v)
+
         x0 /= 2
         inter = self._intersection(polys[phases[0]], polys[phases[1]], x0)
 

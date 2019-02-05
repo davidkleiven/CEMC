@@ -9,12 +9,22 @@ except ImportError as exc:
     reason = str(exc)
     available = False
 
+kB = 8.6E-5  # Boltzmann constant eV/K
+
 
 class TestBinaryPhaseDiag(unittest.TestCase):
     db_name = "sqlite:///binary_phase_diag.db"
 
     def setUp(self):
         self.prepare_db()
+
+    @property
+    def phase_diag_instance(self):
+        return BinaryPhaseDiagram(
+            db_name=self.db_name, table="simulations",
+            energy="energy", concentration="conc",
+            num_elem=2, natoms=1, chem_pot="mu",
+            recalculate_postproc=True, ht_phases=["random"])
 
     def prepare_db(self):
         mu = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
@@ -44,11 +54,11 @@ class TestBinaryPhaseDiag(unittest.TestCase):
                 tbl.insert(data)
 
         # Insert data for varying temperature
-        mu = 0.1
-        t = [200, 300, 400, 500, 600, 700, 800]
+        mu = 0.05
+        t = [200, 300, 400, 500]
         for T in t:
             data = {
-                    "mu": m,
+                    "mu": mu,
                     "conc": concs[ph],
                     "temperature": T,
                     "energy": E0 + mu,
@@ -57,13 +67,13 @@ class TestBinaryPhaseDiag(unittest.TestCase):
             tbl.insert(data)
 
         # Insert random phase
-        kB = 8.6E-5
+        t = [900, 1000, 1100, 1200]
         for T in t:
             data = {
-                    "mu": m,
+                    "mu": mu,
                     "conc": concs[ph],
                     "temperature": T,
-                    "energy": E0 - np.log(2)*T*kB,
+                    "energy": E0 + 1.2*mu,
                     "phase": "random"
                 }
             tbl.insert(data)
@@ -72,19 +82,25 @@ class TestBinaryPhaseDiag(unittest.TestCase):
         if not available:
             self.skipTest(reason)
 
-        phase_diag = BinaryPhaseDiagram(
-            db_name=self.db_name, table="simulations",
-            energy="energy", concentration="conc",
-            num_elem=2, natoms=1, chem_pot="mu",
-            recalculate_postproc=True)
+        phase_diag = self.phase_diag_instance
 
         self.assertEqual(sorted(["Al", "Mg", "random"]),
                          sorted(phase_diag.all_phases))
 
-        inter = phase_diag.fixed_temperature_line(
+        inter = phase_diag.phase_intersection(
             temperature=400, phases=["Al", "Mg"], polyorder=1)
         self.assertFalse(inter is None)
         self.assertAlmostEqual(inter, 0.0)
+
+    def test_fixed_mu(self):
+        if not available:
+            self.skipTest(reason)
+
+        phase_diag = self.phase_diag_instance
+        inter = phase_diag.phase_intersection(
+            mu=0.05, phases=["Al", "random"], polyorder=1)
+        self.assertFalse(inter is None)
+        self.assertAlmostEqual(inter, 0.2*0.05/(kB*np.log(2)), places=0)
 
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
