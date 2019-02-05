@@ -3,6 +3,38 @@ import numpy as np
 
 
 class BinaryPhaseDiagram(object):
+    """Class for constructing binary phase diagrams from
+        grand canonical calculations.
+
+    :param str db_name: Database containing the MC calculations
+    :param str fig_prefix: If given, images of of all polynomial
+        fits and intersection points will be stored with this
+        prefix
+    :param str table: Name of the table in the database with MC
+        result
+    :param str phase_id: Name of the column holding informaiton about
+        which phase the simulation belongs to.
+    :param str chem_pot: Name of the column with the chemical potentials
+    :param str energy: Name of the column with the energy
+    :param str concentration: Name of the column with the variable storing
+        information about the concentration
+    :param str temp_col: Name of the column with temperature
+    :param float tol: Tolerance used when making queries on floating point
+        numbers in the database
+    :param str postproc_table: Name of the table where post processing
+        information will be stored-
+    :param bool recalculate_postproc: If True, the postprocessing table
+        will be recalculated even if it already exist.
+    :param list ht_phases: List with the name of phases that should
+        be integrated from the high temperature expansion. The Grand
+        Potential for all other phases will be obtained by integration
+        from a low temperature expansion.
+    :param int num_elem: Number of elements in the system
+    :param int natoms: Number of atoms in the simulations. This number
+        is used to normalize the energy in the database. So if the
+        energy in the database is already normalized, this number
+        should be set to 1.
+    """
     def __init__(self, db_name=None, fig_prefix=None, table="simulations",
                  phase_id="phase", chem_pot="mu_c1_0", energy="sgc_energy",
                  concentration="singlet_c1_0", temp_col="temperature",
@@ -83,7 +115,7 @@ class BinaryPhaseDiagram(object):
 
                 if len(ids) == 0:
                     continue
-                
+
                 if ph in self.ht_phases:
                     limit = "hte"
                 else:
@@ -107,7 +139,17 @@ class BinaryPhaseDiagram(object):
 
     def phase_intersection(self, temperature=None, mu=None, phases=[],
                            polyorder=2):
-        """Construct a phase separation line between two phases."""
+        """Construct a phase separation line between two phases.
+
+        :param float temperature: If given, a phase boundary at
+            this fixed temperature is sought.
+        :param float mu: If given, a phase boundary at this fixed
+            chemical potential is sought.
+        :param list phases: List of length 2 describing which
+            phases a phase boundary should be found.
+        :param int polyorder: Order of the polynomial used to
+            fit the data.
+        """
         from cemc.tools.phasediagram import Polynomial
         db = dataset.connect(self.db_name)
         tbl = db[self.table]
@@ -185,7 +227,21 @@ class BinaryPhaseDiagram(object):
         return inter
 
     def _create_figure(self, figname, polys, x, y, inter=None):
-        """Create a figure showing the intersection point in the two phases."""
+        """Create a figure showing the intersection point in the two phases.
+
+        :param str figname: Filename for the generated figure
+        :param dict polys: Dictionary of the same form as x (see below),
+            but holding the coefficients for the fitted polynomials
+        :param dict x: Dictionary with the form
+            {
+                phase1: [x11, x12, x13, x14, ...],
+                phase2: [x21, x22, x23, x24, ...]
+            }
+        :param dict y: Dictionary with the same form as
+            x, but holding the y-values instead
+        :param float inter: If given, this point will be plotted
+            as a star to highlight the intersection point.
+        """
         from matplotlib import pyplot as plt
         fig = plt.figure()
         ax = fig.add_subplot(1, 1, 1)
@@ -217,7 +273,12 @@ class BinaryPhaseDiagram(object):
         fig.savefig(figname)
 
     def _intersection(self, p1, p2, x0):
-        """Find the intersection point between two polynomials."""
+        """Find the intersection point between two polynomials.
+
+        :param list p1: Coefficients for the first polynomial
+        :param list p2: Coefficients for the second polynomial
+        :param float x0: Initial guess for the intersection point
+        """
         from scipy.optimize import fsolve
         res = fsolve(lambda x: np.polyval(p1, x) - np.polyval(p2, x),
                      x0=x0)
@@ -225,7 +286,14 @@ class BinaryPhaseDiagram(object):
 
     def phase_boundary(self, phases=[], polyorder=2,
                        variable="chem_pot"):
-        """Construct a phase boundary between two phases."""
+        """Construct a phase boundary between two phases.
+
+        :param list phases: List with the name of the phases where
+            the phase boundary should be found.
+        :param int polyorder: Order the polynomials used in the fit
+        :param str variable: Which is the free variable. Has to
+            be one of [temperature, chem_pot]
+        """
 
         allowed_vars = ["chem_pot", "temperature"]
         if variable not in allowed_vars:
