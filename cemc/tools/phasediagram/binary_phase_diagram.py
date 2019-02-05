@@ -319,3 +319,60 @@ class BinaryPhaseDiagram(object):
                     chemical_potentials.append(inter)
                     temperatures.append(t)
         return chemical_potentials, temperatures
+
+    def composition(self, phase, temperature=None, mu=None, polyorder=2):
+        """Get the composition in a given phase
+
+        :param float temperature: Temperature
+        :param list mu: List of chemical potentials where
+            the phase is sought.
+        :param str phase: Phase
+        :param int polyorder: Order of the fitted polynomial
+        """
+
+        if temperature is None and mu is None:
+            raise ValueError("Temperature or mu has to be given!")
+    
+        db = dataset.connect(self.db_name)
+        tbl = db[self.table]
+
+        if mu is None:
+            query = {
+                self.temp_col: {"between": [temperature-self.tol,
+                                            temperature+self.tol]},
+                self.phase_id: phase
+            }
+        else:
+            query = {
+                self.chem_pot: {"between": [mu-self.tol,
+                                            mu+self.tol]},
+                self.phase_id: phase
+            }
+
+        mu_db = []
+        temp_db = []
+        conc = []
+        for row in tbl.find(**query):
+            mu_db.append(row[self.chem_pot])
+            temp_db.append(row[self.temp_col])
+            conc.append(row[self.concentration])
+
+        if mu is None:
+            x = mu_db
+        else:
+            x = temp_db
+        p = np.polyfit(x, conc, polyorder)
+
+        if self.fig_prefix is not None:
+            from matplotlib import pyplot as plt
+            figname = self.fig_prefix + "comp_{}K_{}.png".format(temperature,
+                                                                 phase)
+            fig = plt.figure()
+            ax = fig.add_subplot(1, 1, 1)
+            x_fit = np.linspace(np.min(x), np.max(x), 50)
+            ax.plot(x, conc)
+            ax.plot(x_fit, np.polyval(p, x_fit))
+            ax.set_xlabel("Chemical potential")
+            ax.set_ylabel("Composition")
+            fig.savefig(figname)
+        return p
