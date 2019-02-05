@@ -1,4 +1,5 @@
 import unittest
+import os
 try:
     import dataset
     import numpy as np
@@ -13,15 +14,19 @@ kB = 8.6E-5  # Boltzmann constant eV/K
 
 
 class TestBinaryPhaseDiag(unittest.TestCase):
-    db_name = "sqlite:///binary_phase_diag.db"
+    db_name = "binary_phase_diag.db"
 
     def setUp(self):
         self.prepare_db()
 
     @property
+    def full_db_name(self):
+        return "sqlite:///"+self.db_name
+
+    @property
     def phase_diag_instance(self):
         return BinaryPhaseDiagram(
-            db_name=self.db_name, table="simulations",
+            db_name=self.full_db_name, table="simulations",
             energy="energy", concentration="conc",
             num_elem=2, natoms=1, chem_pot="mu",
             recalculate_postproc=True, ht_phases=["random"])
@@ -29,7 +34,7 @@ class TestBinaryPhaseDiag(unittest.TestCase):
     def prepare_db(self):
         mu = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
         phases = ["Al", "Mg"]
-        db = dataset.connect(self.db_name)
+        db = dataset.connect(self.full_db_name)
         tbl = db["simulations"]
         E0 = -3.74
 
@@ -117,6 +122,9 @@ class TestBinaryPhaseDiag(unittest.TestCase):
                                           polyorder=1)
         self.assertAlmostEqual(mu[0], 0.05)
         self.assertAlmostEqual(T[0], 0.2*0.05/(kB*np.log(2)), places=0)
+
+    def tearDown(self):
+        os.remove(self.db_name)
 
 
 if __name__ == "__main__":
