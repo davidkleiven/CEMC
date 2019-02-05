@@ -139,7 +139,6 @@ class FreeEnergy(object):
         T = data["temperature"]
         sgc_energy = data["sgc_energy"]
         beta_phi_ref = self.get_reference_beta_phi(T, sgc_energy, nelem=nelem)
-        print("Beta phi ref", beta_phi_ref)
         beta = 1.0 / (kB * T)
         integral = [trapz(sgc_energy[:i], x=beta[:i])
                     for i in range(1, len(beta))]
