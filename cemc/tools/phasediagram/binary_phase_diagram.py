@@ -151,6 +151,8 @@ class BinaryPhaseDiagram(object):
             fit the data.
         """
         from cemc.tools.phasediagram import Polynomial
+        if len(phases) != 2:
+            raise ValueError("Two phases has to be given!")
         db = dataset.connect(self.db_name)
         tbl = db[self.table]
         tbl_pp = db[self.postproc_table]
