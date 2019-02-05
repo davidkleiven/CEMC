@@ -12,7 +12,7 @@ class Polynomial(object):
         if len(x) != len(y):
             raise ValueError("x and y has to be the same length")
 
-        if len(x) <= self.order+2:
+        if len(x) < self.order+2:
             raise ValueError("The number of datapoints has to be at least polyorder+2")
 
         end = self.order+2

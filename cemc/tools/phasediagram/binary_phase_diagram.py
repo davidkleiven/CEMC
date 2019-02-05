@@ -184,6 +184,8 @@ class BinaryPhaseDiagram(object):
         for ph in phases:
             if len(ids[ph]) <= 2:
                 return None
+            elif len(ids[ph]) == 3:
+                polyorder = 1
 
         # Extract the grand potential
         for ph in phases:
@@ -225,7 +227,7 @@ class BinaryPhaseDiagram(object):
         if self.fig_prefix is not None:
             fname = self.fig_prefix
             fname += "{}_{}_{}K.png".format(phases[0], phases[1], temperature)
-            self._create_figure(figname, polys, inter, mus, grand_pot)
+            self._create_figure(fname, polys, mus, grand_pot, inter=inter)
         return inter
 
     def _create_figure(self, figname, polys, x, y, inter=None):
@@ -259,13 +261,13 @@ class BinaryPhaseDiagram(object):
         min_y = 1E100
         max_y = -1E100
         for k, v in y.items():
-            if np.min(y) < min_y:
-                min_y = np.min(y)
-            if np.max(y) > max_y:
-                max_y = np.max(y)
+            if np.min(v) < min_y:
+                min_y = np.min(v)
+            if np.max(v) > max_y:
+                max_y = np.max(v)
         x_fit = np.linspace(min_x, max_x, 100)
         for k in polys.keys():
-            ax.plot(np.polyval(polys[k], x_fit))
+            ax.plot(x_fit, np.polyval(polys[k], x_fit))
             ax.plot(x[k], y[k], "o")
 
         if inter is not None:
@@ -273,6 +275,7 @@ class BinaryPhaseDiagram(object):
             ax.plot(inter, np.polyval(polys[k], inter), "*")
         ax.set_ylim([min_y, max_y])
         fig.savefig(figname)
+        plt.close()
 
     def _intersection(self, p1, p2, x0):
         """Find the intersection point between two polynomials.
@@ -375,4 +378,5 @@ class BinaryPhaseDiagram(object):
             ax.set_xlabel("Chemical potential")
             ax.set_ylabel("Composition")
             fig.savefig(figname)
+            plt.close()
         return p
