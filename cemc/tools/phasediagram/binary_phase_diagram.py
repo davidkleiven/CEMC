@@ -223,3 +223,29 @@ class BinaryPhaseDiagram(object):
                      x0=x0)
         return res[0]
 
+    def phase_boundary(self, phases=[], polyorder=2,
+                       variable="chem_pot"):
+        """Construct a phase boundary between two phases."""
+
+        allowed_vars = ["chem_pot", "temperature"]
+        if variable not in allowed_vars:
+            raise ValueError("Variable has to be one of {}"
+                             "".format(allowed_vars))
+
+        temperatures = []
+        chemical_potentials = []
+        if variable == "temperature":
+            for mu in self.chem_pots:
+                inter = self.phase_intersection(mu=mu, phases=phases,
+                                                polyorder=polyorder)
+                if inter is not None:
+                    temperatures.append(inter)
+                    chemical_potentials.append(mu)
+        else:
+            for t in self.temperatures:
+                inter = self.phase_intersection(temperature=t, phases=phases,
+                                                polyorder=polyorder)
+                if inter is not None:
+                    chemical_potentials.append(inter)
+                    temperatures.append(t)
+        return chemical_potentials, temperatures

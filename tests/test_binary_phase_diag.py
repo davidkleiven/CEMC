@@ -102,6 +102,23 @@ class TestBinaryPhaseDiag(unittest.TestCase):
         self.assertFalse(inter is None)
         self.assertAlmostEqual(inter, 0.2*0.05/(kB*np.log(2)), places=0)
 
+    def test_phase_boundaries(self):
+        if not available:
+            self.skipTest(reason)
+
+        phase_diag = self.phase_diag_instance
+        mu, T = phase_diag.phase_boundary(phases=["Al", "Mg"],
+                                          variable="chem_pot", polyorder=1)
+        self.assertEqual(T[0], 400)
+        self.assertAlmostEqual(mu[0], 0.0)
+
+        mu, T = phase_diag.phase_boundary(phases=["Al", "random"],
+                                          variable="temperature",
+                                          polyorder=1)
+        self.assertAlmostEqual(mu[0], 0.05)
+        self.assertAlmostEqual(T[0], 0.2*0.05/(kB*np.log(2)), places=0)
+
+
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
     unittest.main(testRunner=TimeLoggingTestRunner)
