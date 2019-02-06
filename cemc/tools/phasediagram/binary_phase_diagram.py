@@ -40,7 +40,7 @@ class BinaryPhaseDiagram(object):
                  concentration="singlet_c1_0", temp_col="temperature",
                  tol=1E-6, postproc_table="postproc",
                  recalculate_postproc=False, ht_phases=[], num_elem=2,
-                 natoms=1):
+                 natoms=1, isochem_ref=None):
         self.db_name = db_name
         self.fig_prefix = fig_prefix
         self.table = table
@@ -55,6 +55,7 @@ class BinaryPhaseDiagram(object):
         self.ht_phases = ht_phases
         self.num_elem = num_elem
         self.natoms = natoms
+        self.isochem_ref = isochem_ref
 
         self.temperatures = self._get_temperatures()
         self.chem_pots = self._get_chemical_potentials()
@@ -121,8 +122,13 @@ class BinaryPhaseDiagram(object):
                 else:
                     limit = "lte"
                 free_eng = FreeEnergy(limit=limit)
+                ref = self.isochem_ref.get(ph, None)
+                if ref is not None:
+                    ref = self.isochem_ref[ph](mu)
+
                 res = free_eng.free_energy_isochemical(
-                        T=temps, sgc_energy=energies, nelem=self.num_elem)
+                        T=temps, sgc_energy=energies, nelem=self.num_elem,
+                        beta_phi_ref=ref)
 
                 c = {self.chem_pot: [conc[i] for i in res["order"]]}
                 ch = {self.chem_pot: mu}

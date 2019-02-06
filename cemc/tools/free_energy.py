@@ -92,16 +92,16 @@ class FreeEnergy(object):
             sgc_energy -= chemical_potential[key] * np.array(singlets[key])
         return sgc_energy
 
-    def free_energy_isothermal_integral(self, chem_pot=None, conc=None,
-                                        beta_phi_ref=None):
+    def free_energy_isothermal(self, chem_pot=None, conc=None,
+                               phi_ref=None):
         """Calculate the free energy at constant temperature along
             where one chemical potential vary."""
         integral = [trapz(conc[:i], x=chem_pot[:i])
-                    for i in range(1, len(beta))]
+                    for i in range(1, len(chem_pot))]
         integral.append(trapz(conc, x=chem_pot))
 
-        if beta_phi_ref is not None:
-            return beta_phi_ref + np.array(integral)
+        if phi_ref is not None:
+            return phi_ref - np.array(integral)
         return np.array(integral)
 
     def free_energy_isochemical(self, T=None, sgc_energy=None, nelem=None,
