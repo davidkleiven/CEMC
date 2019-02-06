@@ -223,11 +223,14 @@ class BinaryPhaseDiagram(object):
 
         x0 /= 2
         inter = self._intersection(polys[phases[0]], polys[phases[1]], x0)
-
         if self.fig_prefix is not None:
             fname = self.fig_prefix
-            fname += "{}_{}_{}K.png".format(phases[0], phases[1], temperature)
-            self._create_figure(fname, polys, mus, grand_pot, inter=inter)
+            if mu is None:
+                fname += "{}_{}_{}K.png".format(phases[0], phases[1], temperature)
+                self._create_figure(fname, polys, mus, grand_pot, inter=inter)
+            elif temperature is None:
+                fname += "{}_{}_{}K.png".format(phases[0], phases[1], mu)
+                self._create_figure(fname, polys, temperatures, grand_pot, inter=inter)
         return inter
 
     def _create_figure(self, figname, polys, x, y, inter=None):
