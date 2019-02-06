@@ -92,7 +92,20 @@ class FreeEnergy(object):
             sgc_energy -= chemical_potential[key] * np.array(singlets[key])
         return sgc_energy
 
-    def free_energy_isochemical(self, T=None, sgc_energy=None, nelem=None):
+    def free_energy_isothermal_integral(self, chem_pot=None, conc=None,
+                                        beta_phi_ref=None):
+        """Calculate the free energy at constant temperature along
+            where one chemical potential vary."""
+        integral = [trapz(conc[:i], x=chem_pot[:i])
+                    for i in range(1, len(beta))]
+        integral.append(trapz(conc, x=chem_pot))
+
+        if beta_phi_ref is not None:
+            return beta_phi_ref + np.array(integral)
+        return np.array(integral)
+
+    def free_energy_isochemical(self, T=None, sgc_energy=None, nelem=None,
+                                beta_phi_ref=None):
         """
         Computes the Free Energy by thermodynamic integration from the high
         temperature limit. The line integration is performed along a line
@@ -138,7 +151,11 @@ class FreeEnergy(object):
             data, mode=sort_mode, sort_key="temperature")
         T = data["temperature"]
         sgc_energy = data["sgc_energy"]
-        beta_phi_ref = self.get_reference_beta_phi(T, sgc_energy, nelem=nelem)
+
+        if beta_phi_ref is None:
+            beta_phi_ref = self.get_reference_beta_phi(T, sgc_energy,
+                                                       nelem=nelem)
+
         beta = 1.0 / (kB * T)
         integral = [trapz(sgc_energy[:i], x=beta[:i])
                     for i in range(1, len(beta))]
