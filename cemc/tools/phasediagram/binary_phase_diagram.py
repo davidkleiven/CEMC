@@ -1,5 +1,6 @@
 import dataset
 import numpy as np
+from cemc.tools.phasediagram import SingleCurvaturePolynomial
 
 
 class BinaryPhaseDiagram(object):
@@ -145,7 +146,7 @@ class BinaryPhaseDiagram(object):
                     tbl_pp.upsert(entry, ["systemID"])
 
     def phase_intersection(self, temperature=None, mu=None, phases=[],
-                           polyorder=2):
+                           polyorder=2, bounds={}):
         """Construct a phase separation line between two phases.
 
         :param float temperature: If given, a phase boundary at
@@ -214,10 +215,23 @@ class BinaryPhaseDiagram(object):
             poly = Polynomial(order=polyorder)
 
             if mu is None:
-                x = mus[p]
+                x = np.array(mus[p])
             elif temperature is None:
-                x = temperatures[p]
-            polys[p] = poly.fit(x, grand_pot[p])
+                x = np.array(temperatures[p])
+
+            G = np.array(grand_pot[p])
+
+            limits = bounds.get(p, None)
+            if limits is not None:
+                G = G[x >= limits[0]]
+                x = x[x >= limits[0]]
+                G = G[x < limits[1]]
+                x = x[x < limits[1]]
+
+            if len(x) < polyorder+2:
+                return None
+
+            polys[p] = poly.fit(x, G)
 
         # Find intersection point
         x0 = 0.0
@@ -283,7 +297,8 @@ class BinaryPhaseDiagram(object):
         if inter is not None:
             k = list(polys.keys())[0]
             ax.plot(inter, np.polyval(polys[k], inter), "*")
-        ax.set_ylim([min_y, max_y])
+        diff = max_y - min_y
+        ax.set_ylim([min_y-0.05*diff, max_y + 0.05*diff])
         fig.savefig(figname)
         plt.close()
 
@@ -300,7 +315,7 @@ class BinaryPhaseDiagram(object):
         return res[0]
 
     def phase_boundary(self, phases=[], polyorder=2,
-                       variable="chem_pot"):
+                       variable="chem_pot", bounds={}):
         """Construct a phase boundary between two phases.
 
         :param list phases: List with the name of the phases where
@@ -320,20 +335,23 @@ class BinaryPhaseDiagram(object):
         if variable == "temperature":
             for mu in self.chem_pots:
                 inter = self.phase_intersection(mu=mu, phases=phases,
-                                                polyorder=polyorder)
+                                                polyorder=polyorder,
+                                                bounds=bounds)
                 if inter is not None:
                     temperatures.append(inter)
                     chemical_potentials.append(mu)
         else:
             for t in self.temperatures:
                 inter = self.phase_intersection(temperature=t, phases=phases,
-                                                polyorder=polyorder)
+                                                polyorder=polyorder,
+                                                bounds=bounds)
                 if inter is not None:
                     chemical_potentials.append(inter)
                     temperatures.append(t)
         return chemical_potentials, temperatures
 
-    def composition(self, phase, temperature=None, mu=None, polyorder=2):
+    def composition(self, phase, temperature=None, mu=None, polyorder=2,
+                    bounds=None, interp=None):
         """Get the composition in a given phase
 
         :param float temperature: Temperature
@@ -374,19 +392,47 @@ class BinaryPhaseDiagram(object):
             x = mu_db
         else:
             x = temp_db
+        
+        x = np.array(x)
+        conc = np.array(conc)
+        if bounds is not None:
+            conc = conc[x >= bounds[0]]
+            x = x[x >= bounds[0]]
+            conc = conc[x < bounds[1]]
+            x = x[x < bounds[1]]
+            
         p = np.polyfit(x, conc, polyorder)
 
         if self.fig_prefix is not None:
             from matplotlib import pyplot as plt
-            figname = self.fig_prefix + "comp_{}K_{}.png".format(temperature,
-                                                                 phase)
+            figname = self.fig_prefix
+            if mu is None:
+                figname += "comp_{}K_{}.png".format(temperature, phase)
+            elif temperature is None:
+                figname += "comp_{}eV_{}.png".format(mu, phase)
+            combined = sorted(zip(x, conc))
+            x, conc = zip(*combined)
             fig = plt.figure()
             ax = fig.add_subplot(1, 1, 1)
             x_fit = np.linspace(np.min(x), np.max(x), 50)
-            ax.plot(x, conc)
+            ax.plot(x, conc, marker="o", mfc="none")
             ax.plot(x_fit, np.polyval(p, x_fit))
             ax.set_xlabel("Chemical potential")
             ax.set_ylabel("Composition")
             fig.savefig(figname)
             plt.close()
         return p
+
+    def _guess_curvature(self, x, y):
+        """Guess if the curve is convex or concave."""
+        coeff = np.polyfit(x, y, 2)
+        if coeff[0] > 0.0:
+            return "convex"
+        return "concave"
+
+    def _guess_slope(self, x, y):
+        """Guess if the curve is increasing or decreasing."""
+        coeff = np.polyfit(x, y, 1)
+        if coeff[0] > 0.0:
+            return "increasing"
+        return "decreasing"
