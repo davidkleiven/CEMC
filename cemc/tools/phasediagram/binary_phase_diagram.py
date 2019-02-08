@@ -250,7 +250,7 @@ class BinaryPhaseDiagram(object):
                 fname += "{}_{}_{}K.png".format(phases[0], phases[1], int(temperature))
                 self._create_figure(fname, polys, mus, grand_pot, inter=inter)
             elif temperature is None:
-                fname += "{}_{}_{}K.png".format(phases[0], phases[1], mu)
+                fname += "{}_{}_{}meV.png".format(phases[0], phases[1], int(mu*1000))
                 self._create_figure(fname, polys, temperatures, grand_pot, inter=inter)
         return inter
 
