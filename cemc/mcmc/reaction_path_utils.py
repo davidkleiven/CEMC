@@ -109,7 +109,7 @@ class PseudoBinaryConcInitializer(ReactionCrdInitializer):
             msg += "{} attempts".format(max_attempts)
             raise CannotInitSysteError(msg)
 
-    def get(self, atoms):
+    def get(self, atoms, system_changes=[]):
         """Get the number of formula units of group 2.
 
         :param atoms: An atoms object
