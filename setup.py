@@ -10,6 +10,8 @@ from Cython.Build import cythonize
     pip install --install-option="--PARALLEL_CF_UPDATE"
 2. To compile with -g flag use
    --install-option="--DEBUG"
+3. To not parallize the Khacaturyan integrals run 
+    pip install --install-option="--NO_PARALLEL_KHACHATURYAN_INTEGRAL"
 """
 
 src_folder = "cpp/src"
@@ -25,12 +27,13 @@ ce_updater_sources = ["ce_updater.cpp", "cf_history_tracker.cpp",
                       "row_sparse_struct_matrix.cpp", "pair_constraint.cpp",
                       "eshelby_tensor.cpp", "eshelby_sphere.cpp",
                       "eshelby_cylinder.cpp", "init_numpy_api.cpp",
-                      "symbols_with_numbers.cpp", "basis_function.cpp"]
+                      "symbols_with_numbers.cpp", "basis_function.cpp",
+                      "mat4D.cpp", "khacaturyan.cpp"]
 
 ce_updater_sources = [src_folder+"/"+srcfile for srcfile in ce_updater_sources]
 ce_updater_sources.append("cemc/cpp_ext/cemc_cpp_code.pyx")
 
-define_macros = []
+define_macros = [("PARALLEL_KHACHATURYAN_INTEGRAL", None)]
 extra_comp_args = ["-std=c++11", "-fopenmp"]
 extracted_args = []
 for arg in sys.argv:
@@ -40,6 +43,9 @@ for arg in sys.argv:
     elif arg == "--DEBUG":
         extracted_args.append(arg)
         extra_comp_args.append("-g")
+    elif arg == "--NO_PARALLEL_KHACHATURYAN_INTEGRAL":
+        define_macros.remove((("PARALLEL_KHACHATURYAN_INTEGRAL", None)))
+        extracted_args.append(arg)
 
 # Filter out of sys.argv
 for arg in extracted_args:

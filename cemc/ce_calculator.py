@@ -2,6 +2,7 @@ from ase.calculators.calculator import Calculator
 from ase.clease.corrFunc import CorrFunction
 from ase.clease import CEBulk
 from ase.clease import CECrystal
+from ase.db import connect
 import os
 import numpy as np
 from cemc.mcmc import linear_vib_correction as lvc
@@ -28,6 +29,18 @@ def get_max_dia_name():
         return "max_cluster_dia"
     return "max_cluster_dist"
 
+def transfer_floating_point_classifier(db_name1, db_name2):
+    """Transfer the floating point classifier from one DB to the other."""
+    try:
+        db1 = connect(db_name1)
+        row = db1.get(name="float_classification")
+        db2 = connect(db_name2)
+
+        num_entries = sum(1 for row in db2.select(name="float_classification"))
+        if num_entries == 0:
+            db2.write(row)
+    except Exception as exc:
+        print(exc)
 
 def get_atoms_with_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
                            db_name="temp_db.db"):
@@ -59,16 +72,16 @@ def get_atoms_with_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
         raise IOError("The database has to be prepared prior to calling "
                       "get_atoms_with_ce_calc")
     try:
+        transfer_floating_point_classifier(bc_kwargs["db_name"], db_name)
         max_size_eci = get_max_size_eci(eci)
         if "max_cluster_size" in bc_kwargs.keys():
             if max_size_eci > bc_kwargs["max_cluster_size"]:
                 msg = "ECI specifies a cluster size larger than "
                 msg += "ClusterExpansionSetting tracks!"
                 raise ValueError(msg)
-            print("Initializing calculator with small BC")
+
         atoms = small_bc.atoms.copy()
         calc1 = CE(atoms, small_bc, eci)
-        print("Initialization finished")
         init_cf = calc1.get_cf()
         min_length = small_bc.max_cluster_dia
         bc_kwargs["size"] = size

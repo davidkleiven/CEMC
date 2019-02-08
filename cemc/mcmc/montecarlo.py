@@ -693,11 +693,11 @@ class Montecarlo(object):
         """
         percentile = stats.norm.ppf(1.0 - confidence_level)
         var_E = self._get_var_average_energy()
-        converged = (var_E < (prec * len(self.atoms) / percentile)**2)
+        converged = (var_E < (prec/percentile)**2)
 
         if log_status:
             std_E = np.sqrt(var_E)
-            criteria = prec * len(self.atoms) / percentile
+            criteria = prec/percentile
             self.log("Current energy std: {}. ".format(std_E)
                      + "Convergence criteria: {}".format(criteria))
 

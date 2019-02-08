@@ -1,4 +1,5 @@
 import unittest
+import traceback
 import os
 try:
     from cemc.mcmc import NucleationSampler, SGCNucleation
@@ -57,12 +58,11 @@ class TestNuclFreeEnergy( unittest.TestCase ):
                 merge_strategy="normalize_overlap")
 
             nn_name = get_network_name(ceBulk.cluster_family_names_by_size)
-
             mc = SGCNucleation(
                 atoms, 30000, nucleation_sampler=sampler,
                 network_name=[nn_name],  network_element=["Mg"],
                 symbols=["Al", "Mg"], chem_pot=chem_pot)
-            mc.runMC(steps=2)
+            mc.runMC(steps=2, equil=False)
             sampler.save(fname="test_nucl.h5")
 
             mc = CanonicalNucleationMC(
@@ -86,6 +86,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             os.remove("sc5x5x5.db")
         except Exception as exc:
             msg = str(exc)
+            msg += "\n" + traceback.format_exc()
             no_throw = False
         self.assertTrue(no_throw, msg=msg)
 
