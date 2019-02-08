@@ -401,15 +401,17 @@ class BinaryPhaseDiagram(object):
             conc = conc[x < bounds[1]]
             x = x[x < bounds[1]]
             
+        if len(x) <= polyorder+1:
+            polyorder = len(x) - 1
         p = np.polyfit(x, conc, polyorder)
 
         if self.fig_prefix is not None:
             from matplotlib import pyplot as plt
             figname = self.fig_prefix
             if mu is None:
-                figname += "comp_{}K_{}.png".format(temperature, phase)
+                figname += "comp_{}K_{}.png".format(int(temperature), phase)
             elif temperature is None:
-                figname += "comp_{}eV_{}.png".format(mu, phase)
+                figname += "comp_{}meV_{}.png".format(int(1000*mu), phase)
             combined = sorted(zip(x, conc))
             x, conc = zip(*combined)
             fig = plt.figure()
