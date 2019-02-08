@@ -407,6 +407,7 @@ class AdaptiveBiasReactionPathSampler(object):
                  "".format(self.current_min_val, self.current_max_val,
                            self.average_visits, num_visited, self.last_visited_bin,
                            acc_rate, self.current_min_bin))
+        self.log("Current formua: {}".format(self.mc.atoms.get_chemical_formula()))
 
     @property
     def rank(self):
