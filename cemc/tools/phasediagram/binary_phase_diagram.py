@@ -247,7 +247,7 @@ class BinaryPhaseDiagram(object):
         if self.fig_prefix is not None:
             fname = self.fig_prefix
             if mu is None:
-                fname += "{}_{}_{}K.png".format(phases[0], phases[1], temperature)
+                fname += "{}_{}_{}K.png".format(phases[0], phases[1], int(temperature))
                 self._create_figure(fname, polys, mus, grand_pot, inter=inter)
             elif temperature is None:
                 fname += "{}_{}_{}K.png".format(phases[0], phases[1], mu)
