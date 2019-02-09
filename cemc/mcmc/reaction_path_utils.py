@@ -114,11 +114,11 @@ class PseudoBinaryConcInitializer(ReactionCrdInitializer):
 
         :param atoms: An atoms object
         """
-        if system_changes is None:
-            num_per_unit = self.mc.groups[1][self.target_symb]
-            return float(len(self.mc.atoms_indx[self.target_symb])) / num_per_unit
-
-        return self.get_value_from_syst_change(system_changes)
+        if system_changes:
+            return self.get_value_from_syst_change(system_changes)
+            
+        num_per_unit = self.mc.groups[1][self.target_symb]
+        return float(len(self.mc.atoms_indx[self.target_symb])) / num_per_unit
 
     def get_value_from_syst_change(self, syst_changes): 
         n_un = self.number_of_units
