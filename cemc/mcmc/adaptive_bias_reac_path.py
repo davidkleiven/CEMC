@@ -23,12 +23,10 @@ class AdaptiveBiasPotential(BiasPotential):
         the configurational space
     :param str db_bin_data: Database where one structure in each 
         bin will be stored
-    :param bool ignore_equil_steps: If True MC trial steps that leads to no 
-        change in the reaction coordinate will not be counted
     """
     def __init__(self, lim=[0.0, 1.0], n_bins=100, mod_factor=0.01,
                  reac_init=None, T=400, mc=None, db_bin_data="adaptive_bias.db",
-                 mpicomm=None, ignore_equil_steps=True):
+                 mpicomm=None):
         from ase.units import kB
         self.xmin = lim[0]
         self.xmax = lim[1]
@@ -43,7 +41,6 @@ class AdaptiveBiasPotential(BiasPotential):
         self.know_structure_in_bin = np.zeros(self.nbins, dtype=np.uint8)
         self.lowest_active_indx = 0
         self.mpicomm = mpicomm
-        self.ignore_equil_steps = ignore_equil_steps
 
     @property
     def rank(self):
@@ -201,18 +198,22 @@ class AdaptiveBiasReactionPathSampler(object):
         in a database.
     :param bool delete_db_if_exists: If True any existing DB containing
         structures will be delted prior to the run.
+    :param bool ignore_equil_steps: If True MC trial steps that leads to no 
+        change in the reaction coordinate will not be counted
     """
     def __init__(self, mc_obj=None, react_crd_init=None, n_bins=100, 
                  data_file="adaptive_bias_path_sampler.h5",
                  react_crd=[0.0, 1.0], mod_factor=0.01, convergence_factor=0.8,
                  save_interval=600, log_msg_interval=30, db_struct="adaptive_bias.db",
                  delete_db_if_exists=False, mpicomm=None,
-                 check_convergence_interval=10000, check_user_input=True):
+                 check_convergence_interval=10000, check_user_input=True,
+                 ignore_equil_steps=True):
 
         self.bias = AdaptiveBiasPotential(lim=react_crd, n_bins=n_bins, 
                                         mod_factor=mod_factor, 
                                         reac_init=react_crd_init, T=mc_obj.T,
                                         mc=mc_obj, db_bin_data=db_struct)
+        self.ignore_equil_steps = ignore_equil_steps
         self.mc = mc_obj
         self.mpicomm = mpicomm
         self.mc.add_bias(self.bias)
