@@ -80,10 +80,6 @@ class AdaptiveBiasPotential(BiasPotential):
 
     def update(self):
         """Update the bias potential."""
-        trial_alter = self._trial_move_alter_reac_crd(self.mc.trial_move)
-        if self.ignore_equil_steps and not trial_alter:
-            return
-
         x = self.reac_init.get(None)
         bin_indx = self.get_bin(x)
         if bin_indx < 0 or bin_indx >= self.nbins:
@@ -310,6 +306,9 @@ class AdaptiveBiasReactionPathSampler(object):
 
     def update(self):
         """Update the history."""
+        trial_alter = self._trial_move_alter_reac_crd(self.mc.trial_move)
+        if self.ignore_equil_steps and not trial_alter:
+            return
         self.bias.update()
         value = self.bias.reac_init.get(None)
         bin_indx = self.bias.get_bin(value)
