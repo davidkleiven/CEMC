@@ -23,10 +23,12 @@ class AdaptiveBiasPotential(BiasPotential):
         the configurational space
     :param str db_bin_data: Database where one structure in each 
         bin will be stored
+    :param bool ignore_equil_steps: If True MC trial steps that leads to no 
+        change in the reaction coordinate will not be counted
     """
     def __init__(self, lim=[0.0, 1.0], n_bins=100, mod_factor=0.01,
                  reac_init=None, T=400, mc=None, db_bin_data="adaptive_bias.db",
-                 mpicomm=None):
+                 mpicomm=None, ignore_equil_steps=True):
         from ase.units import kB
         self.xmin = lim[0]
         self.xmax = lim[1]
@@ -41,6 +43,7 @@ class AdaptiveBiasPotential(BiasPotential):
         self.know_structure_in_bin = np.zeros(self.nbins, dtype=np.uint8)
         self.lowest_active_indx = 0
         self.mpicomm = mpicomm
+        self.ignore_equil_steps = ignore_equil_steps
 
     @property
     def rank(self):
@@ -77,6 +80,10 @@ class AdaptiveBiasPotential(BiasPotential):
 
     def update(self):
         """Update the bias potential."""
+        trial_alter = self._trial_move_alter_reac_crd(self.mc.trial_move)
+        if self.ignore_equil_steps and not trial_alter:
+            return
+
         x = self.reac_init.get(None)
         bin_indx = self.get_bin(x)
         if bin_indx < 0 or bin_indx >= self.nbins:
