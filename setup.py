@@ -2,6 +2,7 @@ import sys
 from setuptools import setup, Extension, find_packages
 import numpy as np
 from Cython.Build import cythonize
+import os
 
 """Install instructions
 
@@ -34,7 +35,9 @@ ce_updater_sources.append("cemc/cpp_ext/cemc_cpp_code.pyx")
 
 src_phase = "phasefield_cxx/src"
 phasefield_sources = ["two_phase_landau.cpp", "mat4D.cpp", "khacaturyan.cpp",
-                      "linalg.cpp", "cahn_hilliard.cpp"]
+                      "linalg.cpp", "cahn_hilliard.cpp",
+                      "mmsp_files.cpp"]
+                      #"phase_field_simulation.cpp", "cahn_hilliard_phasefield.cpp"]
 phasefield_sources = [src_phase + "/" + x for x in phasefield_sources]
 phasefield_sources.append("cemc/phasefield/cython/phasefield_cxx.pyx")
 
@@ -63,7 +66,9 @@ cemc_cpp_code = Extension("cemc_cpp_code", sources=ce_updater_sources,
                           define_macros=define_macros)
 
 phase_field_mod = Extension("phasefield_cxx", sources=phasefield_sources,
-                            include_dirs=[np.get_include(), "phasefield_cxx/include"],
+                            include_dirs=[np.get_include(), "phasefield_cxx/include",
+                            "phasefield_cxx/src",
+                            os.environ.get("MMSP_HOME", "./")+"/include"],
                             extra_compile_args=extra_comp_args,
                             language="c++", define_macros=define_macros,
                             libraries=["gomp", "pthread"])
