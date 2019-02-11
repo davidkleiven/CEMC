@@ -20,3 +20,8 @@ class CahnHilliard(object):
         if self.coeff is None:
             raise ValueError("Coefficients is not set!")
         return np.polyval(self.coeff, x)
+
+    def deriv(self, x):
+        """Return the first derivative of the polynomial."""
+        p_der = np.polyder(self.coeff)
+        return np.polyval(p_der, x)

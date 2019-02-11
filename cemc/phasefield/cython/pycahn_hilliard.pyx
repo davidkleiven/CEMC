@@ -17,3 +17,6 @@ cdef class PyCahnHilliard:
 
     def evaluate(self, x):
         return self.thisptr.evaluate(x)
+
+    def deriv(self, x):
+        return self.thisptr.deriv(x)

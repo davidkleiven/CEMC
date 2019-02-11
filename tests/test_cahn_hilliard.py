@@ -45,6 +45,16 @@ class TestCahnHilliard(unittest.TestCase):
         coeff = [4.0, 3.0, 2.0, 1.0]
         self.assertRaises(ValueError, CahnHilliard, coeff=coeff)
 
+    def test_derivative(self):
+        if not available:
+            self.skipTest(reason)
+        coeff = [4.0, 3.0, 2.0, 1.0]
+        cahn = CahnHilliard(degree=3, coeff=coeff)
+        cython_cahn = PyCahnHilliard(coeff)
+        x_values = [2.0, 3.0, -1.0]
+        for x in x_values:
+            self.assertAlmostEqual(cahn.deriv(x), cython_cahn.deriv(x))
+
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
     unittest.main(testRunner=TimeLoggingTestRunner)

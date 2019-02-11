@@ -7,3 +7,5 @@ cdef extern from "cahn_hilliard.hpp":
         CahnHilliard(vector[double] coeff)
 
         double evaluate(double x)
+
+        double deriv(double x)

@@ -30,3 +30,4 @@ energy_data.json
 .vscode/*
 settings.json
 phasefield_cxx.cpp
+cemc/phasefield/__pycache__/cahn_hilliard.cpython-36.pyc
