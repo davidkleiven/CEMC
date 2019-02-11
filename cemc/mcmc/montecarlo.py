@@ -100,6 +100,7 @@ class Montecarlo(object):
 
         # Keep the energy of old and trial state
         self.last_energies = np.zeros(2)
+        self.trial_move = []  # Last trial move performed
         self.mean_energy = Averager(ref_value=E0)
         self.energy_squared = Averager(ref_value=E0)
         self.mpicomm = mpicomm
@@ -1045,6 +1046,8 @@ class Montecarlo(object):
                 counter < self.max_allowed_constraint_pass_attempts:
             system_changes = self._get_trial_move()
             counter += 1
+
+        self.trial_move = system_changes
 
         if counter == self.max_allowed_constraint_pass_attempts:
             msg = "Did not manage to produce a trial move that does not "
