@@ -109,13 +109,25 @@ class PseudoBinaryConcInitializer(ReactionCrdInitializer):
             msg += "{} attempts".format(max_attempts)
             raise CannotInitSysteError(msg)
 
-    def get(self, atoms):
+    def get(self, atoms, system_changes=None):
         """Get the number of formula units of group 2.
 
         :param atoms: An atoms object
         """
+        if system_changes:
+            return self.get_value_from_syst_change(system_changes)
+            
         num_per_unit = self.mc.groups[1][self.target_symb]
         return float(len(self.mc.atoms_indx[self.target_symb])) / num_per_unit
+
+    def get_value_from_syst_change(self, syst_changes): 
+        n_un = self.number_of_units
+        for change in syst_changes:
+            if change[2] == self.target_symb:
+                n_un += 1.0 / self.num_per_unit
+            elif change[1] == self.target_symb:
+                n_un -= 1.0 / self.num_per_unit
+        return n_un
 
     @property
     def number_of_units(self):

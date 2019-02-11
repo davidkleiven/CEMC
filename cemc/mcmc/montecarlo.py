@@ -100,6 +100,7 @@ class Montecarlo(object):
 
         # Keep the energy of old and trial state
         self.last_energies = np.zeros(2)
+        self.trial_move = []  # Last trial move performed
         self.mean_energy = Averager(ref_value=E0)
         self.energy_squared = Averager(ref_value=E0)
         self.mpicomm = mpicomm
@@ -693,11 +694,11 @@ class Montecarlo(object):
         """
         percentile = stats.norm.ppf(1.0 - confidence_level)
         var_E = self._get_var_average_energy()
-        converged = (var_E < (prec * len(self.atoms) / percentile)**2)
+        converged = (var_E < (prec/percentile)**2)
 
         if log_status:
             std_E = np.sqrt(var_E)
-            criteria = prec * len(self.atoms) / percentile
+            criteria = prec/percentile
             self.log("Current energy std: {}. ".format(std_E)
                      + "Convergence criteria: {}".format(criteria))
 
@@ -1045,6 +1046,8 @@ class Montecarlo(object):
                 counter < self.max_allowed_constraint_pass_attempts:
             system_changes = self._get_trial_move()
             counter += 1
+
+        self.trial_move = system_changes
 
         if counter == self.max_allowed_constraint_pass_attempts:
             msg = "Did not manage to produce a trial move that does not "

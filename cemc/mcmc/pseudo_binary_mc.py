@@ -33,6 +33,10 @@ class PseudoBinarySGC(SGCMonteCarlo):
         # but since the number of elements of each symbol is not constant,
         # we need apply a different datastructure
         self.atoms_indx = self._init_symbol_tracker()
+        self.group_by_symbol = {}
+        for i, gr in enumerate(self.groups):
+            for key in gr.keys():
+                self.group_by_symbol[key] = i
 
     def _init_symbol_tracker(self):
         """Initialize the symbol tracker."""
@@ -44,6 +48,11 @@ class PseudoBinarySGC(SGCMonteCarlo):
             symb = atom.symbol
             atoms_indx[symb].add(atom.index)
         return atoms_indx
+
+    def set_symbols(self, symbols):
+        """Update the symbols."""
+        super(PseudoBinarySGC, self).set_symbols(symbols)
+        self.atoms_indx = self._init_symbol_tracker()
 
     def _check_group(self):
         """Check that the group argument given by the user is fine."""
@@ -114,10 +123,13 @@ class PseudoBinarySGC(SGCMonteCarlo):
     def insert_trial_move(self):
         """Trial move consisting of inserting a new unit of pseudo binary."""
         syst_changes = []
-        grp_indx = [0, 1]
-        shuffle(grp_indx)
-        grp1 = self.groups[grp_indx[0]]
-        grp2 = self.groups[grp_indx[1]]
+        indx = np.random.randint(low=0, high=len(self.atoms))
+        selected_symbol = self.atoms[indx].symbol
+        grp1_indx = self.group_by_symbol[selected_symbol]
+        grp2_indx = (grp1_indx+1) % 2
+        grp1 = self.groups[grp1_indx]
+        grp2 = self.groups[grp2_indx]
+
         symbs2 = self._symbs_in_group_in_random_order(grp2)
 
         # Find indices of elements in the first group
@@ -246,3 +258,8 @@ class PseudoBinarySGC(SGCMonteCarlo):
         if "chem_potential" in kwargs.keys():
             kwargs.pop("chem_potential")
         SGCMonteCarlo.runMC(self, **kwargs)
+
+    def _get_var_average_singlets(self):
+        """Override: Only a fraction of the steps alter the composition."""
+        var_singl = super(PseudoBinarySGC, self)._get_var_average_singlets()
+        return var_singl/self._ins_prob
