@@ -14,7 +14,7 @@ class CahnHilliard(object):
         self.coeff = coeff
 
     def fit(self, x, G):
-        self.coeff = np.polyfit(x, G, self.degree)
+        self.coeff = np.polyfit(x, G)
 
     def evaluate(self, x):
         if self.coeff is None:
