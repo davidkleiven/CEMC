@@ -51,6 +51,18 @@ void PhaseFieldSimulation<dim>::random_initialization(double lower, double upper
     random_initialization(0, lower, upper);
 }
 
+template<int dim>
+void PhaseFieldSimulation<dim>::run(unsigned int nsteps, int increment){
+    for (unsigned int iter=0;iter<nsteps; iter+=increment){
+        this->update(increment);
+
+        // Generate output filename
+        stringstream ss;
+        ss << prefix << iter;
+        MMSP::output(*grid_ptr, ss.str().c_str());
+    }
+}
+
 
 // Explicit instatiations
 template class PhaseFieldSimulation<1>;

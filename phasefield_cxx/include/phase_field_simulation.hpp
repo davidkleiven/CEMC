@@ -22,6 +22,8 @@ public:
     /** Update function */
     virtual void update(int steps) = 0;
 
+    /** Run the simulation */
+    void run();
 protected:
     int L{64};
     std::string prefix;
