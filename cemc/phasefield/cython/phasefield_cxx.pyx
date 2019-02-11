@@ -10,3 +10,4 @@ np.import_array()
 include "pymat4D.pyx"
 include "khachaturyan.pyx"
 include "pytwo_phase_landau.pyx"
+include "pycahn_hilliard.pyx"

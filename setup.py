@@ -34,7 +34,7 @@ ce_updater_sources.append("cemc/cpp_ext/cemc_cpp_code.pyx")
 
 src_phase = "phasefield_cxx/src"
 phasefield_sources = ["two_phase_landau.cpp", "mat4D.cpp", "khacaturyan.cpp",
-                      "linalg.cpp"]
+                      "linalg.cpp", "cahn_hilliard.cpp"]
 phasefield_sources = [src_phase + "/" + x for x in phasefield_sources]
 phasefield_sources.append("cemc/phasefield/cython/phasefield_cxx.pyx")
 
