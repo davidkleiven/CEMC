@@ -13,6 +13,8 @@ import os
    --install-option="--DEBUG"
 3. To not parallize the Khacaturyan integrals run 
     pip install --install-option="--NO_PARALLEL_KHACHATURYAN_INTEGRAL"
+4. To build the phase field extension module (which depend on the 
+    mesoscale/MMSP project)
 
 To build the phase field module the following environement variable
 may be set
@@ -42,9 +44,8 @@ ce_updater_sources.append("cemc/cpp_ext/cemc_cpp_code.pyx")
 
 src_phase = "phasefield_cxx/src"
 phasefield_sources = ["two_phase_landau.cpp", "mat4D.cpp", "khacaturyan.cpp",
-                      "linalg.cpp", "cahn_hilliard.cpp",
-                      "mmsp_files.cpp"]
-                      #"phase_field_simulation.cpp", "cahn_hilliard_phasefield.cpp"]
+                      "linalg.cpp", "cahn_hilliard.cpp"]
+
 phasefield_sources = [src_phase + "/" + x for x in phasefield_sources]
 phasefield_sources.append("cemc/phasefield/cython/phasefield_cxx.pyx")
 
@@ -83,9 +84,16 @@ phase_field_mod = Extension("phasefield_cxx", sources=phasefield_sources,
                                        "vtkCommonCore", "vtkCommonDataModel",
                                        "vtkIOXML"],
                             library_dirs=[os.environ.get("VTKLIB", "./")])
+
+ext_mods = [cemc_cpp_code]
+if "--with-phasefield" in sys.argv:
+    ext_mods.append(phase_field_mod)
+    sys.argv.remove("--with-phasefield")
+    print("Including phase field module in the build...")
+
 setup(
     name="cemc",
-    ext_modules=cythonize([cemc_cpp_code, phase_field_mod]),
+    ext_modules=cythonize(ext_mods),
     version=1.0,
     author="David Kleiven",
     author_email="davidkleiven446@gmail.com",
