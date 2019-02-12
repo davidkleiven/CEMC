@@ -3,6 +3,7 @@
 #include <sstream>
 #include "MMSP.grid.h"
 #include "MMSP.vector.h"
+#include <ctime>
 
 using namespace std;
 
@@ -11,20 +12,15 @@ PhaseFieldSimulation<dim>::PhaseFieldSimulation(int L, \
                      const std::string &prefix, unsigned int num_fields): \
                      L(L), prefix(prefix), num_fields(num_fields){
                          if (dim == 1){
-                             int min[1] = {0};
-                             int max[1] = {L};
-                             grid_ptr = new MMSP::grid<dim, MMSP::vector<double> >(num_fields-1, min, max);
+                             grid_ptr = new MMSP::grid<dim, MMSP::vector<double> >(num_fields, 0, L);
                          }
                          else if (dim == 2){
-                             int min[2] = {0, 0};
-                             int max[2] = {L, L};
-                             grid_ptr = new MMSP::grid<dim, MMSP::vector<double> >(num_fields-1, min, max);
+                             grid_ptr = new MMSP::grid<dim, MMSP::vector<double> >(num_fields, 0, L, 0, L);
                          }
                          else if (dim == 3){
-                             int min[3] = {0, 0, 0};
-                             int max[3] = {L, L, L};
-                             grid_ptr = new MMSP::grid<dim, MMSP::vector<double> >(num_fields-1, min, max);
+                             grid_ptr = new MMSP::grid<dim, MMSP::vector<double> >(num_fields, 0, L, 0, L, 0, L);
                          }
+                         srand(time(0));
                      };
 
 template<int dim>
@@ -37,7 +33,7 @@ void PhaseFieldSimulation<dim>::random_initialization(unsigned int field_no, dou
 
     double range = upper - lower;
     for (int i=0;i<MMSP::nodes(*this->grid_ptr);i++){
-        (*grid_ptr)(i)[field_no] = range*rand()/RAND_MAX + lower;
+        (*grid_ptr)(i)[field_no] = range*rand()/static_cast<double>(RAND_MAX) + lower;
     }
 
     // Save grid

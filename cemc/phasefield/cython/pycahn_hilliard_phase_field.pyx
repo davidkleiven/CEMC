@@ -41,3 +41,13 @@ cdef class PyCahnHilliardPhaseField:
             self.thisptr2D.run(nsteps, increment)
         elif self.dim == 3:
             self.thisptr3D.run(nsteps, increment)
+
+    def random_initialization(self, lower, upper):
+        if self.dim == 1:
+            self.thisptr1D.random_initialization(lower, upper)
+        elif self.dim == 2:
+            self.thisptr2D.random_initialization(lower, upper)
+        elif self.dim == 3:
+            self.thisptr3D.random_initialization(lower, upper)
+        else:
+            raise ValueError("Dimension has to be 1, 2, or 3")
