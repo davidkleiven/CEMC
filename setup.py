@@ -66,15 +66,16 @@ cemc_cpp_code = Extension("cemc_cpp_code", sources=ce_updater_sources,
                           define_macros=define_macros)
 
 phase_field_mod = Extension("phasefield_cxx", sources=phasefield_sources,
-                            include_dirs=[np.get_include(), "phasefield_cxx/include",
-                            "phasefield_cxx/src",
-                            os.environ.get("MMSP_HOME", "./")+"/include"],
+                            include_dirs=[np.get_include(),
+                                          "phasefield_cxx/include",
+                                          "phasefield_cxx/src",
+                                          os.environ.get("MMSP_HOME", "./")+"/include"],
                             extra_compile_args=extra_comp_args,
                             language="c++", define_macros=define_macros,
                             libraries=["gomp", "pthread"])
 setup(
     name="cemc",
-    ext_modules=cythonize(cemc_cpp_code) + cythonize(phase_field_mod),
+    ext_modules=cythonize([cemc_cpp_code, phase_field_mod]),
     version=1.0,
     author="David Kleiven",
     author_email="davidkleiven446@gmail.com",
