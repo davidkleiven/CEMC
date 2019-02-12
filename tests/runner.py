@@ -28,6 +28,7 @@ import test_isotropic_strain_energy
 import test_khacaturyan
 import test_binary_phase_diag
 import test_cahn_hilliard
+import test_cahn_hilliard_phase_field
 
 try:
     os.mkdir("data")
@@ -67,6 +68,7 @@ suite.addTest(loader.loadTestsFromModule(test_isotropic_strain_energy))
 suite.addTest(loader.loadTestsFromModule(test_khacaturyan))
 suite.addTest(loader.loadTestsFromModule(test_binary_phase_diag))
 suite.addTest(loader.loadTestsFromModule(test_cahn_hilliard))
+suite.addTest(loader.loadTestsFromModule(test_cahn_hilliard_phase_field))
 
 runner = TimeLoggingTestRunner()
 result = runner.run(suite)
