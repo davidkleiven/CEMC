@@ -58,7 +58,7 @@ void PhaseFieldSimulation<dim>::run(unsigned int nsteps, int increment){
 
         // Generate output filename
         stringstream ss;
-        ss << prefix << iter;
+        ss << prefix << iter << ".vti";
         MMSP::output(*grid_ptr, ss.str().c_str());
     }
 }

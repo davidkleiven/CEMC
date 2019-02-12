@@ -14,6 +14,7 @@ cdef class PyCahnHilliardPhaseField:
     cdef chpf.CahnHilliardPhaseField[intParameter1] *thisptr1D
     cdef chpf.CahnHilliardPhaseField[intParameter2] *thisptr2D
     cdef chpf.CahnHilliardPhaseField[intParameter3] *thisptr3D
+    cdef int dim
 
     def __cinit__(self, dim, L, prefix, PyCahnHilliard free_eng, M, dt, alpha):
         if dim == 1:
@@ -29,12 +30,9 @@ cdef class PyCahnHilliardPhaseField:
         self.dim = dim
 
     def __dealloc__(self):
-        if self.dim == 1:
-            del self.thisptr1D
-        elif self.dim == 2:
-            del self.thisptr2D
-        elif self.dim == 3:
-            del self.thisptr3D
+        del self.thisptr1D
+        del self.thisptr2D
+        del self.thisptr3D
 
     def run(self, nsteps, increment):
         if self.dim == 1:
