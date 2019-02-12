@@ -6,10 +6,11 @@ try:
     from cemc import CE
     from helper_functions import get_ternary_BC
     from helper_functions import get_example_ecis
+    import numpy as np
 
     class DummyReacCrdInit(ReactionCrdInitializer):
         def get(self, atoms, system_changes=[]):
-            return 0.0
+            return np.random.rand()*2.0 - 1.0
 
         def set(self, value):
             pass
