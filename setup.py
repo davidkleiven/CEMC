@@ -13,6 +13,13 @@ import os
    --install-option="--DEBUG"
 3. To not parallize the Khacaturyan integrals run 
     pip install --install-option="--NO_PARALLEL_KHACHATURYAN_INTEGRAL"
+
+To build the phase field module the following environement variable
+may be set
+MMSP_HOME: Path to the root directory of the MMSP package.
+    (Header files are assumed to be located at $MMSP_HOME/include)
+
+VTKLIB: Path to the VTK libraries needed by MMSP
 """
 
 src_folder = "cpp/src"
@@ -72,7 +79,10 @@ phase_field_mod = Extension("phasefield_cxx", sources=phasefield_sources,
                                           os.environ.get("MMSP_HOME", "./")+"/include"],
                             extra_compile_args=extra_comp_args,
                             language="c++", define_macros=define_macros,
-                            libraries=["gomp", "pthread"])
+                            libraries=["gomp", "pthread", "z", "png",
+                                       "vtkCommonCore", "vtkCommonDataModel",
+                                       "vtkIOXML"],
+                            library_dirs=[os.environ.get("VTKLIB", "./")])
 setup(
     name="cemc",
     ext_modules=cythonize([cemc_cpp_code, phase_field_mod]),
