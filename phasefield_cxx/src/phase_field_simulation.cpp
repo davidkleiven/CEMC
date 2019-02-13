@@ -38,8 +38,8 @@ void PhaseFieldSimulation<dim>::random_initialization(unsigned int field_no, dou
 
     // Save grid
     stringstream ss;
-    ss << prefix << ".grd";
-    MMSP::output(*this->grid_ptr, ss.str().c_str());
+    ss << prefix << ".grid";
+    grid_ptr->output(ss.str().c_str());
 }
 
 template<int dim>
@@ -54,8 +54,8 @@ void PhaseFieldSimulation<dim>::run(unsigned int start, unsigned int nsteps, int
 
         // Generate output filename
         stringstream ss;
-        ss << prefix << iter << ".vti";
-        MMSP::output(*grid_ptr, ss.str().c_str());
+        ss << prefix << get_digit_string(iter+increment) << ".grid";
+        grid_ptr->output(ss.str().c_str());
     }
 }
 
@@ -64,6 +64,17 @@ void PhaseFieldSimulation<dim>::from_file(const std::string &fname){
     grid_ptr->input(fname.c_str(), 1, false);
 }
 
+template<int dim>
+string PhaseFieldSimulation<dim>::get_digit_string(unsigned int iter) const{
+    stringstream ss;
+    int num_digits = log10(iter);
+    if (num_digits < num_digits_in_file){
+        for (unsigned int i=0;i<num_digits_in_file - num_digits;i++){
+            ss << 0;
+        }
+    }
+    return ss.str();
+}
 
 // Explicit instatiations
 template class PhaseFieldSimulation<1>;

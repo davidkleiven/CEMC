@@ -31,6 +31,10 @@ protected:
     int L{64};
     std::string prefix;
     unsigned int num_fields{1};
+    unsigned int num_digits_in_file{10};
+
+    /** Get iteration identifier with 10 digits */
+    std::string get_digit_string(unsigned int iter) const;
 
     MMSP::grid<dim, MMSP::vector<double> > *grid_ptr{nullptr};
 };
