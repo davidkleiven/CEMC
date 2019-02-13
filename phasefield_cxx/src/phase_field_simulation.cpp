@@ -73,6 +73,7 @@ string PhaseFieldSimulation<dim>::get_digit_string(unsigned int iter) const{
             ss << 0;
         }
     }
+    ss << iter;
     return ss.str();
 }
 
