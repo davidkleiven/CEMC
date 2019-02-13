@@ -26,6 +26,8 @@ class CoupledEuler(object):
         initial = self._init_guess()
         n_eq = initial.shape[0]
 
+        assert n_eq % 2 == 0
+
         def rhs_func(x, y):
             res = np.zeros_like(y)
             for i in range(int(n_eq/2)):
