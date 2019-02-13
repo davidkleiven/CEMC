@@ -19,6 +19,9 @@ public:
     void random_initialization(unsigned int field_no, double lower, double upper);
     void random_initialization(double lower, double upper);
 
+    /** Load grid from file */
+    void from_file(const std::string &fname);
+
     /** Update function */
     virtual void update(int steps) = 0;
 

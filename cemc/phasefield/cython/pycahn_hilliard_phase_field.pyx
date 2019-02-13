@@ -51,3 +51,13 @@ cdef class PyCahnHilliardPhaseField:
             self.thisptr3D.random_initialization(lower, upper)
         else:
             raise ValueError("Dimension has to be 1, 2, or 3")
+
+    def from_file(self, fname):
+        if self.dim == 1:
+            self.thisptr1D.from_file(fname)
+        elif self.dim == 2:
+            self.thisptr2D.from_file(fname)
+        elif self.dim == 3:
+            self.thisptr3D.from_file(fname)
+        else:
+            raise ValueError("Dimension has to be 1, 2, or 3")

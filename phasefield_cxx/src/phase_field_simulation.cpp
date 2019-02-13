@@ -59,6 +59,11 @@ void PhaseFieldSimulation<dim>::run(unsigned int nsteps, int increment){
     }
 }
 
+template<int dim>
+void PhaseFieldSimulation<dim>::from_file(const std::string &fname){
+    grid_ptr->input(fname.c_str(), 1, false);
+}
+
 
 // Explicit instatiations
 template class PhaseFieldSimulation<1>;

@@ -14,3 +14,5 @@ cdef extern from "cahn_hilliard_phase_field.hpp":
         void run(unsigned int nsteps, int increment)
 
         void random_initialization(double lower, double upper)
+
+        void from_file(string fname)
