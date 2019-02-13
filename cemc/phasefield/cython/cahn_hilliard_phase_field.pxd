@@ -11,7 +11,7 @@ cdef extern from "cahn_hilliard_phase_field.hpp":
 
         void update(unsigned int steps)
 
-        void run(unsigned int nsteps, int increment)
+        void run(unsigned int start, unsigned int nsteps, int increment)
 
         void random_initialization(double lower, double upper)
 

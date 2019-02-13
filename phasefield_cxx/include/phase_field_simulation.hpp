@@ -26,7 +26,7 @@ public:
     virtual void update(int steps) = 0;
 
     /** Run the simulation */
-    void run(unsigned int nsteps, int increment);
+    void run(unsigned int start, unsigned int nsteps, int increment);
 protected:
     int L{64};
     std::string prefix;

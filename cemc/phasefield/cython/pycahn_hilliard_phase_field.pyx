@@ -34,13 +34,13 @@ cdef class PyCahnHilliardPhaseField:
         del self.thisptr2D
         del self.thisptr3D
 
-    def run(self, nsteps, increment):
+    def run(self, nsteps, increment, start=0):
         if self.dim == 1:
-            self.thisptr1D.run(nsteps, increment)
+            self.thisptr1D.run(start, nsteps, increment)
         elif self.dim == 2:
-            self.thisptr2D.run(nsteps, increment)
+            self.thisptr2D.run(start, nsteps, increment)
         elif self.dim == 3:
-            self.thisptr3D.run(nsteps, increment)
+            self.thisptr3D.run(start, nsteps, increment)
 
     def random_initialization(self, lower, upper):
         if self.dim == 1:

@@ -48,8 +48,8 @@ void PhaseFieldSimulation<dim>::random_initialization(double lower, double upper
 }
 
 template<int dim>
-void PhaseFieldSimulation<dim>::run(unsigned int nsteps, int increment){
-    for (unsigned int iter=0;iter<nsteps; iter+=increment){
+void PhaseFieldSimulation<dim>::run(unsigned int start, unsigned int nsteps, int increment){
+    for (unsigned int iter=start;iter<nsteps+start; iter+=increment){
         this->update(increment);
 
         // Generate output filename
