@@ -8,12 +8,12 @@ class CoupledEuler(object):
 
     :param array-like x: Mesh points length N
     :param list rhs: List of callable objects with signature
-        f(x, y), where x is the independent variable of length 
-        N and y is the current solution vector of length 
+        f(x, y), where x is the independent variable of length
+        N and y is the current solution vector of length
         (N, M), where M is the number of first order ODEs
 
         Even numbered row in y corresponds to the derivative
-        of a the variable, while the variable itself is in 
+        of a the variable, while the variable itself is in
         odd numbered row. Hence, if there are 2 variables
         named y0 and y1 the y-matrix would be
         y[0, :] = y0'
@@ -26,7 +26,7 @@ class CoupledEuler(object):
         If there are two variable y0 and y1, this might be
         [[0, 1], [1, 0]], which means that y0[0] = 0,
         y0[N-1] = 1, y1[0] = 1 and y1[N-1] = 0
-    
+
     :param float width: Initial guess of the width of the
         boundary layer. If None, the initial guess for the solutoin
         is constructed by assuming that the width of the boundary layer
