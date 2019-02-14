@@ -3,6 +3,35 @@ import numpy as np
 
 
 class CoupledEuler(object):
+    """
+    Class for solving set of coupled euler equations
+
+    :param array-like x: Mesh points length N
+    :param list rhs: List of callable objects with signature
+        f(x, y), where x is the independent variable of length 
+        N and y is the current solution vector of length 
+        (N, M), where M is the number of first order ODEs
+
+        Even numbered row in y corresponds to the derivative
+        of a the variable, while the variable itself is in 
+        odd numbered row. Hence, if there are 2 variables
+        named y0 and y1 the y-matrix would be
+        y[0, :] = y0'
+        y[1, :] = y0
+        y[2, :] = y1'
+        y[3, :] = y1
+
+    :param list bounday_values: List of boundary values for each
+        variable there is one value at x[0] and one value at x[N-1]
+        If there are two variable y0 and y1, this might be
+        [[0, 1], [1, 0]], which means that y0[0] = 0,
+        y0[N-1] = 1, y1[0] = 1 and y1[N-1] = 0
+    
+    :param float width: Initial guess of the width of the
+        boundary layer. If None, the initial guess for the solutoin
+        is constructed by assuming that the width of the boundary layer
+        is 0.1*(x[N-1] - x[0])
+    """
     def __init__(self, x, rhs, boundary_values, width=None):
         self.x = x
         self.rhs = rhs
@@ -23,6 +52,11 @@ class CoupledEuler(object):
         return np.array(res)
 
     def solve(self, tol=1E-8):
+        """
+        Solve the boundary value problem
+
+        :param float tol: Tolerance passed to scipy.integrate.solve
+        """
         initial = self._init_guess()
         n_eq = initial.shape[0]
 
