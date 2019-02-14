@@ -2,7 +2,6 @@
 
 from cemc.phasefield.cython.polynomial cimport Polynomial
 from cython.operator cimport dereference
-#from cemc.phasefield.cython.polynomial_term cimport PyPolynomialTerm
 
 cdef class PyPolynomial:
     cdef Polynomial *thisptr
