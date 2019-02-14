@@ -52,10 +52,10 @@ class CoupledEuler(object):
         for b in self.boundary_values:
             height = b[1] - b[0]
             res.append(0.5*height/(self.width*np.cosh(x_scaled)**2))
-            res.append(0.5*height*np.tanh(x_scaled) + b[0])
+            res.append(0.5*height*(1.0 + np.tanh(x_scaled)) + b[0])
         return np.array(res)
 
-    def solve(self, tol=1E-8):
+    def solve(self, tol=1E-8, max_nodes=1000):
         """
         Solve the boundary value problem
 
@@ -80,7 +80,8 @@ class CoupledEuler(object):
                 res[2*i+1] = yb[2*i+1] - self.boundary_values[i][1]
             return res
 
-        result = solve_bvp(rhs_func, bc, self.x, initial, tol=tol)
+        result = solve_bvp(rhs_func, bc, self.x, initial, tol=tol,
+                           max_nodes=max_nodes)
 
         if not result["success"]:
             raise RuntimeError(result["message"])
