@@ -32,14 +32,18 @@ class CoupledEuler(object):
         is constructed by assuming that the width of the boundary layer
         is 0.1*(x[N-1] - x[0])
     """
-    def __init__(self, x, rhs, boundary_values, width=None):
+    def __init__(self, x, rhs, boundary_values, width=None, mass_terms=None):
         self.x = x
         self.rhs = rhs
         self.boundary_values = boundary_values
         self.width = width
+        self.mass_terms = mass_terms
 
         if self.width is None:
             self.width = 0.1*(x[-1] - x[0])
+
+        if self.mass_terms is None:
+            self.mass_terms = np.ones(len(rhs))
 
     def _init_guess(self):
         x0 = 0.5*(self.x[-1] + self.x[0])
@@ -65,7 +69,7 @@ class CoupledEuler(object):
         def rhs_func(x, y):
             res = np.zeros_like(y)
             for i in range(int(n_eq/2)):
-                res[2*i, :] = self.rhs[i](y)
+                res[2*i, :] = self.rhs[i](y)/self.mass_terms[i]
                 res[2*i+1, :] = y[2*i, :]
             return res
 
@@ -77,4 +81,7 @@ class CoupledEuler(object):
             return res
 
         result = solve_bvp(rhs_func, bc, self.x, initial, tol=tol)
+
+        if not result["success"]:
+            raise RuntimeError(result["message"])
         return result["sol"]
