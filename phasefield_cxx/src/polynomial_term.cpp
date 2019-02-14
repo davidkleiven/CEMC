@@ -23,6 +23,32 @@ PolynomialTerm::PolynomialTerm(unsigned int dim, unsigned int i_power, unsigned 
     }
 };
 
+PolynomialTerm::PolynomialTerm(const PolynomialTerm &other){
+    this->swap(other);
+}
+
+PolynomialTerm& PolynomialTerm::operator=(const PolynomialTerm &other){
+    this->swap(other);
+    return *this;
+}
+
+
+void PolynomialTerm::swap(const PolynomialTerm &other){
+    delete [] inner_power;
+    delete [] centers;
+
+    dim = other.dim;
+    outer_power = other.outer_power;
+
+    inner_power = new unsigned int[dim];
+    centers = new double[dim];
+
+    for (unsigned int i=0;i<dim;i++){
+        inner_power[i] = other.inner_power[i];
+        centers[i] = other.centers[i];
+    }
+}
+
 PolynomialTerm::~PolynomialTerm(){
     delete [] inner_power;
     delete [] centers;
