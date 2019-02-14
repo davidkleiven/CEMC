@@ -29,6 +29,10 @@ import test_khacaturyan
 import test_binary_phase_diag
 import test_cahn_hilliard
 import test_cahn_hilliard_phase_field
+import test_polynomial_term
+import test_phasefield_poly
+import test_coupled_euler
+import test_gradient_coeff
 
 try:
     os.mkdir("data")
@@ -69,6 +73,10 @@ suite.addTest(loader.loadTestsFromModule(test_khacaturyan))
 suite.addTest(loader.loadTestsFromModule(test_binary_phase_diag))
 suite.addTest(loader.loadTestsFromModule(test_cahn_hilliard))
 suite.addTest(loader.loadTestsFromModule(test_cahn_hilliard_phase_field))
+suite.addTest(loader.loadTestsFromModule(test_polynomial_term))
+suite.addTest(loader.loadTestsFromModule(test_phasefield_poly))
+suite.addTest(loader.loadTestsFromModule(test_coupled_euler))
+suite.addTest(loader.loadTestsFromModule(test_gradient_coeff))
 
 runner = TimeLoggingTestRunner()
 result = runner.run(suite)
