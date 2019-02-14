@@ -31,7 +31,7 @@ void CahnHilliardPhaseField<dim>::update(int nsteps){
 			MMSP::vector<double> lapl_phi = MMSP::laplacian(gr, i);
 
 			double free_eng_deriv = free_eng->deriv(phi[0]);
-			double new_value = free_eng_deriv - alpha*lapl_phi[0];
+			double new_value = free_eng_deriv - 2.0*alpha*lapl_phi[0];
 			temp(i)[0] = new_value;
 		}
 
