@@ -12,6 +12,7 @@ include "khachaturyan.pyx"
 include "pytwo_phase_landau.pyx"
 include "pycahn_hilliard.pyx"
 include "pycahn_hilliard_phase_field.pyx"
+include "pypolynomial_term.pyx"
 
 # Hack: MMSP contains implementation in the header files
 # therefore we need to include the cpp file here
