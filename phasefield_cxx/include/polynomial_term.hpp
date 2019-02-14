@@ -15,6 +15,9 @@ public:
 
     /** Evaluate the derivative of the term with respect to one coordinate */
     double deriv(double x[], unsigned int crd) const;
+
+    /** Return the dimension of the polynomial term*/
+    unsigned int get_dim() const{return dim;};
 private:
     unsigned int dim;
     unsigned int outer_power{1};
