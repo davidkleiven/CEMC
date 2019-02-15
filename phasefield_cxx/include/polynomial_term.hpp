@@ -8,6 +8,8 @@ class PolynomialTerm{
 public:
     PolynomialTerm(const uintvec_t &inner_power, unsigned int outer_power);
     PolynomialTerm(unsigned int dim, unsigned int inner_power, unsigned int outer_power);
+    PolynomialTerm(const PolynomialTerm &other);
+    PolynomialTerm& operator=(const PolynomialTerm &other);
     ~PolynomialTerm();
 
     /** Evaluate the term  */
@@ -26,5 +28,7 @@ private:
 
     /** Evaluate the inner sum */
     double evaluate_inner(double x[]) const;
+
+    void swap(const PolynomialTerm &other);
 };
 #endif
