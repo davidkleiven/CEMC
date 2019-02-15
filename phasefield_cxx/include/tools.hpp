@@ -9,9 +9,9 @@ T partial_double_derivative(const MMSP::grid<dim, T> &GRID, const MMSP::vector<i
     const T& y = GRID(x);
     s[dir] += 1;
     const T& yh = GRID(s);
-    s[i] -= 2;
+    s[dir] -= 2;
     const T& yl = GRID(s);
-    s[i] += 1;
+    s[dir] += 1;
 
     double weight = 1.0/pow(dx(GRID, dir), 2.0);
     return weight*(yh - 2.0*y + yl);
@@ -19,7 +19,7 @@ T partial_double_derivative(const MMSP::grid<dim, T> &GRID, const MMSP::vector<i
 
 template<int dim, typename T>
 T partial_double_derivative(const MMSP::grid<dim, T> &GRID, unsigned int node_index, unsigned int dir){
-    vector<int> x = GRID.position(node_index);
+    MMSP::vector<int> x = GRID.position(node_index);
     return partial_double_derivative(GRID, x, dir);
 }
 #endif

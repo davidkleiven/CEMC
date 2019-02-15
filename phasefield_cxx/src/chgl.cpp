@@ -2,19 +2,19 @@
 #include "tools.hpp"
 
 template<int dim>
-CHGL::CHGL(int L, const std::string &prefix, unsigned int num_gl_fields, \
+CHGL<dim>::CHGL(int L, const std::string &prefix, unsigned int num_gl_fields, \
            double M, double alpha, double dt, double gl_damping, 
            const interface_vec_t &interface): PhaseFieldSimulation<dim>(L, prefix, num_gl_fields+1), \
            M(M), alpha(alpha), dt(dt), gl_damping(gl_damping), interface(interface), free_energy(num_gl_fields+1){};
 
 
 template<int dim>
-void CHGL::add_free_energy_term(double coeff, const PolynomialTerm &polyterm){
+void CHGL<dim>::add_free_energy_term(double coeff, const PolynomialTerm &polyterm){
     free_energy.add_term(coeff, polyterm);
 }
 
 template<int dim>
-void CHGL::update(unsigned int nsteps){
+void CHGL<dim>::update(int nsteps){
     int rank = 0;
 	#ifdef MPI_VERSION
     rank = MPI::COMM_WORLD.Get_rank();
@@ -38,7 +38,7 @@ void CHGL::update(unsigned int nsteps){
 
             double *phi_raw_ptr = &(phi[0]);
             for (unsigned int j=0;j<phi.length();j++){
-                phi_deriv[j] = free_energy.deriv(phi_raw_ptr, j);
+                free_eng_deriv[j] = free_energy.deriv(phi_raw_ptr, j);
             }
             
             // Update the first term (Cahn-Hilliard term)
@@ -50,7 +50,7 @@ void CHGL::update(unsigned int nsteps){
                 MMSP::vector<double> lapl_dir = partial_double_derivative(gr, i, dir);
                 for (unsigned int gl_eq=0;gl_eq<phi.length()-1;gl_eq++)
                 {
-                    temp(i)[gl_eq+1] -= interface[gl_eq][dir]*lapl_dir[gl_eq+1];
+                    temp(i)[gl_eq+1] -= 2.0*interface[gl_eq][dir]*lapl_dir[gl_eq+1];
                 }
             }
 		}
@@ -66,7 +66,7 @@ void CHGL::update(unsigned int nsteps){
 			new_gr(i)[0] = gr(i)[0] + dt*change;
 
             // Update the Ginzburg-Landau equations
-            for (unsigned int gl_eq=0;gl_eq<num_fields-1;gl_eq++){
+            for (unsigned int gl_eq=0;gl_eq<this->num_fields-1;gl_eq++){
                 new_gr(i)[gl_eq+1] = gr(i)[gl_eq+1] - gl_damping*temp(i)[gl_eq+1];
             }
 		}
