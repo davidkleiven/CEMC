@@ -3,3 +3,4 @@
 // contains implementations
 #include "phase_field_simulation.cpp"
 #include "cahn_hilliard_phasefield.cpp"
+#include "chgl.cpp"
