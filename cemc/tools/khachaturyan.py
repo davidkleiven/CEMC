@@ -1,7 +1,6 @@
 import numpy as np
 from cemc.tools import to_full_rank4
 from itertools import product
-from phasefield_cxx import PyKhachaturyan
 from cemc.tools import rotate_tensor, rot_matrix, rotate_rank4_tensor
 import time
 import datetime
@@ -55,6 +54,11 @@ class Khachaturyan(object):
 
     def strain_energy_voxels(self, shape_function, pure_python=False):
         """Calculate the strain energy for the given shape function."""
+        try:
+            from phasefield_cxx import PyKhachaturyan
+        except ImportError:
+            pure_python = True
+
         V = np.sum(shape_function)
         ft = np.abs(np.fft.fftn(shape_function))**2
         ft /= np.prod(ft.shape)
