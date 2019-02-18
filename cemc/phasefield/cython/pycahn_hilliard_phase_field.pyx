@@ -61,3 +61,11 @@ cdef class PyCahnHilliardPhaseField:
             self.thisptr3D.from_file(fname)
         else:
             raise ValueError("Dimension has to be 1, 2, or 3")
+
+    def from_npy_array(self, npy_array):
+        if self.dim == 1:
+            self.thisptr1D.from_npy_array([npy_array])
+        elif self.dim == 2:
+            self.thisptr2D.from_npy_array([npy_array])
+        elif self.dim == 3:
+            self.thisptr3D.from_npy_array([npy_array])

@@ -7,6 +7,7 @@
 
 #include <string>
 #include <vector>
+#include <Python.h>
 
 template<int dim>
 class PhaseFieldSimulation{
@@ -22,6 +23,9 @@ public:
     /** Load grid from file */
     void from_file(const std::string &fname);
 
+    /** Initialize the simulation from a list of Numpy arrays */
+    void from_npy_array(PyObject *npy_arrays);
+
     /** Update function */
     virtual void update(int steps) = 0;
 
@@ -35,6 +39,9 @@ protected:
 
     /** Get iteration identifier with 10 digits */
     std::string get_digit_string(unsigned int iter) const;
+
+    /** Initialize the given field from a Numpy array */
+    void init_field_from_npy_arr(unsigned int field, PyObject *npy_arr);
 
     MMSP::grid<dim, MMSP::vector<double> > *grid_ptr{nullptr};
 };

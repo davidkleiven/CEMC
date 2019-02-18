@@ -16,3 +16,5 @@ cdef extern from "cahn_hilliard_phase_field.hpp":
         void random_initialization(double lower, double upper)
 
         void from_file(string fname)
+
+        void from_npy_array(object npy_arrays) except +
