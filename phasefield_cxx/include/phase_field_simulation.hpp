@@ -26,6 +26,9 @@ public:
     /** Initialize the simulation from a list of Numpy arrays */
     void from_npy_array(PyObject *npy_arrays);
 
+    /** Convert fields to list of Numpy Arrays */
+    void to_numpy_array() const;
+
     /** Update function */
     virtual void update(int steps) = 0;
 
@@ -42,6 +45,9 @@ protected:
 
     /** Initialize the given field from a Numpy array */
     void init_field_from_npy_arr(unsigned int field, PyObject *npy_arr);
+
+    /** Convert a field to Numpy array */
+    PyObject* field_to_npy_arr(unsinged int field) const;
 
     MMSP::grid<dim, MMSP::vector<double> > *grid_ptr{nullptr};
 };
