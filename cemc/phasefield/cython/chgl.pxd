@@ -7,7 +7,7 @@ cdef extern from "chgl.hpp":
     cdef cppclass CHGL[T]:
         CHGL(int L, string &prefix, unsigned int num_gl_fields, \
              double M, double alpha, double dt, double gl_damping, 
-             const vector[vector[double]] &interface)
+             const vector[vector[double]] &interface) except +
 
         void update(int steps)
 

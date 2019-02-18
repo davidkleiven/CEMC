@@ -28,5 +28,8 @@ private:
     double gl_damping;
     interface_vec_t interface;
     Polynomial free_energy;
+
+    /** Check that the provided interfaces vector matches requirements */
+    void check_interface_vector() const;
 };
 #endif

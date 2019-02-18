@@ -1,11 +1,18 @@
 #include "chgl.hpp"
 #include "tools.hpp"
+#include <stdexcept>
+#include <sstream>
+
+using namespace std;
 
 template<int dim>
 CHGL<dim>::CHGL(int L, const std::string &prefix, unsigned int num_gl_fields, \
            double M, double alpha, double dt, double gl_damping, 
            const interface_vec_t &interface): PhaseFieldSimulation<dim>(L, prefix, num_gl_fields+1), \
-           M(M), alpha(alpha), dt(dt), gl_damping(gl_damping), interface(interface), free_energy(num_gl_fields+1){};
+           M(M), alpha(alpha), dt(dt), gl_damping(gl_damping), interface(interface), free_energy(num_gl_fields+1){
+
+               check_interface_vector();
+           };
 
 
 template<int dim>
@@ -73,6 +80,30 @@ void CHGL<dim>::update(int nsteps){
 		MMSP::swap(gr, new_gr);
 		MMSP::ghostswap(gr);
 	}
+}
+
+template<int dim>
+void CHGL<dim>::check_interface_vector() const{
+    if (interface.size() != this->num_fields-1){
+        stringstream ss;
+        ss << "The number of gradient coefficients does not match ";
+        ss << "the number of Ginzburg-Landau equations.";
+        ss << "Num. coeff: " << interface.size();
+        ss << " Num: GL-equations: " << this->num_fields;
+        throw invalid_argument(ss.str());
+    }
+
+    // Check that each entry has the correct size
+    for (const auto& item : interface){
+        if (item.size() != dim){
+            stringstream ss;
+            ss << "The number of interface terms for each GL equation ";
+            ss << "has to match the dimension of the problem.";
+            ss << "Dimension: " << dim;
+            ss << " Number of interface coefficients " << item.size();
+            throw invalid_argument(ss.str());
+        }
+    }
 }
 
 
