@@ -33,6 +33,7 @@ import test_polynomial_term
 import test_phasefield_poly
 import test_coupled_euler
 import test_gradient_coeff
+import test_chgl
 
 try:
     os.mkdir("data")
@@ -77,6 +78,7 @@ suite.addTest(loader.loadTestsFromModule(test_polynomial_term))
 suite.addTest(loader.loadTestsFromModule(test_phasefield_poly))
 suite.addTest(loader.loadTestsFromModule(test_coupled_euler))
 suite.addTest(loader.loadTestsFromModule(test_gradient_coeff))
+suite.addTest(loader.loadTestsFromModule(test_chgl))
 
 runner = TimeLoggingTestRunner()
 result = runner.run(suite)
