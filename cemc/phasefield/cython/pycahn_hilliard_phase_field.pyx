@@ -69,3 +69,11 @@ cdef class PyCahnHilliardPhaseField:
             self.thisptr2D.from_npy_array([npy_array])
         elif self.dim == 3:
             self.thisptr3D.from_npy_array([npy_array])
+
+    def to_npy_array(self):
+        if self.dim == 1:
+            return self.thisptr1D.to_npy_array()[0]
+        elif self.dim == 2:
+            return self.thisptr2D.to_npy_array()[0]
+        elif self.dim == 3:
+            return self.thisptr3D.to_npy_array()[0]

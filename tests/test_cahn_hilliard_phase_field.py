@@ -41,6 +41,8 @@ class TestCahnHilliardPhaseField(unittest.TestCase):
 
         array = np.random.rand(L, L)
         sim.from_npy_array(array)
+        from_sim = sim.to_npy_array()
+        self.assertTrue(np.allclose(from_sim, array))
 
         array2 = np.random.rand(L)
         with self.assertRaises(ValueError):

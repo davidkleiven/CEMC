@@ -1,9 +1,12 @@
-#include "phase_field_simulation.hpp"
 #include <stdexcept>
 #include <sstream>
+#include <ctime>
+
 #include "MMSP.grid.h"
 #include "MMSP.vector.h"
-#include <ctime>
+
+#include "phase_field_simulation.hpp"
+//#include "use_numpy.hpp"
 
 using namespace std;
 
@@ -169,10 +172,10 @@ void PhaseFieldSimulation<dim>::init_field_from_npy_arr(unsigned int field, PyOb
 }
 
 template<int dim>
-PyObject *to_numpy_array() const{
+PyObject* PhaseFieldSimulation<dim>::to_npy_array() const{
     PyObject *array_list = PyList_New(this->num_fields);
     for (unsigned int i=0;i<this->num_fields;i++){
-        PyObject *field = field_to_numpy_array(i);
+        PyObject *field = field_to_npy_arr(i);
 
         // SetItem steals reference from field
         PyList_SetItem(array_list, i, field);
@@ -181,11 +184,11 @@ PyObject *to_numpy_array() const{
 }
 
 template<int dim>
-PyObject *field_to_npy_arr(unsigned int field) const{
+PyObject* PhaseFieldSimulation<dim>::field_to_npy_arr(unsigned int field) const{
     npy_intp num_nodes = MMSP::nodes(*grid_ptr);
-    PyObject *np_arr = PyArray_SimpleNew(1, &num_nodes, NPY_DOUBLE);
+    PyObject *np_arr = PyArray_ZEROS(1, &num_nodes, NPY_DOUBLE, 1);
     for (unsigned int i=0;i<num_nodes;i++){
-        double *ptr = PyArray_GETPTR1(np_arr, i);
+        double *ptr = static_cast<double*>(PyArray_GETPTR1(np_arr, i));
         *ptr = (*grid_ptr)(i)[field];
     }
 
@@ -196,26 +199,28 @@ PyObject *field_to_npy_arr(unsigned int field) const{
     }
     else if (dim == 2){
         PyArray_Dims new_dims;
-        npy_intp dims[2] = {L, L};
+        npy_intp dims[2] = {this->L, this->L};
         new_dims.ptr = dims;
         new_dims.len = 2;
 
         // The reshaped array points to the same memory
         // address as the original. Don't DECREF the original
         // array
-        reshaped = PyArray_NewShape(np_arr, new_dims, NPY_CORDER);
+        PyArrayObject *np_arr_obj = reinterpret_cast<PyArrayObject*>(np_arr);
+        reshaped = PyArray_Newshape(np_arr_obj, &new_dims, NPY_CORDER);
         return reshaped;
     }
     else if (dim == 3){
         PyArray_Dims new_dims;
-        npy_intp dims[3] = {L, L, L};
+        npy_intp dims[3] = {this->L, this->L, this->L};
         new_dims.ptr = dims;
         new_dims.len = 3;
 
         // The reshaped array points to the same memory
         // address as the original. Don't DECREF the original
         // array
-        reshaped = PyArray_NewShape(np_arr, new_dims, NPY_CORDER);
+        PyArrayObject *np_arr_obj = reinterpret_cast<PyArrayObject*>(np_arr);
+        reshaped = PyArray_Newshape(np_arr_obj, &new_dims, NPY_CORDER);
         return reshaped;
     }
 
@@ -224,6 +229,7 @@ PyObject *field_to_npy_arr(unsigned int field) const{
     ss << "Dimension of the simulation cell: " << dim;
     throw runtime_error(ss.str());
 }
+
 // Explicit instatiations
 template class PhaseFieldSimulation<1>;
 template class PhaseFieldSimulation<2>;
