@@ -69,3 +69,19 @@ cdef class PyCHGL:
                 self.thisptr3D.random_initialization(i, lower[i], upper[i])
             else:
                 raise ValueError("Dimension has to be 1, 2, or 3")
+
+    def from_npy_array(self, arrays):
+        if self.dim == 1:
+            self.thisptr1D.from_npy_array(arrays)
+        elif self.dim == 2:
+            self.thisptr2D.from_npy_array(arrays)
+        elif self.dim == 3:
+            self.thisptr3D.from_npy_array(arrays)
+
+    def to_npy_array(self):
+        if self.dim == 1:   
+            return self.thisptr1D.to_npy_array()
+        elif self.dim == 2:
+            return self.thisptr2D.to_npy_array()
+        elif self.dim == 3:
+            return self.thisptr3D.to_npy_array()

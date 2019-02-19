@@ -16,3 +16,7 @@ cdef extern from "chgl.hpp":
         void random_initialization(unsigned int field, double lower, double upper)
 
         void from_file(string fname)
+
+        void from_npy_array(object fields) except +
+
+        object to_npy_array() except +
