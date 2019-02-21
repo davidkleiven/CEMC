@@ -58,8 +58,8 @@ def get_atoms_with_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
     :param list size: The atoms in small_bc will be extended by this amount
     :param str db_name: Database to store info in for the large cell
 
-    :return: CE calculator for the large cell
-    :rtype: CE
+    :return: Atoms object with CE calculator attached
+    :rtype: Atoms
     """
     nproc = num_processors()
     unknown_type = False
