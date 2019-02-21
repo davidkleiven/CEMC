@@ -60,7 +60,7 @@ class TestCahnHilliardPhaseField(unittest.TestCase):
             os.remove("cahnhill40.vti")
             os.remove("cahnhill60.vti")
             os.remove("cahnhill80.vti")
-        except IOError:
+        except OSError:
             pass
 
 if __name__ == "__main__":
