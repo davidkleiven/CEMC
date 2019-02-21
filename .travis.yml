@@ -4,18 +4,20 @@ python:
   - "2.7"
   - "3.5"
 
-install:
+before_install:
   - sudo apt-get -qq update
   - sudo apt-get install g++
   - sudo apt-get install mpich2
   - sudo apt-get install libvtk5.8
   - git clone https://github.com/mesoscale/mmsp.git
+
+install:
   - pip install -r requirements.txt
   - pip install . $INSTALL_OPTIONS
 
 env:
   - INSTALL_OPTIONS=''
-  - INSTALL_OPTIONS='--install-option=--with-phasefield' MMSP_HOME=$TRAVIS_BUILD_DIR/mmsp
+  - INSTALL_OPTIONS='--install-option=--with-phasefield' MMSP_HOME=$TRAVIS_BUILD_DIR/mmsp VTKLIB=/usr/lib/x86_64-linux-gnu
 
 script:
   - python -m unittest discover tests/
