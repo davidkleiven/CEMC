@@ -15,7 +15,7 @@ install:
 
 env:
   - INSTALL_OPTIONS=''
-  - INSTALL_OPTIONS='--install-option="--with-phasefield"' MMSP_HOME=$TRAVIS_BUILD_DIR/mmsp
+  - INSTALL_OPTIONS='--install-option=--with-phasefield' MMSP_HOME=$TRAVIS_BUILD_DIR/mmsp
 
 script:
   - python -m unittest discover tests/
