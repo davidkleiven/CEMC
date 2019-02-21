@@ -9,6 +9,9 @@ before_install:
   - sudo apt-get install g++
   - sudo apt-get install mpich2
   - sudo apt-get install libvtk6-dev
+  - ln -s /usr/lib/x86_64-linux-gnu/libvtkCommonDataModel-6.0.so libvtkCommonDataModel.so
+  - ln -s /usr/lib/x86_64-linux-gnu/libvtkCommonCore-6.0.so libvtkCommonCore.so
+  - ln -s /usr/lib/x86_64-linux-gnu/libvtkIOXML-6.0.so libvtkIOXML.so
   - git clone https://github.com/mesoscale/mmsp.git
 
 install:
@@ -17,7 +20,7 @@ install:
 
 env:
   - INSTALL_OPTIONS=''
-  - INSTALL_OPTIONS='--install-option=--with-phasefield' MMSP_HOME=$TRAVIS_BUILD_DIR/mmsp VTKLIB=/usr/lib/x86_64-linux-gnu
+  - INSTALL_OPTIONS='--install-option=--with-phasefield' MMSP_HOME=$TRAVIS_BUILD_DIR/mmsp VTKLIB=$TRAVIS_BUILD_DIR
 
 script:
   - python -m unittest discover tests/
