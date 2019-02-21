@@ -12,6 +12,8 @@ except ImportError as exc:
 
 class TestGradientCoeff(unittest.TestCase):
     def test_single_parameter(self):
+        if not available:
+            self.skipTest(reason)
         c = np.linspace(-1.0, 1.0, 100)
         f = (1.0 - c**2)**2
 
