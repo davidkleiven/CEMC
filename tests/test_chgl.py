@@ -76,7 +76,7 @@ class TestCHGL(unittest.TestCase):
         try:
             os.remove("chgl00000001000.grid")
             os.remove("chgl.grid")
-        except IOError:
+        except OSError:
             pass
 
 
