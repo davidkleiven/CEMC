@@ -48,7 +48,7 @@ class TestCHGL(unittest.TestCase):
 
     def test_exceptions(self):
         if not available:
-            self.skipTest()
+            self.skipTest(reason)
 
         chgl = self.get_chgl()
         # Test wrong number of fields
