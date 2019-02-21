@@ -8,7 +8,7 @@ install:
   - sudo apt-get -qq update
   - sudo apt-get install g++
   - sudo apt-get install mpich2
-  - sudo apt-get install libvtk
+  - sudo apt-get install libvtk5.8
   - git clone https://github.com/mesoscale/mmsp.git
   - pip install -r requirements.txt
   - pip install . $INSTALL_OPTIONS
