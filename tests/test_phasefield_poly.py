@@ -10,6 +10,8 @@ except ImportError as exc:
 
 class TestPhaseFieldPolynomial(unittest.TestCase):
     def test_phase_field_poly(self):
+        if not available:
+            self.skipTest(reason)
         term1 = PyPolynomialTerm([2, 3], 1)
         term2 = PyPolynomialTerm([1, 2], 2)
 
