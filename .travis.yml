@@ -8,8 +8,14 @@ install:
   - sudo apt-get -qq update
   - sudo apt-get install g++
   - sudo apt-get install mpich2
+  - sudo apt-get install libvtk
+  - git clone https://github.com/mesoscale/mmsp.git
   - pip install -r requirements.txt
-  - pip install .
+  - pip install . $INSTALL_OPTIONS
+
+env:
+  - INSTALL_OPTIONS=''
+  - INSTALL_OPTIONS='--install-options=--with-phasefield' MMSP_HOME=$TRAVIS_BUILD_DIR/mmsp
 
 script:
   - python -m unittest discover tests/
