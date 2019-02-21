@@ -8,8 +8,7 @@ before_install:
   - sudo apt-get -qq update
   - sudo apt-get install g++
   - sudo apt-get install mpich2
-  - sudo apt-get install libvtk5-dev
-  - locate vtkCommonCore
+  - sudo apt-get install libvtk6-dev
   - git clone https://github.com/mesoscale/mmsp.git
 
 install:
