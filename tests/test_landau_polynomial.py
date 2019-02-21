@@ -10,8 +10,8 @@ except ImportError as exc:
     reason = str(exc)
     print(str(exc))
 
-class TestLandauPolynomial(unittest.TestCase):
 
+class TestLandauPolynomial(unittest.TestCase):
     def test_fit(self):
         if not available:
             self.skipTest(reason)
@@ -32,6 +32,8 @@ class TestLandauPolynomial(unittest.TestCase):
         self.assertFalse(error, msg=msg)
 
     def test_Cxx_poly(self):
+        if not available:
+            self.skipTest(reason)
         c1 = 0.0
         c2 = 0.8
         coeff = [1.0, 2.0, 3.0, 4.0]
