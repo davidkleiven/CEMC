@@ -10,6 +10,8 @@ except ImportError as exc:
 
 class TestPolynomialTerm(unittest.TestCase):
     def test_poly_term(self):
+        if not available:
+            self.skipTest(reason)
         power = [2]
         term = PyPolynomialTerm(power, 1)
         self.assertAlmostEqual(term.evaluate([2.0]), 4.0)
