@@ -47,6 +47,59 @@ class TestLandauPolynomial(unittest.TestCase):
             coeff[2]*np.sum(shape_npy**4) + coeff[3]*np.sum(shape_npy**2)**3
         self.assertAlmostEqual(pypoly.evaluate(c, shape), expect)
 
+    def test_grad_n_eq_coeff0(self):
+        if not available:
+            self.skipTest(reason)
+        poly = TwoPhaseLandauPolynomial(c1=0.0, c2=0.5)
+        poly.coeff = [-2.0, 2.5, 4.0]
+
+        # FD grad
+        x = 0.8
+        coeff1 = poly.equil_shape_order(x)
+        self.assertGreater(coeff1, 0.0)
+        poly.coeff = [-1.999, 2.5, 4.0]
+        coeff2 = poly.equil_shape_order(x)
+        self.assertGreater(coeff2, 0.0)
+        deriv = (coeff2 - coeff1)/0.001
+        poly.coeff = [-2.0, 2.5, 4.0]
+        self.assertAlmostEqual(deriv, poly.grad_shape_coeff0(x), places=4)
+
+    def test_grad_n_eq_coeff1(self):
+        if not available:
+            self.skipTest(reason)
+
+        poly = TwoPhaseLandauPolynomial(c1=0.0, c2=0.5)
+        poly.coeff = [-2.0, 2.5, 4.0]
+
+        # FD grad
+        x = 0.8
+        coeff1 = poly.equil_shape_order(x)
+        self.assertGreater(coeff1, 0.0)
+        poly.coeff = [-2.0, 2.501, 4.0]
+        coeff2 = poly.equil_shape_order(x)
+        self.assertGreater(coeff2, 0.0)
+        deriv = (coeff2 - coeff1)/0.001
+        poly.coeff = [-2.0, 2.5, 4.0]
+        self.assertAlmostEqual(deriv, poly.grad_shape_coeff1(x), places=4)
+
+    def test_grad_n_eq_coeff2(self):
+        if not available:
+            self.skipTest(reason)
+        poly = TwoPhaseLandauPolynomial(c1=0.0, c2=0.5)
+        poly.coeff = [-2.0, 2.5, 4.0]
+
+        # FD grad
+        x = 0.8
+        coeff1 = poly.equil_shape_order(x)
+        self.assertGreater(coeff1, 0.0)
+        poly.coeff = [-2.0, 2.5, 4.001]
+        coeff2 = poly.equil_shape_order(x)
+        self.assertGreater(coeff2, 0.0)
+        deriv = (coeff2 - coeff1)/0.001
+        poly.coeff = [-2.0, 2.5, 4.0]
+        self.assertAlmostEqual(deriv, poly.grad_shape_coeff2(x), places=4)
+
+
 
 def show_fit(poly, conc1, conc2, F1, F2):
     import matplotlib as mpl
