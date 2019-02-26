@@ -45,27 +45,24 @@ class GradientCoefficient(object):
     :param int max_nodes: Maximum number of collocation points (used by 
         scipy.integrate.solve_bvp)
     """
-    def __init__(self, pd_free, mesh_points, number_density,
-                 interface_energies, delta_free, boundary_values,
-                 params_vary_across_interface, tol=1E-8, width=0.1,
+    def __init__(self, rhs_builder, mesh_points, number_density,
+                 interface_energies,
+                 params_vary_across_interface,
+                 tol=1E-8, width=0.1,
                  max_nodes=1000):
-        self.pd_free = pd_free
+        from cemc.phasefield import GradientCoefficientRhsBuilder
+        if not isinstance(rhs_builder, GradientCoefficientRhsBuilder):
+            raise TypeError("rhs_builder has to be derived from GradientCoefficientRhsBuilder!")
+        self.rhs_builder = rhs_builder
         self.mesh_points = mesh_points
         self.number_density = number_density
-        self.delta_free = delta_free
-        self.grad_coeff = np.ones(len(pd_free))
+        self.grad_coeff = np.ones(len(interface_energies))
         self.tol = tol
-        self.boundary_values = boundary_values
         self.varying_params = params_vary_across_interface
         self.interface_energies = interface_energies
         self.width = width
         self.max_nodes = max_nodes
         self.prefix = None
-
-        # Some user input checks
-        if len(pd_free) != len(interface_energies):
-            raise ValueError("Number of free energies need to match the "
-                             "number of interface energies!")
 
     def evaluate_one(self, interface, params, ret_sol=False):
         """
@@ -89,8 +86,9 @@ class GradientCoefficient(object):
         # the coefficient in front of the gradient terms
         mass_terms = 2*grad_coeff
 
-        rhs = [self.pd_free[x] for x in params]
-        b_vals = self.boundary_values[interface]
+        #rhs = [self.pd_free[x] for x in params]
+        #b_vals = self.boundary_values[interface]
+        rhs, b_vals = self.rhs_builder.construct_rhs_and_boundary(interface)
 
         euler = CoupledEuler(self.mesh_points, rhs, b_vals,
                              mass_terms=mass_terms, width=self.width)
@@ -101,8 +99,8 @@ class GradientCoefficient(object):
         sol_eval = sol(self.mesh_points)
         order_param = sol_eval[1::2, :]
         order_deriv = sol_eval[0::2, :]
-        df = self.delta_free[interface]
-        integrand = df(order_param)
+        rhs_func = self.rhs_builder.get_projected(interface)
+        integrand = rhs_func(sol_eval)
 
         for i in range(len(grad_coeff)):
             integrand += grad_coeff[i]*order_deriv[i, :]**2

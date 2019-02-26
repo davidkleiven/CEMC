@@ -2,12 +2,25 @@ import unittest
 import numpy as np
 try:
     from cemc.phasefield import GradientCoefficient
+    from cemc.phasefield import GradientCoefficientRhsBuilder
     from scipy.interpolate import interp1d
     available = True
     reason = ""
 except ImportError as exc:
     available = False
     reason = str(exc)
+
+
+class SingleParameterRhs(GradientCoefficientRhsBuilder):
+    def __init__(self, boundary_values):
+        GradientCoefficientRhsBuilder.__init__(self, boundary_values)
+
+    def grad(self, c):
+        """Gradient with respect to all parameters."""
+        return 4*c**3 - 4*c
+
+    def evaluate(self, c):
+        return (1.0 - c**2)**2
 
 
 class TestGradientCoeff(unittest.TestCase):
@@ -34,8 +47,9 @@ class TestGradientCoeff(unittest.TestCase):
         df_func = {
             (0, 1): df
         }
-        grad_coeff = GradientCoefficient([rhs_func], mesh_points, density,
-                                         interface_energy, df_func, boundary_values,
+        rhs = SingleParameterRhs(boundary_values)
+        grad_coeff = GradientCoefficient(rhs, mesh_points, density,
+                                         interface_energy,
                                          params_vary, tol=1E-8, width=0.1,
                                          max_nodes=1000000)
 
