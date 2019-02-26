@@ -82,17 +82,21 @@ class TwoPhaseLandauPolynomial(object):
             raise ValueError("Variable has to be one of {}".format(allowed_var))
 
         if shape is None:
-            shape = [np.sqrt(self.equil_shape_order(conc))]
+            shape = np.array([np.sqrt(self.equil_shape_order(conc))])
+
+        if isinstance(shape, list):
+            shape = np.array(shape)
 
         try:
             _ = shape[0]
-        except TypeError:
-            shape = [shape]
+        except (TypeError, IndexError):
+            # Shape was a scalar, convert to array
+            shape = np.array([shape])
 
         if var == "conc":
             p1_der = np.polyder(self.conc_coeff)
             p2_der = np.polyder(self.coeff[:-2])
-            return np.polyval(p1_der, conc-self.c1) + np.polyval(p2_der, conc-self.c2)*shape**2
+            return np.polyval(p1_der, conc-self.c1) + np.polyval(p2_der, conc-self.c2)*np.sum(shape**2)
         elif var == "shape":
             return 2*self._eval_phase2(conc)*shape[direction] + \
                 4*self.coeff[-2]*shape[direction]**3 + \
