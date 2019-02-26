@@ -29,24 +29,9 @@ class TwoPhaseLandauPolynomial(object):
 
     def equil_shape_order(self, conc):
         """Calculate the equillibrium shape concentration.
-        
+
         :param float conc: Concentration
         """
-        # if abs(self.coeff[2] < 1E-8):
-        #     n_eq = -0.5*self.coeff[0]*(conc - self.c2)/self.coeff[1]
-        #     if n_eq < 0.0:
-        #         return 0.0
-        #     return n_eq
-        # delta = (self.coeff[1]/(3.0*self.coeff[2]))**2 - \
-        #     self.coeff[0]*(conc-self.c2)/(3.0*self.coeff[2])
-
-        # if delta < 0.0:
-        #     return 0.0
-        
-        # n_eq = -self.coeff[1]/(3.0*self.coeff[2]) + np.sqrt(delta)
-        # if n_eq < 0.0:
-        #     return 0.0
-        # return n_eq
 
         if abs(self.coeff[-1] < 1E-8):
             n_eq = -0.5*self._eval_phase2(conc)/self.coeff[-2]
@@ -59,73 +44,30 @@ class TwoPhaseLandauPolynomial(object):
 
         if delta < 0.0:
             return 0.0
-        
+
         n_eq = -self.coeff[-2]/(3.0*self.coeff[-1]) + np.sqrt(delta)
         if n_eq < 0.0:
             return 0.0
         return n_eq
-        
+
     def _eval_phase2(self, conc):
         """Evaluate the polynomial in phase2."""
         return np.polyval(self.coeff[:-2], conc - self.c2)
 
-    def grad_shape_coeff0(self, conc):
-        """Return the gradient of the shape parameter with respect to the
-           first coefficient."""
-        n_eq = self.equil_shape_order(conc)
-        if n_eq <= 0.0:
-            return 0.0
-        factor1 = -(conc-self.c2)/(3.0*self.coeff[2])
-        factor2 = 1.0/np.sqrt((self.coeff[1]/(3.0*self.coeff[2]))**2 -
-                              self.coeff[0]*(conc - self.c2)/(3.0*self.coeff[2]))
-        return 0.5*factor1*factor2
-
-    def grad_shape_coeff1(self, conc):
-        """Return the gradient of the shape parameter with respect to the
-            second coefficient."""
-        n_eq = self.equil_shape_order(conc)
-        if n_eq <= 0.0:
-            return 0.0
-
-        factor1 = self.coeff[1]/(9.0*self.coeff[2]**2)
-        factor2 = 1.0/np.sqrt((self.coeff[1]/(3.0*self.coeff[2]))**2 -
-                              self.coeff[0]*(conc - self.c2)/(3.0*self.coeff[2]))
-        return - 1.0/(3.0*self.coeff[2]) + factor1*factor2
-
-    def grad_shape_coeff2(self, conc):
-        """Return the gradient of the equillibrium shape parameter
-            with respect to the last."""
-        n_eq = self.equil_shape_order(conc)
-        if n_eq <= 0.0:
-            return 0.0
-        
-        factor1 = 0.5/np.sqrt((self.coeff[1]/(3.0*self.coeff[2]))**2 -
-                              self.coeff[0]*(conc - self.c2)/(3.0*self.coeff[2]))
-
-        factor2 = self.coeff[0]*(conc - self.c2)/(3.0*self.coeff[2]**2) - \
-            2*self.coeff[1]**2/(9.0*self.coeff[2]**3)
-
-        return self.coeff[1]/(3.0*self.coeff[2]**2) + factor1*factor2
-
     def eval_at_equil(self, conc):
         """Evaluate the free energy at equillibrium order.
-        
+
         :param float conc: Concentration
         """
-        # n_eq_sq = self.equil_shape_order(conc)
-        # return np.polyval(self.conc_coeff, conc - self.c1) + \
-        #     self.coeff[0]*(conc - self.c2)*n_eq_sq + \
-        #     self.coeff[1]*n_eq_sq**2 + \
-        #     self.coeff[2]*n_eq_sq**3
         n_eq_sq = self.equil_shape_order(conc)
         return np.polyval(self.conc_coeff, conc - self.c1) + \
             self._eval_phase2(conc)*n_eq_sq + \
             self.coeff[-2]*n_eq_sq**2 + \
             self.coeff[-1]*n_eq_sq**3
 
-    def fit(self, conc1, F1, conc2, F2, use_jac=True):
+    def fit(self, conc1, F1, conc2, F2):
         """Fit the free energy functional.
-        
+
         :param numpy.ndarray conc1: Concentrations in the first phase
         :param numpy.ndarray F1: Free energy in the first phase
         :param numpy.ndarray conc2. Concentrations in the second phase
@@ -136,7 +78,7 @@ class TwoPhaseLandauPolynomial(object):
         self.conc_coeff = np.polyfit(conc1 - self.c1, F1, self.conc_order1)
 
         remains = F2 - np.polyval(self.conc_coeff, conc2 - self.c1)
-        
+
         S1 = np.sum(remains*(conc2 - self.c2))
         S2 = np.sum((conc2 - self.c2)**2)
         B = S1/S2
@@ -169,35 +111,6 @@ class TwoPhaseLandauPolynomial(object):
             mse = np.mean((pred - free_energy)**2)
             return mse
 
-        def jac(x):
-            self.coeff = x
-            n_eq_sq = np.array([self.equil_shape_order(conc[i])
-                                for i in range(len(conc))])
-            pred = [self.eval_at_equil(conc[i]) for i in range(len(conc))]
-            pred = np.array(pred)
-            grad = np.zeros(3)
-            grad_n_B = np.array([self.grad_shape_coeff0(c) for c in conc])
-            grad_n_C = np.array([self.grad_shape_coeff1(c) for c in conc])
-            grad_n_D = np.array([self.grad_shape_coeff2(c) for c in conc])
-
-            grad[0] = -2.0*np.mean((free_energy - pred)*(
-                (conc - self.c2)*n_eq_sq +
-                (x[0]*(conc - self.c2) + 2*x[1]*n_eq_sq +
-                 3*x[2]*n_eq_sq**2)*grad_n_B))
-
-            grad[1] = -2.0*np.mean((free_energy - pred)*(n_eq_sq**2 +
-                                   (x[0]*(conc - self.c2) + 2*x[1]*n_eq_sq +
-                                    3*x[2]*n_eq_sq**2)*grad_n_C))
-
-            grad[2] = -2.0*np.mean((free_energy - pred)*(n_eq_sq**3 +
-                                   (x[0]*(conc - self.c2) + 2*x[1]*n_eq_sq +
-                                    3*x[2]*n_eq_sq**2)*grad_n_D))
-            return grad
-
-        jacobian = None
-        if use_jac:
-            jacobian = jac
-
         if SCIPY_VERSION < '1.2.1':
             raise RuntimeError("Scipy version must be larger than 1.2.1!")
 
@@ -229,7 +142,7 @@ class TwoPhaseLandauPolynomial(object):
         x0[-4] = B
         x0[-2] = C
         x0[-1] = 1.0
-        res = minimize(mse, x0=x0, method="SLSQP", jac=None,
+        res = minimize(mse, x0=x0, method="SLSQP",
                        constraints=[cnst], options={"eps": 0.01})
         self.coeff = res["x"]
         print(self.coeff)
