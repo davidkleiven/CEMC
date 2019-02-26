@@ -1,4 +1,5 @@
 from scipy.optimize import newton
+import numpy as np
 
 
 class HyperbolicTangentBVPSolver(object):
@@ -19,7 +20,7 @@ class HyperbolicTangentBVPSolver(object):
     def _basis_func(self, x, var_num):
         height = self._height(var_num)
         w = self.widths[var_num]
-        return 0.5*height*np.tanh(x/w) + bv[0]
+        return 0.5*height*(1+np.tanh(x/w)) + self.boundary_values[var_num][0]
 
     def _basis_func_deriv(self, x, var_num):
         h = self._height(var_num)
@@ -29,9 +30,10 @@ class HyperbolicTangentBVPSolver(object):
     def integrate_rhs(self):
         """Integrate the right hand side."""
         rhs_values = []
-        profile = np.zeros((len(self.rhs, len(self.mesh_points))))
-        for bf in profile.shape[0]:
-            profile[bf, :] = self._basis_func(self.mesh_points, bf)
+        x = self.mesh_points
+        profile = np.zeros((len(self.rhs), len(x)))
+        for bf in range(profile.shape[0]):
+            profile[bf, :] = self._basis_func(x, bf)
 
         for i in range(len(self.rhs)):
             integrand = self._basis_func(x, i)*self.rhs[i](profile)
