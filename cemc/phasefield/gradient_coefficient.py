@@ -101,7 +101,8 @@ class GradientCoefficient(object):
         sol_eval = sol(self.mesh_points)
         order_param = sol_eval[1::2, :]
         order_deriv = sol_eval[0::2, :]
-        integrand = self.delta_free(order_param)
+        df = self.delta_free[interface]
+        integrand = df(order_param)
 
         for i in range(len(grad_coeff)):
             integrand += grad_coeff[i]*order_deriv[i, :]**2

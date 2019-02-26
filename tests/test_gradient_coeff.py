@@ -31,8 +31,11 @@ class TestGradientCoeff(unittest.TestCase):
         def rhs_func(y):
             return rhs(y[1, :])
 
+        df_func = {
+            (0, 1): df
+        }
         grad_coeff = GradientCoefficient([rhs_func], mesh_points, density,
-                                         interface_energy, df, boundary_values,
+                                         interface_energy, df_func, boundary_values,
                                          params_vary, tol=1E-8, width=0.1,
                                          max_nodes=1000000)
 
