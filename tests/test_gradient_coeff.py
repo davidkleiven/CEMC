@@ -48,14 +48,17 @@ class TestGradientCoeff(unittest.TestCase):
             (0, 1): df
         }
         rhs = SingleParameterRhs(boundary_values)
-        grad_coeff = GradientCoefficient(rhs, mesh_points, density,
-                                         interface_energy,
-                                         params_vary, tol=1E-8, width=0.1,
-                                         max_nodes=1000000)
+        solvers = ["collocation", "hypertangent"]
+        for solver in solvers:
+            grad_coeff = GradientCoefficient(rhs, mesh_points, density,
+                                             interface_energy,
+                                             params_vary, tol=1E-8, width=0.1,
+                                             max_nodes=1000000, solver=solver)
 
-        res = grad_coeff.find_gradient_coefficients()
-        K = (3*interface_energy[(0, 1)]/8.0)**2
-        self.assertAlmostEqual(res[0], K, places=2)
+            res = grad_coeff.find_gradient_coefficients()
+            K = (3*interface_energy[(0, 1)]/8.0)**2
+            msg = "{} failed".format(solver)
+            self.assertAlmostEqual(res[0], K, places=2, msg=msg)
 
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
