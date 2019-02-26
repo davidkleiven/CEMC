@@ -130,6 +130,7 @@ class GradientCoefficient(object):
 
             rmse = sum((sigmas[k] - self.interface_energies[k])**2
                        for k in sigmas.keys())
+            print("Grad. coeff: {}, rmse: {}".format(grad_coeff, np.sqrt(rmse)))
             return rmse
 
         res = minimize(cost_func, self.grad_coeff, method="Nelder-Mead")
