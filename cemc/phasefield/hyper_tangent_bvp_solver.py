@@ -3,6 +3,23 @@ import numpy as np
 
 
 class HyperbolicTangentBVPSolver(object):
+    """
+    Solve a boundary value problem by assuming a hyperbolic functional form.
+    Hence, by solving the Euler equation the only free parameter is the width
+    of the interface layer.
+
+    :param list rhs: List of callable objects returning the right handside for
+        each equation
+    :param np.ndarray mesh_points: Mesh points at which the basis functions are
+        evaluated
+    :param list boundary_values: Nested list holding the boundary values. 
+        Each item containts the lower and upper bound for each variable.
+        Example: If we have two variables x1 and x2 satisfying
+        0 <= x1 <= 1 and 0.1 <= x2 <= 2.3, the boundary values
+        would be [[0, 1], [0.1, 2.3]]
+    :param list mass_terms: List with the coefficient in the double derivative
+        of the Euler equations.
+    """
     def __init__(self, rhs, mesh_points, boundary_values, mass_terms=None):
         self.rhs = rhs
         self.mesh_points = mesh_points
