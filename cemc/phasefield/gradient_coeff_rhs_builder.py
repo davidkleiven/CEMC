@@ -55,7 +55,7 @@ class ProjectedFunction(object):
         for i, var in enumerate(self.varying_vars):
             X[var, :] = x[2*i+1, :]
 
-        for k, v in self.fixed_vars:
+        for k, v in self.fixed_vars.items():
             X[k, :] = v
 
         return X
