@@ -66,22 +66,37 @@ class TwoPhaseLandauPolynomial(object):
             self.coeff[-2]*n_eq_sq**2 + \
             self.coeff[-1]*n_eq_sq**3
 
-    def partial_derivative(self, conc, shape=None, var="conc"):
+    def evaluate(self, conc, shape=None):
+        if shape is None:
+            return self.eval_at_equil(conc)
+
+        return np.polyval(self.conc_coeff, conc - self.c1) + \
+            self._eval_phase2(conc)*np.sum(shape**2) + \
+            self.coeff[-2]*np.sum(shape**4) + \
+            self.coeff[-1]*np.sum(shape**2)**3
+
+    def partial_derivative(self, conc, shape=None, var="conc", direction=0):
         """Return the partial derivative with respect to variable."""
         allowed_var = ["conc", "shape"]
         if var not in allowed_var:
             raise ValueError("Variable has to be one of {}".format(allowed_var))
 
         if shape is None:
-            shape = np.sqrt(self.equil_shape_order(conc))
+            shape = [np.sqrt(self.equil_shape_order(conc))]
+
+        try:
+            _ = shape[0]
+        except TypeError:
+            shape = [shape]
 
         if var == "conc":
             p1_der = np.polyder(self.conc_coeff)
             p2_der = np.polyder(self.coeff[:-2])
             return np.polyval(p1_der, conc-self.c1) + np.polyval(p2_der, conc-self.c2)*shape**2
         elif var == "shape":
-            return 2*self._eval_phase2(conc)*shape + \
-                4*self.coeff[-2]*shape**3 + 6*self.coeff[-1]*shape**5
+            return 2*self._eval_phase2(conc)*shape[direction] + \
+                4*self.coeff[-2]*shape[direction]**3 + \
+                3*self.coeff[-1]*np.sum(shape**2)**2 * 2*shape[direction]
         else:
             raise ValueError("Unknown derivative type!")
 
