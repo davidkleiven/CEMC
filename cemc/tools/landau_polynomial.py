@@ -4,6 +4,7 @@ import scipy
 
 SCIPY_VERSION = scipy.__version__
 
+
 class TwoPhaseLandauPolynomial(object):
     """Class for fitting a Landau polynomial to free energy data
 
@@ -145,4 +146,3 @@ class TwoPhaseLandauPolynomial(object):
         res = minimize(mse, x0=x0, method="SLSQP",
                        constraints=[cnst], options={"eps": 0.01})
         self.coeff = res["x"]
-        print(self.coeff)
