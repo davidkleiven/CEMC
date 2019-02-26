@@ -66,6 +66,25 @@ class TwoPhaseLandauPolynomial(object):
             self.coeff[-2]*n_eq_sq**2 + \
             self.coeff[-1]*n_eq_sq**3
 
+    def partial_derivative(self, conc, shape=None, var="conc"):
+        """Return the partial derivative with respect to variable."""
+        allowed_var = ["conc", "shape"]
+        if var not in allowed_var:
+            raise ValueError("Variable has to be one of {}".format(allowed_var))
+
+        if shape is None:
+            shape = np.sqrt(self.equil_shape_order(conc))
+
+        if var == "conc":
+            p1_der = np.polyder(self.conc_coeff)
+            p2_der = np.polyder(self.coeff[:-2])
+            return np.polyval(p1_der, conc-self.c1) + np.polyval(p2_der, conc-self.c2)*shape**2
+        elif var == "shape":
+            return 2*self._eval_phase2(conc)*shape + \
+                4*self.coeff[-2]*shape**3 + 6*self.coeff[-1]*shape**5
+        else:
+            raise ValueError("Unknown derivative type!")
+
     def fit(self, conc1, F1, conc2, F2):
         """Fit the free energy functional.
 
