@@ -34,6 +34,7 @@ import test_phasefield_poly
 import test_coupled_euler
 import test_gradient_coeff
 import test_chgl
+import test_hyper_tangent_bvp
 
 try:
     os.mkdir("data")
@@ -79,6 +80,7 @@ suite.addTest(loader.loadTestsFromModule(test_phasefield_poly))
 suite.addTest(loader.loadTestsFromModule(test_coupled_euler))
 suite.addTest(loader.loadTestsFromModule(test_gradient_coeff))
 suite.addTest(loader.loadTestsFromModule(test_chgl))
+suite.addTest(loader.loadTestsFromModule(test_hyper_tangent_bvp))
 
 runner = TimeLoggingTestRunner()
 result = runner.run(suite)
