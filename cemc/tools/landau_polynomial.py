@@ -53,6 +53,25 @@ class TwoPhaseLandauPolynomial(object):
             return 0.0
         return n_eq
 
+    def equil_shape_order_derivative(self, conc):
+        """Calculate the partial derivative of the equillibrium
+            shape parameter with respect to the concentration.
+
+        NOTE: This return the derivative of the square of of the
+            order parameter with respect to the concentration.
+        """
+
+        delta = (self.coeff[-2]/(3.0*self.coeff[-1]))**2 - \
+            self._eval_phase2(conc)/(3.0*self.coeff[-1])
+
+        if delta < 0.0:
+            return 0.0
+        n_eq = self.equil_shape_order(conc)
+        if n_eq <= 0.0:
+            return 0.0
+        p_der = np.polyder(self.coeff[:-2])
+        return -0.5*np.polyval(p_der, conc-self.c2)/(3*np.sqrt(delta)*self.coeff[-1])
+
     def _eval_phase2(self, conc):
         """Evaluate the polynomial in phase2."""
         return np.polyval(self.coeff[:-2], conc - self.c2)
@@ -257,7 +276,7 @@ class TwoPhaseLandauPolynomial(object):
             return np.array([eq1, eq2])
 
         x0 = np.array([loc1, loc2])
-        res = newton(func, x0)
+        res = newton(func, x0, maxiter=5000)
 
         slope = self.partial_derivative(res[0])
         return res, slope

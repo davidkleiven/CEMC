@@ -70,6 +70,23 @@ class TestLandauPolynomial(unittest.TestCase):
         expected = -0.0104
         self.assertAlmostEqual(pd_shape, expected)
 
+    def test_equil_deriv(self):
+        if not available:
+            self.skipTest(reason)
+        poly = TwoPhaseLandauPolynomial(c1=0.0, c2=0.5)
+        poly.conc_coeff = [1, -2, 3]
+        poly.coeff = [-1, 2, 0, 2, 5]
+
+        conc = 0.4
+        deriv = poly.equil_shape_order_derivative(conc)
+        self.assertGreater(abs(deriv), 0.0)
+
+        delta = 0.00001
+        val1 = poly.equil_shape_order(conc)
+        val2 = poly.equil_shape_order(conc + delta)
+        fd = (val2 - val1)/delta
+        self.assertAlmostEqual(fd, deriv, places=4)
+
 
 
 def show_fit(poly, conc1, conc2, F1, F2):
