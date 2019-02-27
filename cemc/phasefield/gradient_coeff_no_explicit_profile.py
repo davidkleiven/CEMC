@@ -78,5 +78,4 @@ class GradientCoeffNoExplicitProfile(object):
 
         sol = newton(func, self.sqrt_grad_coeff)
         self.grad_coeff = sol**2
-        print(self.grad_coeff)
         return self.grad_coeff
