@@ -3,6 +3,10 @@
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 
+cdef extern from "polynomial_term.hpp":
+    cdef cppclass PolynomialTerm:
+        pass
+
 cdef extern from "chgl.hpp":
     cdef cppclass CHGL[T]:
         CHGL(int L, string &prefix, unsigned int num_gl_fields, \
@@ -20,3 +24,5 @@ cdef extern from "chgl.hpp":
         void from_npy_array(object fields) except +
 
         object to_npy_array() except +
+
+        void add_free_energy_term(double coeff, PolynomialTerm &polyter)

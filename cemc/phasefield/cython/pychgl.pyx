@@ -2,6 +2,7 @@
 
 from cemc.phasefield.cython.chgl cimport CHGL
 from libcpp.vector cimport vector
+from cython.operator cimport dereference as deref
 
 # Hack to support integer template arguments with cython
 cdef extern from *:
@@ -85,3 +86,11 @@ cdef class PyCHGL:
             return self.thisptr2D.to_npy_array()
         elif self.dim == 3:
             return self.thisptr3D.to_npy_array()
+
+    def add_free_energy_term(self, coeff, PyPolynomialTerm term):
+        if self.dim == 1:
+            self.thisptr1D.add_free_energy_term(coeff, deref(term.thisptr))
+        elif self.dim == 2:
+            self.thisptr2D.add_free_energy_term(coeff, deref(term.thisptr))
+        elif self.dim == 3:
+            self.thisptr3D.add_free_energy_term(coeff, deref(term.thisptr))
