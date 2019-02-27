@@ -27,6 +27,7 @@ class TwoPhaseLandauPolynomial(object):
         self.c1 = c1
         self.c2 = c2
         self.init_guess = init_guess
+        self.num_dir = num_dir
         self.boundary_coeff = None
         self.bounds = None
 
@@ -42,13 +43,16 @@ class TwoPhaseLandauPolynomial(object):
                 return 0.0
             return n_eq
 
-        delta = (self.coeff[-2]/(3.0*self.coeff[-1]))**2 - \
-            self._eval_phase2(conc)/(3.0*self.coeff[-1])
+        C = self.coeff[-2]
+        D = self.coeff[-1]*self.num_dir**2
+
+        delta = (C/(3.0*D))**2 - \
+            self._eval_phase2(conc)/(3.0*D)
 
         if delta < 0.0:
             return 0.0
 
-        n_eq = -self.coeff[-2]/(3.0*self.coeff[-1]) + np.sqrt(delta)
+        n_eq = -C/(3.0*D) + np.sqrt(delta)
         if n_eq < 0.0:
             return 0.0
         return n_eq
@@ -89,9 +93,9 @@ class TwoPhaseLandauPolynomial(object):
 
         n_eq_sq = self.equil_shape_order(conc)
         return np.polyval(self.conc_coeff, conc - self.c1) + \
-            self._eval_phase2(conc)*n_eq_sq + \
-            self.coeff[-2]*n_eq_sq**2 + \
-            self.coeff[-1]*n_eq_sq**3
+            self._eval_phase2(conc)*self.num_dir*n_eq_sq + \
+            self.coeff[-2]*self.num_dir*n_eq_sq**2 + \
+            self.coeff[-1]*(self.num_dir*n_eq_sq)**3
 
     def construct_end_of_domain_barrier(self):
         """Construct a barrier on the end of the domain."""
@@ -219,7 +223,7 @@ class TwoPhaseLandauPolynomial(object):
 
         def mse(x):
             self.coeff = x
-            pred = [self.eval_at_equil(conc[i]) for i in range(len(conc))]
+            pred = [self.evaluate(conc[i]) for i in range(len(conc))]
             pred = np.array(pred)
             mse = np.mean((pred - free_energy)**2)
             return mse
