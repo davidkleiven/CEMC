@@ -67,7 +67,9 @@ void CHGL<dim>::update(int nsteps){
 		}
 
 		// MMSP::ghostswap(temp);
-
+        #ifndef NO_PHASEFIELD_PARALLEL
+        #pragma omp parallel for
+        #endif
 		for (int i=0;i<MMSP::nodes(gr);i++){
             // Evaluate the Laplacian for the first field
 			double lapl = MMSP::laplacian(temp, i, 0);

@@ -340,7 +340,7 @@ class TwoPhaseLandauPolynomial(object):
             data[row, 1] = len(self.conc_coeff) - i
             data[row, -1] = 1.0
             row += 1
-        
+
         # Coefficient in the second phase
         coeff = self.coeff[:-2]
         for i in range(len(coeff)):
@@ -349,7 +349,7 @@ class TwoPhaseLandauPolynomial(object):
             data[row, 2:-1] = 2.0
             data[row, -1] = 1.0
             row += 1
-        
+
         # Pure shape parameter terms
         data[row, 0] = self.coeff[-2]
         data[row, 2:-1] = 4
@@ -362,6 +362,3 @@ class TwoPhaseLandauPolynomial(object):
         row += 1
         np.savetxt(fname, data, delimiter=",", header=header)
         print("Polynomial data written to {}".format(fname))
-
-
-        
