@@ -31,8 +31,8 @@ class TestCoupledEuler(unittest.TestCase):
         euler = CoupledEuler(x, rhs, b_vals)
         expected = np.cos(x)
         sol = euler.solve()
-        numerical = sol(x)[1, :]
-        self.assertTrue(np.allclose(numerical, expected))
+        numerical = sol[1, :]
+        self.assertTrue(np.allclose(numerical, expected, atol=1E-6))
 
     def test_coupled_ode(self):
         if not available:
@@ -42,7 +42,7 @@ class TestCoupledEuler(unittest.TestCase):
         rhs = [rhs_coupled1, rhs_coupled2]
         euler = CoupledEuler(x, rhs, b_vals)
 
-        sol = euler.solve()(x)
+        sol = euler.solve()
 
         y = sol[1, :]
         z = sol[3, :]

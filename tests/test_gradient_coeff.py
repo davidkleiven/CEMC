@@ -58,7 +58,7 @@ class TestGradientCoeff(unittest.TestCase):
             res = grad_coeff.find_gradient_coefficients()
             K = (3*interface_energy[(0, 1)]/8.0)**2
             msg = "{} failed".format(solver)
-            self.assertAlmostEqual(res[0], K, places=2, msg=msg)
+            self.assertAlmostEqual(res[0], K, places=7, msg=msg)
 
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner

@@ -1,5 +1,6 @@
 from scipy.integrate import solve_bvp
 import numpy as np
+from cemc.phasefield import HyperbolicTangentBVPSolver
 
 
 class CoupledEuler(object):
@@ -55,16 +56,24 @@ class CoupledEuler(object):
             res.append(0.5*height*(1.0 + np.tanh(x_scaled)) + b[0])
         return np.array(res)
 
-    def solve(self, tol=1E-8, max_nodes=1000):
+    def solve(self, tol=1E-8, max_nodes=1000, solver="collocation"):
         """
         Solve the boundary value problem
 
         :param float tol: Tolerance passed to scipy.integrate.solve
         """
         initial = self._init_guess()
+        self.save_fig("initial.png", initial)
         n_eq = initial.shape[0]
 
         assert n_eq % 2 == 0
+
+        if solver == "hypertangent":
+            solver = HyperbolicTangentBVPSolver(self.rhs, self.x,
+                                                self.boundary_values,
+                                                mass_terms=self.mass_terms,
+                                                width=self.width)
+            return solver.solve()
 
         def rhs_func(x, y):
             res = np.zeros_like(y)
@@ -84,5 +93,19 @@ class CoupledEuler(object):
                            max_nodes=max_nodes)
 
         if not result["success"]:
+            fname = "coupled_euler_error.png"
+            self.save_fig(fname, result["sol"](self.x))
+            msg = result["message"]
+            msg += "\n Figure showing latest solution written to {}".format(fname)
             raise RuntimeError(result["message"])
-        return result["sol"]
+        return result["sol"](self.x)
+
+    def save_fig(self, fname, sol):
+        """Store a figure showing the latest solution."""
+        from matplotlib import pyplot as plt
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1)
+        for i in range(1, sol.shape[0], 2):
+            ax.plot(self.x, sol[i, :])
+        fig.savefig(fname)
+        plt.close()
