@@ -105,7 +105,6 @@ class GradientCoefficient(object):
         rhs_func = self.rhs_builder.get_projected(interface)
         integrand = rhs_func(sol)
         integrand[integrand < 0.0] = 0.0
-        #print(integrand)
         if np.any(integrand < 0.0):
             raise ValueError("It looks like forming an interface "
                              "decrease the energy!")
@@ -115,16 +114,6 @@ class GradientCoefficient(object):
         order_deriv_int = self.number_density*np.trapz(order_deriv**2, axis=1,
                                                        dx=dx)
         return integral, order_deriv_int
-
-        # for i in range(len(grad_coeff)):
-        #     integrand += grad_coeff[i]*order_deriv[i, :]**2
-
-        # result = np.trapz(integrand, x=self.mesh_points)
-        # integral = result*self.number_density
-
-        # if ret_sol:
-        #     return integral, order_param
-        # return integral
 
     def find_gradient_coefficients(self):
         N = len(self.interface_energies)
@@ -142,50 +131,8 @@ class GradientCoefficient(object):
 
             prev_grad_coeff = self.grad_coeff.copy()
             self.grad_coeff = np.linalg.solve(matrix, rhs)
-            self.grad_coeff[self.grad_coeff < 0.0] = np.mean(self.grad_coeff[self.grad_coeff>0.0])
-            #print(self.grad_coeff)
-            # if np.any(self.grad_coeff < 0.0):
-            #     raise RuntimeError("Some gradient coefficients are negative. "
-            #                        "Try to change the initial guess...")
+            if np.any(self.grad_coeff < 0.0):
+                raise RuntimeError("Some gradient coefficients are negative. "
+                                   "Try to change the initial guess...")
             converged = np.max(np.abs(prev_grad_coeff-self.grad_coeff)) < 1E-6
         return self.grad_coeff
-
-
-    # def find_gradient_coefficients(self):
-    #     """
-    #     Find the gradient coefficients by iteratively solving the
-    #     Euler equation and matching them with the given interfac energies.
-
-    #     :return: 1D numpy array with the calculated gradient coefficients
-    #     :rtype: np.ndarray
-    #     """
-    #     def penalty(grad_coeff):
-    #         if np.all(grad_coeff >= 0.0):
-    #             return 0.0
-
-    #         return np.exp(-np.sum(grad_coeff[grad_coeff < 0.0])) - 1.0
-
-    #     def cost_func(grad_coeff):
-    #         sigmas = {}
-    #         self.grad_coeff[:] = grad_coeff
-    #         self.grad_coeff[self.grad_coeff < 1E-4] = 1E-4
-    #         for interface, param in self.varying_params.items():
-    #             res = self.evaluate_one(interface, param)
-    #             sigmas[interface] = np.sum(res)
-
-    #         rmse = sum((sigmas[k] - self.interface_energies[k])**2
-    #                    for k in sigmas.keys())
-    #         msg = "Grad. coeff: "
-    #         for item in grad_coeff:
-    #             msg += "{:.1e} ".format(item)
-    #         msg += "{:.1e}".format(np.sqrt(rmse))
-
-    #         msg += " Target: "
-    #         for k, v in self.interface_energies.items():
-    #             msg += "{}: {:.1e} ({:.1e}) ".format(k, v, sigmas[k])
-    #         print(msg)
-    #         return rmse + penalty(grad_coeff)
-
-    #     res = minimize(cost_func, self.grad_coeff, method="Nelder-Mead")
-    #     self.grad_coeff = res["x"]
-    #     return self.grad_coeff
