@@ -2,6 +2,7 @@
 #include "tools.hpp"
 #include <stdexcept>
 #include <sstream>
+#include <omp.h>
 
 using namespace std;
 
@@ -37,7 +38,10 @@ void CHGL<dim>::update(int nsteps){
 		if (rank == 0){
 			MMSP::print_progress(step, nsteps);
 		}
-
+        
+        #ifndef NO_PHASEFIELD_PARALLEL
+        #pragma omp parallel for
+        #endif
 		for (int i=0;i<MMSP::nodes(gr);i++){
 			MMSP::vector<double> phi = gr(i);
 			MMSP::vector<double> lapl_phi = MMSP::laplacian(gr, i);

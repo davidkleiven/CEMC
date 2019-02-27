@@ -15,6 +15,9 @@ import os
     pip install --install-option="--NO_PARALLEL_KHACHATURYAN_INTEGRAL"
 4. To build the phase field extension module (which depend on the 
     mesoscale/MMSP project)
+5. Many of the phase field models parallizes internally using
+    hyperthreading. To disable run the installation with
+    --install-option="--NO_PHASEFIELD_PARALLEL"
 
 To build the phase field module the following environement variable
 may be set
@@ -63,6 +66,9 @@ for arg in sys.argv:
     elif arg == "--NO_PARALLEL_KHACHATURYAN_INTEGRAL":
         define_macros.remove((("PARALLEL_KHACHATURYAN_INTEGRAL", None)))
         extracted_args.append(arg)
+    elif arg == "--NO_PHASEFIELD_PARALLEL":
+        define_macros.append(arg)
+        extra_comp_args.append(arg)
 
 # Filter out of sys.argv
 for arg in extracted_args:
@@ -84,7 +90,8 @@ phase_field_mod = Extension("phasefield_cxx", sources=phasefield_sources,
                             libraries=["gomp", "pthread", "z", "png",
                                        "vtkCommonCore", "vtkCommonDataModel",
                                        "vtkIOXML"],
-                            library_dirs=[os.environ.get("VTKLIB", "./")])
+                            library_dirs=[os.environ.get("VTKLIB", "./")],
+                            define_macros=define_macros)
 
 ext_mods = [cemc_cpp_code]
 if "--with-phasefield" in sys.argv:
