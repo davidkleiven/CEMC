@@ -57,12 +57,14 @@ class TestGradCoeffNoProfile(unittest.TestCase):
         }
 
         n_density = 1.0
-        grad = GradientCoeffNoExplicitProfile(evaluator, boundary, interface_energy, params_vary,
-                                              n_density, init_grad_coeff=np.array([0.5, 2.0]))
+        grad = GradientCoeffNoExplicitProfile(
+            evaluator, boundary, interface_energy, params_vary,
+            n_density, init_grad_coeff=np.array([0.3, 2.0]))
         coeff = grad.solve()
 
         Kn = (1.0/evaluator.B)*(interface_energy[(0, 2)]/n_density)**2
-        Kc = (1.0/(evaluator.A + evaluator.B))*(interface_energy[(0, 1)]/n_density)**2
+        Kc = (1.0/(evaluator.A + evaluator.B)) * \
+            (interface_energy[(0, 1)]/n_density)**2
         Kc -= Kn
 
         self.assertAlmostEqual(Kc, coeff[0])
