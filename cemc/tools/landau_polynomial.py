@@ -324,3 +324,44 @@ class TwoPhaseLandauPolynomial(object):
             res = fsolve(equation, conc_grad_coeff, args=(energy,))[0]
             grad.append(res)
         return grad
+
+    def save_poly_terms(self, fname="pypolyterm.csv"):
+        """Store the required arguments that can be used to 
+            construct poly terms for phase field calculations."""
+        num_terms = len(self.conc_coeff) + len(self.coeff)
+
+        data = np.zeros((num_terms, self.num_dir+1+2))
+        header = "Coefficient, Inner powers ()..., outer power"
+        row = 0
+
+        # Coefficients from the first phase
+        for i in range(len(self.conc_coeff)):
+            data[row, 0] = self.conc_coeff[i]
+            data[row, 1] = len(self.conc_coeff) - i
+            data[row, -1] = 1.0
+            row += 1
+        
+        # Coefficient in the second phase
+        coeff = self.coeff[:-2]
+        for i in range(len(coeff)):
+            data[row, 0] = coeff[i]
+            data[row, 1] = len(coeff) - i
+            data[row, 2:-1] = 2.0
+            data[row, -1] = 1.0
+            row += 1
+        
+        # Pure shape parameter terms
+        data[row, 0] = self.coeff[-2]
+        data[row, 2:-1] = 4
+        data[row, -1] = 1.0
+        row += 1
+
+        data[row, 0] = self.coeff[-1]
+        data[row, 2:-1] = 2
+        data[row, -1] = 3
+        row += 1
+        np.savetxt(fname, data, delimiter=",", header=header)
+        print("Polynomial data written to {}".format(fname))
+
+
+        
