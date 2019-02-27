@@ -21,7 +21,7 @@ try:
             else:
                 return self.B*x[1]**2
 
-        def deriv(self, x, free_param):
+        def derivative(self, x, free_param):
             result = np.zeros((len(x), len(x[free_param])))
             if free_param == 0:
                 result[0, :] = 1.0

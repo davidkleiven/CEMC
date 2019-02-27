@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.optimize import minimize, LinearConstraint
+from scipy.optimize import minimize, LinearConstraint, fsolve
 import scipy
 
 SCIPY_VERSION = scipy.__version__
@@ -105,28 +105,40 @@ class TwoPhaseLandauPolynomial(object):
             # Lower limit
             value = self.evaluate(lim)
             deriv = self.partial_derivative(lim)
-            matrix = np.zeros((3, 3))
-            rhs = np.zeros(3)
+            matrix = np.zeros((4, 4))
+            rhs = np.zeros(4)
 
             # Continuity
-            matrix[0, 0] = lim**2
-            matrix[0, 1] = lim
-            matrix[0, 2] = 1.0
+            matrix[0, 0] = lim**3
+            matrix[0, 1] = lim**2
+            matrix[0, 2] = lim
+            matrix[0, 3] = 1.0
             rhs[0] = value
 
             # Smooth
-            matrix[1, 0] = 2*lim
-            matrix[1, 1] = 1.0
+            matrix[1, 0] = 3*lim**2
+            matrix[1, 1] = 2*lim
+            matrix[1, 2] = 1.0
             rhs[1] = deriv
 
             # Max distance to minimum
             d = 0.01*(self.bounds[1] - self.bounds[0])
             if i == 0:
                 # Lower limit
-                matrix[2, 0] = 2*(lim - d)
+                matrix[2, 0] = 3*(lim - d)**2
+                matrix[2, 1] = 2*(lim - d)
             else:
-                matrix[2, 0] = 2*(lim + d)
+                matrix[2, 0] = 3*(lim + d)**2
+                matrix[2, 1] = 2*(lim + d)
             matrix[2, 1] = 1.0
+
+            # Fixed curvature
+            if i == 0:
+                matrix[3, 0] = 6*(lim-d)
+            else:
+                matrix[3, 0] = 6*(lim + d)
+            matrix[3, 1] = 2.0
+            rhs[3] = abs(value)/d**2
             new_coeff = np.linalg.solve(matrix, rhs)
             coeff.append(new_coeff)
         return coeff
@@ -249,10 +261,9 @@ class TwoPhaseLandauPolynomial(object):
 
         # Make sure that the last coefficient is larger than
         # the secnod largest
-        A[2, -1] = 1.0
-        A[2, -2] = -1.0
-        lb[2] = 0.0
-        ub[2] = np.inf
+        A[2, -2] = 1.0
+        lb[2] = -np.inf
+        ub[2] = 0.0
 
         x0 = np.zeros(len(self.coeff))
         x0[-1] = 1.0
@@ -284,3 +295,32 @@ class TwoPhaseLandauPolynomial(object):
 
         slope = self.partial_derivative(res[0])
         return res, slope
+
+    def slaved_gradient_coefficients(self, conc_grad_coeff, interface_energies,
+                                     density):
+        """Calculate the gradient coefficients based on slaved order
+        parameters."""
+
+        grad = []
+
+        def equation(value, gamma):
+            N = 100
+            x = np.linspace(self.bounds[0], self.bounds[1], N)
+            deriv = [self.equil_shape_order_derivative(x[i]) for i in range(N)]
+            f = [self.evaluate(x[i]) for i in range(N)]
+            f = np.array(f)
+            deriv = np.array(deriv)
+            f1 = f[0]
+            f2 = f[-1]
+            slope = (f2 - f1)/(x[-1] - x[0])
+            interscept = f1 - slope*x[0]
+            f -= (slope*x + interscept)
+            f -= np.min(f)
+            integrand = np.sqrt(f)*np.sqrt(conc_grad_coeff + value*deriv**2)
+            dx = x[1] - x[0]
+            return 2.0*density*np.trapz(integrand, dx=dx) - gamma
+
+        for energy in interface_energies:
+            res = fsolve(equation, conc_grad_coeff, args=(energy,))[0]
+            grad.append(res)
+        return grad

@@ -6,4 +6,4 @@ from cemc.phasefield.coupled_euler import CoupledEuler
 from cemc.phasefield.gradient_coefficient import GradientCoefficient
 from cemc.phasefield.gradient_coeff_rhs_builder import GradientCoefficientRhsBuilder
 from cemc.phasefield.gradient_coeff_no_explicit_profile import GradientCoeffNoExplicitProfile
-from cemc.phasefield.grad_coeff_energy_eval import GradCoeffEvaluator
+from cemc.phasefield.grad_coeff_energy_eval import GradCoeffEvaluator, SlavedTwoPhaseLandauEvaluator
