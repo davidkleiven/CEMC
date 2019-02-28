@@ -20,8 +20,9 @@ class TwoPhaseLandauPolynomial(object):
     """
     def __init__(self, c1=0.0, c2=1.0, num_dir=3, init_guess=None,
                  conc_order1=2, conc_order2=2):
-        self.coeff = np.zeros(conc_order2+3)
+        self.conc_coeff2 = np.zeros(conc_order2)
         self.conc_coeff = np.zeros(conc_order1+1)
+        self.coeff_shape = np.zeros(5)
         self.conc_order1 = conc_order1
         self.conc_order2 = conc_order2
         self.c1 = c1
@@ -36,15 +37,14 @@ class TwoPhaseLandauPolynomial(object):
 
         :param float conc: Concentration
         """
+        C = self.coeff_shape[0]
+        D = self.coeff_shape[2]
 
-        if abs(self.coeff[-1] < 1E-8):
-            n_eq = -0.5*self._eval_phase2(conc)/self.coeff[-2]
+        if abs(D < 1E-8):
+            n_eq = -0.5*self._eval_phase2(conc)/C
             if n_eq < 0.0:
                 return 0.0
             return n_eq
-
-        C = self.coeff[-2]
-        D = self.coeff[-1]*self.num_dir**2
 
         delta = (C/(3.0*D))**2 - \
             self._eval_phase2(conc)/(3.0*D)
@@ -55,7 +55,7 @@ class TwoPhaseLandauPolynomial(object):
         n_eq = -C/(3.0*D) + np.sqrt(delta)
         if n_eq < 0.0:
             return 0.0
-        return n_eq
+        return np.sqrt(n_eq)
 
     def equil_shape_order_derivative(self, conc):
         """Calculate the partial derivative of the equillibrium
@@ -65,20 +65,24 @@ class TwoPhaseLandauPolynomial(object):
             order parameter with respect to the concentration.
         """
 
-        delta = (self.coeff[-2]/(3.0*self.coeff[-1]))**2 - \
-            self._eval_phase2(conc)/(3.0*self.coeff[-1])
+        C = self.coeff_shape[0]
+        D = self.coeff_shape[2]
+
+        delta = (C/(3.0*D))**2 - \
+            self._eval_phase2(conc)/(3.0*D)
 
         if delta < 0.0:
             return 0.0
         n_eq = self.equil_shape_order(conc)
         if n_eq <= 0.0:
             return 0.0
-        p_der = np.polyder(self.coeff[:-2])
-        return -0.5*np.polyval(p_der, conc-self.c2)/(3*np.sqrt(delta)*self.coeff[-1])
+        p_der = np.polyder(self.conc_coeff2)
+        return -0.5*np.polyval(p_der, conc-self.c2) / \
+            (3*np.sqrt(delta)*D*2*n_eq)
 
     def _eval_phase2(self, conc):
         """Evaluate the polynomial in phase2."""
-        return np.polyval(self.coeff[:-2], conc - self.c2)
+        return np.polyval(self.conc_coeff2, conc - self.c2)
 
     def eval_at_equil(self, conc):
         """Evaluate the free energy at equillibrium order.
@@ -91,54 +95,39 @@ class TwoPhaseLandauPolynomial(object):
             elif conc > self.bounds[1]:
                 return np.polyval(self.boundary_coeff[1], conc)
 
-        n_eq_sq = self.equil_shape_order(conc)
+        n_eq = self.equil_shape_order(conc)
         return np.polyval(self.conc_coeff, conc - self.c1) + \
-            self._eval_phase2(conc)*self.num_dir*n_eq_sq + \
-            self.coeff[-2]*self.num_dir*n_eq_sq**2 + \
-            self.coeff[-1]*(self.num_dir*n_eq_sq)**3
+            self._eval_phase2(conc)*n_eq**2 + \
+            self.coeff_shape[0]*n_eq**4 + \
+            self.coeff_shape[2]*n_eq**6
 
-    def construct_end_of_domain_barrier(self):
+    def construct_end_of_domain_barrier(self, f_range):
         """Construct a barrier on the end of the domain."""
         coeff = []
         assert self.bounds is not None
+
         for i, lim in enumerate(self.bounds):
             # Lower limit
             value = self.evaluate(lim)
             deriv = self.partial_derivative(lim)
-            matrix = np.zeros((4, 4))
-            rhs = np.zeros(4)
+            matrix = np.zeros((3, 3))
+            rhs = np.zeros(3)
 
             # Continuity
-            matrix[0, 0] = lim**3
-            matrix[0, 1] = lim**2
-            matrix[0, 2] = lim
-            matrix[0, 3] = 1.0
+            matrix[0, 0] = lim**2
+            matrix[0, 1] = lim
+            matrix[0, 2] = 1.0
             rhs[0] = value
 
             # Smooth
-            matrix[1, 0] = 3*lim**2
-            matrix[1, 1] = 2*lim
-            matrix[1, 2] = 1.0
+            matrix[1, 0] = 2*lim
+            matrix[1, 1] = 1.0
             rhs[1] = deriv
 
-            # Max distance to minimum
-            d = 0.01*(self.bounds[1] - self.bounds[0])
-            if i == 0:
-                # Lower limit
-                matrix[2, 0] = 3*(lim - d)**2
-                matrix[2, 1] = 2*(lim - d)
-            else:
-                matrix[2, 0] = 3*(lim + d)**2
-                matrix[2, 1] = 2*(lim + d)
-            matrix[2, 1] = 1.0
-
-            # Fixed curvature
-            if i == 0:
-                matrix[3, 0] = 6*(lim-d)
-            else:
-                matrix[3, 0] = 6*(lim + d)
-            matrix[3, 1] = 2.0
-            rhs[3] = abs(value)/d**2
+            # Positive curvature
+            d = 0.1*(self.bounds[1] - self.bounds[0])
+            matrix[2, 0] = 1.0
+            rhs[2] = 0.01*f_range/d**2
             new_coeff = np.linalg.solve(matrix, rhs)
             coeff.append(new_coeff)
         return coeff
@@ -153,10 +142,21 @@ class TwoPhaseLandauPolynomial(object):
         if shape is None:
             return self.eval_at_equil(conc)
 
+        full_shape = np.zeros(3)
+        full_shape[:len(shape)] = shape
+        shape = full_shape
+
         return np.polyval(self.conc_coeff, conc - self.c1) + \
             self._eval_phase2(conc)*np.sum(shape**2) + \
-            self.coeff[-2]*np.sum(shape**4) + \
-            self.coeff[-1]*np.sum(shape**2)**3
+            self.coeff_shape[0]*np.sum(shape**4) + \
+            self.coeff_shape[1]*(shape[0]**2 * shape[1]**2 +
+                                 shape[0]**2 * shape[2]**2 +
+                                 shape[1]**2 * shape[2]**2) + \
+            self.coeff_shape[2]*np.sum(shape**6) + \
+            self.coeff_shape[3]*(shape[0]**4 * (shape[1]**2 + shape[2]**2) +
+                                 shape[1]**4 * (shape[0]**2 + shape[2]**2) +
+                                 shape[2]**4 * (shape[0]**2 + shape[1]**2)) + \
+            self.coeff_shape[4]*np.prod(shape**2)
 
     def partial_derivative(self, conc, shape=None, var="conc", direction=0):
         """Return the partial derivative with respect to variable."""
@@ -176,6 +176,10 @@ class TwoPhaseLandauPolynomial(object):
             # Shape was a scalar, convert to array
             shape = np.array([shape])
 
+        full_shape = np.zeros(3)
+        full_shape[:len(shape)] = shape
+        shape = full_shape
+
         if var == "conc":
             if self.bounds and conc < self.bounds[0]:
                 return np.polyval(np.polyder(self.boundary_coeff[0]), conc)
@@ -183,14 +187,19 @@ class TwoPhaseLandauPolynomial(object):
                 return np.polyval(np.polyder(self.boundary_coeff[1]), conc)
 
             p1_der = np.polyder(self.conc_coeff)
-            p2_der = np.polyder(self.coeff[:-2])
+            p2_der = np.polyder(self.conc_coeff2)
             return np.polyval(p1_der, conc-self.c1) + \
                 np.polyval(p2_der, conc-self.c2)*np.sum(shape**2)
 
         elif var == "shape":
-            return 2*self._eval_phase2(conc)*shape[direction] + \
-                4*self.coeff[-2]*shape[direction]**3 + \
-                3*self.coeff[-1]*np.sum(shape**2)**2 * 2*shape[direction]
+            d = direction
+            return 2*self._eval_phase2(conc)*shape[d] + \
+                4*self.coeff_shape[0]*shape[d]**3 + \
+                2*self.coeff_shape[1]*shape[d]*(shape[(d+1) % 3] + shape[(d+2) % 3]) + \
+                6*self.coeff_shape[2]*shape[d]**5 + \
+                4*self.coeff_shape[3]*shape[d]**3*(shape[(d+1) % 3]**2 + shape[(d+2) % 3]**2) + \
+                2*self.coeff_shape[3]*shape[d]*(shape[(d+1) % 3]**4 + shape[(d+2) % 3]**4) + \
+                2*self.coeff_shape[4]*shape[d]*shape[(d+1) % 3]**2 * shape[(d+2) % 3]**2
         else:
             raise ValueError("Unknown derivative type!")
 
@@ -234,7 +243,9 @@ class TwoPhaseLandauPolynomial(object):
             x0 = np.array([B, C, min([abs(B), abs(C)])])
 
         def mse(x):
-            self.coeff = x
+            self.conc_coeff2 = x[:self.conc_order2]
+            self.coeff_shape[0] = x[-2]
+            self.coeff_shape[2] = x[-1]
             pred = [self.evaluate(conc[i]) for i in range(len(conc))]
             pred = np.array(pred)
             mse = np.mean((pred - free_energy)**2)
@@ -244,7 +255,7 @@ class TwoPhaseLandauPolynomial(object):
             raise RuntimeError("Scipy version must be larger than 1.2.1!")
 
         num_constraints = 3
-        A = np.zeros((num_constraints, len(self.coeff)))
+        A = np.zeros((num_constraints, self.conc_order2+2))
         lb = np.zeros(num_constraints)
         ub = np.zeros(num_constraints)
 
@@ -265,16 +276,19 @@ class TwoPhaseLandauPolynomial(object):
         lb[2] = -np.inf
         ub[2] = 0.0
 
-        x0 = np.zeros(len(self.coeff))
+        x0 = np.zeros(self.conc_order2+2)
         x0[-1] = 1.0
         x0[-4] = B
         x0[-2] = C
         x0[-1] = 1.0
         res = minimize(mse, x0=x0, method="SLSQP",
                        constraints=[cnst], options={"eps": 0.01})
-        self.coeff = res["x"]
+        self.conc_coeff2 = res["x"][:-2]
+        self.coeff_shape[0] = res["x"][-2]
+        self.coeff_shape[2] = res["x"][-1]
         self.bounds = [np.min(conc), np.max(conc)]
-        self.boundary_coeff = self.construct_end_of_domain_barrier()
+        f_range = np.max(free_energy) - np.min(free_energy)
+        self.boundary_coeff = self.construct_end_of_domain_barrier(f_range)
 
     def locate_common_tangent(self, loc1, loc2):
         """Locate a common tangent point in the vicinity of loc1 and loc2."""
@@ -328,7 +342,7 @@ class TwoPhaseLandauPolynomial(object):
     def save_poly_terms(self, fname="pypolyterm.csv"):
         """Store the required arguments that can be used to 
             construct poly terms for phase field calculations."""
-        num_terms = len(self.conc_coeff) + len(self.coeff)
+        num_terms = len(self.conc_coeff) + len(self.conc_coeff2) + len(self.coeff_shape)
 
         data = np.zeros((num_terms, self.num_dir+1+2))
         header = "Coefficient, Inner powers ()..., outer power"
@@ -342,7 +356,7 @@ class TwoPhaseLandauPolynomial(object):
             row += 1
 
         # Coefficient in the second phase
-        coeff = self.coeff[:-2]
+        coeff = self.conc_coeff2
         for i in range(len(coeff)):
             data[row, 0] = coeff[i]
             data[row, 1] = len(coeff) - i
@@ -351,12 +365,12 @@ class TwoPhaseLandauPolynomial(object):
             row += 1
 
         # Pure shape parameter terms
-        data[row, 0] = self.coeff[-2]
+        data[row, 0] = self.coeff_shape[0]
         data[row, 2:-1] = 4
         data[row, -1] = 1.0
         row += 1
 
-        data[row, 0] = self.coeff[-1]
+        data[row, 0] = self.coeff_shape[2]
         data[row, 2:-1] = 2
         data[row, -1] = 3
         row += 1

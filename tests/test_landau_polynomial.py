@@ -53,7 +53,9 @@ class TestLandauPolynomial(unittest.TestCase):
         
         poly = TwoPhaseLandauPolynomial(c1=0.0, c2=0.5)
         poly.conc_coeff = [1, -2, 3]
-        poly.coeff = [-1, 2, 0, 2, 5]
+        poly.conc_coeff2 = [-1, 2, 0]
+        poly.coeff_shape[0] = 2
+        poly.coeff_shape[2] = 5
 
         # Verify that we get a value error if we pass an unknown
         # variable
@@ -75,7 +77,9 @@ class TestLandauPolynomial(unittest.TestCase):
             self.skipTest(reason)
         poly = TwoPhaseLandauPolynomial(c1=0.0, c2=0.5)
         poly.conc_coeff = [1, -2, 3]
-        poly.coeff = [-1, 2, 0, 2, 5]
+        poly.conc_coeff2 = [-1, 2, 0]
+        poly.coeff_shape[0] = 2
+        poly.coeff_shape[2] = 5
 
         conc = 0.4
         deriv = poly.equil_shape_order_derivative(conc)
