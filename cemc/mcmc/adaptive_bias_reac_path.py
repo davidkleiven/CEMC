@@ -514,7 +514,7 @@ class AdaptiveBiasReactionPathSampler(object):
 
     def _trial_move_alter_reac_crd(self, trial_move):
         """Return True if the trial move alter the reaction coordinate."""
-        current_val = self.bias.reac_init.get(self.mc.atoms)
+        current_val = self.bias.reac_init.get(None, None)
         trial_val = self.bias.reac_init.get(self.mc.atoms, trial_move)
         tol = 1E-6
         return abs(current_val - trial_val) > tol
