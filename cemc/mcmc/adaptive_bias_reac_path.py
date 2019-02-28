@@ -520,7 +520,7 @@ class AdaptiveBiasReactionPathSampler(object):
         return abs(current_val - trial_val) > tol
 
     def update_range_and_initializer(self, system_changes):
-        self.reac_init.update(system_changes)
+        self.bias.reac_init.update(system_changes)
 
         if self.rng_constraint is not None:
             self.rng_constraint.update(system_changes)
