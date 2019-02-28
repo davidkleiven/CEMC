@@ -21,6 +21,7 @@
             }
 
             // Perform the FFT
+            // TODO: See if FFTW can utilize multithreading
             fftwnd_one(plan, A, NULL);
 
             // Insert FT in the out field variable
