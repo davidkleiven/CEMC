@@ -37,6 +37,7 @@ class DiffractionUpdater(object):
             f_val = np.exp(1j*self.k_dot_r[change[0]])/self.N
             self.value += self.indicator[change[2]]*f_val
             self.value -= self.indicator[change[1]]*f_val
+        return self.value
 
     def undo(self):
         """
@@ -56,7 +57,8 @@ class DiffractionUpdater(object):
         value = 0.0 + 1j*0.0
         for i, symb in enumerate(symbols):
             value += self.indicator[symb]*np.exp(1j*self.k_dot_r[i])
-        return value / len(symbols)
+        self.value = value / len(symbols)
+        return self.value
 
 
 class DiffractionObserver(MCObserver):
@@ -139,6 +141,10 @@ class DiffractionCrdInitializer(ReactionCrdInitializer):
             value = np.abs(self.updater.update(system_changes))
             self.updater.undo()
             return value
+        elif atoms is not None:
+            symbols = [atom.symbol for atom in atoms]
+            # NOTE: This updates the value!
+            self.updater.calculate_from_scratch(symbols)
         return np.abs(self.updater.value)
 
     def update(self, system_changes):
