@@ -41,7 +41,7 @@ class BinaryPhaseDiagram(object):
                  concentration="singlet_c1_0", temp_col="temperature",
                  tol=1E-6, postproc_table="postproc",
                  recalculate_postproc=False, ht_phases=[], num_elem=2,
-                 natoms=1, isochem_ref=None, num_per_fu=1):
+                 natoms=1, isochem_ref={}, num_per_fu=1):
         self.db_name = db_name
         self.fig_prefix = fig_prefix
         self.table = table

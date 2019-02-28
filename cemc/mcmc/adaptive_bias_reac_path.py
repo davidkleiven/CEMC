@@ -488,20 +488,26 @@ class AdaptiveBiasReactionPathSampler(object):
         now = time.time()
         try:
             while not conv:
-                self.mc._mc_step()
+                energy, acc = self.mc._mc_step()
                 self.current_mc_step += 1
+
+                if acc:
+                    # Call the update method of the constraint and the
+                    # initializer
+                    self.update_range_and_initializer(self.mc.trial_move)
+
                 self.update()
                 if time.time() - now > self.output_every:
                     self.progress_message()
                     now = time.time()
-                
+
                 if time.time() - self.last_save > self.save_interval:
                     self.save()
                     self.last_save = time.time()
 
                 # Check convergence only occationally as this involve
                 # collective communication
-                if self.current_mc_step%self.check_convergence_interval == 0:
+                if self.current_mc_step % self.check_convergence_interval == 0:
                     conv = self.converged()
         except Exception as exc:
             print("Rank {}: {}".format(self.rank, str(exc)))
@@ -513,6 +519,8 @@ class AdaptiveBiasReactionPathSampler(object):
         tol = 1E-6
         return abs(current_val - trial_val) > tol
 
+    def update_range_and_initializer(self, system_changes):
+        self.reac_init.update(system_changes)
 
-
-                
+        if self.rng_constraint is not None:
+            self.rng_constraint.update(system_changes)
