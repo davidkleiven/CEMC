@@ -54,7 +54,7 @@ class TestDiffractionUpdater(unittest.TestCase):
         updater = DiffractionUpdater(atoms=atoms, k_vector=[k, 0, 0],
                                      active_symbols=["Mg"],
                                      all_symbols=["Al", "Mg"])
-        
+
         # Remove all Al atoms
         for i in range(len(atoms)):
             if atoms[i].symbol == "Al":
@@ -69,7 +69,7 @@ class TestDiffractionUpdater(unittest.TestCase):
             if layers[i] % 2 == 0:
                 system_change = [(i, "Mg", "Al")]
                 updater.update(system_change)
-        
+
         # Now value should be back to 1/2
         self.assertAlmostEqual(np.abs(updater.value), 0.5)
 
