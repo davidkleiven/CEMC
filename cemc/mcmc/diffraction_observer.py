@@ -1,5 +1,6 @@
 from cemc.mcmc import MCObserver
 from cemc.mcmc import ReactionCrdInitializer, ReactionCrdRangeConstraint
+import numpy as np
 
 
 class DiffractionUpdater(object):
@@ -17,21 +18,19 @@ class DiffractionUpdater(object):
                  all_symbols=[]):
         MCObserver.__init__(self)
         self.orig_symbols = [atom.symbol for atom in atoms]
-        self.k_vector = k_vectors
+        self.k_vector = k_vector
         self.N = len(atoms)
-        self.symbols = symbols
         self.k_dot_r = atoms.get_positions().dot(self.k_vector)
         self.value = self.calculate_from_scratch(self.orig_symbols)
-        self.prev_value = value
+        self.prev_value = self.value
         self.indicator = {k: 0 for k in all_symbols}
-        for symb in symbols:
+        for symb in active_symbols:
             self.indicator[symb] = 1.0
 
     def update(self, system_changes):
         """
         Update the reflection value
         """
-        self.num_updates += 1
         self.prev_value = self.value
         for change in system_changes:
             f_val = np.exp(1j*self.k_dot_r[change[0]])/self.N
@@ -49,14 +48,14 @@ class DiffractionUpdater(object):
         Reset all values
         """
         self.value = self.calculate_from_scratch(self.orig_symbols)
-        self.prev_value = value
+        self.prev_value = self.value
 
     def calculate_from_scratch(self, symbols):
         """Calculate the intensity from sctrach."""
         value = 0.0 + 1j*0.0
         for i, symb in enumerate(symbols):
             value += np.exp(1j*self.k_dot_r[i])
-        return value /= len(symbols)
+        return value / len(symbols)
 
 
 class DiffractionObserver(MCObserver):
@@ -67,20 +66,21 @@ class DiffractionObserver(MCObserver):
     for explination of the arguments.
     """
     def __init__(self, atoms=None, k_vector=[], active_symbols=[],
-                 all_symbols=[]):
+                 all_symbols=[], name="reflect"):
         MCObserver.__init__(self)
         self.updater = DiffractionUpdater(
-            atoms=atoms, k_vector=k_vector, active_symbols=active_symbols
+            atoms=atoms, k_vector=k_vector, active_symbols=active_symbols,
             all_symbols=all_symbols)
         self.avg = self.updater.value
         self.num_updates = 1
+        self.name = name
 
     def __call__(self, system_changes):
         self.updater.update(system_changes)
         self.avg += self.updater.value
 
     def get_averages(self):
-        return np.abs(self.avg/self.num_updates)
+        return {self.name: np.abs(self.avg/self.num_updates)}
 
     def reset(self):
         self.updater.reset()
@@ -100,7 +100,7 @@ class DiffractionRangeConstraint(ReactionCrdRangeConstraint):
 
         ReactionCrdRangeConstraint.__init__(self)
         self.updater = DiffractionUpdater(
-            atoms=atoms, k_vector=k_vector, active_symbols=active_symbols
+            atoms=atoms, k_vector=k_vector, active_symbols=active_symbols,
             all_symbols=all_symbols)
 
     def __call__(self, system_changes):

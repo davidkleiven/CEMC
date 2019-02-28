@@ -48,7 +48,7 @@ mc_obj = Montecarlo(atoms, T)
 # Now we define the observers
 from cemc.mcmc import CorrelationFunctionTracker, PairCorrelationObserver, Snapshot, LowestEnergyStructure, NetworkObserver
 from cemc.mcmc import SiteOrderParameter, EnergyEvolution, EnergyHistogram
-from cemc.mcmc import MCBackup
+from cemc.mcmc import MCBackup, DiffractionObserver
 
 # The Correlation Function Tracker computes the thermodynamic
 # average of all the correlation functions
@@ -82,16 +82,21 @@ energy_hist = EnergyHistogram(mc_obj, n_bins=100)
 # Make backup at regular intervals
 mc_backup = MCBackup(mc_obj, backup_file="montecarlo_example_backup.pkl", db_name="mc_ex_backup.db")
 
+# Diffraction observer
+diffract = DiffractionObserver(atoms=atoms, k_vector=[1.0, 1.0, 1.0], 
+                              active_symbols=["Mg"], all_symbols=["Al", "Mg"])
+
 # Now we can attach the observers to the mc_obj
-mc_obj.attach( corr_func_obs, interval=1 )
-mc_obj.attach( pair_obs, interval=1 )
-mc_obj.attach( snapshot, interval=10 ) # Take a snap shot every then iteration
-mc_obj.attach( low_en, interval=1 )
-mc_obj.attach( network_obs, interval=5 )
+mc_obj.attach(corr_func_obs, interval=1)
+mc_obj.attach(pair_obs, interval=1)
+mc_obj.attach(snapshot, interval=10)  # Take a snap shot every then iteration
+mc_obj.attach(low_en, interval=1)
+mc_obj.attach(network_obs, interval=5)
 mc_obj.attach(site_order)
 mc_obj.attach(energy_evol)
 mc_obj.attach(energy_hist)
 mc_obj.attach(mc_backup, interval=5)
+mc_obj.attach(diffract)
 
 # Now run 30 MC steps
 mc_obj.runMC( mode="fixed", steps=30, equil=False )

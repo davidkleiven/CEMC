@@ -21,7 +21,7 @@ class ReactionCrdRangeConstraint(MCConstraint):
 
     def update_range(self, new_range):
         """Update the range."""
-        self.range = 
+        self.range = new_range
         
     def update(self, system_changes):
         pass
