@@ -56,6 +56,7 @@ phasefield_sources.append("cemc/phasefield/cython/phasefield_cxx.pyx")
 define_macros = [("PARALLEL_KHACHATURYAN_INTEGRAL", None)]
 extra_comp_args = ["-std=c++11", "-fopenmp"]
 extracted_args = []
+optional_lib_phasefield = []
 for arg in sys.argv:
     if arg == "--PARALLEL_CF_UPDATE":
         define_macros.append(("PARALLEL_CF_UPDATE", None))
@@ -67,8 +68,12 @@ for arg in sys.argv:
         define_macros.remove((("PARALLEL_KHACHATURYAN_INTEGRAL", None)))
         extracted_args.append(arg)
     elif arg == "--NO_PHASEFIELD_PARALLEL":
-        define_macros.append(arg)
+        define_macros.append(("NO_PHASEFIELD_PARALLEL", None))
         extra_comp_args.append(arg)
+    elif arg == "--HAS_FFTW":
+        define_macros.append(("HAS_FFTW", None))
+        optional_lib_phasefield.append("fftw")
+        extracted_args.append(arg)
 
 # Filter out of sys.argv
 for arg in extracted_args:
@@ -89,7 +94,7 @@ phase_field_mod = Extension("phasefield_cxx", sources=phasefield_sources,
                             language="c++", define_macros=define_macros,
                             libraries=["gomp", "pthread", "z", "png",
                                        "vtkCommonCore", "vtkCommonDataModel",
-                                       "vtkIOXML"],
+                                       "vtkIOXML"] + optional_lib_phasefield,
                             library_dirs=[os.environ.get("VTKLIB", "./")])
 
 ext_mods = [cemc_cpp_code]

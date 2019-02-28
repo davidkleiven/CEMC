@@ -22,4 +22,13 @@ T partial_double_derivative(const MMSP::grid<dim, T> &GRID, unsigned int node_in
     MMSP::vector<int> x = GRID.position(node_index);
     return partial_double_derivative(GRID, x, dir);
 }
+
+#ifdef HAS_FFTW
+    #include <fftw.h>
+    template<int dim>
+    void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in, MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid_out, int direction,
+                    const int *dims, const std::vector<int> &ft_fields);
+#endif
+
+#include "tools.tpp"
 #endif

@@ -10,6 +10,11 @@ Khachaturyan::Khachaturyan(PyObject *ft_shape_func, PyObject *elastic_tensor, Py
     convertShapeFunc(ft_shape_func);
 }
 
+Khachaturyan::Khachaturyan(unsigned int dim, PyObject *elastic_tensor, PyObject *misfit){
+    elastic.from_numpy(elastic_tensor);
+    convertMisfit(misfit);
+}
+
 void Khachaturyan::convertMisfit(PyObject *pymisfit){
     PyObject *npy = PyArray_FROM_OTF(pymisfit, NPY_DOUBLE, NPY_IN_ARRAY);
 
