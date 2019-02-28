@@ -21,11 +21,12 @@ class DiffractionUpdater(object):
         self.k_vector = k_vector
         self.N = len(atoms)
         self.k_dot_r = atoms.get_positions().dot(self.k_vector)
-        self.value = self.calculate_from_scratch(self.orig_symbols)
-        self.prev_value = self.value
         self.indicator = {k: 0 for k in all_symbols}
         for symb in active_symbols:
             self.indicator[symb] = 1.0
+
+        self.value = self.calculate_from_scratch(self.orig_symbols)
+        self.prev_value = self.value
 
     def update(self, system_changes):
         """
@@ -54,7 +55,7 @@ class DiffractionUpdater(object):
         """Calculate the intensity from sctrach."""
         value = 0.0 + 1j*0.0
         for i, symb in enumerate(symbols):
-            value += np.exp(1j*self.k_dot_r[i])
+            value += self.indicator[symb]*np.exp(1j*self.k_dot_r[i])
         return value / len(symbols)
 
 
