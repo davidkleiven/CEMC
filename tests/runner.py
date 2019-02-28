@@ -74,7 +74,6 @@ suite.addTests(loader.loadTestsFromModule(test_adaptive_bias_potential))
 suite.addTest(loader.loadTestsFromModule(test_isotropic_strain_energy))
 suite.addTest(loader.loadTestsFromModule(test_khacaturyan))
 suite.addTest(loader.loadTestsFromModule(test_binary_phase_diag))
-<<<<<<< HEAD
 suite.addTest(loader.loadTestsFromModule(test_cahn_hilliard))
 suite.addTest(loader.loadTestsFromModule(test_cahn_hilliard_phase_field))
 suite.addTest(loader.loadTestsFromModule(test_polynomial_term))
@@ -83,9 +82,7 @@ suite.addTest(loader.loadTestsFromModule(test_coupled_euler))
 suite.addTest(loader.loadTestsFromModule(test_gradient_coeff))
 suite.addTest(loader.loadTestsFromModule(test_chgl))
 suite.addTest(loader.loadTestsFromModule(test_hyper_tangent_bvp))
-=======
 suite.addTest(loader.loadTestsFromModule(test_diffraction_updater))
->>>>>>> master
 
 runner = TimeLoggingTestRunner()
 result = runner.run(suite)
