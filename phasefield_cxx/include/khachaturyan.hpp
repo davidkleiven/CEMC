@@ -10,6 +10,7 @@ typedef std::vector< std::vector< std::vector<double> > > shp_t;
 
 class Khachaturyan{
 public:
+    Khachaturyan(unsigned int dim, PyObject *elastic_tensor, PyObject *misfit_strain);
     Khachaturyan(PyObject *ft_shape_func, PyObject *elastic_tensor, PyObject *misfit_strain);
 
     /** Calculate the green function (omitting normalization factor 1/k^2)*/
