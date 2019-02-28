@@ -6,8 +6,11 @@ class Mat4D{
 public:
     Mat4D(unsigned int n1, unsigned int n2, \
           unsigned int n3, unsigned int n4);
+    Mat4D(const Mat4D &other);
     Mat4D(){};
     ~Mat4D();
+
+    Mat4D& operator=(const Mat4D &other);
 
     double operator()(unsigned int i, unsigned int j, \
                       unsigned int k, unsigned int l) const;
@@ -34,5 +37,6 @@ private:
                                   unsigned int k, unsigned int l) const;
 
     void allocate(unsigned int nn1, unsigned int nn2, unsigned int nn3, unsigned int nn4);
+    void swap(const Mat4D &other);
 };
 #endif

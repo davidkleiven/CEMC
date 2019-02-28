@@ -9,6 +9,15 @@ Mat4D::Mat4D(unsigned int n1, unsigned int n2, unsigned int n3, unsigned int n4)
         data = new double[n1*n2*n3*n4];
     }
 
+Mat4D::Mat4D(const Mat4D &other){
+    swap(other);
+}
+
+Mat4D& Mat4D::operator=(const Mat4D &other){
+    swap(other);
+    return *this;
+}
+
 Mat4D::~Mat4D(){
     delete [] data;
 }
@@ -75,3 +84,17 @@ double& Mat4D::operator()(unsigned int i, unsigned int j,
                          unsigned int k, unsigned int l){
                              return data[get_index(i, j, k, l)];
                          }
+
+void Mat4D::swap(const Mat4D &other){
+    delete [] this->data;
+    this->n1 = other.n1;
+    this->n2 = other.n2;
+    this->n3 = other.n3;
+    this->n4 = other.n4;
+
+    this->data = new double[size()];
+
+    for (unsigned int i=0;i<size();i++){
+        this->data[i] = other.data[i];
+    }
+}
