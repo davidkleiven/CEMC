@@ -22,6 +22,9 @@ class ReactionCrdRangeConstraint(MCConstraint):
     def update_range(self, new_range):
         """Update the range."""
         self.range = new_range
+        
+    def update(self, system_changes):
+        pass
 
 
 class ReactionCrdInitializer(object):
@@ -46,6 +49,9 @@ class ReactionCrdInitializer(object):
         :param atoms: An atoms object
         """
         raise NotImplementedError("Has to be implemented in derived classes!")
+
+    def update(self, system_changes):
+        pass
 
 
 class PseudoBinaryConcInitializer(ReactionCrdInitializer):
