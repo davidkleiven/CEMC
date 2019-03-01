@@ -1,39 +1,53 @@
 #ifdef HAS_FFTW
 
-    template<int dim>
-    void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in, MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid_out, int direction,
-                       const int *dims, const std::vector<int> &ft_fields){
-    
-        // Initialize the dimensionality array
-        fftwnd_plan plan = fftwnd_create_plan(dim, dims, direction, FFTW_ESTIMATE | FFTW_IN_PLACE);
+template<int dim>
+void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in, MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid_out, int direction,
+                    const int *dims, const std::vector<int> &ft_fields){
 
-        int num_elements = grid_in.nodes();
-        // Construct array that FFTW can use
-        fftw_complex *A = new fftw_complex[num_elements];
+    // Initialize the dimensionality array
+    fftwnd_plan plan = fftwnd_create_plan(dim, dims, direction, FFTW_ESTIMATE | FFTW_IN_PLACE);
 
-        // Loop over all fields that should be fourier transformed
-        for (auto field : ft_fields){
-            #ifndef NO_PHASEFIELD_PARALLEL
-            #pragma omp parallel for
-            #endif
-            for (unsigned int i=0;i<grid_in.nodes();i++){
-                A[i] = grid_in(field)[i];
-            }
+    int num_elements = grid_in.nodes();
+    // Construct array that FFTW can use
+    fftw_complex *A = new fftw_complex[num_elements];
 
-            // Perform the FFT
-            // TODO: See if FFTW can utilize multithreading
-            fftwnd_one(plan, A, NULL);
-
-            // Insert FT in the out field variable
-            #ifndef NO_PHASEFIELD_PARALLEL
-            #pragma omp parallel for
-            #endif
-            for (unsigned int i=0;i<grid_out.nodes();i++){
-                grid_out(field)[i] = A[i];
-            }
+    // Loop over all fields that should be fourier transformed
+    for (auto field : ft_fields){
+        #ifndef NO_PHASEFIELD_PARALLEL
+        #pragma omp parallel for
+        #endif
+        for (unsigned int i=0;i<grid_in.nodes();i++){
+            A[i] = grid_in(field)[i];
         }
 
-        delete [] A;
-        fftwnd_destroy_plan(plan);
+        // Perform the FFT
+        // TODO: See if FFTW can utilize multithreading
+        fftwnd_one(plan, A, NULL);
+
+        // Insert FT in the out field variable
+        #ifndef NO_PHASEFIELD_PARALLEL
+        #pragma omp parallel for
+        #endif
+        for (unsigned int i=0;i<grid_out.nodes();i++){
+            grid_out(field)[i] = A[i];
+        }
     }
+
+    delete [] A;
+    fftwnd_destroy_plan(plan);
+}
 #endif
+
+template<int dim>
+void get_dims(const MMSP::grid<dim, MMSP::vector<fftw_complex> >&grid_in, int dims[3]){
+    dims[0] = grid_in.xlength();
+    dims[1] = grid_in.ylength();
+    dims[2] = grid_in.zlength();
+}
+
+template<class T>
+void divide(MMSP::vector<T> &vec, double val){
+    for (unsigned int i=0;i<vec.length();i++){
+        vec[i] /= val;
+    }
+}

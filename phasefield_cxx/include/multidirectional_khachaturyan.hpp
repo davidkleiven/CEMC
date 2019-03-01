@@ -25,16 +25,6 @@ class MultidirectionalKhachaturyan{
             MMSP::grid<dim, MMSP::vector<fftw_complex> >&grid_out, const std::vector<int> &shape_fields);
     private:
         std::map<unsigned int, Khachaturyan> strain_models;
-
-        template<int dim>
-        static void get_dims(const MMSP::grid<dim, MMSP::vector<fftw_complex> >&grid_in, int dims[3]);
-        static double norm(const MMSP::vector<double> &vec);
-        static void dot(const mat3x3 &mat1, const MMSP::vector<double> &vec, MMSP::vector<double> &out);
-        static double dot(const MMSP::vector<double> &vec1, const MMSP::vector<double> &vec2);
-
-        template<class T>
-        static void divide(MMSP::vector<T> &vec, double factor);
-
         double B_tensor_element(MMSP::vector<double> &dir, const mat3x3 &green, const mat3x3 &eff_stress1, const mat3x3 &eff_stress2) const;
         double contract_tensors(const mat3x3 &mat1, const mat3x3 &mat2) const;
 };
@@ -147,17 +137,5 @@ void MultidirectionalKhachaturyan::fft_functional_derivative(const MMSP::grid<di
         fft_mmsp_grid(temp_grid, grid_out, FFTW_FORWARD, dims, shape_fields);
     }
 
-template<int dim>
-void MultidirectionalKhachaturyan::get_dims(const MMSP::grid<dim, MMSP::vector<fftw_complex> >&grid_in, int dims[3]){
-    dims[0] = grid_in.xlength();
-    dims[1] = grid_in.ylength();
-    dims[2] = grid_in.zlength();
-}
 
-template<class T>
-void MultidirectionalKhachaturyan::divide(MMSP::vector<T> &vec, double val){
-    for (unsigned int i=0;i<vec.length();i++){
-        vec[i] /= val;
-    }
-}
 #endif
