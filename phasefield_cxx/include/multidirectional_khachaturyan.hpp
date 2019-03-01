@@ -6,6 +6,7 @@
 #include "khachaturyan.hpp"
 
 #ifdef HAS_FFTW
+    #include <complex>
     #include <fftw.h>
 #else
     const int FFTW_FORWARD = 1;
@@ -85,7 +86,7 @@ void MultidirectionalKhachaturyan::fft_functional_derivative(const MMSP::grid<di
             MMSP::vector<int> pos = grid_out.position(i);
 
             // Convert position to k-vector
-            k_vector(pos, k_vec);
+            k_vector(pos, k_vec, MMSP::xlength(grid_in));
 
             // Calculate the green function
             double k = norm(k_vec);

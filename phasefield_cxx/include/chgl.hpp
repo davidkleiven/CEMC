@@ -3,6 +3,14 @@
 #include "phase_field_simulation.hpp"
 #include "polynomial.hpp"
 #include "polynomial_term.hpp"
+
+#ifdef HAS_FFTW
+    #include <fftw.h>
+#endif
+#include "fftw_complex_placeholder.hpp"
+
+#include "MMSP.grid.h"
+#include "MMSP.vector.h"
 #include <vector>
 
 typedef std::vector<std::vector<double> > interface_vec_t;
@@ -14,7 +22,7 @@ public:
          double M, double alpha, double dt, double gl_damping, 
          const interface_vec_t &interface);
 
-    virtual ~CHGL(){};
+    virtual ~CHGL();
 
     /** Add a new free energy term to the model */
     void add_free_energy_term(double coeff, const PolynomialTerm &polyterm);
@@ -28,8 +36,12 @@ private:
     double gl_damping;
     interface_vec_t interface;
     Polynomial free_energy;
+    MMSP::grid<dim, MMSP::vector<fftw_complex> > *cmplx_grid_ptr{nullptr};
 
     /** Check that the provided interfaces vector matches requirements */
     void check_interface_vector() const;
+    void from_parent_grid();
+    void to_parent_grid() const;
+    bool is_initialized{false};
 };
 #endif

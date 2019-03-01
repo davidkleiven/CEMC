@@ -7,7 +7,7 @@ void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in,
     // Initialize the dimensionality array
     fftwnd_plan plan = fftwnd_create_plan(dim, dims, direction, FFTW_ESTIMATE | FFTW_IN_PLACE);
 
-    int num_elements = grid_in.nodes();
+    int num_elements = MMSP::nodes(grid_in);
     // Construct array that FFTW can use
     fftw_complex *A = new fftw_complex[num_elements];
 
@@ -16,7 +16,7 @@ void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in,
         #ifndef NO_PHASEFIELD_PARALLEL
         #pragma omp parallel for
         #endif
-        for (unsigned int i=0;i<grid_in.nodes();i++){
+        for (unsigned int i=0;i<MMSP::nodes(grid_in);i++){
             A[i] = grid_in(field)[i];
         }
 
@@ -40,9 +40,13 @@ void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in,
 
 template<int dim>
 void get_dims(const MMSP::grid<dim, MMSP::vector<fftw_complex> >&grid_in, int dims[3]){
-    dims[0] = grid_in.xlength();
-    dims[1] = grid_in.ylength();
-    dims[2] = grid_in.zlength();
+    // dims[0] = grid_in.xlength();
+    // dims[1] = grid_in.ylength();
+    // dims[2] = grid_in.zlength();
+
+    dims[0] = MMSP::xlength(grid_in);
+    dims[1] = MMSP::ylength(grid_in);
+    dims[2] = MMSP::zlength(grid_in);
 }
 
 template<class T>
