@@ -206,3 +206,4 @@ class PseudoBinaryConcObserver(MCObserver):
         if any(x != y for x, y in zip(symb_at, symb_mc)):
             raise ValueError("Inconsistent atoms object!")
         self.current_conc = self.num_per_unit
+        return self.get_current_value()
