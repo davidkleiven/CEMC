@@ -383,7 +383,7 @@ class AdaptiveBiasReactionPathSampler(object):
             self.mc.set_symbols(symbs)
 
             # Enforce a calculation of the reaction coordinate
-            value = self.observer.calculate_from_scratch(self.mc_obj.atoms)
+            value = self.bias.observer.calculate_from_scratch(self.mc_obj.atoms)
             self.log("Window shrinked")
             self.log("New value: {}. New range: [{}, {})"
                      "".format(value, current_range[0], current_range[1]))
