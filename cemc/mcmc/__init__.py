@@ -27,9 +27,8 @@ from cemc.mcmc.transition_path_relaxer import TransitionPathRelaxer
 from cemc.mcmc.damage_spreading_mc import DamageSpreadingMC
 from cemc.mcmc.pseudo_binary_mc import PseudoBinarySGC
 from cemc.mcmc.reaction_path_utils import ReactionCrdRangeConstraint, \
-ReactionCrdInitializer, PseudoBinaryConcRange, PseudoBinaryConcInitializer
+ReactionCrdInitializer
 from cemc.mcmc.reaction_path_sampler import ReactionPathSampler
-from cemc.mcmc.pseudo_binary_react_path import PseudoBinaryReactPath
 from cemc.mcmc.bias_potential import BiasPotential, SampledBiasPotential
 from cemc.mcmc.bias_potential import PseudoBinaryFreeEnergyBias
 from cemc.mcmc.bias_potential import CovarianceBiasPotential
@@ -38,5 +37,5 @@ from cemc.mcmc.parallel_tempering import ParallelTempering
 from cemc.mcmc.adaptive_bias_reac_path import AdaptiveBiasReactionPathSampler
 from cemc.mcmc.gaussian_cluster_tracker import GaussianClusterTracker
 from cemc.mcmc.mc_constraints import ConstrainElementByTag
-from cemc.mcmc.diffraction_observer import DiffractionObserver, DiffractionCrdInitializer, DiffractionRangeConstraint, DiffractionUpdater
+from cemc.mcmc.diffraction_observer import DiffractionObserver
 #from cemc.mcmc.strain_energy_bias import Strain

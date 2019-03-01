@@ -15,7 +15,8 @@ class ReactionCrdRangeConstraint(MCConstraint):
         MCConstraint.__init__(self)
         self.name = "GenericReactionCrdRangeConstraint"
         self.range = [0.0, 1.0]
-        self.value_name
+        self.observer = observer
+        self.value_name = value_name
 
     def __call__(self, system_changes):
         new_val = self.observer(system_changes, peak=True)[self.value_name]

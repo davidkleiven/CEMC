@@ -161,12 +161,12 @@ class AdaptiveBiasPotential(BiasPotential):
         """
         # We require initializers that can 
         # get apply the system changes
-        value = self.observer(system_changes, peak=True)
+        value = self.observer(system_changes, peak=True)[self.value_name]
         return self.get_bias_potential(value)
 
     def calculate_from_scratch(self, atoms):
         """Calculate the potential from scratch."""
-        value = self.observer.calculate_from_scratch(self.mc.atoms)
+        value = self.observer.calculate_from_scratch(self.mc.atoms)[self.value_name]
         return self.get_bias_potential(value)        
 
 
@@ -203,23 +203,23 @@ class AdaptiveBiasReactionPathSampler(object):
     :param bool ignore_equil_steps: If True MC trial steps that leads to no 
         change in the reaction coordinate will not be counted
     """
-    def __init__(self, mc_obj=None, react_crd_init=None, n_bins=100, 
+    def __init__(self, mc_obj=None, observer=None, n_bins=100, 
                  data_file="adaptive_bias_path_sampler.h5",
                  react_crd=[0.0, 1.0], mod_factor=0.01, convergence_factor=0.8,
                  save_interval=600, log_msg_interval=30, db_struct="adaptive_bias.db",
                  delete_db_if_exists=False, mpicomm=None,
                  check_convergence_interval=10000, check_user_input=True,
-                 ignore_equil_steps=True,
-                 react_crd_name=""):
+                 ignore_equil_steps=True, react_crd_name=""):
 
         self.bias = AdaptiveBiasPotential(lim=react_crd, n_bins=n_bins,
                                           mod_factor=mod_factor,
                                           observer=observer, T=mc_obj.T,
                                           mc=mc_obj, db_bin_data=db_struct,
-                                          value_name=reac_crd_name)
+                                          value_name=react_crd_name)
         self.ignore_equil_steps = ignore_equil_steps
         self.mc = mc_obj
         self.mc.attach(observer)
+        self.current_reac_value = observer.get_current_value()[react_crd_name]
         self.mpicomm = mpicomm
         self.mc.add_bias(self.bias)
         self.visit_histogram = np.zeros(n_bins, dtype=int)
@@ -320,6 +320,7 @@ class AdaptiveBiasReactionPathSampler(object):
         bin_indx = self.bias.get_bin(value)
         self.last_visited_bin = bin_indx
         self.visit_histogram[bin_indx] += 1
+        self.current_reac_value = value
 
     def _first_non_converged_bin(self):
         """Return the first bin that is not converged."""
@@ -514,7 +515,6 @@ class AdaptiveBiasReactionPathSampler(object):
 
     def _trial_move_alter_reac_crd(self, trial_move):
         """Return True if the trial move alter the reaction coordinate."""
-        current_val = self.bias.observer.get_current_value()[self.bias.value_name]
-        trial_val = self.bias.observer(trial_move, peak=True)
+        trial_val = self.bias.observer(trial_move, peak=True)[self.bias.value_name]
         tol = 1E-6
-        return abs(current_val - trial_val) > tol
+        return abs(self.current_reac_value - trial_val) > tol
