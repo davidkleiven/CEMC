@@ -158,7 +158,7 @@ class PseudoBinaryConcObserver(MCObserver):
         self.name = "PseudoBinaryConcRange"
         self.mc = mc_obj
         self.target_symb = list(self.mc.groups[1].keys())[0]
-        self.current_conc = 0.0
+        self.current_conc = self.num_per_unit
 
     @property
     def number_of_units(self):
