@@ -26,8 +26,8 @@ from cemc.mcmc.mc_constraints import FixEdgeLayers
 from cemc.mcmc.transition_path_relaxer import TransitionPathRelaxer
 from cemc.mcmc.damage_spreading_mc import DamageSpreadingMC
 from cemc.mcmc.pseudo_binary_mc import PseudoBinarySGC
-from cemc.mcmc.reaction_path_utils import ReactionCrdRangeConstraint, \
-ReactionCrdInitializer
+from cemc.mcmc.reaction_path_utils import ReactionCrdRangeConstraint
+from cemc.mcmc.reaction_path_utils import PseudoBinaryConcObserver
 from cemc.mcmc.reaction_path_sampler import ReactionPathSampler
 from cemc.mcmc.bias_potential import BiasPotential, SampledBiasPotential
 from cemc.mcmc.bias_potential import PseudoBinaryFreeEnergyBias
