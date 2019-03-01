@@ -8,9 +8,7 @@ class MultidirectionalKhachaturyan{
         MultidirectionalKhachaturyan(){};
 
         /** Add a new model */
-        void add_model(const Khachaturyan &model);
-
-        
+        void add_model(const Khachaturyan &model);        
     private:
         std::vector<Khachaturyan> strain_models;
 };

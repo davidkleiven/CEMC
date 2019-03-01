@@ -98,13 +98,10 @@ class DiffractionRangeConstraint(ReactionCrdRangeConstraint):
     See docstring of :py:class:`cemc.mcmc.diffraction_observer.DiffractionUpdater`
     for explination of the arguments.
     """
-    def __init__(self, atoms=None, k_vector=[], active_symbols=[],
-                 all_symbols=[]):
+    def __init__(self, updater):
 
         ReactionCrdRangeConstraint.__init__(self)
-        self.updater = DiffractionUpdater(
-            atoms=atoms, k_vector=k_vector, active_symbols=active_symbols,
-            all_symbols=all_symbols)
+        self.updater = updater
 
     def __call__(self, system_changes):
         """
@@ -125,13 +122,9 @@ class DiffractionCrdInitializer(ReactionCrdInitializer):
     See docstring of :py:class:`cemc.mcmc.diffraction_observer.DiffractionUpdater`
     for explination of the arguments.
     """
-    def __init__(self, atoms=None, k_vector=[], active_symbols=[],
-                 all_symbols=[]):
+    def __init__(self, updater):
         ReactionCrdInitializer.__init__(self)
-        self.updater = DiffractionUpdater(
-            atoms=atoms, k_vector=k_vector,
-            active_symbols=active_symbols,
-            all_symbols=all_symbols)
+        self.updater = updater
 
     def get(self, atoms, system_changes=[]):
         """

@@ -494,7 +494,7 @@ class AdaptiveBiasReactionPathSampler(object):
                 if acc:
                     # Call the update method of the constraint and the
                     # initializer
-                    self.update_range_and_initializer(self.mc.trial_move)
+                    self.update_initializer(self.mc.trial_move)
 
                 self.update()
                 if time.time() - now > self.output_every:
@@ -519,8 +519,5 @@ class AdaptiveBiasReactionPathSampler(object):
         tol = 1E-6
         return abs(current_val - trial_val) > tol
 
-    def update_range_and_initializer(self, system_changes):
+    def update_initializer(self, system_changes):
         self.bias.reac_init.update(system_changes)
-
-        if self.rng_constraint is not None:
-            self.rng_constraint.update(system_changes)

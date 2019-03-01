@@ -38,5 +38,5 @@ from cemc.mcmc.parallel_tempering import ParallelTempering
 from cemc.mcmc.adaptive_bias_reac_path import AdaptiveBiasReactionPathSampler
 from cemc.mcmc.gaussian_cluster_tracker import GaussianClusterTracker
 from cemc.mcmc.mc_constraints import ConstrainElementByTag
-from cemc.mcmc.diffraction_observer import DiffractionObserver, DiffractionCrdInitializer, DiffractionRangeConstraint
+from cemc.mcmc.diffraction_observer import DiffractionObserver, DiffractionCrdInitializer, DiffractionRangeConstraint, DiffractionUpdater
 #from cemc.mcmc.strain_energy_bias import Strain
