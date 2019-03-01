@@ -5,6 +5,7 @@ import h5py as h5
 import time
 import os
 from ase.db import connect
+import traceback
 
 
 class AdaptiveBiasPotential(BiasPotential):
@@ -511,6 +512,7 @@ class AdaptiveBiasReactionPathSampler(object):
                 if self.current_mc_step % self.check_convergence_interval == 0:
                     conv = self.converged()
         except Exception as exc:
+            print(traceback.format_exc())
             print("Rank {}: {}".format(self.rank, str(exc)))
 
     def _trial_move_alter_reac_crd(self, trial_move):
