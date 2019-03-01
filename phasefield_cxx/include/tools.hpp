@@ -2,6 +2,7 @@
 #define PHASEFIELD_TOOLS_H
 #include "MMSP.grid.h"
 #include "MMSP.vector.h"
+#include <vector>
 
 template<int dim, typename T>
 T partial_double_derivative(const MMSP::grid<dim, T> &GRID, const MMSP::vector<int> &x, unsigned int dir){
@@ -30,5 +31,6 @@ T partial_double_derivative(const MMSP::grid<dim, T> &GRID, unsigned int node_in
                     const int *dims, const std::vector<int> &ft_fields);
 #endif
 
+void k_vector(const MMSP::vector<int> &pos, MMSP::vector<double> &k_vec);
 #include "tools.tpp"
 #endif

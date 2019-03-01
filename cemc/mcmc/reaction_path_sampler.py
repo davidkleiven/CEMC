@@ -1,4 +1,4 @@
-from cemc.mcmc import ReactionCrdInitializer, ReactionCrdRangeConstraint
+from cemc.mcmc import ReactionCrdRangeConstraint
 import numpy as np
 import time
 import h5py as h5
@@ -56,10 +56,10 @@ class ReactionPathSampler(object):
         if self.mpicomm is not None:
             self.rank = self.mpicomm.Get_rank()
 
-        if not isinstance(react_crd_init, ReactionCrdInitializer):
-            msg = "react_crd_init has to be of type "
-            msg += "ReactionCrdInitializer"
-            raise TypeError(msg)
+        # if not isinstance(react_crd_init, ReactionCrdInitializer):
+        #     msg = "react_crd_init has to be of type "
+        #     msg += "ReactionCrdInitializer"
+        #     raise TypeError(msg)
         self.initializer = react_crd_init
 
         if not isinstance(react_crd_range_constraint,

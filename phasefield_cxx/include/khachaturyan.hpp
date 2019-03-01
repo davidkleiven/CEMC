@@ -10,6 +10,7 @@ typedef std::vector< std::vector< std::vector<double> > > shp_t;
 
 class Khachaturyan{
 public:
+    Khachaturyan(){};
     Khachaturyan(unsigned int dim, PyObject *elastic_tensor, PyObject *misfit_strain);
     Khachaturyan(PyObject *ft_shape_func, PyObject *elastic_tensor, PyObject *misfit_strain);
 
@@ -22,6 +23,9 @@ public:
 
     /** Calculate the frequency corresponding to a set indx ({ix, iy, iz })*/
     void wave_vector(unsigned int indx[3], double vec[3]) const;
+
+    /** Return reference to the misfit tensor */
+    const mat3x3& get_misfit() const{return misfit;};
 
     /** Calculate the zeroth order integral */
     double zeroth_order_integral();
