@@ -1,4 +1,5 @@
 from cemc.mcmc import MCConstraint
+from cemc.mcmc import MCObserver
 
 
 class CannotInitSysteError(Exception):
@@ -10,21 +11,19 @@ class ReactionCrdRangeConstraint(MCConstraint):
     Generic class for range constraint. Parent of all other
     range constraints.
     """
-    def __init__(self):
+    def __init__(self, observer, value_name=""):
         MCConstraint.__init__(self)
         self.name = "GenericReactionCrdRangeConstraint"
         self.range = [0.0, 1.0]
+        self.value_name
 
     def __call__(self, system_changes):
-        """Check if atoms object is inside the constraint."""
-        raise NotImplementedError("Has to be implemented in derived classes!")
+        new_val = self.observer(system_changes, peak=True)[self.value_name]
+        return new_val >= self.range[0] and new_val < self.range[1]
 
     def update_range(self, new_range):
         """Update the range."""
         self.range = new_range
-        
-    def update(self, system_changes):
-        pass
 
 
 class ReactionCrdInitializer(object):
@@ -145,7 +144,7 @@ class PseudoBinaryConcInitializer(ReactionCrdInitializer):
         return self.mc.groups[1][self.target_symb]
 
 
-class PseudoBinaryConcRange(ReactionCrdRangeConstraint):
+class PseudoBinaryConcObserver(MCObserver):
     """
     Range constraint for the number of units of pseudo binary group 2.
 
@@ -154,10 +153,11 @@ class PseudoBinaryConcRange(ReactionCrdRangeConstraint):
     """
 
     def __init__(self, mc_obj):
-        ReactionCrdRangeConstraint.__init__(self)
+        MCObserver.__init__(self)
         self.name = "PseudoBinaryConcRange"
         self.mc = mc_obj
         self.target_symb = list(self.mc.groups[1].keys())[0]
+        self.current_conc = 0.0
 
     @property
     def number_of_units(self):
@@ -168,7 +168,7 @@ class PseudoBinaryConcRange(ReactionCrdRangeConstraint):
     def num_per_unit(self):
         return self.mc.groups[1][self.target_symb]
 
-    def __call__(self, syst_changes):
+    def __call__(self, syst_changes, peak=False):
         """
         Check if the system is inside the concentration range.
 
@@ -182,4 +182,28 @@ class PseudoBinaryConcRange(ReactionCrdRangeConstraint):
                 n_un += 1.0 / self.num_per_unit
             elif change[1] == self.target_symb:
                 n_un -= 1.0 / self.num_per_unit
-        return n_un >= self.range[0] and n_un < self.range[1]
+
+        if peak:
+            old_value = self.current_conc
+            self.current_conc = n_un
+            cur_val = self.get_current_value()
+            self.current_value = old_value
+        else:
+            self.current_value = n_un
+            cur_val = self.get_current_value()
+        return cur_val
+
+    def get_current_value(self):
+        return {"conc": self.current_conc}
+
+    def calculate_from_scratch(self, atoms):
+        """Calculate the value from scratch."""
+        # Make sure that this atoms object matches
+        # the one in MC object
+        symb_at = [atom.symbol for atom in atoms]
+        symb_mc = [atom.symbol for atom in self.mc.atoms]
+        if any(x != y for x, y in zip(symb_at, symb_mc)):
+            raise ValueError("Inconsistent atoms object!")
+        self.current_conc = self.num_per_unit
+
+        

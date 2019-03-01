@@ -16,7 +16,7 @@ class MCObserver(object):
     def __init__(self):
         self.name = "GenericObserver"
 
-    def __call__(self, system_changes):
+    def __call__(self, system_changes, peak=False):
         """
         Gets information about the system changes and can perform some action
 
@@ -27,7 +27,7 @@ class MCObserver(object):
             this would be
             [(26, Mg, Al), (12, Al, Mg)]
         """
-        pass
+        return self.get_current_value()
 
     def reset(self):
         """Reset all values of the MC observer"""
@@ -36,6 +36,14 @@ class MCObserver(object):
     def get_averages(self):
         """Return averages in the form of a dictionary."""
         return {}
+
+    def get_current_value(self):
+        """Return the current value."""
+        return {}
+
+    def calculate_from_scratch(self, atoms):
+        """Calculate the current value from scratch."""
+        pass
 
 
 class CorrelationFunctionTracker(MCObserver):
@@ -52,9 +60,10 @@ class CorrelationFunctionTracker(MCObserver):
         self.ce_calc = ce_calc
         self.name = "CorrelationFunctionTracker"
 
-    def __call__(self, system_changes):
+    def __call__(self, system_changes, peak=False):
         """Update the correlation functions."""
         self.cf.append(copy.deepcopy(self.ce_calc.cf))
+        return self.get_current_value()
 
     def plot_history(self, max_size=10):
         """Plot history (only if history is tracked).
@@ -101,7 +110,7 @@ class PairCorrelationObserver(MCObserver):
                 self.cf[key] = 0.0
                 self.cf_squared[key] = 0.0
 
-    def __call__(self, system_changes):
+    def __call__(self, system_changes, peak=False):
         """Update correlation functions.
 
         :param list system_changes: Last changes to the system
@@ -111,6 +120,7 @@ class PairCorrelationObserver(MCObserver):
         for key in self.cf.keys():
             self.cf[key] += new_cf[key]
             self.cf_squared[key] += new_cf[key]**2
+        return self.get_current_value()
 
     def get_averages(self):
         """Returns the average.
@@ -156,7 +166,7 @@ class LowestEnergyStructure(MCObserver):
         self.name = "LowestEnergyStructure"
         self.verbose = verbose
 
-    def __call__(self, system_changes):
+    def __call__(self, system_changes, peak=False):
         """
         Checks if the current state has lower energy.
         If it has lower energy, the new state will be stored
@@ -168,7 +178,7 @@ class LowestEnergyStructure(MCObserver):
             self.lowest_energy = self.mc_obj.current_energy
             self.atoms = self.mc_obj.atoms.copy()
             self.lowest_energy_atoms = self.atoms
-            return
+            return self.get_current_value()
 
         if self.mc_obj.current_energy < self.lowest_energy:
             dE = self.mc_obj.current_energy - self.lowest_energy
@@ -181,6 +191,7 @@ class LowestEnergyStructure(MCObserver):
                 msg += "New energy: {} eV. ".format(self.lowest_energy)
                 msg += "Change: {} eV".format(dE)
                 print(msg)
+        return self.get_current_value()
 
 
 class SGCObserver(MCObserver):
@@ -220,7 +231,7 @@ class SGCObserver(MCObserver):
         self.quantities["singl_eng"][:] = 0.0
         self.quantities["counter"] = 0
 
-    def __call__(self, system_changes):
+    def __call__(self, system_changes, peak=False):
         """
         Updates all SGC parameters
 
@@ -269,6 +280,7 @@ class SGCObserver(MCObserver):
                 self.mc.current_energy_without_vib()**2
             self.quantities["singl_eng"] += \
                 new_singlets*self.mc.current_energy_without_vib()
+        return self.get_current_value()
 
     @property
     def energy(self):
@@ -312,8 +324,9 @@ class Snapshot(MCObserver):
         self.traj = TrajectoryWriter(trajfile, mode="a")
         self.fname = trajfile
 
-    def __call__(self, system_changes):
+    def __call__(self, system_changes, peak=False):
         self.traj.write(self.atoms)
+        return self.get_current_value()
 
 
 class NetworkObserver(MCObserver):
@@ -383,7 +396,7 @@ class NetworkObserver(MCObserver):
         """
         return all(change[1] in self.element for change in system_changes)
 
-    def __call__(self, system_changes):
+    def __call__(self, system_changes, peak=False):
         """
         Collect information about atomic clusters in the system
 
@@ -410,6 +423,7 @@ class NetworkObserver(MCObserver):
                     self.fast_cluster_tracker.atomic_clusters2group_indx_python()
                 self.indx_max_cluster = clust_indx
                 self.num_clusters = len(new_res["cluster_sizes"])
+        return self.get_current_value()
 
     def has_minimal_connectivity(self):
         return self.fast_cluster_tracker.has_minimal_connectivity()
@@ -697,6 +711,7 @@ class SiteOrderParameter(MCObserver):
                     self.site_changed[indx] = True
         self.avg_num_changed += self.current_num_changed
         self.avg_num_changed_sq += self.current_num_changed**2
+        return self.get_current_value()
 
     def get_average(self):
         """Get the number of sites different from the ground state.
@@ -735,6 +750,7 @@ class EnergyEvolution(MCObserver):
     def __call__(self, system_changes):
         """Append the current energy to the MC object."""
         self.energies.append(self.mc.current_energy_without_vib())
+        return self.get_current_value()
 
     def reset(self):
         """Reset the history."""
@@ -764,6 +780,7 @@ class EnergyHistogram(MCObserver):
         else:
             indx = self._get_indx(E)
             self._histogram[indx] += 1
+        return self.get_current_value()
 
     def _buffer_is_full(self):
         """Return True if the buffer is full."""
@@ -848,7 +865,7 @@ class MCBackup(MCObserver):
                 # Entry alread exists. Update that one.
                 thermo["id"] = self.db_id
                 tab.update(thermo, ["id"])
-
+        return self.get_current_value()
 
 class BiasPotentialContribution(MCObserver):
     def __init__(self, mc=None, buffer_size=10000, n_bins=100):
@@ -966,6 +983,7 @@ class CovarianceMatrixObserver(MCObserver):
         self.cov_matrix += d_I
         self.cov_matrix_avg += self.cov_matrix
         self.num_calls += 1
+        return self.get_current_value()
 
     def undo_last(self):
         """Undo the last update."""
@@ -983,6 +1001,7 @@ class CovarianceMatrixObserver(MCObserver):
             key = "I{}{}".format(indx[0], indx[1])
             avg[key] = self.cov_matrix_avg[indx[0], indx[1]]/self.num_calls
         return avg
+
 
 class PairObserver(MCObserver):
     """Tracking the average number of pairs within a cutoff"""

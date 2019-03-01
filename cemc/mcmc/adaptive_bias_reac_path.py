@@ -6,6 +6,7 @@ import time
 import os
 from ase.db import connect
 
+
 class AdaptiveBiasPotential(BiasPotential):
     """Bias potential intended to be used by AdaptiveBiasReactionPathSampler
 
@@ -25,15 +26,16 @@ class AdaptiveBiasPotential(BiasPotential):
         bin will be stored
     """
     def __init__(self, lim=[0.0, 1.0], n_bins=100, mod_factor=0.01,
-                 reac_init=None, T=400, mc=None, db_bin_data="adaptive_bias.db",
-                 mpicomm=None):
+                 observer=None, T=400, mc=None, db_bin_data="adaptive_bias.db",
+                 mpicomm=None, value_name=""):
         from ase.units import kB
         self.xmin = lim[0]
         self.xmax = lim[1]
         self.nbins = n_bins
         self.bias_array = np.zeros(self.nbins)
         self.mod_factor = mod_factor
-        self.reac_init = reac_init
+        self.observer = observer
+        self.value_name = value_name
         self.beta = 1.0/(kB*T)
         self.dx = (self.xmax - self.xmin)/self.nbins
         self.mc = mc
@@ -77,7 +79,7 @@ class AdaptiveBiasPotential(BiasPotential):
 
     def update(self):
         """Update the bias potential."""
-        x = self.reac_init.get(None)
+        x = self.observer.get_current_value()[self.value_name]
         bin_indx = self.get_bin(x)
         if bin_indx < 0 or bin_indx >= self.nbins:
             return
@@ -159,12 +161,12 @@ class AdaptiveBiasPotential(BiasPotential):
         """
         # We require initializers that can 
         # get apply the system changes
-        value = self.reac_init.get(self.mc.atoms, system_changes)
+        value = self.observer(system_changes, peak=True)
         return self.get_bias_potential(value)
 
     def calculate_from_scratch(self, atoms):
         """Calculate the potential from scratch."""
-        value = self.reac_init.get(self.mc.atoms, None)
+        value = self.observer.calculate_from_scratch(self.mc.atoms)
         return self.get_bias_potential(value)        
 
 
@@ -207,14 +209,17 @@ class AdaptiveBiasReactionPathSampler(object):
                  save_interval=600, log_msg_interval=30, db_struct="adaptive_bias.db",
                  delete_db_if_exists=False, mpicomm=None,
                  check_convergence_interval=10000, check_user_input=True,
-                 ignore_equil_steps=True):
+                 ignore_equil_steps=True,
+                 react_crd_name=""):
 
-        self.bias = AdaptiveBiasPotential(lim=react_crd, n_bins=n_bins, 
-                                        mod_factor=mod_factor, 
-                                        reac_init=react_crd_init, T=mc_obj.T,
-                                        mc=mc_obj, db_bin_data=db_struct)
+        self.bias = AdaptiveBiasPotential(lim=react_crd, n_bins=n_bins,
+                                          mod_factor=mod_factor,
+                                          observer=observer, T=mc_obj.T,
+                                          mc=mc_obj, db_bin_data=db_struct,
+                                          value_name=reac_crd_name)
         self.ignore_equil_steps = ignore_equil_steps
         self.mc = mc_obj
+        self.mc.attach(observer)
         self.mpicomm = mpicomm
         self.mc.add_bias(self.bias)
         self.visit_histogram = np.zeros(n_bins, dtype=int)
@@ -311,7 +316,7 @@ class AdaptiveBiasReactionPathSampler(object):
         if self.ignore_equil_steps and not trial_alter:
             return
         self.bias.update()
-        value = self.bias.reac_init.get(None)
+        value = self.bias.observer.get_current_value()[self.bias.value_name]
         bin_indx = self.bias.get_bin(value)
         self.last_visited_bin = bin_indx
         self.visit_histogram[bin_indx] += 1
@@ -375,7 +380,7 @@ class AdaptiveBiasReactionPathSampler(object):
             self.mc.set_symbols(symbs)
 
             # Enforce a calculation of the reaction coordinate
-            value = self.bias.reac_init.get(self.mc.atoms, [])
+            value = self.observer.calculate_from_scratch(self.mc_obj.atoms)
             self.log("Window shrinked")
             self.log("New value: {}. New range: [{}, {})"
                      "".format(value, current_range[0], current_range[1]))
@@ -491,11 +496,6 @@ class AdaptiveBiasReactionPathSampler(object):
                 energy, acc = self.mc._mc_step()
                 self.current_mc_step += 1
 
-                if acc:
-                    # Call the update method of the constraint and the
-                    # initializer
-                    self.update_initializer(self.mc.trial_move)
-
                 self.update()
                 if time.time() - now > self.output_every:
                     self.progress_message()
@@ -514,10 +514,7 @@ class AdaptiveBiasReactionPathSampler(object):
 
     def _trial_move_alter_reac_crd(self, trial_move):
         """Return True if the trial move alter the reaction coordinate."""
-        current_val = self.bias.reac_init.get(None, None)
-        trial_val = self.bias.reac_init.get(self.mc.atoms, trial_move)
+        current_val = self.bias.observer.get_current_value()[self.bias.value_name]
+        trial_val = self.bias.observer(trial_move, peak=True)
         tol = 1E-6
         return abs(current_val - trial_val) > tol
-
-    def update_initializer(self, system_changes):
-        self.bias.reac_init.update(system_changes)

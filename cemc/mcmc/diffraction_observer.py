@@ -78,9 +78,15 @@ class DiffractionObserver(MCObserver):
         self.num_updates = 1
         self.name = name
 
-    def __call__(self, system_changes):
+    def __call__(self, system_changes, peak=False):
         self.updater.update(system_changes)
-        self.avg += self.updater.value
+        if peak:
+            cur_val = self.get_current_value()
+            self.updater.undo()
+        else:
+            self.avg += self.updater.value
+            cur_val = self.get_current_value()
+        return cur_val
 
     def get_averages(self):
         return {self.name: np.abs(self.avg/self.num_updates)}
@@ -89,6 +95,9 @@ class DiffractionObserver(MCObserver):
         self.updater.reset()
         self.avg = self.updater.value
         self.num_updates = 1
+
+    def get_current_value(self):
+        return {self.name: np.abs(self.updater.value)}
 
 
 class DiffractionRangeConstraint(ReactionCrdRangeConstraint):
