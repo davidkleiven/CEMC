@@ -1,4 +1,4 @@
-from cemc.mcmc import ReactionCrdInitializer, ReactionCrdRangeConstraint
+from cemc.mcmc import ReactionCrdRangeConstraint
 from cemc.mcmc import BiasPotential
 import numpy as np
 import h5py as h5
