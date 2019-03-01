@@ -219,6 +219,7 @@ class AdaptiveBiasReactionPathSampler(object):
         self.ignore_equil_steps = ignore_equil_steps
         self.mc = mc_obj
         self.mc.attach(observer)
+        self.move_accpted = False
         self.current_reac_value = observer.get_current_value()[react_crd_name]
         self.mpicomm = mpicomm
         self.mc.add_bias(self.bias)
@@ -494,7 +495,7 @@ class AdaptiveBiasReactionPathSampler(object):
         now = time.time()
         try:
             while not conv:
-                energy, acc = self.mc._mc_step()
+                energy, self.move_accpted = self.mc._mc_step()
                 self.current_mc_step += 1
 
                 self.update()
@@ -515,6 +516,10 @@ class AdaptiveBiasReactionPathSampler(object):
 
     def _trial_move_alter_reac_crd(self, trial_move):
         """Return True if the trial move alter the reaction coordinate."""
-        trial_val = self.bias.observer(trial_move, peak=True)[self.bias.value_name]
+
+        if self.move_accpted:
+            trial_val = self.bias.observer.get_current_value()[self.bias.value_name]
+        else:
+            trial_val = self.bias.observer(trial_move, peak=True)[self.bias.value_name]
         tol = 1E-6
         return abs(self.current_reac_value - trial_val) > tol
