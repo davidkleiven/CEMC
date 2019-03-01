@@ -993,6 +993,7 @@ class Montecarlo(object):
         self.new_bias_energy = 0.0
         for bias in self.bias_potentials:
             self.new_bias_energy += bias(system_changes)
+    
         self.new_energy += self.new_bias_energy
         self.last_energies[1] = self.new_energy
         if (self.is_first):

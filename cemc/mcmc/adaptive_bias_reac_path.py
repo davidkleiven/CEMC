@@ -66,7 +66,7 @@ class AdaptiveBiasPotential(BiasPotential):
 
     def get_bin(self, value):
         """Return the bin corresponding to value.
-        
+
         :param float value: Reaction coordinate
         :return: Corresponding bin
         :rtype: int
@@ -497,7 +497,6 @@ class AdaptiveBiasReactionPathSampler(object):
             while not conv:
                 energy, self.move_accpted = self.mc._mc_step()
                 self.current_mc_step += 1
-
                 self.update()
                 if time.time() - now > self.output_every:
                     self.progress_message()

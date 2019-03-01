@@ -86,6 +86,7 @@ class DiffractionObserver(MCObserver):
         else:
             self.avg += self.updater.value
             cur_val = self.get_current_value()
+            self.num_updates += 1
         return cur_val
 
     def get_averages(self):
