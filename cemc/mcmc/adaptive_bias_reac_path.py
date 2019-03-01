@@ -167,7 +167,7 @@ class AdaptiveBiasPotential(BiasPotential):
     def calculate_from_scratch(self, atoms):
         """Calculate the potential from scratch."""
         value = self.observer.calculate_from_scratch(self.mc.atoms)[self.value_name]
-        return self.get_bias_potential(value)        
+        return self.get_bias_potential(value)
 
 
 class AdaptiveBiasReactionPathSampler(object):
