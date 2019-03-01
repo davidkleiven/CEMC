@@ -100,6 +100,10 @@ class DiffractionObserver(MCObserver):
     def get_current_value(self):
         return {self.name: np.abs(self.updater.value)}
 
+    def calculate_from_scratch(self, atoms):
+        symbols = [atom.symbol for atom in atoms]
+        self.updater.calculate_from_scratch(symbols)
+
 
 class DiffractionRangeConstraint(ReactionCrdRangeConstraint):
     """
