@@ -369,6 +369,9 @@ class Montecarlo(object):
         if not isinstance(potential, BiasPotential):
             raise TypeError("potential has to be of type BiasPotential")
         self.bias_potentials.append(potential)
+        energy_value = potential.calculate_from_scratch(self.atoms)
+        self.bias_energy += energy_value
+        self.current_energy += energy_value
 
     def attach(self, obs, interval=1):
         """
