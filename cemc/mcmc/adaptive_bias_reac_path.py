@@ -223,7 +223,6 @@ class AdaptiveBiasReactionPathSampler(object):
         self.move_accpted = False
         self.current_reac_value = observer.get_current_value()[react_crd_name]
         self.mpicomm = mpicomm
-        self.mc.add_bias(self.bias)
         self.visit_histogram = np.zeros(n_bins, dtype=int)
         self.convergence_factor = convergence_factor
         self.save_interval = save_interval
@@ -237,6 +236,7 @@ class AdaptiveBiasReactionPathSampler(object):
         self.last_visited_bin = 0
         self.data_file = data_file
         self.load_bias()
+        self.mc.add_bias(self.bias)
 
         # Variables related to adaptive windows
         self.rng_constraint = None
@@ -350,6 +350,8 @@ class AdaptiveBiasReactionPathSampler(object):
     def update_active_window(self):
         """If support adaptive window this will update the relevant part."""
         mean = np.mean(self.visit_histogram[self.current_min_bin:])
+        if mean < 1:
+            return False
         minval = np.min(self.visit_histogram[self.current_min_bin:])
         self.current_max_val = np.max(self.visit_histogram)
         self.current_min_val = minval
@@ -402,7 +404,7 @@ class AdaptiveBiasReactionPathSampler(object):
             self.current_max_val = np.max(self.visit_histogram)
             self.current_min_val = minval
             self.average_visits = mean
-            return minval > self.convergence_factor*mean
+            return minval > self.convergence_factor*mean and minval > 1
 
     def log(self, msg):
         """Log a message.
