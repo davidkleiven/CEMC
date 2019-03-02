@@ -181,7 +181,7 @@ class PseudoBinaryConcObserver(MCObserver):
         for change in syst_changes:
             if change[2] == self.target_symb:
                 n_un += 1.0 / self.num_per_unit
-            elif change[1] == self.target_symb:
+            if change[1] == self.target_symb:
                 n_un -= 1.0 / self.num_per_unit
 
         if peak:
@@ -205,5 +205,5 @@ class PseudoBinaryConcObserver(MCObserver):
         symb_mc = [atom.symbol for atom in self.mc.atoms]
         if any(x != y for x, y in zip(symb_at, symb_mc)):
             raise ValueError("Inconsistent atoms object!")
-        self.current_conc = self.num_per_unit
+        self.current_conc = self.number_of_units
         return self.get_current_value()
