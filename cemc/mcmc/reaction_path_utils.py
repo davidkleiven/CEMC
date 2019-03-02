@@ -158,7 +158,7 @@ class PseudoBinaryConcObserver(MCObserver):
         self.name = "PseudoBinaryConcRange"
         self.mc = mc_obj
         self.target_symb = list(self.mc.groups[1].keys())[0]
-        self.current_conc = self.num_per_unit
+        self.current_conc = self.number_of_units
 
     @property
     def number_of_units(self):
@@ -181,16 +181,16 @@ class PseudoBinaryConcObserver(MCObserver):
         for change in syst_changes:
             if change[2] == self.target_symb:
                 n_un += 1.0 / self.num_per_unit
-            if change[1] == self.target_symb:
+            elif change[1] == self.target_symb:
                 n_un -= 1.0 / self.num_per_unit
 
         if peak:
             old_value = self.current_conc
             self.current_conc = n_un
             cur_val = self.get_current_value()
-            self.current_value = old_value
+            self.current_conc = old_value
         else:
-            self.current_value = n_un
+            self.current_conc = n_un
             cur_val = self.get_current_value()
         return cur_val
 
