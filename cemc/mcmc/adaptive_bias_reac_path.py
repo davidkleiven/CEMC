@@ -170,6 +170,17 @@ class AdaptiveBiasPotential(BiasPotential):
         value = self.observer.calculate_from_scratch(self.mc.atoms)[self.value_name]
         return self.get_bias_potential(value)
 
+    def shift_upper_part_of_bias_array(self, indx, new_value):
+        """Shift the upper part of the bias array."""
+        value = self.observer.get_current_value()[self.value_name]
+        cur_bias = self.get_bias_potential(value)
+        diff = new_value - self.bias_array[indx]
+        self.bias_array[indx:] += diff
+        new_bias = self.get_bias_potential(value)
+        
+        # Update the current energy
+        self.mc.current_energy += (new_bias - cur_bias)
+
 
 class AdaptiveBiasReactionPathSampler(object):
     """Sample the free energy along a path by adaptively tuning a bias potential.
@@ -343,8 +354,9 @@ class AdaptiveBiasReactionPathSampler(object):
         
         assert self.current_min_bin == self.connection["bin"]
 
-        diff = self.bias.bias_array[self.current_min_bin] - self.connection["value"]
-        self.bias.bias_array[self.current_min_bin:] -= diff
+        self.bias.shift_upper_part_of_bias_array(self.connection["bin"], self.connection["value"])
+        #diff = self.bias.bias_array[self.current_min_bin] - self.connection["value"]
+        #self.bias.bias_array[self.current_min_bin:] -= diff
         self.connection["value"] = self.bias.bias_array[self.connection["bin"]]
 
     def update_active_window(self):
