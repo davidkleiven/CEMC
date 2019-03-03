@@ -177,7 +177,7 @@ class AdaptiveBiasPotential(BiasPotential):
         diff = new_value - self.bias_array[indx]
         self.bias_array[indx:] += diff
         new_bias = self.get_bias_potential(value)
-        
+
         # Update the current energy
         self.mc.current_energy += (new_bias - cur_bias)
 
