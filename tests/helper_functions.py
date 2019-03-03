@@ -42,13 +42,12 @@ def get_small_BC_with_ce_calc(lat="fcc"):
     #ceBulk.atoms.set_calculator(calc)
     return ceBulk, calc
 
-def get_ternary_BC(ret_args=False):
-    db_name = "test_db_ternary.db"
+def get_ternary_BC(ret_args=False, N=4, max_size=3, db_name="test_db_ternary.db"):
     max_dia = get_max_cluster_dia_name()
     size_arg = {max_dia:4.05}
     conc = Concentration(basis_elements=[["Al", "Mg", "Si"]])
-    args = dict(crystalstructure="fcc", a=4.05, size=[4,4,4], concentration=conc, \
-                db_name=db_name, max_cluster_size=3, **size_arg)
+    args = dict(crystalstructure="fcc", a=4.05, size=[N, N, N], concentration=conc, \
+                db_name=db_name, max_cluster_size=max_size, **size_arg)
     ceBulk = CEBulk(**args)
     ceBulk.reconfigure_settings()
     if ret_args:
