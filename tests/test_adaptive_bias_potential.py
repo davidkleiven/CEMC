@@ -7,6 +7,7 @@ try:
     from cemc import CE
     from helper_functions import get_ternary_BC
     from helper_functions import get_example_ecis
+    from ase.units import kB
     import numpy as np
 
     class DummyObserver(MCObserver):
@@ -73,10 +74,55 @@ class TestAdaptiveBiasReacPath(unittest.TestCase):
         bias = AdaptiveBiasReactionPathSampler(
             mc_obj=mc, observer=obs,
             react_crd=[0.0, 1.0], convergence_factor=0.1,
-            react_crd_name="value", n_bins=32)
+            react_crd_name="value", n_bins=22)
         bias.run()
 
         self.assertTrue(no_throw, msg=msg)
+
+    def test_continuous_curve(self):
+        if not available:
+            self.skipTest(skipMsg)
+        bc = get_ternary_BC()
+        eci = {"c1_0": 0.0, "c1_1": 0.0}
+
+        atoms = bc.atoms.copy()
+        CE(atoms, bc, eci=eci)
+        obs = DummyObserver(atoms)
+        cnst = ReactionCrdRangeConstraint(obs, value_name="value")
+
+        T = 1000.0
+        mc = SGCMonteCarlo(atoms, T, symbols=["Al", "Mg", "Si"])
+        mc.add_constraint(cnst)
+        mc.chemical_potential = {"c1_0": 0.0, "c1_1": 0.0}
+
+        self.assertAlmostEqual(mc.current_energy, 0.0)
+        self.assertAlmostEqual(obs.al_conc, 1.0)
+        num_mg = int(len(atoms)/2)
+        mc.insert_symbol_random_places("Mg", num=num_mg, swap_symbs=["Al"])
+        obs.calculate_from_scratch(atoms)
+        self.assertAlmostEqual(obs.al_conc, 0.5)
+
+        bias = AdaptiveBiasReactionPathSampler(
+            mc_obj=mc, observer=obs,
+            react_crd=[0.0, 1.0], convergence_factor=-1.0,
+            react_crd_name="value", n_bins=32)
+        
+        bias.current_min_bin = 30
+        bias.connection = {"bin": 30, "value": 10.0}
+        bias._make_energy_curve_continuous()
+
+        # The original value was 0, but above we have
+        # specified that bin 30 and higher should have
+        # a value 10. Hence, the energy should not change
+        self.assertAlmostEqual(mc.current_energy, 0.0)
+
+        bias.current_min_bin = 2
+        bias.connection = {"bin": 2, "value": 5.0}
+
+        # In this case the total energy should be increased by 5
+        bias._make_energy_curve_continuous()
+        self.assertAlmostEqual(mc.current_energy, 5.0*kB*T)
+
 
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
