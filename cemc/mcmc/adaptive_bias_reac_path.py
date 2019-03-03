@@ -115,7 +115,7 @@ class AdaptiveBiasPotential(BiasPotential):
 
     def get_bias_potential(self, value):
         """Return the value of the bias potential.
-        
+
         :param float value: Reaction coordinate
         :return: Value of the bias potential
         :rtype: float
@@ -313,7 +313,7 @@ class AdaptiveBiasReactionPathSampler(object):
         """Try to load the bias potential from file."""
         if not os.path.exists(self.data_file):
             return
-        
+
         with h5.File(self.data_file, 'r') as hfile:
             if "bias" in hfile.keys():
                 data = np.array(hfile["bias"])
