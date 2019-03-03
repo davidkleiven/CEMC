@@ -355,8 +355,6 @@ class AdaptiveBiasReactionPathSampler(object):
         assert self.current_min_bin == self.connection["bin"]
 
         self.bias.shift_upper_part_of_bias_array(self.connection["bin"], self.connection["value"])
-        #diff = self.bias.bias_array[self.current_min_bin] - self.connection["value"]
-        #self.bias.bias_array[self.current_min_bin:] -= diff
         self.connection["value"] = self.bias.bias_array[self.connection["bin"]]
 
     def update_active_window(self):
