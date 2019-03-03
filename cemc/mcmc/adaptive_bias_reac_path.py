@@ -125,17 +125,17 @@ class AdaptiveBiasPotential(BiasPotential):
             # Linear interpolation
             betaG2 = self.bias_array[bin_indx]
             betaG1 = self.bias_array[bin_indx-1]
-            x1 = self.xmin + (bin_indx - 1)*self.dx + self.dx/2.0
+            x1 = self.xmin + (bin_indx - 1)*self.dx
             betaG = (betaG2 - betaG1)*(value - x1)/self.dx + betaG1
         elif bin_indx == self.lowest_active_indx:
             # Linear interpolation
             betaG2 = self.bias_array[self.lowest_active_indx+1]
             betaG1 = self.bias_array[self.lowest_active_indx]
-            x1 = self.xmin + bin_indx*self.dx + self.dx/2.0
+            x1 = self.xmin + bin_indx*self.dx
             betaG = (betaG2 - betaG1)*(value - x1)/self.dx + betaG1
         else:
             # Perform quadratic interpolation
-            x0 = self.xmin + bin_indx*self.dx + self.dx/2.0
+            x0 = self.xmin + bin_indx*self.dx
             x_pluss = x0 + self.dx
             x_minus = x0 - self.dx
             x = np.array([x_minus, x0, x_pluss])
@@ -401,6 +401,7 @@ class AdaptiveBiasReactionPathSampler(object):
             # Enforce a calculation of the reaction coordinate
             cur_val = self.bias.observer.calculate_from_scratch(self.mc.atoms)
             value = cur_val[self.bias.value_name]
+            self.current_reac_value = value
             self.log("Window shrinked")
             self.log("New value: {}. New range: [{}, {})"
                      "".format(value, current_range[0], current_range[1]))
