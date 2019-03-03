@@ -125,29 +125,42 @@ class AdaptiveBiasPotential(BiasPotential):
             # Linear interpolation
             betaG2 = self.bias_array[bin_indx]
             betaG1 = self.bias_array[bin_indx-1]
-            x1 = self.xmin + (bin_indx - 1)*self.dx
+            x1 = self.xmin + (bin_indx - 1)*self.dx + self.dx/2.0
             betaG = (betaG2 - betaG1)*(value - x1)/self.dx + betaG1
         elif bin_indx == self.lowest_active_indx:
             # Linear interpolation
             betaG2 = self.bias_array[self.lowest_active_indx+1]
             betaG1 = self.bias_array[self.lowest_active_indx]
-            x1 = self.xmin + bin_indx*self.dx
+            x1 = self.xmin + bin_indx*self.dx + self.dx/2.0
             betaG = (betaG2 - betaG1)*(value - x1)/self.dx + betaG1
         else:
             # Perform quadratic interpolation
-            x0 = self.xmin + bin_indx*self.dx
-            x_pluss = x0 + self.dx
-            x_minus = x0 - self.dx
-            x = np.array([x_minus, x0, x_pluss])
-            X = np.zeros((3, 3))
-            X[:, 0] = 1.0
-            X[:, 1] = x
-            X[:, 2] = x**2
-            y = np.array([self.bias_array[bin_indx-1],
-                          self.bias_array[bin_indx],
-                          self.bias_array[bin_indx+1]])
-            coeff = np.linalg.solve(X, y)
-            betaG = coeff[0] + coeff[1]*value + coeff[2]*value**2
+            x0 = self.xmin + bin_indx*self.dx + self.dx/2.0
+
+            if value < x0:
+                x1 = x0 - self.dx
+                x2 = x0
+                betaG1 = self.bias_array[bin_indx-1]
+                betaG2 = self.bias_array[bin_indx]
+            else:
+                x1 = x0
+                x2 = x0 + self.dx
+                betaG1 = self.bias_array[bin_indx]
+                betaG2 = self.bias_array[bin_indx+1]
+            betaG = (betaG2 - betaG1)*(value - x1)/self.dx + betaG1
+
+            # x_pluss = x0 + self.dx
+            # x_minus = x0 - self.dx
+            # x = np.array([x_minus, x0, x_pluss])
+            # X = np.zeros((3, 3))
+            # X[:, 0] = 1.0
+            # X[:, 1] = x
+            # X[:, 2] = x**2
+            # y = np.array([self.bias_array[bin_indx-1],
+            #               self.bias_array[bin_indx],
+            #               self.bias_array[bin_indx+1]])
+            # coeff = np.linalg.solve(X, y)
+            # betaG = coeff[0] + coeff[1]*value + coeff[2]*value**2
         return betaG/self.beta
 
     def __call__(self, system_changes):
