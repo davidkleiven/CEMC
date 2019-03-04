@@ -44,6 +44,7 @@ class AdaptiveBiasPotential(BiasPotential):
         self.know_structure_in_bin = np.zeros(self.nbins, dtype=np.uint8)
         self.lowest_active_indx = 0
         self.mpicomm = mpicomm
+        self.num_irregular_bins = 0
 
     @property
     def rank(self):
@@ -209,7 +210,7 @@ class AdaptiveBiasPotential(BiasPotential):
             msq_dev = 0.0
             devs = []
             for j in range(1, len(data)):
-                devs.append(abs(data[j-1] + data[j]))
+                devs.append(abs(data[j-1] - data[j]))
             mean_dev = np.mean(devs)
             std_dev = np.std(devs)
 
@@ -227,12 +228,13 @@ class AdaptiveBiasPotential(BiasPotential):
             elif i == len(self.bias_array) - 1:
                 dev = abs(self.bias_array[i] - self.bias_array[i-1])
             else:
-                dev1 = abs(self.bias_array[i+1] - self.bias_array[i]) 
+                dev1 = abs(self.bias_array[i+1] - self.bias_array[i])
                 dev2 = abs(self.bias_array[i] - self.bias_array[i-1])
                 dev = max([dev1, dev2])
 
-            if abs(local_dev[i] - dev) > 5*local_dev[i]:
+            if abs(local_dev[i] - dev) > 5*local_std_dev[i]:
                 pts.append(i)
+        self.num_irregular_bins = len(pts)
         return pts
 
     def smear(self, threshold=100.0):
@@ -328,6 +330,7 @@ class AdaptiveBiasReactionPathSampler(object):
         self.mc.add_bias(self.bias)
         self.smear = smear
         self.smearing_threshold = smearing_threshold
+        self.max_num_irregular = 0
 
         # Variables related to adaptive windows
         self.rng_constraint = None
@@ -536,8 +539,12 @@ class AdaptiveBiasReactionPathSampler(object):
                            self.last_visited_bin, acc_rate,
                            self.current_min_bin))
         f = self.mc.atoms.get_chemical_formula()
-        self.log("Formula: {}. Num_oversteps: {}"
+        self.log("Formula: {}. Num_oversteps: {}."
                  "".format(f, self.num_overstepping))
+
+        if self.smear != -1:
+            self.log("Num. irregular bins {}".format(self.max_num_irregular))
+            self.max_num_irregular = 0
 
     @property
     def rank(self):
@@ -632,6 +639,9 @@ class AdaptiveBiasReactionPathSampler(object):
 
                 if self.smear != -1 and self.current_mc_step % self.smear == 0:
                     self.bias.smear(threshold=self.smearing_threshold)
+
+                    if self.bias.num_irregular_bins > self.max_num_irregular:
+                        self.max_num_irregular = self.bias.num_irregular_bins
 
         except Exception as exc:
             print(traceback.format_exc())
