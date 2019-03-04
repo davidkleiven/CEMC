@@ -378,7 +378,14 @@ class TwoPhaseLandauPolynomial(object):
         print("Polynomial data written to {}".format(fname))
 
     def equil_shape_fixed_conc_and_shape(self, conc, shape, min_type="pure"):
-        """Return the equillibrium shape parameter."""
+        """Return the equillibrium shape parameter.
+
+        :param float conc: Concentration
+        :param float shape: Shape parameter
+        :param str min_type: Type of minimum. If pure, the third
+            shape parameter is set to zero. If mixed, the two
+            free shape parameters are required to be the same.
+        """
         K = self._eval_phase2(conc)
         allowed_types = ["pure", "mixed"]
 
