@@ -110,6 +110,14 @@ class TestLandauPolynomial(unittest.TestCase):
         n_eq2 = poly.equil_shape_fixed_conc_and_shape(0.5, 0.0)
         self.assertAlmostEqual(n_eq2, n_eq)
 
+        n_eq2 = poly.equil_shape_fixed_conc_and_shape(0.5, n_eq,
+                                                      min_type="mixed")
+        self.assertAlmostEqual(n_eq2, 0.0)
+
+        n_eq2 = poly.equil_shape_fixed_conc_and_shape(0.5, 0.0,
+                                                      min_type="mixed")
+        self.assertLess(n_eq2, n_eq)
+
 
 def show_fit(poly, conc1, conc2, F1, F2):
     import matplotlib as mpl
