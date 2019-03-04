@@ -38,7 +38,7 @@ class AdaptiveBiasPotential(BiasPotential):
         self.observer = observer
         self.value_name = value_name
         self.beta = 1.0/(kB*T)
-        self.dx = (self.xmax - self.xmin)/(self.nbins-1)
+        self.dx = (self.xmax - self.xmin)/self.nbins
         self.mc = mc
         self.db_bin_data = db_bin_data
         self.know_structure_in_bin = np.zeros(self.nbins, dtype=np.uint8)
