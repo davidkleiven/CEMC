@@ -162,6 +162,7 @@ class AdaptiveBiasPotential(BiasPotential):
             #               self.bias_array[bin_indx+1]])
             # coeff = np.linalg.solve(X, y)
             # betaG = coeff[0] + coeff[1]*value + coeff[2]*value**2
+        betaG = self.bias_array[bin_indx]
         return betaG/self.beta
 
     def __call__(self, system_changes):
@@ -237,10 +238,11 @@ class AdaptiveBiasPotential(BiasPotential):
         self.num_irregular_bins = len(pts)
         return pts
 
-    def smear(self, threshold=100.0):
+    def smear(self):
         """Perform smearing."""
-        smeared_bias_array = np.zeros_like(self.bias_array)
-        for i in self.irregular_indices():
+        smeared_bias_array = self.bias_array.copy()
+        irregular = self.irregular_indices()
+        for i in irregular:
             if i == self.lowest_active_indx:
                 smeared_bias_array[i] = 0.5*(self.bias_array[i] +
                                              self.bias_array[i+1])
@@ -254,7 +256,7 @@ class AdaptiveBiasPotential(BiasPotential):
 
         value = self.observer.get_current_value()[self.value_name]
         cur_bias = self.get_bias_potential(value)
-        self.bias_array[:] = smeared_bias_array
+        self.bias_array[irregular] = smeared_bias_array[irregular]
         new_bias = self.get_bias_potential(value)
 
         # Update the energy
@@ -329,7 +331,6 @@ class AdaptiveBiasReactionPathSampler(object):
         self.load_bias()
         self.mc.add_bias(self.bias)
         self.smear = smear
-        self.smearing_threshold = smearing_threshold
         self.max_num_irregular = 0
 
         # Variables related to adaptive windows
@@ -398,7 +399,6 @@ class AdaptiveBiasReactionPathSampler(object):
             self.log("No smearing")
         else:
             self.log("Smearing every {} step".format(self.smear))
-            self.log("Smearing threshold {}kT".format(self.smearing_threshold))
 
     def load_bias(self):
         """Try to load the bias potential from file."""
@@ -638,7 +638,7 @@ class AdaptiveBiasReactionPathSampler(object):
                     conv = self.converged()
 
                 if self.smear != -1 and self.current_mc_step % self.smear == 0:
-                    self.bias.smear(threshold=self.smearing_threshold)
+                    self.bias.smear()
 
                     if self.bias.num_irregular_bins > self.max_num_irregular:
                         self.max_num_irregular = self.bias.num_irregular_bins
