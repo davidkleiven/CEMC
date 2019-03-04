@@ -376,3 +376,33 @@ class TwoPhaseLandauPolynomial(object):
         row += 1
         np.savetxt(fname, data, delimiter=",", header=header)
         print("Polynomial data written to {}".format(fname))
+
+    def equil_shape_fixed_conc_and_shape(self, conc, shape, min_type="pure"):
+        """Return the equillibrium shape parameter."""
+        K = self._eval_phase2(conc)
+        allowed_types = ["pure", "mixed"]
+
+        if min_type not in allowed_types:
+            raise ValueError("min_type has to be one of {}"
+                             "".format(allowed_types))
+
+        K += self.coeff_shape[1]*shape**2
+        K += self.coeff_shape[3]*shape**4
+
+        Q = self.coeff_shape[0] + self.coeff_shape[3]*shape**2
+
+        if min_type == "mixed":
+            Q += 0.5*self.coeff_shape[1]
+            Q += 0.5*self.coeff_shape[4]*shape**2
+
+        D = 3.0*self.coeff_shape[2]
+
+        delta = (Q/D)**2 - K/D
+
+        if delta < 0.0:
+            return 0.0
+        n_sq = -Q/D + np.sqrt(delta)
+
+        if n_sq < 0.0:
+            return 0.0
+        return np.sqrt(n_sq)

@@ -91,6 +91,24 @@ class TestLandauPolynomial(unittest.TestCase):
         fd = (val2 - val1)/delta
         self.assertAlmostEqual(fd, deriv, places=4)
 
+    def test_equil_fixed_shape(self):
+        if not available:
+            self.skipTest(reason)
+        poly = TwoPhaseLandauPolynomial(c1=0.0, c2=0.5, conc_order1=2,
+                                        conc_order2=1)
+        conc_coeff = [1.0, 0.0, 0.0]
+        conc_coeff1 = [2.0, 0.0]
+        poly.coeff_shape[0] = -2.0
+        poly.coeff_shape[2] = 5.0
+        n_eq = poly.equil_shape_order(0.5)
+        self.assertGreater(n_eq, 0.0)
+
+        poly.coeff_shape[1] = 2.0
+        n_eq2 = poly.equil_shape_fixed_conc_and_shape(0.5, n_eq)
+        self.assertAlmostEqual(n_eq2, 0.0)
+
+        n_eq2 = poly.equil_shape_fixed_conc_and_shape(0.5, 0.0)
+        self.assertAlmostEqual(n_eq2, n_eq)
 
 
 def show_fit(poly, conc1, conc2, F1, F2):
