@@ -198,7 +198,7 @@ class AdaptiveBiasPotential(BiasPotential):
     def smear(self):
         """Perform smearing."""
         smeared_bias_array = np.zeros_like(self.bias_array)
-        for i in range(0, len(smeared_bias_array)):
+        for i in range(self.lowest_active_indx, len(smeared_bias_array)):
             if i == self.lowest_active_indx:
                 smeared_bias_array[i] = 0.5*(self.bias_array[i] +
                                              self.bias_array[i+1])
@@ -286,7 +286,7 @@ class AdaptiveBiasReactionPathSampler(object):
         self.data_file = data_file
         self.load_bias()
         self.mc.add_bias(self.bias)
-        self.smear = -1
+        self.smear = smear
 
         # Variables related to adaptive windows
         self.rng_constraint = None
