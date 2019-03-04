@@ -195,27 +195,50 @@ class AdaptiveBiasPotential(BiasPotential):
         # Update the current energy
         self.mc.current_energy += (new_bias - cur_bias)
 
-    def irregular_indices(self, threshold):
+    def irregular_indices(self):
         """Locate suspcious points."""
+        # Evaluate the local variance
+        local_dev = np.zeros_like(self.bias_array)
+        local_std_dev = np.zeros_like(self.bias_array)
+        N = 10
+        for i in range(self.lowest_active_indx, len(self.bias_array), N):
+            if i >= len(self.bias_array) - N:
+                data = self.bias_array[i:]
+            else:
+                data = self.bias_array[i:i+N]
+            msq_dev = 0.0
+            devs = []
+            for j in range(1, len(data)):
+                devs.append(abs(data[j-1] + data[j]))
+            mean_dev = np.mean(devs)
+            std_dev = np.std(devs)
+
+            if i >= len(self.bias_array) - N:
+                local_dev[i:] = mean_dev
+                local_std_dev[i:] = std_dev
+            else:
+                local_dev[i:i+N] = mean_dev
+                local_std_dev[i:i+N] = std_dev
+
         pts = []
         for i in range(self.lowest_active_indx, len(self.bias_array)):
             if i == self.lowest_active_indx:
-                if abs(self.bias_array[i+1] - self.bias_array[i]) > threshold:
-                    pts.append(i)
+                dev = abs(self.bias_array[i+1] - self.bias_array[i])
             elif i == len(self.bias_array) - 1:
-                if abs(self.bias_array[i] - self.bias_array[i-1]) > threshold:
-                    pts.append(i)
+                dev = abs(self.bias_array[i] - self.bias_array[i-1])
             else:
-                if abs(self.bias_array[i+1] - self.bias_array[i]) > threshold:
-                    pts.append(i)
-                elif abs(self.bias_array[i] - self.bias_array[i-1]) > threshold:
-                    pts.append(i)
+                dev1 = abs(self.bias_array[i+1] - self.bias_array[i]) 
+                dev2 = abs(self.bias_array[i] - self.bias_array[i-1])
+                dev = max([dev1, dev2])
+
+            if abs(local_dev[i] - dev) > 5*local_dev[i]:
+                pts.append(i)
         return pts
 
     def smear(self, threshold=100.0):
         """Perform smearing."""
         smeared_bias_array = np.zeros_like(self.bias_array)
-        for i in self.irregular_indices(threshold):
+        for i in self.irregular_indices():
             if i == self.lowest_active_indx:
                 smeared_bias_array[i] = 0.5*(self.bias_array[i] +
                                              self.bias_array[i+1])
@@ -372,6 +395,7 @@ class AdaptiveBiasReactionPathSampler(object):
             self.log("No smearing")
         else:
             self.log("Smearing every {} step".format(self.smear))
+            self.log("Smearing threshold {}kT".format(self.smearing_threshold))
 
     def load_bias(self):
         """Try to load the bias potential from file."""
