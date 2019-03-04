@@ -118,6 +118,57 @@ class TestLandauPolynomial(unittest.TestCase):
                                                       min_type="mixed")
         self.assertLess(n_eq2, n_eq)
 
+    def test_equil_fixed_shape_deriv(self):
+        if not available:
+            self.skipTest(reason)
+
+        poly = TwoPhaseLandauPolynomial(c1=0.0, c2=0.5, conc_order1=2,
+                                        conc_order2=1)
+        conc_coeff = [1.0, 0.0, 0.0]
+        conc_coeff1 = [2.0, 0.0]
+        poly.coeff_shape[0] = -2.0
+        poly.coeff_shape[2] = 5.0
+        poly.coeff_shape[1] = 2.0
+        poly.coeff_shape[3] = -3.0
+        poly.coeff_shape[4] = 6.0
+        n_eq = poly.equil_shape_order(0.5)
+        self.assertGreater(n_eq, 0.0)
+
+        conc = 0.5
+        n_eq_eval = 0.3
+        n_eq2 = poly.equil_shape_fixed_conc_and_shape(conc, n_eq_eval)
+
+        self.assertGreater(n_eq2, 0.0)
+        deriv = poly.equil_shape_fixed_conc_and_shape_deriv(
+            conc, n_eq_eval, min_type="pure")
+
+        delta = 1E-4
+        n_eq2_delta = poly.equil_shape_fixed_conc_and_shape(
+            conc, n_eq_eval+delta)
+        self.assertGreater(n_eq2_delta, 0.0)
+
+        fd_deriv = (n_eq2_delta - n_eq2)/delta
+        self.assertAlmostEqual(fd_deriv, deriv, places=4)
+
+        # Change the coefficient to construct an equillibrium position
+        # with mixed layers
+        poly.coeff_shape[3] = -8.0
+        delta = 1E-5
+        n_eq2 = poly.equil_shape_fixed_conc_and_shape(conc, n_eq_eval,
+                                                      min_type="mixed")
+        self.assertGreater(n_eq2, 0.0)
+
+        deriv = poly.equil_shape_fixed_conc_and_shape_deriv(
+            conc, n_eq_eval, min_type="mixed")
+
+        n_eq2_delta = poly.equil_shape_fixed_conc_and_shape(
+            conc, n_eq_eval+delta, min_type="mixed")
+        self.assertGreater(n_eq2_delta, 0.0)
+
+        fd_deriv = (n_eq2_delta - n_eq2)/delta
+        self.assertAlmostEqual(fd_deriv, deriv, places=4)
+
+
 
 def show_fit(poly, conc1, conc2, F1, F2):
     import matplotlib as mpl

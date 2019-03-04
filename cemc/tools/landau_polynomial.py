@@ -377,22 +377,9 @@ class TwoPhaseLandauPolynomial(object):
         np.savetxt(fname, data, delimiter=",", header=header)
         print("Polynomial data written to {}".format(fname))
 
-    def equil_shape_fixed_conc_and_shape(self, conc, shape, min_type="pure"):
-        """Return the equillibrium shape parameter.
-
-        :param float conc: Concentration
-        :param float shape: Shape parameter
-        :param str min_type: Type of minimum. If pure, the third
-            shape parameter is set to zero. If mixed, the two
-            free shape parameters are required to be the same.
-        """
+    def _equil_shape_fixed_conc_and_shape_intermediates(self, conc, shape, min_type):
+        """Return helper quantities for the equillibrium shape."""
         K = self._eval_phase2(conc)
-        allowed_types = ["pure", "mixed"]
-
-        if min_type not in allowed_types:
-            raise ValueError("min_type has to be one of {}"
-                             "".format(allowed_types))
-
         K += self.coeff_shape[1]*shape**2
         K += self.coeff_shape[3]*shape**4
 
@@ -403,6 +390,25 @@ class TwoPhaseLandauPolynomial(object):
             Q += 0.5*self.coeff_shape[4]*shape**2
 
         D = 3.0*self.coeff_shape[2]
+        return K, Q, D
+
+    def equil_shape_fixed_conc_and_shape(self, conc, shape, min_type="pure"):
+        """Return the equillibrium shape parameter.
+
+        :param float conc: Concentration
+        :param float shape: Shape parameter
+        :param str min_type: Type of minimum. If pure, the third
+            shape parameter is set to zero. If mixed, the two
+            free shape parameters are required to be the same.
+        """
+        allowed_types = ["pure", "mixed"]
+
+        if min_type not in allowed_types:
+            raise ValueError("min_type has to be one of {}"
+                             "".format(allowed_types))
+
+        K, Q, D = self._equil_shape_fixed_conc_and_shape_intermediates(
+            conc, shape, min_type)
 
         delta = (Q/D)**2 - K/D
 
@@ -413,3 +419,27 @@ class TwoPhaseLandauPolynomial(object):
         if n_sq < 0.0:
             return 0.0
         return np.sqrt(n_sq)
+
+    def equil_shape_fixed_conc_and_shape_deriv(self, conc, shape,
+                                               min_type="pure"):
+        """Differentiate with respect to the fixed shap parameter."""
+        K, Q, D = self._equil_shape_fixed_conc_and_shape_intermediates(
+            conc, shape, min_type)
+
+        dQ_dn = 2*self.coeff_shape[3]*shape
+
+        if min_type == "mixed":
+            dQ_dn += 2*self.coeff_shape[4]*shape*0.5
+
+        dK_dn = 2*self.coeff_shape[1]*shape + \
+            4*self.coeff_shape[3]*shape**3
+
+        n_eq = self.equil_shape_fixed_conc_and_shape(
+            conc, shape, min_type=min_type)
+
+        if n_eq <= 0.0:
+            return 0.0
+
+        delta = (Q/D)**2 - K/D
+        deriv = - dQ_dn/D + 0.5*(2*Q*dQ_dn/D**2 - dK_dn/D)/np.sqrt(delta)
+        return 0.5*deriv/n_eq
