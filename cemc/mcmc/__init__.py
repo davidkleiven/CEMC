@@ -39,4 +39,5 @@ from cemc.mcmc.adaptive_bias_reac_path import AdaptiveBiasReactionPathSampler
 from cemc.mcmc.gaussian_cluster_tracker import GaussianClusterTracker
 from cemc.mcmc.mc_constraints import ConstrainElementByTag
 from cemc.mcmc.diffraction_observer import DiffractionObserver
+from cemc.mcmc.minimal_energy_path import MinimalEnergyPath
 #from cemc.mcmc.strain_energy_bias import Strain
