@@ -273,6 +273,8 @@ class AdaptiveBiasReactionPathSampler(object):
         self.min_window_width = 10
         self.connection = None
         self.current_min_bin = 0
+        self.current_bin = 0
+        self.num_overstepping = 0
         self.check_convergence_interval = check_convergence_interval
         self.mpicomm = mpicomm
 
@@ -350,6 +352,12 @@ class AdaptiveBiasReactionPathSampler(object):
         self.last_visited_bin = bin_indx
         self.visit_histogram[bin_indx] += 1
         self.current_reac_value = value
+
+        if self.current_bin == -1:
+            self.current_bin = bin_indx
+        elif abs(bin_indx - self.current_bin) > 1:
+            self.num_overstepping += 1
+        self.current_bin = bin_indx
 
     def _first_non_converged_bin(self):
         """Return the first bin that is not converged."""
@@ -454,7 +462,9 @@ class AdaptiveBiasReactionPathSampler(object):
                            self.average_visits, num_visited,
                            self.last_visited_bin, acc_rate,
                            self.current_min_bin))
-        self.log("Formula: {}".format(self.mc.atoms.get_chemical_formula()))
+        f = self.mc.atoms.get_chemical_formula()
+        self.log("Formula: {}. Num_oversteps: {}"
+                 "".format(f, self.num_overstepping))
 
     @property
     def rank(self):
