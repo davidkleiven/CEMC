@@ -195,6 +195,29 @@ class AdaptiveBiasPotential(BiasPotential):
         # Update the current energy
         self.mc.current_energy += (new_bias - cur_bias)
 
+    def smear(self):
+        """Perform smearing."""
+        smeared_bias_array = np.zeros_like(self.bias_array)
+        for i in range(0, len(smeared_bias_array)):
+            if i == self.lowest_active_indx:
+                smeared_bias_array[i] = 0.5*(self.bias_array[i] +
+                                             self.bias_array[i+1])
+            elif i == len(smeared_bias_array) - 1:
+                smeared_bias_array[i] = 0.5*(self.bias_array[i] +
+                                             self.bias_array[i-1])
+            else:
+                smeared_bias_array[i] = (self.bias_array[i] +
+                                         self.bias_array[i-1] +
+                                         self.bias_array[i+1])/3.0
+
+        value = self.observer.get_current_value()[self.value_name]
+        cur_bias = self.get_bias_potential(value)
+        self.bias_array[:] = smeared_bias_array
+        new_bias = self.get_bias_potential(value)
+
+        # Update the energy
+        self.mc.current_energy += (new_bias - cur_bias)
+
 
 class AdaptiveBiasReactionPathSampler(object):
     """Sample the free energy along a path by adaptively tuning a bias potential.
@@ -236,7 +259,7 @@ class AdaptiveBiasReactionPathSampler(object):
                  db_struct="adaptive_bias.db", delete_db_if_exists=False,
                  mpicomm=None, check_convergence_interval=10000,
                  check_user_input=True, ignore_equil_steps=True,
-                 react_crd_name=""):
+                 react_crd_name="", smear=-1):
 
         self.bias = AdaptiveBiasPotential(lim=react_crd, n_bins=n_bins,
                                           mod_factor=mod_factor,
@@ -263,6 +286,7 @@ class AdaptiveBiasReactionPathSampler(object):
         self.data_file = data_file
         self.load_bias()
         self.mc.add_bias(self.bias)
+        self.smear = -1
 
         # Variables related to adaptive windows
         self.rng_constraint = None
@@ -326,6 +350,10 @@ class AdaptiveBiasReactionPathSampler(object):
         self.log("Log message every: {} sec".format(self.output_every))
         self.log("Support adaptive windows: {}"
                  "".format(self.support_adaptive_windows))
+        if self.smear == -1:
+            self.log("No smearing")
+        else:
+            self.log("Smearing every {} step".format(self.smear))
 
     def load_bias(self):
         """Try to load the bias potential from file."""
@@ -556,6 +584,10 @@ class AdaptiveBiasReactionPathSampler(object):
                 # collective communication
                 if self.current_mc_step % self.check_convergence_interval == 0:
                     conv = self.converged()
+
+                if self.smear != -1 and self.current_mc_step % self.smear == 0:
+                    self.bias.smear()
+
         except Exception as exc:
             print(traceback.format_exc())
             print("Rank {}: {}".format(self.rank, str(exc)))
