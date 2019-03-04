@@ -450,6 +450,8 @@ class AdaptiveBiasReactionPathSampler(object):
             # Enforce a calculation of the reaction coordinate
             cur_val = self.bias.observer.calculate_from_scratch(self.mc.atoms)
             value = cur_val[self.bias.value_name]
+            bin_indx = self.bias.get_bin(value)
+            self.current_bin = bin_indx
             self.current_reac_value = value
             self.log("Window shrinked")
             self.log("New value: {}. New range: [{}, {})"
