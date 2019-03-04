@@ -195,10 +195,27 @@ class AdaptiveBiasPotential(BiasPotential):
         # Update the current energy
         self.mc.current_energy += (new_bias - cur_bias)
 
-    def smear(self):
+    def irregular_indices(self, threshold):
+        """Locate suspcious points."""
+        pts = []
+        for i in range(self.lowest_active_indx, len(self.bias_array)):
+            if i == self.lowest_active_indx:
+                if abs(self.bias_array[i+1] - self.bias_array[i]) > threshold:
+                    pts.append(i)
+            elif i == len(self.bias_array) - 1:
+                if abs(self.bias_array[i] - self.bias_array[i-1]) > threshold:
+                    pts.append(i)
+            else:
+                if abs(self.bias_array[i+1] - self.bias_array[i]) > threshold:
+                    pts.append(i)
+                elif abs(self.bias_array[i] - self.bias_array[i-1]) > threshold:
+                    pts.append(i)
+        return pts
+
+    def smear(self, threshold=100.0):
         """Perform smearing."""
         smeared_bias_array = np.zeros_like(self.bias_array)
-        for i in range(self.lowest_active_indx, len(smeared_bias_array)):
+        for i in self.irregular_indices(threshold):
             if i == self.lowest_active_indx:
                 smeared_bias_array[i] = 0.5*(self.bias_array[i] +
                                              self.bias_array[i+1])
@@ -259,7 +276,7 @@ class AdaptiveBiasReactionPathSampler(object):
                  db_struct="adaptive_bias.db", delete_db_if_exists=False,
                  mpicomm=None, check_convergence_interval=10000,
                  check_user_input=True, ignore_equil_steps=True,
-                 react_crd_name="", smear=-1):
+                 react_crd_name="", smear=-1, smearing_threshold=1000.0):
 
         self.bias = AdaptiveBiasPotential(lim=react_crd, n_bins=n_bins,
                                           mod_factor=mod_factor,
@@ -287,6 +304,7 @@ class AdaptiveBiasReactionPathSampler(object):
         self.load_bias()
         self.mc.add_bias(self.bias)
         self.smear = smear
+        self.smearing_threshold = smearing_threshold
 
         # Variables related to adaptive windows
         self.rng_constraint = None
@@ -589,7 +607,7 @@ class AdaptiveBiasReactionPathSampler(object):
                     conv = self.converged()
 
                 if self.smear != -1 and self.current_mc_step % self.smear == 0:
-                    self.bias.smear()
+                    self.bias.smear(threshold=self.smearing_threshold)
 
         except Exception as exc:
             print(traceback.format_exc())
