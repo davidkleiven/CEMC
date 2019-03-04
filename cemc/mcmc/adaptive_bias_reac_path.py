@@ -560,7 +560,7 @@ class AdaptiveBiasReactionPathSampler(object):
 
                 if "x" not in hfile.keys():
                     x = np.linspace(self.bias.xmin, self.bias.xmax,
-                                    len(self.visit_histogram))
+                                    len(self.visit_histogram), endpoint=False)
                     hfile.create_dataset("x", data=x)
             self.log("Current state written to {}".format(self.data_file))
         self.barrier()
