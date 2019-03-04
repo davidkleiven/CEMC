@@ -38,7 +38,7 @@ class AdaptiveBiasPotential(BiasPotential):
         self.observer = observer
         self.value_name = value_name
         self.beta = 1.0/(kB*T)
-        self.dx = (self.xmax - self.xmin)/self.nbins
+        self.dx = (self.xmax - self.xmin)/(self.nbins-1)
         self.mc = mc
         self.db_bin_data = db_bin_data
         self.know_structure_in_bin = np.zeros(self.nbins, dtype=np.uint8)
@@ -72,7 +72,7 @@ class AdaptiveBiasPotential(BiasPotential):
         :return: Corresponding bin
         :rtype: int
         """
-        return int((value - self.xmin)*self.nbins/(self.xmax - self.xmin))
+        return int((value - self.xmin)/self.dx)
 
     def get_value(self, bin_indx):
         """Return the value corresponding to bin."""
@@ -378,7 +378,8 @@ class AdaptiveBiasReactionPathSampler(object):
         value = self.bias.observer.get_current_value()[self.bias.value_name]
         bin_indx = self.bias.get_bin(value)
         self.last_visited_bin = bin_indx
-        self.visit_histogram[bin_indx] += 1
+        if bin_indx < len(self.visit_histogram):
+            self.visit_histogram[bin_indx] += 1
         self.current_reac_value = value
 
         if self.current_bin == -1:
