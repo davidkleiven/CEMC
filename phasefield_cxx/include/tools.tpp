@@ -1,7 +1,7 @@
 #ifdef HAS_FFTW
 
 template<int dim>
-void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in, MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid_out, int direction,
+void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in, MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid_out, fftw_direction direction,
                     const int *dims, const std::vector<int> &ft_fields){
 
     // Initialize the dimensionality array
@@ -28,14 +28,14 @@ void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in,
         #ifndef NO_PHASEFIELD_PARALLEL
         #pragma omp parallel for
         #endif
-        for (unsigned int i=0;i<grid_out.nodes();i++){
+        for (unsigned int i=0;i<MMSP::nodes(grid_out);i++){
             grid_out(field)[i] = A[i];
         }
     }
 
     delete [] A;
     fftwnd_destroy_plan(plan);
-}
+};
 #endif
 
 template<int dim>
@@ -47,11 +47,11 @@ void get_dims(const MMSP::grid<dim, MMSP::vector<fftw_complex> >&grid_in, int di
     dims[0] = MMSP::xlength(grid_in);
     dims[1] = MMSP::ylength(grid_in);
     dims[2] = MMSP::zlength(grid_in);
-}
+};
 
 template<class T>
 void divide(MMSP::vector<T> &vec, double val){
     for (unsigned int i=0;i<vec.length();i++){
         vec[i] /= val;
     }
-}
+};
