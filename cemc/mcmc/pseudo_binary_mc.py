@@ -1,4 +1,5 @@
 from cemc.mcmc import SGCMonteCarlo
+from cemc.mcmc import CanNotFindLegalMoveError
 import numpy as np
 from random import choice, shuffle
 
@@ -26,6 +27,8 @@ class PseudoBinarySGC(SGCMonteCarlo):
         self._ins_prob = 0.1
         if "insert_prob" in kwargs.keys():
             self._ins_prob = kwargs.pop("insert_prob")
+        self.max_attempts = kwargs.pop("max_attempts", 1000)
+        self.max_attempts_swap = kwargs.pop("max_attempts_swap", 1000)
         SGCMonteCarlo.__init__(self, atoms, T, **kwargs)
         self.chemical_potential = self._get_eci_chem_pot()
 
@@ -164,9 +167,8 @@ class PseudoBinarySGC(SGCMonteCarlo):
         indx1 = np.random.randint(low=0, high=len(self.atoms))
         symb1 = self.atoms[indx1].symbol
         symb2 = symb1
-        max_attempts = 1000
         count = 0
-        while symb2 == symb1 and count < max_attempts:
+        while symb2 == symb1 and count < self.max_attempts_swap:
             symb2 = choice(self.symbols)
             try:
                 indx2 = self._get_random_index(symb2)[0]
@@ -176,7 +178,7 @@ class PseudoBinarySGC(SGCMonteCarlo):
 
         # Should never go into this function if swap moves
         # are not possible!
-        assert count < max_attempts
+        assert count < self.max_attempts_swap
 
         syst_changes = []
         syst_changes.append((indx1, symb1, symb2))
@@ -206,13 +208,12 @@ class PseudoBinarySGC(SGCMonteCarlo):
 
     def _get_trial_move(self):
         """Calculate a trial move."""
-        max_attempts = 1000
         one_type = self._only_one_type()
         if np.random.rand() < self._ins_prob or one_type:
 
             change = None
             count = 0
-            while count < max_attempts:
+            while count < self.max_attempts:
                 try:
                     change = self.insert_trial_move()
                     break
@@ -222,33 +223,33 @@ class PseudoBinarySGC(SGCMonteCarlo):
 
             count = 0
             while (not self._no_constraint_violations(change)
-                   and count < max_attempts):
+                   and count < self.max_attempts):
                 try:
                     change = self.insert_trial_move()
                 except KeyError:
                     pass
                 count += 1
 
-            if count < max_attempts:
+            if count < self.max_attempts:
                 return change
             elif one_type:
                 msg = "Could not find any insert moves in "
-                msg += "{} attempts\n".format(max_attempts)
+                msg += "{} attempts\n".format(self.max_attempts)
                 msg += "and it is not possible to perform swap moves\n"
                 msg += "as the atoms object has only one element type!"
-                raise RuntimeError(msg)
+                raise CanNotFindLegalMoveError(msg)
 
         change = self._swap_trial_move()
         count = 0
         while (not self._no_constraint_violations(change)
-               and count < max_attempts):
+               and count < self.max_attempts):
             change = self._swap_trial_move()
             count += 1
 
-        if count == max_attempts:
+        if count == self.max_attempts:
             msg = "Did not manage to find a valid move "
-            msg += "in {} attemps!".format(max_attempts)
-            raise RuntimeError(msg)
+            msg += "in {} attemps!".format(self.max_attempts)
+            raise CanNotFindLegalMoveError(msg)
         return change
 
     def runMC(self, **kwargs):

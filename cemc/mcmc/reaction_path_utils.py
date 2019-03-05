@@ -177,21 +177,19 @@ class PseudoBinaryConcObserver(MCObserver):
                                See
                                :py:class:`cemc.mcmc.mc_observers.MCObservers`
         """
-        n_un = self.number_of_units
+        # n_un = self.number_of_units
+        num_new = 0
         for change in syst_changes:
             if change[2] == self.target_symb:
-                n_un += 1.0 / self.num_per_unit
-            elif change[1] == self.target_symb:
-                n_un -= 1.0 / self.num_per_unit
+                num_new += 1.0 / self.num_per_unit
+            if change[1] == self.target_symb:
+                num_new -= 1.0 / self.num_per_unit
 
+        old_value = self.current_conc
+        self.current_conc += num_new
+        cur_val = self.get_current_value()
         if peak:
-            old_value = self.current_conc
-            self.current_conc = n_un
-            cur_val = self.get_current_value()
             self.current_conc = old_value
-        else:
-            self.current_conc = n_un
-            cur_val = self.get_current_value()
         return cur_val
 
     def get_current_value(self):

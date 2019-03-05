@@ -2,6 +2,7 @@ from cemc.mcmc import ReactionCrdRangeConstraint
 from ase.io.trajectory import Trajectory
 from cemc.mcmc import CanNotFindLegalMoveError
 import numpy as np
+import time
 
 
 class MinimalEnergyPath(object):
@@ -35,27 +36,49 @@ class MinimalEnergyPath(object):
         self.relax_steps = relax_steps
         self.constraint = ReactionCrdRangeConstraint(
             self.observer, value_name=self.value_name)
-        self.mc_obj.add_constraint(self.constraint)
         self.tol = 1E-4
         self.constraint.update_range([self.current_value-self.tol,
                                       self.current_value+self.tol])
         self.search_steps = search_steps
         self.traj = Trajectory(traj_file, mode="a")
         self.max_reac_crd = max_reac_crd
+        self.output_every_sec = 30
 
     def relax(self):
         """
         Relax the system without altering the reaction
         coordinate
         """
-        try:
-            for _ in range(self.relax_steps):
+        self.add_reac_crd_constraint()
+        self.log("Relaxing new configuration...")
+        now = time.time()
+        for i in range(self.relax_steps):
+            if time.time() - now > self.output_every_sec:
+                self.log("Relax step {} of {}".format(i, self.relax_steps))
+                now = time.time()
+            try:
                 self.mc_obj._mc_step()
-        except CanNotFindLegalMoveError:
-            pass
+            except CanNotFindLegalMoveError:
+                pass
         self.energy.append(self.mc_obj.current_energy)
         self.reac_crd.append(self.current_value)
         self.traj.write(self.mc_obj.atoms)
+
+    def remove_reac_crd_constraint(self):
+        """Remove the reaction coordinate constraint."""
+        indx = -1
+        for i, cnst in enumerate(self.mc_obj.constraints):
+            if cnst is self.constraint:
+                indx = i
+                break
+        if indx != -1:
+            self.mc_obj.constraints.pop(indx)
+
+    def add_reac_crd_constraint(self):
+        for cnst in self.mc_obj.constraints:
+            if cnst is self.constraint:
+                return
+        self.mc_obj.add_constraint(self.constraint)
 
     def find_new_config(self):
         """
@@ -69,8 +92,13 @@ class MinimalEnergyPath(object):
         min_energy_change = np.inf
         calc = self.mc_obj.atoms.get_calculator()
         current_energy = self.mc_obj.current_energy
+        self.remove_reac_crd_constraint()
 
+        now = time.time()
         for i in range(self.search_steps):
+            if time.time() - now > self.output_every_sec:
+                self.log("Search step: {} of {}".format(i, self.search_steps))
+                now = time.time()
             trial_move = self.mc_obj._get_trial_move()
             new_value = self.observer(trial_move, peak=True)[self.value_name]
 
@@ -83,12 +111,14 @@ class MinimalEnergyPath(object):
                 calc.undo_changes()
 
         # Update the system with the newest trial move
-        self.mc_obj.current_energy = calc.calculate(None, ["energy"],
-                                                    best_trial_move)
+        symbols = [atom.symbol for atom in self.mc_obj.atoms]
         new_reac_crd = self.observer(best_trial_move)[self.value_name]
+        for change in best_trial_move:
+            symbols[change[0]] = change[2]
+        self.mc_obj.set_symbols(symbols)
         calc.clear_history()
 
-        if abs(new_reac_crd - self.current_value) < self.tol:
+        if new_reac_crd - self.current_value < self.tol:
             raise RuntimeError("Could not find a configuration with a higher "
                                "value for the reaction coordiante!")
         self.current_value = new_reac_crd
