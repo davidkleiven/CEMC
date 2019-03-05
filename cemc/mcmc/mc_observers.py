@@ -1074,6 +1074,53 @@ class PairObserver(MCObserver):
         return self.avg_num_pairs/self.num_calls
 
 
+class ConcentrationObserver(MCObserver):
+    """
+    Class for tracing concentration
+    """
+    def __init__(self, symbols=None, atoms=None):
+        MCObserver.__init__(self)
+        self.symbols = symbols
+        self.num_atoms = len(atoms)
+        self.orig_atoms = atoms.copy()
+        self.concs = self.calculate_from_scratch(atoms)
+        self.num_calls = 1
+        self.average_conc = self.concs.copy()
 
+    def calculate_from_scratch(self, atoms):
+        concs = {k: 0.0 for k in self.symbols}
+        if len(atoms) != self.num_atoms:
+            raise ValueError("Inconsistent length of passed atoms object!")
 
+        for atom in atoms:
+            concs[atom.symbol] += 1.0/self.num_atoms
+        self.concs = concs
+        return self.get_current_value()
 
+    def __call__(self, system_changes, peak=False):
+        old_concs = self.concs.copy()
+        for change in system_changes:
+            self.concs[change[2]] += 1.0/self.num_atoms
+            self.concs[change[1]] -= 1.0/self.num_atoms
+
+        cur_val = self.get_current_value()
+        if peak:
+            self.concs = old_concs
+        else:
+            # Update the averages
+            self.num_calls += 1
+            for k, v in self.concs.items():
+                self.average_conc[k] += v
+        return cur_val
+
+    def get_current_value(self):
+        return self.concs
+
+    def get_averages(self):
+        avg = {k: v/self.num_calls for k, v in self.average_conc.items()}
+        return avg
+
+    def reset(self):
+        self.calculate_from_scratch(self.orig_atoms)
+        self.average_conc = self.concs.copy()
+        self.num_calls = 1
