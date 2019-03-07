@@ -278,19 +278,11 @@ class TwoPhaseLandauPolynomial(object):
         ub[0] = np.inf
         cnst = LinearConstraint(A, lb, ub)
 
-        # Make sure constant in polynomial 2 is zero
-        # A[1, -3] = 1.0
-        # lb[1] = -1E-16
-        # ub[1] = 1E-16
-        # lb[1] = -np.inf
-        # ub[1] = np.inf
-
+        # Make sure we have a local minimum at n_eq
         A[1, -1] = 3.0
         A[1, -2] = 1.0
         lb[1] = 0.0
         ub[1] = np.inf
-        # lb[1] = -np.inf
-        # ub[1] = np.inf
 
         # Make sure that the last coefficient is larger than
         # the secnod largest
