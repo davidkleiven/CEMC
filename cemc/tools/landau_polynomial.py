@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.optimize import minimize, LinearConstraint, fsolve
+from scipy.optimize import NonlinearConstraint
 import scipy
 
 SCIPY_VERSION = scipy.__version__
@@ -20,7 +21,7 @@ class TwoPhaseLandauPolynomial(object):
     """
     def __init__(self, c1=0.0, c2=1.0, num_dir=3, init_guess=None,
                  conc_order1=2, conc_order2=2):
-        self.conc_coeff2 = np.zeros(conc_order2)
+        self.conc_coeff2 = np.zeros(conc_order2+1)
         self.conc_coeff = np.zeros(conc_order1+1)
         self.coeff_shape = np.zeros(5)
         self.conc_order1 = conc_order1
@@ -203,7 +204,7 @@ class TwoPhaseLandauPolynomial(object):
         else:
             raise ValueError("Unknown derivative type!")
 
-    def fit(self, conc1, F1, conc2, F2):
+    def fit(self, conc1, F1, conc2, F2, minimum_at_ends=True):
         """Fit the free energy functional.
 
         :param numpy.ndarray conc1: Concentrations in the first phase
@@ -213,7 +214,15 @@ class TwoPhaseLandauPolynomial(object):
         """
         conc = np.concatenate((conc1, conc2))
         free_energy = np.concatenate((F1, F2))
-        self.conc_coeff = np.polyfit(conc1 - self.c1, F1, self.conc_order1)
+        # self.conc_coeff = np.polyfit(conc1 - self.c1, F1, self.conc_order1)
+        X = np.zeros((len(conc1), self.conc_order1+1))
+        for power in range(self.conc_order1):
+            X[:, power] = (conc1 - self.c1)**(self.conc_order1-power)
+        y = F1.copy()
+        indx = np.argmin((np.abs(conc1 - self.c2)))
+        slope = (F1[indx] - F1[0])/(conc1[indx] - conc1[0])
+        y[conc1 > self.c2] = y[indx]
+        self.conc_coeff = np.linalg.lstsq(X, y)[0]
 
         remains = F2 - np.polyval(self.conc_coeff, conc2 - self.c1)
 
@@ -243,32 +252,45 @@ class TwoPhaseLandauPolynomial(object):
             x0 = np.array([B, C, min([abs(B), abs(C)])])
 
         def mse(x):
-            self.conc_coeff2 = x[:self.conc_order2]
+            self.conc_coeff2 = x[:self.conc_order2+1]
             self.coeff_shape[0] = x[-2]
             self.coeff_shape[2] = x[-1]
             pred = [self.evaluate(conc[i]) for i in range(len(conc))]
             pred = np.array(pred)
+
             mse = np.mean((pred - free_energy)**2)
-            return mse
+            concs = np.linspace(0.0, self.c2, 10).tolist()
+            n_eq = np.array([self.equil_shape_order(c) for c in concs])
+            mse_eq = np.sum(n_eq**2)
+            return mse + 10*mse_eq
 
         if SCIPY_VERSION < '1.2.1':
             raise RuntimeError("Scipy version must be larger than 1.2.1!")
 
         num_constraints = 3
-        A = np.zeros((num_constraints, self.conc_order2+2))
+        A = np.zeros((num_constraints, self.conc_order2+3))
         lb = np.zeros(num_constraints)
         ub = np.zeros(num_constraints)
 
         # Make sure last coefficient is positive
         A[0, -1] = 1.0
-        lb[0] = 0.0
+        lb[0] = 1.0
         ub[0] = np.inf
         cnst = LinearConstraint(A, lb, ub)
 
         # Make sure constant in polynomial 2 is zero
-        A[1, -3] = 1.0
-        lb[1] = -1E-16
-        ub[1] = 1E-16
+        # A[1, -3] = 1.0
+        # lb[1] = -1E-16
+        # ub[1] = 1E-16
+        # lb[1] = -np.inf
+        # ub[1] = np.inf
+
+        A[1, -1] = 3.0
+        A[1, -2] = 1.0
+        lb[1] = 0.0
+        ub[1] = np.inf
+        # lb[1] = -np.inf
+        # ub[1] = np.inf
 
         # Make sure that the last coefficient is larger than
         # the secnod largest
@@ -276,11 +298,30 @@ class TwoPhaseLandauPolynomial(object):
         lb[2] = -np.inf
         ub[2] = 0.0
 
-        x0 = np.zeros(self.conc_order2+2)
-        x0[-1] = 1.0
+        x0 = np.zeros(self.conc_order2+3)
+
+        B = -10
         x0[-4] = B
         x0[-2] = C
         x0[-1] = 1.0
+
+        # Add constraint on the equillibrium shape parameter
+        def n_eq_cnst(x):
+            old_conc_coeff2 = self.conc_coeff2.copy()
+            old_coeff_shape = self.coeff_shape.copy()
+            self.conc_coeff2 = x[:self.conc_order2]
+            self.coeff_shape[0] = x[-2]
+            self.coeff_shape[2] = x[-1]
+            concs = np.linspace(0.0, self.c2, 10).tolist()
+            n_eq = [self.equil_shape_order(c) for c in concs]
+
+            # Reset the concentration
+            self.conc_coeff2[:] = old_conc_coeff2
+            self.coeff_shape[:] = old_coeff_shape
+            return np.mean(n_eq)
+
+        n_eq_cnst = NonlinearConstraint(n_eq_cnst, 0.0, 1E-8)
+
         res = minimize(mse, x0=x0, method="SLSQP",
                        constraints=[cnst], options={"eps": 0.01})
         self.conc_coeff2 = res["x"][:-2]
@@ -443,3 +484,12 @@ class TwoPhaseLandauPolynomial(object):
         delta = (Q/D)**2 - K/D
         deriv = - dQ_dn/D + 0.5*(2*Q*dQ_dn/D**2 - dK_dn/D)/np.sqrt(delta)
         return 0.5*deriv/n_eq
+
+    def plot_individual_polys(self):
+        from matplotlib import pyplot as plt
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1)
+        conc = np.linspace(0.0, 1.0, 100)
+        ph1 = np.polyval(self.conc_coeff, conc)
+        ax.plot(conc, ph1, label="Phase1")
+        return fig
