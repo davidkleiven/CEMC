@@ -485,3 +485,52 @@ class TwoPhaseLandauPolynomial(object):
         ph1 = np.polyval(self.conc_coeff, conc)
         ax.plot(conc, ph1, label="Phase1")
         return fig
+
+    def fit_fixed_conc_varying_eta(self, conc, eta, free_energy,
+                                   path_type="pure"):
+        """Perform fit at fixed composition, but varying eta.
+
+        :param float conc: Fixed concentration
+        :param array eta: Array with eta values
+        :param array free_energy: Free energy densitties
+        :parma str path_type: Determine how the remaining shape
+            parameters varies. Has to be one of pure or mixed.
+            If pure, it is assumed that the third shape parameter
+            remains zero, while the second is given by its
+            equilibrium value. If mixed, it assumed that
+            both the second and the third are equal and
+            equal to the equilibrium value.
+        """
+
+    def mse_function(self, x):
+        self.coeff_shape[1] = x[0]
+        self.coeff_shape[3:] = x[1:]
+        eq_shape = [equil_shape_fixed_conc_and_shape(
+            conc, n, min_type=path_type) for n in list(ets)]
+
+        if path_type == "pure":
+            pred = [self.evaluate(conc, shape=[n1, n2, 0.0])
+                    for n1, n2 in zip(eta, eq_shape)]
+        elif path_type == "mixed":
+            pred = [self.evaluate(conc, shape=[n1, n2, n2])
+                    for n1, n2 in zip(list(eta), eq_shape)]
+
+        pred = np.array(pred)
+        mse = np.sum((pred - free_energy)**2)
+        return mse
+
+    # Last term has to be positive
+    num_coeff = len(self.coeff_shape) - 2
+    x0 = np.zeros(num_coeff)
+    A = np.zeros((1, num_coeff))
+    ub = np.zeros(1)
+    lb = np.zeros(1)
+    ub[0] = np.inf
+    A[0, -1] = 1.0
+
+    cnst = LinearConstraint(A, lb, ub)
+    res = minimize(mse_function, x0, method="SLSQP", constraints=cnst)
+
+    # Update the shape coefficients
+    self.coeff_shape[1] = res["x"][0]
+    self.coeff_shape[3:] = res["x"][3:]
