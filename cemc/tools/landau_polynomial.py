@@ -292,7 +292,7 @@ class TwoPhaseLandauPolynomial(object):
 
         x0 = np.zeros(self.conc_order2+3)
 
-        B = -10
+        B = -10  # TODO: We need to be able to set this
         x0[-4] = B
         x0[-2] = C
         x0[-1] = 1.0
