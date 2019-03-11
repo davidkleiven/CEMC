@@ -104,17 +104,17 @@ class TestLandauPolynomial(unittest.TestCase):
         self.assertGreater(n_eq, 0.0)
 
         poly.coeff_shape[1] = 2.0
-        n_eq2 = poly.equil_shape_fixed_conc_and_shape(0.5, n_eq)
+        n_eq2 = poly.equil_shape_fixed_conc_and_shape(0.5, shape=n_eq)
         self.assertAlmostEqual(n_eq2, 0.0)
 
-        n_eq2 = poly.equil_shape_fixed_conc_and_shape(0.5, 0.0)
+        n_eq2 = poly.equil_shape_fixed_conc_and_shape(0.5, shape=0.0)
         self.assertAlmostEqual(n_eq2, n_eq)
 
-        n_eq2 = poly.equil_shape_fixed_conc_and_shape(0.5, n_eq,
+        n_eq2 = poly.equil_shape_fixed_conc_and_shape(0.5, shape=n_eq,
                                                       min_type="mixed")
         self.assertAlmostEqual(n_eq2, 0.0)
 
-        n_eq2 = poly.equil_shape_fixed_conc_and_shape(0.5, 0.0,
+        n_eq2 = poly.equil_shape_fixed_conc_and_shape(0.5, shape=0.0,
                                                       min_type="mixed")
         self.assertLess(n_eq2, n_eq)
 
@@ -136,15 +136,15 @@ class TestLandauPolynomial(unittest.TestCase):
 
         conc = 0.5
         n_eq_eval = 0.3
-        n_eq2 = poly.equil_shape_fixed_conc_and_shape(conc, n_eq_eval)
+        n_eq2 = poly.equil_shape_fixed_conc_and_shape(conc, shape=n_eq_eval)
 
         self.assertGreater(n_eq2, 0.0)
         deriv = poly.equil_shape_fixed_conc_and_shape_deriv(
-            conc, n_eq_eval, min_type="pure")
+            conc, shape=n_eq_eval, min_type="pure")
 
         delta = 1E-4
         n_eq2_delta = poly.equil_shape_fixed_conc_and_shape(
-            conc, n_eq_eval+delta)
+            conc, shape=n_eq_eval+delta)
         self.assertGreater(n_eq2_delta, 0.0)
 
         fd_deriv = (n_eq2_delta - n_eq2)/delta
@@ -154,15 +154,15 @@ class TestLandauPolynomial(unittest.TestCase):
         # with mixed layers
         poly.coeff_shape[3] = -8.0
         delta = 1E-5
-        n_eq2 = poly.equil_shape_fixed_conc_and_shape(conc, n_eq_eval,
+        n_eq2 = poly.equil_shape_fixed_conc_and_shape(conc, shape=n_eq_eval,
                                                       min_type="mixed")
         self.assertGreater(n_eq2, 0.0)
 
         deriv = poly.equil_shape_fixed_conc_and_shape_deriv(
-            conc, n_eq_eval, min_type="mixed")
+            conc, shape=n_eq_eval, min_type="mixed")
 
         n_eq2_delta = poly.equil_shape_fixed_conc_and_shape(
-            conc, n_eq_eval+delta, min_type="mixed")
+            conc, shape=n_eq_eval+delta, min_type="mixed")
         self.assertGreater(n_eq2_delta, 0.0)
 
         fd_deriv = (n_eq2_delta - n_eq2)/delta
@@ -182,11 +182,11 @@ def show_fit(poly, conc1, conc2, F1, F2):
     ax.plot(conc1, F1, "x")
     ax.plot(conc2, F2, "o", mfc="none")
     c = np.linspace(np.min(conc1), np.max(conc2), 100)
-    fitted = [poly.eval_at_equil(c[i]) for i in range(len(c))]
+    fitted = poly.eval_at_equil(c)
     ax.plot(c, fitted)
 
     ax2 = ax.twinx()
-    n_eq = [poly.equil_shape_order(c[i]) for i in range(len(c))]
+    n_eq = poly.equil_shape_order(c)
     ax2.plot(c, n_eq)
     ax.set_xlabel("Concentration")
     ax.set_ylabel("Free energy")

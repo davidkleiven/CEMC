@@ -6,6 +6,60 @@ import scipy
 SCIPY_VERSION = scipy.__version__
 
 
+def array_func(func):
+    """
+    Decorator to handle various array arguments
+    """
+    def unwrap(*args, **kwargs):
+        self = args[0]
+        conc = args[1]
+        shape = kwargs.pop("shape", None)
+
+        if isinstance(conc, list):
+            conc = np.array(conc)
+        if isinstance(shape, list):
+            shape = np.array(shape)
+
+        if np.isscalar(conc) and shape is None:
+            return func(self, conc, **kwargs)
+
+        elif isinstance(conc, np.ndarray) and shape is None:
+            return [func(self, conc[i], **kwargs) for i in range(conc.shape[0])]
+
+        elif np.isscalar(conc) and np.isscalar(shape):
+            return func(self, conc, shape=[shape, 0.0, 0.0], **kwargs)
+
+        elif np.isscalar(conc) and isinstance(shape, np.ndarray):
+            if len(shape.shape) == 1 and len(shape[0]) == 3:
+                return func(self, conc, shape=shape, **kwargs)
+            elif len(shape.shape) == 2 and shape.shape[1] == 3:
+                return [func(self, conc, shape[i, :], **kwargs)
+                        for i in range(shape.shape[0])]
+            else:
+                raise ValueError("When shape is a Numpy array it has to be "
+                                 "either of length 3 or of length Nx3! "
+                                 "Got: {}".format(shape.shape))
+
+        elif isinstance(conc, np.ndarray) and isinstance(shape, np.ndarray):
+            if conc.shape[0] != shape.shape[0]:
+                raise ValueError("The number entries in the shape array has to"
+                                 " match the number of entries in the conc "
+                                 "array!")
+            if len(shape.shape) == 1:
+                return [func(self, conc[i], shape=[shape[i], 0.0, 0.0], **kwargs)
+                        for i in range(conc.shape[0])]
+            elif len(shape.shape) == 3:
+                return [func(self, conc[i], shape=shape[i, :], **kwargs)
+                        for i in range(conc.shape[0])]
+            else:
+                raise ValueError("Dimension of shape argument has to be either"
+                                 "Nx3 or 3")
+        else:
+            raise ValueError("Concentation and shape arguments has to be "
+                             "floats or arrays!")
+    return unwrap
+
+
 class TwoPhaseLandauPolynomial(object):
     """Class for fitting a Landau polynomial to free energy data
 
@@ -33,8 +87,14 @@ class TwoPhaseLandauPolynomial(object):
         self.boundary_coeff = None
         self.bounds = None
 
+    @array_func
     def equil_shape_order(self, conc):
         """Calculate the equillibrium shape concentration.
+
+        The equillibrium shape order parameter is determined by finding the
+        minima of the free energy curve at a given concentration. In case of
+        multiple order parameters the value returned corresponds to a minima
+        where all other shape order parameters are zero.
 
         :param float conc: Concentration
         """
@@ -58,6 +118,7 @@ class TwoPhaseLandauPolynomial(object):
             return 0.0
         return np.sqrt(n_eq)
 
+    @array_func
     def equil_shape_order_derivative(self, conc):
         """Calculate the partial derivative of the equillibrium
             shape parameter with respect to the concentration.
@@ -82,9 +143,13 @@ class TwoPhaseLandauPolynomial(object):
             (3*np.sqrt(delta)*D*2*n_eq)
 
     def _eval_phase2(self, conc):
-        """Evaluate the polynomial in phase2."""
+        """Evaluate the polynomial in phase2.
+
+        :param float conc:
+        """
         return np.polyval(self.conc_coeff2, conc - self.c2)
 
+    @array_func
     def eval_at_equil(self, conc):
         """Evaluate the free energy at equillibrium order.
 
@@ -133,7 +198,16 @@ class TwoPhaseLandauPolynomial(object):
             coeff.append(new_coeff)
         return coeff
 
+    @array_func
     def evaluate(self, conc, shape=None):
+        """
+        Evaluate the free energy polynomial
+
+        :param float conc: Concentration
+        :param shape list: List with the shape order parameters.
+            If None, the shape order parameters are set to their
+            equillibrium
+        """
         if self.bounds is not None:
             if conc < self.bounds[0]:
                 return np.polyval(self.boundary_coeff[0], conc)
@@ -159,6 +233,7 @@ class TwoPhaseLandauPolynomial(object):
                                  shape[2]**4 * (shape[0]**2 + shape[1]**2)) + \
             self.coeff_shape[4]*np.prod(shape**2)
 
+    @array_func
     def partial_derivative(self, conc, shape=None, var="conc", direction=0):
         """Return the partial derivative with respect to variable."""
         allowed_var = ["conc", "shape"]
@@ -255,12 +330,12 @@ class TwoPhaseLandauPolynomial(object):
             self.conc_coeff2 = x[:self.conc_order2+1]
             self.coeff_shape[0] = x[-2]
             self.coeff_shape[2] = x[-1]
-            pred = [self.evaluate(conc[i]) for i in range(len(conc))]
+            pred = self.evaluate(conc)
             pred = np.array(pred)
 
             mse = np.mean((pred - free_energy)**2)
             concs = np.linspace(0.0, self.c2, 10).tolist()
-            n_eq = np.array([self.equil_shape_order(c) for c in concs])
+            n_eq = np.array(self.equil_shape_order(conc))
             mse_eq = np.sum(n_eq**2)
             return mse + 10*mse_eq
 
@@ -425,7 +500,8 @@ class TwoPhaseLandauPolynomial(object):
         D = 3.0*self.coeff_shape[2]
         return K, Q, D
 
-    def equil_shape_fixed_conc_and_shape(self, conc, shape, min_type="pure"):
+    @array_func
+    def equil_shape_fixed_conc_and_shape(self, conc, shape=None, min_type="pure"):
         """Return the equillibrium shape parameter.
 
         :param float conc: Concentration
@@ -440,6 +516,10 @@ class TwoPhaseLandauPolynomial(object):
             raise ValueError("min_type has to be one of {}"
                              "".format(allowed_types))
 
+        if shape is None:
+            raise ValueError("Shape has to be passed!")
+
+        shape = shape[0]
         K, Q, D = self._equil_shape_fixed_conc_and_shape_intermediates(
             conc, shape, min_type)
 
@@ -453,9 +533,13 @@ class TwoPhaseLandauPolynomial(object):
             return 0.0
         return np.sqrt(n_sq)
 
-    def equil_shape_fixed_conc_and_shape_deriv(self, conc, shape,
+    @array_func
+    def equil_shape_fixed_conc_and_shape_deriv(self, conc, shape=None,
                                                min_type="pure"):
         """Differentiate with respect to the fixed shap parameter."""
+        if shape is None:
+            raise ValueError("Shape has to be passed!")
+        shape = shape[0]
         K, Q, D = self._equil_shape_fixed_conc_and_shape_intermediates(
             conc, shape, min_type)
 
@@ -468,7 +552,7 @@ class TwoPhaseLandauPolynomial(object):
             4*self.coeff_shape[3]*shape**3
 
         n_eq = self.equil_shape_fixed_conc_and_shape(
-            conc, shape, min_type=min_type)
+            conc, shape=shape, min_type=min_type)
 
         if n_eq <= 0.0:
             return 0.0
