@@ -168,6 +168,65 @@ class TestLandauPolynomial(unittest.TestCase):
         fd_deriv = (n_eq2_delta - n_eq2)/delta
         self.assertAlmostEqual(fd_deriv, deriv, places=4)
 
+    def test_array_decorator_only_conc(self):
+        poly = TwoPhaseLandauPolynomial(c1=0.0, c2=0.5, conc_order1=2,
+                                        conc_order2=1)
+
+        # Case 1: Concentration is a scalar
+        poly.eval_at_equil(0.5)
+
+        # Case 2: Concentration is a list
+        poly.eval_at_equil([0.5, 0.1, 0.2])
+
+        # Case 3: Concentration is a Numpy array
+        poly.eval_at_equil(np.array([0.5, 0.1, 0.2]))
+
+        # Case 4: Concentration is s 2D Numpy array
+        with self.assertRaises(ValueError):
+            poly.eval_at_equil(np.array([[0.5, 0.2], [0.1, 0.2]]))
+
+        # Case 5: Concentration is a nested list
+        with self.assertRaises(ValueError):
+            poly.eval_at_equil([[0.5, 0.2], [0.1, 0.2]])
+
+    def test_array_decorator_mixed(self):
+        poly = TwoPhaseLandauPolynomial(c1=0.0, c2=0.5, conc_order1=2,
+                                        conc_order2=1)
+
+        # Case 1: Concentration is a scalar, shape is None
+        poly.evaluate(0.5, shape=None)
+
+        # Case 2: Concentration is a list, shape is None
+        poly.evaluate([0.5, 0.2], shape=None)
+
+        # Case 3: Concentration is a Numpy array, shape is None
+        poly.evaluate(np.array([0.5, 0.2]), shape=None)
+
+        # Case 4: Concentration is nested list shape is None
+        with self.assertRaises(ValueError):
+            poly.evaluate([[0.5, 0.2], [0.2, 0.1]], shape=None)
+
+        # Case 5: Concentration is a 2D Numpy array shape is None
+        with self.assertRaises(ValueError):
+            poly.evaluate(np.array([[0.5, 0.2], [0.2, 0.1]]), shape=None)
+
+        # Case 6: Concentration scalar, shape scalar
+        poly.evaluate(0.5, shape=0.2)
+
+        # Case 7: Concentration scalar, shape 1D list
+        poly.evaluate(0.5, shape=[0.1, 0.2, 0.4])
+
+        # Case 8: Concentration scalar, shape 1D list of wrong length
+        with self.assertRaises(ValueError):
+            poly.evaluate(0.5, shape=[0.1, 0.2])
+
+        # Case 9: Concentration list, shape list
+        poly.evaluate([0.2, 0.3], shape=[[0.1, 0.0, 0.0],
+                                         [0.2, 0.3, 0.4]])
+
+        # Case 10: Concentration list and shape list has wrong dimensions
+        with self.assertRaises(ValueError):
+            poly.evaluate([0.2, 0.3], shape=[[0.1, 0.0, 0.0]])
 
 
 def show_fit(poly, conc1, conc2, F1, F2):

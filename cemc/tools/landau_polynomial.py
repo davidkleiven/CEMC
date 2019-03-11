@@ -24,13 +24,16 @@ def array_func(func):
             return func(self, conc, **kwargs)
 
         elif isinstance(conc, np.ndarray) and shape is None:
-            return [func(self, conc[i], **kwargs) for i in range(conc.shape[0])]
+            if len(conc.shape) != 1:
+                raise ValueError("Concentration has to be a 1D array!")
+            return [func(self, conc[i], **kwargs)
+                    for i in range(conc.shape[0])]
 
         elif np.isscalar(conc) and np.isscalar(shape):
             return func(self, conc, shape=[shape, 0.0, 0.0], **kwargs)
 
         elif np.isscalar(conc) and isinstance(shape, np.ndarray):
-            if len(shape.shape) == 1 and len(shape[0]) == 3:
+            if len(shape.shape) == 1 and shape.shape[0] == 3:
                 return func(self, conc, shape=shape, **kwargs)
             elif len(shape.shape) == 2 and shape.shape[1] == 3:
                 return [func(self, conc, shape[i, :], **kwargs)
@@ -46,9 +49,9 @@ def array_func(func):
                                  " match the number of entries in the conc "
                                  "array!")
             if len(shape.shape) == 1:
-                return [func(self, conc[i], shape=[shape[i], 0.0, 0.0], **kwargs)
-                        for i in range(conc.shape[0])]
-            elif len(shape.shape) == 3:
+                return [func(self, conc[i], shape=[shape[i], 0.0, 0.0],
+                             **kwargs) for i in range(conc.shape[0])]
+            elif shape.shape[1] == 3:
                 return [func(self, conc[i], shape=shape[i, :], **kwargs)
                         for i in range(conc.shape[0])]
             else:
