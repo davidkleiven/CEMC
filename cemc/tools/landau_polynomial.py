@@ -291,7 +291,7 @@ class TwoPhaseLandauPolynomial(object):
 
             mse = np.mean((pred - free_energy)**2)
             concs = np.linspace(0.0, self.c2, 10).tolist()
-            n_eq = np.array(self.equil_shape_order(conc))
+            n_eq = np.array(self.equil_shape_order(concs))
             mse_eq = np.sum(n_eq**2)
             return mse + 10*mse_eq
 
@@ -474,36 +474,18 @@ class TwoPhaseLandauPolynomial(object):
         ax.plot(conc, ph1, label="Phase1")
         return fig
 
-    def fit_fixed_conc_varying_eta(self, conc, eta, free_energy,
-                                   path_type="pure"):
+    def fit_fixed_conc_varying_eta(self, conc, eta, free_energy):
         """Perform fit at fixed composition, but varying eta.
 
         :param float conc: Fixed concentration
         :param array eta: Array with eta values
         :param array free_energy: Free energy densitties
-        :parma str path_type: Determine how the remaining shape
-            parameters varies. Has to be one of pure or mixed.
-            If pure, it is assumed that the third shape parameter
-            remains zero, while the second is given by its
-            equilibrium value. If mixed, it assumed that
-            both the second and the third are equal and
-            equal to the equilibrium value.
         """
 
         def mse_function(x):
             self.coeff_shape[1] = x[0]
             self.coeff_shape[3:] = x[1:]
-            eq_shape = [self.equil_shape_fixed_conc_and_shape(
-                conc, n, min_type=path_type) for n in list(eta)]
-
-            if path_type == "pure":
-                pred = [self.evaluate(conc, shape=[n1, n2, 0.0])
-                        for n1, n2 in zip(eta, eq_shape)]
-            elif path_type == "mixed":
-                pred = [self.evaluate(conc, shape=[n1, n2, n2])
-                        for n1, n2 in zip(list(eta), eq_shape)]
-            else:
-                raise ValueError("Unknown path_type {}".format(path_type))
+            pred = np.array(self.evaluate(conc, shape=eta))
 
             pred = np.array(pred)
             mse = np.sum((pred - free_energy)**2)
