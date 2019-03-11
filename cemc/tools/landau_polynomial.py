@@ -506,17 +506,3 @@ class TwoPhaseLandauPolynomial(object):
         # Update the shape coefficients
         self.coeff_shape[1] = res["x"][0]
         self.coeff_shape[3:] = res["x"][1:]
-
-    def _get_linear_bias(self, x, y):
-        """Calculate the linear base line."""
-        cut_indx = int(len(y)/2)
-        indx_left = np.argmin(y[:cut_indx])
-        indx_right = np.argmin(y[cut_indx:]) + cut_indx
-        x_left = x[indx_left]
-        x_right = x[indx_right]
-        y_left = y[indx_left]
-        y_right = y[indx_right]
-
-        base_line = (y_right - y_left)*(x-x_left)/(x_right - x_left) + \
-            y_left
-        return base_line, indx_left, indx_right
