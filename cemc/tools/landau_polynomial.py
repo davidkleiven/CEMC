@@ -85,7 +85,6 @@ class TwoPhaseLandauPolynomial(object):
         self.init_guess = init_guess
         self.num_dir = num_dir
         self.boundary_coeff = None
-        self.bounds = None
 
     @array_func
     def equil_shape_order(self, conc):
@@ -155,48 +154,12 @@ class TwoPhaseLandauPolynomial(object):
 
         :param float conc: Concentration
         """
-        if self.bounds is not None:
-            if conc < self.bounds[0]:
-                return np.polyval(self.boundary_coeff[0], conc)
-            elif conc > self.bounds[1]:
-                return np.polyval(self.boundary_coeff[1], conc)
 
         n_eq = self.equil_shape_order(conc)
         return np.polyval(self.conc_coeff, conc - self.c1) + \
             self._eval_phase2(conc)*n_eq**2 + \
             self.coeff_shape[0]*n_eq**4 + \
             self.coeff_shape[2]*n_eq**6
-
-    def construct_end_of_domain_barrier(self, f_range):
-        """Construct a barrier on the end of the domain."""
-        coeff = []
-        assert self.bounds is not None
-
-        for i, lim in enumerate(self.bounds):
-            # Lower limit
-            value = self.evaluate(lim)
-            deriv = self.partial_derivative(lim)
-            matrix = np.zeros((3, 3))
-            rhs = np.zeros(3)
-
-            # Continuity
-            matrix[0, 0] = lim**2
-            matrix[0, 1] = lim
-            matrix[0, 2] = 1.0
-            rhs[0] = value
-
-            # Smooth
-            matrix[1, 0] = 2*lim
-            matrix[1, 1] = 1.0
-            rhs[1] = deriv
-
-            # Positive curvature
-            d = 0.1*(self.bounds[1] - self.bounds[0])
-            matrix[2, 0] = 1.0
-            rhs[2] = 0.01*f_range/d**2
-            new_coeff = np.linalg.solve(matrix, rhs)
-            coeff.append(new_coeff)
-        return coeff
 
     @array_func
     def evaluate(self, conc, shape=None):
@@ -208,11 +171,6 @@ class TwoPhaseLandauPolynomial(object):
             If None, the shape order parameters are set to their
             equillibrium
         """
-        if self.bounds is not None:
-            if conc < self.bounds[0]:
-                return np.polyval(self.boundary_coeff[0], conc)
-            elif conc > self.bounds[1]:
-                return np.polyval(self.boundary_coeff[1], conc)
 
         if shape is None:
             return self.eval_at_equil(conc)
@@ -257,11 +215,6 @@ class TwoPhaseLandauPolynomial(object):
         shape = full_shape
 
         if var == "conc":
-            if self.bounds and conc < self.bounds[0]:
-                return np.polyval(np.polyder(self.boundary_coeff[0]), conc)
-            elif self.bounds and conc > self.bounds[1]:
-                return np.polyval(np.polyder(self.boundary_coeff[1]), conc)
-
             p1_der = np.polyder(self.conc_coeff)
             p2_der = np.polyder(self.conc_coeff2)
             return np.polyval(p1_der, conc-self.c1) + \
@@ -394,58 +347,6 @@ class TwoPhaseLandauPolynomial(object):
         self.conc_coeff2 = res["x"][:-2]
         self.coeff_shape[0] = res["x"][-2]
         self.coeff_shape[2] = res["x"][-1]
-        self.bounds = [np.min(conc), np.max(conc)]
-        f_range = np.max(free_energy) - np.min(free_energy)
-        self.boundary_coeff = self.construct_end_of_domain_barrier(f_range)
-
-    def locate_common_tangent(self, loc1, loc2):
-        """Locate a common tangent point in the vicinity of loc1 and loc2."""
-        from scipy.optimize import newton
-
-        def func(x):
-            deriv1 = self.partial_derivative(x[0])
-            deriv2 = self.partial_derivative(x[1])
-            value1 = self.evaluate(x[0])
-            value2 = self.evaluate(x[1])
-
-            eq1 = deriv1 - deriv2
-            eq2 = deriv1*(x[1] - x[0]) + value1 - value2
-            return np.array([eq1, eq2])
-
-        x0 = np.array([loc1, loc2])
-        res = newton(func, x0, maxiter=5000)
-
-        slope = self.partial_derivative(res[0])
-        return res, slope
-
-    def slaved_gradient_coefficients(self, conc_grad_coeff, interface_energies,
-                                     density):
-        """Calculate the gradient coefficients based on slaved order
-        parameters."""
-
-        grad = []
-
-        def equation(value, gamma):
-            N = 100
-            x = np.linspace(self.bounds[0], self.bounds[1], N)
-            deriv = [self.equil_shape_order_derivative(x[i]) for i in range(N)]
-            f = [self.evaluate(x[i]) for i in range(N)]
-            f = np.array(f)
-            deriv = np.array(deriv)
-            f1 = f[0]
-            f2 = f[-1]
-            slope = (f2 - f1)/(x[-1] - x[0])
-            interscept = f1 - slope*x[0]
-            f -= (slope*x + interscept)
-            f -= np.min(f)
-            integrand = np.sqrt(f)*np.sqrt(conc_grad_coeff + value*deriv**2)
-            dx = x[1] - x[0]
-            return 2.0*density*np.trapz(integrand, dx=dx) - gamma
-
-        for energy in interface_energies:
-            res = fsolve(equation, conc_grad_coeff, args=(energy,))[0]
-            grad.append(res)
-        return grad
 
     def save_poly_terms(self, fname="pypolyterm.csv"):
         """Store the required arguments that can be used to 
