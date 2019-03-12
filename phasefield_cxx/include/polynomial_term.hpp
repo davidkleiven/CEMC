@@ -1,6 +1,7 @@
 #ifndef POLYNOMIAL_TERM_H
 #define POLYNOMIAL_TERM_H
 #include <vector>
+#include <iostream>
 
 typedef std::vector<unsigned int> uintvec_t;
 
@@ -20,6 +21,9 @@ public:
 
     /** Return the dimension of the polynomial term*/
     unsigned int get_dim() const{return dim;};
+
+    /** Stream operator */
+    friend std::ostream& operator<<(std::ostream &out, const PolynomialTerm &instance);
 private:
     unsigned int dim;
     unsigned int *inner_power{nullptr};

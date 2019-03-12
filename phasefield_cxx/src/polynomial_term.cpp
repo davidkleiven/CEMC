@@ -1,6 +1,8 @@
 #include "polynomial_term.hpp"
 #include <cmath>
 
+using namespace std;
+
 PolynomialTerm::PolynomialTerm(const uintvec_t &i_power){
         dim = i_power.size();
 
@@ -72,4 +74,12 @@ double PolynomialTerm::deriv(double x[], unsigned int crd) const{
         }
     }
     return value;
+}
+
+ostream& operator<< (ostream& out, const PolynomialTerm& instance){
+    out << "Dim: " << instance.dim << " " << "Powers: ";
+    for (unsigned int i=0;i<instance.dim;i++){
+        out << " " << instance.inner_power[i];
+    }
+    return out;
 }
