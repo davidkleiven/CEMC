@@ -69,7 +69,7 @@ for arg in sys.argv:
         extracted_args.append(arg)
     elif arg == "--NO_PHASEFIELD_PARALLEL":
         define_macros.append(("NO_PHASEFIELD_PARALLEL", None))
-        extra_comp_args.append(arg)
+        extracted_args.append(arg)
     elif arg == "--HAS_FFTW":
         define_macros.append(("HAS_FFTW", None))
         optional_lib_phasefield.append("fftw")
