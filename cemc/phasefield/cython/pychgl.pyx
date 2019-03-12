@@ -94,3 +94,11 @@ cdef class PyCHGL:
             self.thisptr2D.add_free_energy_term(coeff, deref(term.thisptr))
         elif self.dim == 3:
             self.thisptr3D.add_free_energy_term(coeff, deref(term.thisptr))
+
+    def print_polynomial(self):
+        if self.dim == 1:
+            self.thisptr1D.print_polynomial()
+        elif self.dim == 2:
+            self.thisptr2D.print_polynomial()
+        elif self.dim == 3:
+            self.thisptr3D.print_polynomial()

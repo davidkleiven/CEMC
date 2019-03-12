@@ -27,6 +27,9 @@ public:
     /** Add a new free energy term to the model */
     void add_free_energy_term(double coeff, const PolynomialTerm &polyterm);
 
+    /** Print the polynomial used to screen */
+    void print_polynomial() const;
+
     /** Implement the update function */
     virtual void update(int nsteps) override;
 private:

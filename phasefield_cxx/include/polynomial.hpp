@@ -1,6 +1,7 @@
 #ifndef POLYNOMIAL_H
 #define POLYNOMIAL_H
 #include "polynomial_term.hpp"
+#include <iostream>
 
 class Polynomial{
 public:
@@ -14,6 +15,8 @@ public:
 
     /** Evaluate the derivative of the polynomial */
     double deriv(double x[], unsigned int crd) const;
+
+    friend std::ostream& operator << (std::ostream& out, const Polynomial &instance);
 private:
     unsigned int dim;
     std::vector<PolynomialTerm> terms;

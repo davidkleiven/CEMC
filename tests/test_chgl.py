@@ -30,6 +30,7 @@ class TestCHGL(unittest.TestCase):
         if not available:
             self.skipTest(reason)
         chgl = self.get_chgl()
+        chgl.print_polynomial()
         chgl.random_initialization([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
         chgl.run(5, 1000)
 

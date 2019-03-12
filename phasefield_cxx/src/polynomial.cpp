@@ -32,3 +32,10 @@ double Polynomial::deriv(double x[], unsigned int crd) const{
     }
     return value;
 }
+
+ostream& operator <<(ostream& out, const Polynomial &instance){
+    for (unsigned int i=0;i<instance.coeff.size();i++){
+        out << "Coeff: " << instance.coeff[i] << " " << instance.terms[i] << "\n";
+    }
+    return out;
+}

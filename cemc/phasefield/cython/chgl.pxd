@@ -26,3 +26,5 @@ cdef extern from "chgl.hpp":
         object to_npy_array() except +
 
         void add_free_energy_term(double coeff, PolynomialTerm &polyter)
+
+        void print_polynomial()
