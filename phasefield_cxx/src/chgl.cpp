@@ -26,7 +26,7 @@ CHGL<dim>::CHGL(int L, const std::string &prefix, unsigned int num_gl_fields, \
 
 template<int dim>
 CHGL<dim>::~CHGL(){
-    delete cmplx_grid_ptr;
+    delete cmplx_grid_ptr; cmplx_grid_ptr = nullptr;
 }
 
 template<int dim>
@@ -53,8 +53,8 @@ void CHGL<dim>::update(int nsteps){
 	MMSP::grid<dim, MMSP::vector<fftw_complex> >& gr = *(this->cmplx_grid_ptr);
 	MMSP::ghostswap(gr);
 
-    MMSP::grid<dim, MMSP::vector<fftw_complex> > free_energy_real_space(gr);
     MMSP::grid<dim, MMSP::vector<fftw_complex> > ft_fields(gr);
+    MMSP::grid<dim, MMSP::vector<fftw_complex> > free_energy_real_space(gr);
 
 	// MMSP::grid<dim, MMSP::vector<fftw_complex> > temp(gr);
 	// MMSP::grid<dim, MMSP::vector<fftw_complex> > new_gr(gr);

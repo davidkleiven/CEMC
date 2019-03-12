@@ -28,7 +28,7 @@ PhaseFieldSimulation<dim>::PhaseFieldSimulation(int L, \
 
 template<int dim>
 PhaseFieldSimulation<dim>::~PhaseFieldSimulation(){
-    delete grid_ptr;
+    delete grid_ptr; grid_ptr = nullptr;
 }
 
 template<int dim>
@@ -53,8 +53,10 @@ void PhaseFieldSimulation<dim>::random_initialization(double lower, double upper
 template<int dim>
 void PhaseFieldSimulation<dim>::run(unsigned int start, unsigned int nsteps, int increment){
     for (unsigned int iter=start;iter<nsteps+start; iter+=increment){
+        cout << "Simulation start...\n";
         this->update(increment);
 
+        cout << "Saving output...\n";
         // Generate output filename
         stringstream ss;
         ss << prefix << get_digit_string(iter+increment) << ".grid";

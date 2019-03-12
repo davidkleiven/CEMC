@@ -39,6 +39,17 @@ void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in,
         throw std::invalid_argument(ss.str());
     }
 
+    // Check that the ft_fields argument is find
+    for (auto field : ft_fields){
+        if (field >= MMSP::fields(grid_in)){
+            std::stringstream ss;
+            ss << "Argument ft_fields is inconsistent ";
+            ss << "FFT of field no. " << field << " requested, ";
+            ss << "there are only " << MMSP::fields(grid_in) << " fields";
+            throw std::invalid_argument(ss.str());
+        }
+    }
+
     // Construct array that FFTW can use
     fftw_complex *A = new fftw_complex[num_elements];
 
@@ -48,9 +59,8 @@ void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in,
         #pragma omp parallel for
         #endif
         for (unsigned int i=0;i<MMSP::nodes(grid_in);i++){
-            A[i] = grid_in(field)[i];
+            A[i] = grid_in(i)[field];
         }
-
         // Perform the FFT
         // TODO: See if FFTW can utilize multithreading
         fftwnd_one(plan, A, NULL);
@@ -60,7 +70,7 @@ void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in,
         #pragma omp parallel for
         #endif
         for (unsigned int i=0;i<MMSP::nodes(grid_out);i++){
-            grid_out(field)[i] = A[i];
+            grid_out(i)[field] = A[i];
         }
     }
 
@@ -68,6 +78,7 @@ void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in,
     fftwnd_destroy_plan(plan);
 };
 #endif
+
 
 template<int dim>
 void get_dims(const MMSP::grid<dim, MMSP::vector<fftw_complex> >&grid_in, int dims[3]){
