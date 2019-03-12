@@ -351,45 +351,20 @@ class TwoPhaseLandauPolynomial(object):
         self.coeff_shape[0] = res["x"][-2]
         self.coeff_shape[2] = res["x"][-1]
 
-    def save_poly_terms(self, fname="pypolyterm.csv"):
-        """Store the required arguments that can be used to 
+    def save_poly_terms(self, fname="pypolyterm.json"):
+        """Store the required arguments that can be used to
             construct poly terms for phase field calculations."""
-        num_terms = len(self.conc_coeff) + len(self.conc_coeff2) + len(self.coeff_shape)
+        data = {}
+        data["phase_one"] = self.conc_coeff.tolist()
+        data["phase_two"] = self.conc_coeff2.tolist()
+        data["shape_coeff"] = self.coeff_shape.tolist()
 
-        data = np.zeros((num_terms, self.num_dir+1+2))
-        header = "Coefficient, Inner powers ()..., outer power"
-        row = 0
+        with open(fname, 'w') as outfile:
+            json.dump(data, outfile, indent=2)
+        print("Coefficient stored in {}".format(fname))
 
-        # Coefficients from the first phase
-        for i in range(len(self.conc_coeff)):
-            data[row, 0] = self.conc_coeff[i]
-            data[row, 1] = len(self.conc_coeff) - i
-            data[row, -1] = 1.0
-            row += 1
-
-        # Coefficient in the second phase
-        coeff = self.conc_coeff2
-        for i in range(len(coeff)):
-            data[row, 0] = coeff[i]
-            data[row, 1] = len(coeff) - i
-            data[row, 2:-1] = 2.0
-            data[row, -1] = 1.0
-            row += 1
-
-        # Pure shape parameter terms
-        data[row, 0] = self.coeff_shape[0]
-        data[row, 2:-1] = 4
-        data[row, -1] = 1.0
-        row += 1
-
-        data[row, 0] = self.coeff_shape[2]
-        data[row, 2:-1] = 2
-        data[row, -1] = 3
-        row += 1
-        np.savetxt(fname, data, delimiter=",", header=header)
-        print("Polynomial data written to {}".format(fname))
-
-    def _equil_shape_fixed_conc_and_shape_intermediates(self, conc, shape, min_type):
+    def _equil_shape_fixed_conc_and_shape_intermediates(self, conc, shape,
+                                                        min_type):
         """Return helper quantities for the equillibrium shape."""
         K = self._eval_phase2(conc)
         K += self.coeff_shape[1]*shape**2
@@ -405,7 +380,8 @@ class TwoPhaseLandauPolynomial(object):
         return K, Q, D
 
     @array_func
-    def equil_shape_fixed_conc_and_shape(self, conc, shape=None, min_type="pure"):
+    def equil_shape_fixed_conc_and_shape(self, conc, shape=None,
+                                         min_type="pure"):
         """Return the equillibrium shape parameter.
 
         :param float conc: Concentration
