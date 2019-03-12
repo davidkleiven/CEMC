@@ -41,6 +41,9 @@ cdef class PyCHGL:
         del self.thisptr1D
         del self.thisptr2D
         del self.thisptr3D
+        self.thisptr1D = NULL
+        self.thisptr2D = NULL
+        self.thisptr3D = NULL
 
     def run(self, nsteps, increment, start=0):
         if self.dim == 1:
