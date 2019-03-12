@@ -141,7 +141,7 @@ class TwoPhaseLandauPolynomial(object):
         if n_eq <= 0.0:
             return 0.0
         p_der = np.polyder(self.conc_coeff2)
-        return -0.5*np.polyval(p_der, conc-self.c2) / \
+        return -0.5*np.polyval(p_der, conc) / \
             (3*np.sqrt(delta)*D*2*n_eq)
 
     def _eval_phase2(self, conc):
@@ -149,7 +149,7 @@ class TwoPhaseLandauPolynomial(object):
 
         :param float conc:
         """
-        return np.polyval(self.conc_coeff2, conc - self.c2)
+        return np.polyval(self.conc_coeff2, conc)
 
     @array_func
     def eval_at_equil(self, conc):
@@ -159,7 +159,7 @@ class TwoPhaseLandauPolynomial(object):
         """
 
         n_eq = self.equil_shape_order(conc)
-        return np.polyval(self.conc_coeff, conc - self.c1) + \
+        return np.polyval(self.conc_coeff, conc) + \
             self._eval_phase2(conc)*n_eq**2 + \
             self.coeff_shape[0]*n_eq**4 + \
             self.coeff_shape[2]*n_eq**6
@@ -181,8 +181,7 @@ class TwoPhaseLandauPolynomial(object):
         full_shape = np.zeros(3)
         full_shape[:len(shape)] = shape
         shape = full_shape
-
-        return np.polyval(self.conc_coeff, conc - self.c1) + \
+        return np.polyval(self.conc_coeff, conc) + \
             self._eval_phase2(conc)*np.sum(shape**2) + \
             self.coeff_shape[0]*np.sum(shape**4) + \
             self.coeff_shape[1]*(shape[0]**2 * shape[1]**2 +
@@ -220,8 +219,8 @@ class TwoPhaseLandauPolynomial(object):
         if var == "conc":
             p1_der = np.polyder(self.conc_coeff)
             p2_der = np.polyder(self.conc_coeff2)
-            return np.polyval(p1_der, conc-self.c1) + \
-                np.polyval(p2_der, conc-self.c2)*np.sum(shape**2)
+            return np.polyval(p1_der, conc) + \
+                np.polyval(p2_der, conc)*np.sum(shape**2)
 
         elif var == "shape":
             d = direction
@@ -245,35 +244,35 @@ class TwoPhaseLandauPolynomial(object):
         """
         conc = np.concatenate((conc1, conc2))
         free_energy = np.concatenate((F1, F2))
-        # self.conc_coeff = np.polyfit(conc1 - self.c1, F1, self.conc_order1)
+
         X = np.zeros((len(conc1), self.conc_order1+1))
         for power in range(self.conc_order1):
-            X[:, power] = (conc1 - self.c1)**(self.conc_order1-power)
+            X[:, power] = conc1**(self.conc_order1-power)
         y = F1.copy()
-        indx = np.argmin((np.abs(conc1 - self.c2)))
+        indx = np.argmin((np.abs(conc1)))
         slope = (F1[indx] - F1[0])/(conc1[indx] - conc1[0])
         y[conc1 > self.c2] = y[indx]
         self.conc_coeff = np.linalg.lstsq(X, y)[0]
 
-        remains = F2 - np.polyval(self.conc_coeff, conc2 - self.c1)
+        remains = F2 - np.polyval(self.conc_coeff, conc2)
 
-        S1 = np.sum(remains*(conc2 - self.c2))
-        S2 = np.sum((conc2 - self.c2)**2)
+        S1 = np.sum(remains*(conc2))
+        S2 = np.sum((conc2)**2)
         B = S1/S2
 
-        S1 = np.sum((conc2 - self.c2))
-        S2 = np.sum((conc2 - self.c2)**2)
+        S1 = np.sum((conc2))
+        S2 = np.sum((conc2)**2)
         K = S1/S2
         C = -B/(2.0*K)
 
         # Guess initial parameters
         mask = conc2 >= self.c2
-        S1 = np.sum(remains[mask]*(conc2[mask] - self.c2))
-        S2 = np.sum((conc2[mask] - self.c2)**2)
+        S1 = np.sum(remains[mask]*(conc2[mask]))
+        S2 = np.sum((conc2[mask])**2)
         B = S1/S2
 
-        S1 = np.sum(remains*(conc2 - self.c2)**2)
-        S2 = np.sum((conc2 - self.c2)**4)
+        S1 = np.sum(remains*(conc2)**2)
+        S2 = np.sum((conc2)**4)
         K = S1/S2
         C = - 0.5*B**2/K
 
@@ -354,10 +353,47 @@ class TwoPhaseLandauPolynomial(object):
     def save_poly_terms(self, fname="pypolyterm.json"):
         """Store the required arguments that can be used to
             construct poly terms for phase field calculations."""
+        from itertools import permutations
+        import json
         data = {}
-        data["phase_one"] = self.conc_coeff.tolist()
-        data["phase_two"] = self.conc_coeff2.tolist()
-        data["shape_coeff"] = self.coeff_shape.tolist()
+        data["terms"] = []
+        num_terms = len(self.conc_coeff)
+        for power, c in enumerate(self.conc_coeff.tolist()):
+            entry = {
+                "coeff": c,
+                "powers": [num_terms-power-1, 0, 0, 0]
+            }
+            data["terms"].append(entry)
+
+        num_terms = len(self.conc_coeff2)
+        for power, c in enumerate(self.conc_coeff2.tolist()):
+            for active_shape in range(1, 4):
+                entry = {
+                    "coeff": c,
+                    "powers": [num_terms-power-1, 0, 0, 0]
+                }
+                entry["powers"][active_shape] = 2
+                data["terms"].append(entry)
+
+        power_templates = [
+            [4, 0, 0],
+            [2, 2, 0],
+            [6, 0, 0],
+            [4, 2, 0],
+            [2, 2, 2]
+        ]
+
+        for i, p_template in enumerate(power_templates):
+            used_perms = set()
+            for perm in permutations(p_template):
+                if perm in used_perms:
+                    continue
+                entry = {
+                    "coeff": self.coeff_shape[i],
+                    "powers": [0] + list(perm)
+                }
+                used_perms.add(perm)
+                data["terms"].append(entry)
 
         with open(fname, 'w') as outfile:
             json.dump(data, outfile, indent=2)

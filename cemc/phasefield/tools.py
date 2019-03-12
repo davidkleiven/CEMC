@@ -1,4 +1,5 @@
 import numpy as np
+import json
 
 
 def cahn_hilliard_surface_parameter(conc, free_energy, interfacial_energy, density):
@@ -20,21 +21,18 @@ def cahn_hilliard_surface_parameter(conc, free_energy, interfacial_energy, densi
 
 
 def get_polyterms(fname):
-    """Parse csv file and return list of PyPolyterms.
+    """Parse JSON file and return list of PyPolyterms.
 
-    :param str fname: CSV file with coefficients and powers
+    :param str fname: JSON file with the parameters
     """
     from phasefield_cxx import PyPolynomialTerm
 
-    data = np.loadtxt(fname, delimiter=",")
+    with open(fname, 'r') as infile:
+        data = json.load(infile)
 
     poly_terms = []
     coefficients = []
-    for row in range(data.shape[0]):
-        coeff = data[row, 0]
-        inner_pow = data[row, 1:-1].astype(np.int32)
-        outer_pow = int(data[row, -1])
-
-        poly_terms.append(PyPolynomialTerm(inner_pow, outer_pow))
-        coefficients.append(coeff)
+    for entry in data["terms"]:
+        poly_terms.append(PyPolynomialTerm(entry["powers"]))
+        coefficients.append(entry["coeff"])
     return coefficients, poly_terms

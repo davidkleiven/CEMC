@@ -54,9 +54,9 @@ PolynomialTerm::~PolynomialTerm(){
 }
 
 double PolynomialTerm::evaluate(double x[]) const{
-    double value = 0.0;
+    double value = 1.0;
     for (unsigned int i=0;i<dim;i++){
-        value += pow(x[i] - centers[i], inner_power[i]);
+        value *= pow(x[i] - centers[i], inner_power[i]);
     }
     return value;
 }
@@ -65,5 +65,10 @@ double PolynomialTerm::deriv(double x[], unsigned int crd) const{
     if (inner_power[crd] == 0){
         return 0.0;
     }
-    return inner_power[crd]*pow(x[crd] - centers[crd], inner_power[crd]-1);
+    double value = inner_power[crd]*pow(x[crd] - centers[crd], inner_power[crd]-1);
+    for (unsigned int i=0;i<dim;i++){
+        if (i != crd){
+            value *= pow(x[i] - centers[i], inner_power[i]);
+        }
+    }
 }

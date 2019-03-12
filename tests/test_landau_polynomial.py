@@ -1,8 +1,10 @@
 import unittest
 import numpy as np
+import os
 try:
     from cemc.tools import TwoPhaseLandauPolynomial
     from phasefield_cxx import PyTwoPhaseLandau
+    from cemc.phasefield.tools import get_polyterms
     available = True
     reason = ""
 except ImportError as exc:
@@ -65,11 +67,15 @@ class TestLandauPolynomial(unittest.TestCase):
         conc = 0.4
         shape = 0.2
         pd_conc = poly.partial_derivative(conc, shape=shape, var="conc")
-        expected = -1.112
+        expected = np.polyval(np.polyder(poly.conc_coeff), conc)
+        expected += np.polyval(np.polyder(poly.conc_coeff2), conc)*shape**2
         self.assertAlmostEqual(pd_conc, expected)
 
         pd_shape = poly.partial_derivative(conc, shape=shape, var="shape")
         expected = -0.0104
+        expected = np.polyval(poly.conc_coeff2, conc)*2*shape + \
+            4*2*shape**3 + 6*5*shape**5
+
         self.assertAlmostEqual(pd_shape, expected)
 
     def test_equil_deriv(self):
@@ -77,7 +83,7 @@ class TestLandauPolynomial(unittest.TestCase):
             self.skipTest(reason)
         poly = TwoPhaseLandauPolynomial(c1=0.0, c2=0.5)
         poly.conc_coeff = [1, -2, 3]
-        poly.conc_coeff2 = [-1, 2, 0]
+        poly.conc_coeff2 = [-1, 3, -1.5]
         poly.coeff_shape[0] = 2
         poly.coeff_shape[2] = 5
 
@@ -227,6 +233,44 @@ class TestLandauPolynomial(unittest.TestCase):
         # Case 10: Concentration list and shape list has wrong dimensions
         with self.assertRaises(ValueError):
             poly.evaluate([0.2, 0.3], shape=[[0.1, 0.0, 0.0]])
+
+    def test_export(self):
+        poly = TwoPhaseLandauPolynomial(c1=0.0, c2=0.0, conc_order1=3,
+                                        conc_order2=4)
+        poly.conc_coeff[:] = np.array([4.0, 5.0, -2.0, 1.0])
+        poly.conc_coeff2[:] = np.array([2.0, -1.0, 0.2, -5.0, 10.0])
+        poly.coeff_shape[:] = [2.0, -1.0, 3.0, 2.3, 5.0]
+
+        fname = "landau_export.json"
+        poly.save_poly_terms(fname=fname)
+
+        # Get the polynomials
+        try:
+            coefficients, poly_terms = get_polyterms(fname)
+        except ImportError as exc:
+            os.remove(fname)
+            self.skipTest(str(exc))
+
+        # Construct a polynomial from this
+        poly_raw = None
+        try:
+            from phasefield_cxx import PyPolynomial
+            poly_raw = PyPolynomial(4)
+        except ImportError as exc:
+            os.remove(fname)
+            self.skipTest(str(exc))
+
+        for c, term in zip(coefficients, poly_terms):
+            poly_raw.add_term(c, term)
+
+        # Try to evaluate
+        conc = 0.5
+        shape = [0.2, 0.6, 0.1]
+        expect = poly.evaluate(conc, shape=shape)
+        exported_value = poly_raw.evaluate([conc] + shape)
+        self.assertAlmostEqual(expect, exported_value)
+        os.remove(fname)
+
 
 
 def show_fit(poly, conc1, conc2, F1, F2):
