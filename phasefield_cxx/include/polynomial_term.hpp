@@ -6,8 +6,8 @@ typedef std::vector<unsigned int> uintvec_t;
 
 class PolynomialTerm{
 public:
-    PolynomialTerm(const uintvec_t &inner_power, unsigned int outer_power);
-    PolynomialTerm(unsigned int dim, unsigned int inner_power, unsigned int outer_power);
+    PolynomialTerm(const uintvec_t &inner_power);
+    PolynomialTerm(unsigned int dim, unsigned int inner_power);
     PolynomialTerm(const PolynomialTerm &other);
     PolynomialTerm& operator=(const PolynomialTerm &other);
     ~PolynomialTerm();
@@ -22,7 +22,6 @@ public:
     unsigned int get_dim() const{return dim;};
 private:
     unsigned int dim;
-    unsigned int outer_power{1};
     unsigned int *inner_power{nullptr};
     double *centers{nullptr};
 

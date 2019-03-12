@@ -13,20 +13,15 @@ class TestPolynomialTerm(unittest.TestCase):
         if not available:
             self.skipTest(reason)
         power = [2]
-        term = PyPolynomialTerm(power, 1)
+        term = PyPolynomialTerm(power)
         self.assertAlmostEqual(term.evaluate([2.0]), 4.0)
         self.assertAlmostEqual(term.deriv([2.0], 0), 4.0)
 
         power = [2, 3]
-        term = PyPolynomialTerm(power, 1)
+        term = PyPolynomialTerm(power)
         self.assertAlmostEqual(term.evaluate([2.0, -4.0]), -60.0)
         self.assertAlmostEqual(term.deriv([2.0, -4.0], 0), 4.0)
         self.assertAlmostEqual(term.deriv([2.0, -4.0], 1), 3*16)
-
-        term = PyPolynomialTerm(power, 2)
-        self.assertAlmostEqual(term.evaluate([2.0, -4.0]), 3600.0)
-        self.assertAlmostEqual(term.deriv([2.0, -4.0], 0), 2*-60.0*2*2.0)
-        self.assertAlmostEqual(term.deriv([2.0, -4.0], 1), 2*-60.0*3*16.0)
 
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner

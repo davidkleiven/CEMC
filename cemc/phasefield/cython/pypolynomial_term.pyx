@@ -7,11 +7,11 @@ from libcpp.vector cimport vector
 cdef class PyPolynomialTerm:
     cdef PolynomialTerm *thisptr
 
-    def __cinit__(self, inner_power, outer_power):
+    def __cinit__(self, inner_power):
         cdef vector[unsigned int] vec
         for x in inner_power:
             vec.push_back(x)
-        self.thisptr = new PolynomialTerm(vec, outer_power)
+        self.thisptr = new PolynomialTerm(vec)
 
     def __dealloc__(self):
         del self.thisptr
