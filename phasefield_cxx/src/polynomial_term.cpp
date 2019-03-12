@@ -71,4 +71,5 @@ double PolynomialTerm::deriv(double x[], unsigned int crd) const{
             value *= pow(x[i] - centers[i], inner_power[i]);
         }
     }
+    return value;
 }

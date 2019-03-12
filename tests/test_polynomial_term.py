@@ -19,9 +19,9 @@ class TestPolynomialTerm(unittest.TestCase):
 
         power = [2, 3]
         term = PyPolynomialTerm(power)
-        self.assertAlmostEqual(term.evaluate([2.0, -4.0]), -60.0)
-        self.assertAlmostEqual(term.deriv([2.0, -4.0], 0), 4.0)
-        self.assertAlmostEqual(term.deriv([2.0, -4.0], 1), 3*16)
+        self.assertAlmostEqual(term.evaluate([2.0, -4.0]), -256.0)
+        self.assertAlmostEqual(term.deriv([2.0, -4.0], 0), -256.0)
+        self.assertAlmostEqual(term.deriv([2.0, -4.0], 1), 3*4*16)
 
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
