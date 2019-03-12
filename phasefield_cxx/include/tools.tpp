@@ -8,6 +8,37 @@ void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in,
     fftwnd_plan plan = fftwnd_create_plan(dim, dims, direction, FFTW_ESTIMATE | FFTW_IN_PLACE);
 
     int num_elements = MMSP::nodes(grid_in);
+
+    // Ensure consistent nodes
+    if (MMSP::nodes(grid_out) != num_elements){
+        std::stringstream ss;
+        ss << "Output and input lattice has different number of nodes! ";
+        ss << "Input: " << num_elements << " Output: " << MMSP::nodes(grid_out);
+        throw std::invalid_argument(ss.str());
+    }
+
+    // Ensure consistent number of fields
+    if (MMSP::fields(grid_in) != MMSP::fields(grid_out)){
+        std::stringstream ss;
+        ss << "Number of fields in input and output lattice are different! ";
+        ss << "Input: " << MMSP::fields(grid_in) << " Output: " << MMSP::fields(grid_out);
+        throw std::invalid_argument(ss.str());
+    }
+
+    // Check consistent dimensions
+    int num_elems_from_dims = 1;
+    for (unsigned int i=0;i<dim;i++){
+        num_elems_from_dims *= dims[i];
+    }
+
+    if (num_elems_from_dims != num_elements){
+        std::stringstream ss;
+        ss << "Dimension passed is inconsistent. Number of elements ";
+        ss << "in the lattices " << num_elements << " Number of elements ";
+        ss << "from dimension array: " << num_elems_from_dims;
+        throw std::invalid_argument(ss.str());
+    }
+
     // Construct array that FFTW can use
     fftw_complex *A = new fftw_complex[num_elements];
 

@@ -4,6 +4,8 @@
 #include "MMSP.vector.h"
 #include "fftw_complex_placeholder.hpp"
 #include <vector>
+#include <sstream>
+#include <stdexcept>
 
 template<int dim, typename T>
 T partial_double_derivative(const MMSP::grid<dim, T> &GRID, const MMSP::vector<int> &x, unsigned int dir){
