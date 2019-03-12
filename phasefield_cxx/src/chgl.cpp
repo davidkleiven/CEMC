@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <sstream>
 #include <omp.h>
+#include <iostream>
 
 using namespace std;
 
@@ -69,7 +70,6 @@ void CHGL<dim>::update(int nsteps){
 		if (rank == 0){
 			MMSP::print_progress(step, nsteps);
 		}
-        
         #ifndef NO_PHASEFIELD_PARALLEL
         #pragma omp parallel for
         #endif
@@ -79,14 +79,12 @@ void CHGL<dim>::update(int nsteps){
             for (unsigned int i=0;i<phi.length();i++){
                 phi_real[i] = phi[i].re;
             }
-
-            MMSP::vector<fftw_complex> free_eng_deriv;
+            MMSP::vector<fftw_complex> free_eng_deriv(phi.length());
             double *phi_raw_ptr = &(phi_real[0]);
             for (unsigned int j=0;j<phi.length();j++){
                 free_eng_deriv[j].re = free_energy.deriv(phi_raw_ptr, j);
                 free_eng_deriv[j].im = 0.0;
             }
-
             free_energy_real_space(i) = free_eng_deriv;
         }
 
@@ -102,7 +100,7 @@ void CHGL<dim>::update(int nsteps){
         #endif
 		for (int i=0;i<MMSP::nodes(gr);i++){
             MMSP::vector<int> pos = gr.position(i);
-            MMSP::vector<double> k_vec;
+            MMSP::vector<double> k_vec(pos.length());
             k_vector(pos, k_vec, this->L);
             double k = norm(k_vec);
 
@@ -114,7 +112,7 @@ void CHGL<dim>::update(int nsteps){
             for (unsigned int field=1;field<MMSP::fields(gr);field++){
                 double interface_term = 0.0;
                 for (unsigned int dir=0;dir<dim;dir++){
-                    interface_term += interface[field][dir]*pow(k_vec[dir], 2);
+                    interface_term += interface[field-1][dir]*pow(k_vec[dir], 2);
                 }
 
                 ft_fields(i)[field].re = (ft_fields(i)[field].re - gr(i)[field].re*gl_damping*dt) / \
@@ -215,6 +213,11 @@ void CHGL<dim>::to_parent_grid() const{
     {
         (*(this->grid_ptr))(i)[field] = (*(this->cmplx_grid_ptr))(i)[field].re;
     }
+}
+
+template<int dim>
+void CHGL<dim>::print_polynomial() const{
+    cout << free_energy << endl;
 }
 
 
