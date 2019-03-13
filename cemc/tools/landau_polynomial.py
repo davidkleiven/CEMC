@@ -234,13 +234,22 @@ class TwoPhaseLandauPolynomial(object):
         else:
             raise ValueError("Unknown derivative type!")
 
-    def fit(self, conc1, F1, conc2, F2, minimum_at_ends=True):
+    def fit(self, conc1, F1, conc2, F2, minimum_at_ends=True, weights={}):
         """Fit the free energy functional.
 
         :param numpy.ndarray conc1: Concentrations in the first phase
         :param numpy.ndarray F1: Free energy in the first phase
         :param numpy.ndarray conc2. Concentrations in the second phase
         :param numpy.ndarray F2: Free energy in the second phase
+        :param dict weights: Dictionary with penalty weights associated
+            with the shape order parameter deviating from the desired
+            behaviour. The following weights are available
+            eq_phase1: A cost term equal to sum(n_eq**2) for concentrations
+                less than self.c2 is added to the fitting cost function
+            eq_phase2: A cost term equal to (n_eq(c_min) - 1.0)**2 where
+                c_min is the concentration where F2 takes its minimum value.
+                The effect of this is to penalize solutions that has a shape
+                order paremter very different from one.
         """
         conc = np.concatenate((conc1, conc2))
         free_energy = np.concatenate((F1, F2))
@@ -249,38 +258,42 @@ class TwoPhaseLandauPolynomial(object):
         for power in range(self.conc_order1):
             X[:, power] = conc1**(self.conc_order1-power)
         y = F1.copy()
-        indx = np.argmin((np.abs(conc1)))
-        slope = (F1[indx] - F1[0])/(conc1[indx] - conc1[0])
+
+        # Find index where the concentration is larger the c2
+        indx = np.argmin((np.abs(conc1-self.c2)))
         y[conc1 > self.c2] = y[indx]
         self.conc_coeff = np.linalg.lstsq(X, y)[0]
 
         remains = F2 - np.polyval(self.conc_coeff, conc2)
 
-        S1 = np.sum(remains*(conc2))
-        S2 = np.sum((conc2)**2)
-        B = S1/S2
-
-        S1 = np.sum((conc2))
-        S2 = np.sum((conc2)**2)
-        K = S1/S2
-        C = -B/(2.0*K)
-
         # Guess initial parameters
         mask = conc2 >= self.c2
-        S1 = np.sum(remains[mask]*(conc2[mask]))
-        S2 = np.sum((conc2[mask])**2)
-        B = S1/S2
 
-        S1 = np.sum(remains*(conc2)**2)
-        S2 = np.sum((conc2)**4)
-        K = S1/S2
-        C = - 0.5*B**2/K
+        # Fit a polynomial to the last part assuming the equillibrium
+        # shape parameter is 1
+        self.conc_coeff2 = np.polyfit(remains[mask], conc2[mask],
+                                      self.conc_order2)
 
-        if self.init_guess is not None:
-            x0 = self.init_guess
-        else:
-            x0 = np.array([B, C, min([abs(B), abs(C)])])
+        # Try to find the two remaining parameters such that the
+        # equillibrium shape parameters is close to 1
+        pos1 = np.argmin(remains[mask])
+        c_min_phase2 = conc2[mask][pos1]
+        p2_1 = np.polyval(self.conc_coeff2, c_min_phase2)
 
+        # Second position (here n_eq = 0)
+        p2_2 = np.polyval(self.conc_coeff2, conc2[0])
+        C = -p2_2/2.0
+        D = (-p2_1 - 2*C)/3.0
+        self.coeff_shape[0] = C
+        self.coeff_shape[2] = D
+        #self.conc_coeff2[-1] -= (C+D)
+
+        # Confirm that the calculated shapr order parameter
+        # indeed is close to the 1 (as it is supposed to be)
+        #assert abs(self.equil_shape_order(c_min_phase2) - 1.0) < 1E-4
+
+        n_eq_phase1 = weights.get("eq_phase1", 0.0)
+        n_eq_phase2 = weights.get("eq_phase2", 0.0)
         def mse(x):
             self.conc_coeff2 = x[:self.conc_order2+1]
             self.coeff_shape[0] = x[-2]
@@ -292,7 +305,11 @@ class TwoPhaseLandauPolynomial(object):
             concs = np.linspace(0.0, self.c2, 10).tolist()
             n_eq = np.array(self.equil_shape_order(concs))
             mse_eq = np.sum(n_eq**2)
-            return mse + 10*mse_eq
+
+            # Also add penalty if order parameter is far from the expected
+            # value
+            n_eq = self.equil_shape_order(c_min_phase2)
+            return mse + n_eq_phase1*mse_eq + n_eq_phase2*(n_eq - 1.0)**2
 
         if SCIPY_VERSION < '1.2.1':
             raise RuntimeError("Scipy version must be larger than 1.2.1!")
@@ -322,10 +339,10 @@ class TwoPhaseLandauPolynomial(object):
 
         x0 = np.zeros(self.conc_order2+3)
 
-        B = -10  # TODO: We need to be able to set this
-        x0[-4] = B
+        B = 0.5  # TODO: We need to be able to set this
+        x0[:-2] = self.conc_coeff2
         x0[-2] = C
-        x0[-1] = 1.0
+        x0[-1] = D
 
         # Add constraint on the equillibrium shape parameter
         def n_eq_cnst(x):
@@ -486,13 +503,22 @@ class TwoPhaseLandauPolynomial(object):
         ax.plot(conc, ph1, label="Phase1")
         return fig
 
-    def fit_fixed_conc_varying_eta(self, conc, eta, free_energy):
+    def fit_fixed_conc_varying_eta(self, conc, eta, free_energy, weights={}):
         """Perform fit at fixed composition, but varying eta.
 
         :param float conc: Fixed concentration
         :param array eta: Array with eta values
-        :param array free_energy: Free energy densitties
+        :param array free_energy: Free energy densities
+        :param dict weights: Cost function to tune the fitting
+            Possible constraints:
+            w_peak: Penalize deviation between the peak of the predicted
+                energy and the free_energy array
+            center_peak: Penalize solutions where the peak is 
+                positioned far from the center.
         """
+
+        w_peak = weights.get("peak", 0.0)
+        w_peak_at_center = weights.get("center_peak", 0.0)
 
         def mse_function(x):
             self.coeff_shape[1] = x[0]
@@ -500,8 +526,14 @@ class TwoPhaseLandauPolynomial(object):
             pred = np.array(self.evaluate(conc, shape=eta))
 
             pred = np.array(pred)
-            mse = np.sum((pred - free_energy)**2)
-            return mse
+            mse = np.mean((pred - free_energy)**2)
+            peak_dev = np.max(pred) - np.max(free_energy)
+
+            # Construct cost function for peak at center positioning
+            c_indx = int(len(pred)/2)
+            value_center = pred[c_indx]
+            cost_peak = np.sum((pred[pred > value_center] - value_center)**2)
+            return mse + w_peak*peak_dev**2 + w_peak_at_center*cost_peak
 
         # Last term has to be positive
         num_coeff = len(self.coeff_shape) - 2
