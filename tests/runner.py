@@ -36,8 +36,8 @@ import test_gradient_coeff
 import test_chgl
 import test_hyper_tangent_bvp
 import test_diffraction_updater
-import test_minimal_energy_path
 import test_concentration_observer
+import test_interior_minima
 
 try:
     os.mkdir("data")
@@ -85,8 +85,8 @@ suite.addTest(loader.loadTestsFromModule(test_gradient_coeff))
 suite.addTest(loader.loadTestsFromModule(test_chgl))
 suite.addTest(loader.loadTestsFromModule(test_hyper_tangent_bvp))
 suite.addTest(loader.loadTestsFromModule(test_diffraction_updater))
-suite.addTest(loader.loadTestsFromModule(test_minimal_energy_path))
 suite.addTest(loader.loadTestsFromModule(test_concentration_observer))
+suite.addTest(loader.loadTestsFromModule(test_interior_minima))
 
 runner = TimeLoggingTestRunner()
 result = runner.run(suite)
