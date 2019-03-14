@@ -509,12 +509,8 @@ class TwoPhaseLandauPolynomial(object):
             mse = np.mean((pred - free_energy)**2)
             peak_dev = np.max(pred) - np.max(free_energy)
 
-            mixed_penalty = 0.0
-            if w_mixed_peaks > 0.0:
-                mixed_penalty = self._interior_weight(conc, np.max(eta), 50)
+            cost = mse
 
-            cost = mse + w_peak*peak_dev**2  + w_mixed_peaks*mixed_penalty
-            
             for cnst in constraints:
                 cost += cnst(self)
             return cost

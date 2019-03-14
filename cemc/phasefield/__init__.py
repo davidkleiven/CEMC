@@ -8,3 +8,4 @@ from cemc.phasefield.gradient_coeff_rhs_builder import GradientCoefficientRhsBui
 from cemc.phasefield.gradient_coeff_no_explicit_profile import GradientCoeffNoExplicitProfile
 from cemc.phasefield.grad_coeff_energy_eval import GradCoeffEvaluator, SlavedTwoPhaseLandauEvaluator
 from cemc.phasefield.landau_poly_fit_constraints import PeakPosition
+from cemc.phasefield.landau_poly_fit_constraints import StraightLineSaddle
