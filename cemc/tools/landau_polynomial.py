@@ -234,11 +234,9 @@ class TwoPhaseLandauPolynomial(object):
         else:
             raise ValueError("Unknown derivative type!")
 
-    def fit(self, conc1, F1, conc2, F2, minimum_at_ends=True, weights={}):
+    def fit(self, conc, free_energy, minimum_at_ends=True, weights={}):
         """Fit the free energy functional.
 
-        :param numpy.ndarray conc1: Concentrations in the first phase
-        :param numpy.ndarray F1: Free energy in the first phase
         :param numpy.ndarray conc2. Concentrations in the second phase
         :param numpy.ndarray F2: Free energy in the second phase
         :param dict weights: Dictionary with penalty weights associated
@@ -251,33 +249,30 @@ class TwoPhaseLandauPolynomial(object):
                 The effect of this is to penalize solutions that has a shape
                 order paremter very different from one.
         """
-        conc = np.concatenate((conc1, conc2))
-        free_energy = np.concatenate((F1, F2))
+        F2 = free_energy[conc > self.c2]
+        conc2 = conc[conc > self.c2]
 
-        X = np.zeros((len(conc1), self.conc_order1+1))
+        X = np.zeros((len(conc), self.conc_order1+1))
         for power in range(self.conc_order1):
-            X[:, power] = conc1**(self.conc_order1-power)
-        y = F1.copy()
+            X[:, power] = conc**(self.conc_order1-power)
+        y = free_energy.copy()
 
         # Find index where the concentration is larger the c2
-        indx = np.argmin((np.abs(conc1-self.c2)))
-        y[conc1 > self.c2] = y[indx]
+        indx = np.argmin((np.abs(conc-self.c2)))
+        y[conc > self.c2] = y[indx]
         self.conc_coeff = np.linalg.lstsq(X, y)[0]
 
         remains = F2 - np.polyval(self.conc_coeff, conc2)
 
-        # Guess initial parameters
-        mask = conc2 >= self.c2
-
         # Fit a polynomial to the last part assuming the equillibrium
         # shape parameter is 1
-        self.conc_coeff2 = np.polyfit(remains[mask], conc2[mask],
+        self.conc_coeff2 = np.polyfit(remains, conc2,
                                       self.conc_order2)
 
         # Try to find the two remaining parameters such that the
         # equillibrium shape parameters is close to 1
-        pos1 = np.argmin(remains[mask])
-        c_min_phase2 = conc2[mask][pos1]
+        pos1 = np.argmin(remains)
+        c_min_phase2 = conc2[pos1]
         p2_1 = np.polyval(self.conc_coeff2, c_min_phase2)
 
         # Second position (here n_eq = 0)
@@ -343,23 +338,6 @@ class TwoPhaseLandauPolynomial(object):
         x0[:-2] = self.conc_coeff2
         x0[-2] = C
         x0[-1] = D
-
-        # Add constraint on the equillibrium shape parameter
-        def n_eq_cnst(x):
-            old_conc_coeff2 = self.conc_coeff2.copy()
-            old_coeff_shape = self.coeff_shape.copy()
-            self.conc_coeff2 = x[:self.conc_order2]
-            self.coeff_shape[0] = x[-2]
-            self.coeff_shape[2] = x[-1]
-            concs = np.linspace(0.0, self.c2, 10).tolist()
-            n_eq = [self.equil_shape_order(c) for c in concs]
-
-            # Reset the concentration
-            self.conc_coeff2[:] = old_conc_coeff2
-            self.coeff_shape[:] = old_coeff_shape
-            return np.mean(n_eq)
-
-        n_eq_cnst = NonlinearConstraint(n_eq_cnst, 0.0, 1E-8)
 
         res = minimize(mse, x0=x0, method="SLSQP",
                        constraints=[cnst], options={"eps": 0.01})
@@ -503,7 +481,8 @@ class TwoPhaseLandauPolynomial(object):
         ax.plot(conc, ph1, label="Phase1")
         return fig
 
-    def fit_fixed_conc_varying_eta(self, conc, eta, free_energy, weights={}):
+    def fit_fixed_conc_varying_eta(self, conc, eta, free_energy, weights={},
+                                   constraints=[]):
         """Perform fit at fixed composition, but varying eta.
 
         :param float conc: Fixed concentration
@@ -519,6 +498,7 @@ class TwoPhaseLandauPolynomial(object):
 
         w_peak = weights.get("peak", 0.0)
         w_peak_at_center = weights.get("center_peak", 0.0)
+        w_mixed_peaks = weights.get("mixed_peaks", 0.0)
 
         def mse_function(x):
             self.coeff_shape[1] = x[0]
@@ -529,11 +509,15 @@ class TwoPhaseLandauPolynomial(object):
             mse = np.mean((pred - free_energy)**2)
             peak_dev = np.max(pred) - np.max(free_energy)
 
-            # Construct cost function for peak at center positioning
-            c_indx = int(len(pred)/2)
-            value_center = pred[c_indx]
-            cost_peak = np.sum((pred[pred > value_center] - value_center)**2)
-            return mse + w_peak*peak_dev**2 + w_peak_at_center*cost_peak
+            mixed_penalty = 0.0
+            if w_mixed_peaks > 0.0:
+                mixed_penalty = self._interior_weight(conc, np.max(eta), 50)
+
+            cost = mse + w_peak*peak_dev**2  + w_mixed_peaks*mixed_penalty
+            
+            for cnst in constraints:
+                cost += cnst(self)
+            return cost
 
         # Last term has to be positive
         num_coeff = len(self.coeff_shape) - 2
@@ -550,3 +534,28 @@ class TwoPhaseLandauPolynomial(object):
         # Update the shape coefficients
         self.coeff_shape[1] = res["x"][0]
         self.coeff_shape[3:] = res["x"][1:]
+
+    def _square_conc_scan(self, conc, nmin, nmax, num):
+        """Perform a scan for many shape parameters."""
+        from itertools import product
+        F = np.zeros((num, num))
+        n = np.linspace(nmin, nmax, num)
+        for indx in product(range(num), repeat=2):
+            F[indx] = self.evaluate(conc, shape=[n[indx[0]], n[indx[1]], 0.0])
+        return F
+
+    def _interior_weight(self, conc, nmax, num):
+        scanned = self._square_conc_scan(conc, 0.0, nmax, num)
+
+        # Locate minima along axis
+        F = np.zeros(num)
+        n = np.linspace(0.0, nmax, num)
+        for i in range(num):
+            F[i] = self.evaluate(conc, shape=[n[i], 0.0, 0.0])
+
+        # We don't count the ones that are higher than the minimum
+        # on the axis
+        minval = np.min(F)
+        scanned[scanned > minval] = minval
+        return np.mean((scanned-minval)**2)
+                
