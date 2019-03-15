@@ -1,5 +1,10 @@
 #include "regression_kernels.hpp"
 
+
+QuadraticKernel::QuadraticKernel(double width): RegressionKernel(), width(width){
+    lower_limit = -width;
+    upper_limit = width;
+}
 double QuadraticKernel::evaluate(double x) const{
     if (is_outside_support(x)){
         return 0.0;

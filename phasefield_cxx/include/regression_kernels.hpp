@@ -10,11 +10,20 @@ class RegressionKernel{
         
         /** Calculate the derivative of the kernel */
         virtual double deriv(double x) const = 0;
+
+        /** Upper limit of the support */
+        double upper() const{return upper_limit;};
+
+        /** Lower limit */
+        double lower() const{return lower_limit;};
+    protected:
+        double upper_limit{0.0};
+        double lower_limit{0.0};
 };
 
 class QuadraticKernel: public RegressionKernel{
     public:
-        QuadraticKernel(double width): RegressionKernel(), width(width){};
+        QuadraticKernel(double width);
 
         /** Evaluate the kernel */
         virtual double evaluate(double x) const override final;

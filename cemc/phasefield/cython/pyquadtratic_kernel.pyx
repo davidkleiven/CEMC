@@ -1,9 +1,18 @@
 # distutils: language = c++
 
 from cemc.phasefield.cython.quadratic_kernel cimport QuadraticKernel
+from cemc.phasefield.cython.quadratic_kernel cimport RegressionKernel
 
-cdef class PyQuadraticKernel:
-    cdef QuadraticKernel *thisptr
+cdef class PyRegressionKernel:
+    cdef RegressionKernel *thisptr
+
+    def evaluate(self, x):
+        raise NotImplementedError("Has to be implemented in derived classes!")
+
+    def deriv(self, x):
+        raise NotImplementedError("Has to be implemented in derived classes!")
+        
+cdef class PyQuadraticKernel(PyRegressionKernel):
 
     def __cinit__(self, double width):
         self.thisptr = new QuadraticKernel(width)

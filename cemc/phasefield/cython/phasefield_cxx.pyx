@@ -8,6 +8,7 @@ cimport numpy as np
 np.import_array()
 
 include "pyquadtratic_kernel.pyx"
+include "pykernel_regressor.pyx"
 include "pymat4D.pyx"
 include "khachaturyan.pyx"
 include "pytwo_phase_landau.pyx"
