@@ -33,7 +33,7 @@ class SlavedTwoPhaseLandauEvaluator(GradCoeffEvaluator):
         if free_var == 0:
             # The composition vary
             N = len(x[0])
-            return np.array([self.poly.evaluate(x[0][i]) for i in range(N)])
+            return np.array(self.poly.evaluate(x[0]))
         else:
             # The composition does not vary.
             # We assume that we have one unknown
@@ -43,12 +43,11 @@ class SlavedTwoPhaseLandauEvaluator(GradCoeffEvaluator):
             # Make sure that there is only one unknown variable
             assert sum(1 for item in x if item is None) == 1
 
-            shape = np.zeros((2, len(x[free_var])))
-            shape[1, :] = x[free_var]
-            shape[0, :] = shape[0, ::-1]
+            shape = np.zeros((len(x[free_var]), 3))
+            shape[:, 1] = x[free_var]
+            shape[:, 0] = shape[::-1, 1]
             N = len(x[free_var])
-            return np.array([self.poly.evaluate(x[0], shape=shape[:, i])
-                            for i in range(N)])
+            return np.array(self.poly.evaluate(x[0], shape=shape))
 
     def derivative(self, x, free_var):
         N = len(x[free_var])
@@ -61,9 +60,8 @@ class SlavedTwoPhaseLandauEvaluator(GradCoeffEvaluator):
         result = np.zeros((len(x), N))
         if free_var == 0:
             result[0, :] = 1.0
-            eta_deriv = np.array([self.poly.equil_shape_order_derivative(x[0][i])
-                                  for i in range(N)])
-            eta_deriv[eta_deriv > 0.0] /= (2.0*eta_deriv[eta_deriv > 0.0])
+            eta_deriv = np.array(self.poly.equil_shape_order_derivative(x[0]))
+            # eta_deriv[eta_deriv > 0.0] /= (2.0*eta_deriv[eta_deriv > 0.0])
             result[unknown, :] = eta_deriv
             return result
         else:
