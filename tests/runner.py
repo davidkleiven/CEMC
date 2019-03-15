@@ -38,6 +38,7 @@ import test_hyper_tangent_bvp
 import test_diffraction_updater
 import test_concentration_observer
 import test_interior_minima
+import test_grad_no_profile
 
 try:
     os.mkdir("data")
@@ -87,6 +88,7 @@ suite.addTest(loader.loadTestsFromModule(test_hyper_tangent_bvp))
 suite.addTest(loader.loadTestsFromModule(test_diffraction_updater))
 suite.addTest(loader.loadTestsFromModule(test_concentration_observer))
 suite.addTest(loader.loadTestsFromModule(test_interior_minima))
+suite.addTest(loader.loadTestsFromModule(test_grad_no_profile))
 
 runner = TimeLoggingTestRunner()
 result = runner.run(suite)
