@@ -18,14 +18,17 @@ class KernelRegressor{
 
         /** Set the coefficients */
         void set_coeff(const std::vector<double> &new_coeff){coeff = new_coeff;};
+
+        /** Get the value of a single kernel */
+        double evaluate_kernel(unsigned int i, double x) const;
     private:
         const RegressionKernel *kernel{nullptr};
         std::vector<double> coeff;
         double xmin{0.0};
         double xmax{0.0};
 
-        unsigned int lower_non_zero_kernel(double x) const;
-        unsigned int upper_non_zero_kernel(double x) const;
+        int lower_non_zero_kernel(double x) const;
+        int upper_non_zero_kernel(double x) const;
         bool outside_domain(double x) const;
         double kernel_center(unsigned int indx) const;
 
