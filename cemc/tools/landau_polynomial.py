@@ -345,11 +345,10 @@ class TwoPhaseLandauPolynomial(object):
         self.coeff_shape[0] = res["x"][-2]
         self.coeff_shape[2] = res["x"][-1]
 
-    def save_poly_terms(self, fname="pypolyterm.json"):
+    def to_dict(self):
         """Store the required arguments that can be used to
             construct poly terms for phase field calculations."""
         from itertools import permutations
-        import json
         data = {}
         data["terms"] = []
         num_terms = len(self.conc_coeff)
@@ -389,9 +388,12 @@ class TwoPhaseLandauPolynomial(object):
                 }
                 used_perms.add(perm)
                 data["terms"].append(entry)
+        return data
 
+    def save_poly_terms(self, fname="pypolyterm.json"):
+        import json
         with open(fname, 'w') as outfile:
-            json.dump(data, outfile, indent=2)
+            json.dump(self.to_dict(), outfile, indent=2)
         print("Coefficient stored in {}".format(fname))
 
     def _equil_shape_fixed_conc_and_shape_intermediates(self, conc, shape,
