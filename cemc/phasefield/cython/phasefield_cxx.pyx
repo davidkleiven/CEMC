@@ -7,6 +7,7 @@ cdef extern from "init_numpy.hpp":
 cimport numpy as np
 np.import_array()
 
+include "pyquadtratic_kernel.pyx"
 include "pymat4D.pyx"
 include "khachaturyan.pyx"
 include "pytwo_phase_landau.pyx"
