@@ -19,6 +19,7 @@ class GradientCoeffNoExplicitProfile(object):
         self.params_vary = params_vary
         self.num_density = num_density
         self.interface_energy = interface_energy
+        self._check_dict_consistency()
         self.apply_energy_correction = apply_energy_correction
 
         if self.grad_coeff is None:
@@ -31,12 +32,27 @@ class GradientCoeffNoExplicitProfile(object):
     def num_variables(self):
         return len(self.boundary)
 
+    def _check_dict_consistency(self):
+        """Check the user input."""
+        keys = self.boundary.keys()
+
+        pkeys = self.params_vary.keys()
+        if any(k not in keys for k in pkeys):
+            raise ValueError("Inconsistent dictionary params_vary "
+                             "current keys {} expected keys {}"
+                             "".format(list(keys), list(pkeys)))
+
+        ikeys = self.interface_energy.keys()
+        if any(k not in keys for k in ikeys):
+            raise ValueError("Inconsistent dictionary interface_energy "
+                             "current keys: {} expected keys: {}"
+                             "".format(list(keys), list(ikeys)))
+
     def calculate_integrals(self):
         integrals = {}
         npoints = 300
         tol = 1E-6
         for interface in self.boundary.keys():
-            print(interface)
             # Take the first varying parameter as the integration
             # variable
             free_param = self.params_vary[interface][0]
@@ -63,8 +79,11 @@ class GradientCoeffNoExplicitProfile(object):
             deriv = self.evaluator.derivative(variables, free_param)**2
 
             if np.any(free_energy < -tol):
+                minval = np.min(free_energy)
                 raise RuntimeError("It appears like forming the interface {} "
-                                   "lowers the energy!".format(interface))
+                                   "lowers the energy! Minimum surface "
+                                   "formation energy {}"
+                                   "".format(interface, np.min(free_energy)))
 
             free_energy[free_energy < 0.0] = 0.0
             integrand = np.sqrt(free_energy)
@@ -77,7 +96,7 @@ class GradientCoeffNoExplicitProfile(object):
 
     def solve(self):
         def func(sqrt_grad_coeff):
-            self.grad_coeff[1:] = sqrt_grad_coeff**2
+            self.grad_coeff = sqrt_grad_coeff**2
             integrals = self.calculate_integrals()
             rhs = []
             lhs = []
@@ -86,7 +105,8 @@ class GradientCoeffNoExplicitProfile(object):
                 lhs.append(self.interface_energy[interface])
             lhs = np.array(lhs)
             rhs = np.array(rhs)
+            print(lhs-rhs)
             return lhs - rhs
-        sol = fsolve(func, self.sqrt_grad_coeff[1:], maxfev=100000)
+        sol = fsolve(func, self.sqrt_grad_coeff, maxfev=100000)
         self.grad_coeff = sol**2
         return self.grad_coeff
