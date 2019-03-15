@@ -89,7 +89,6 @@ class InteriorMinima(LandauPolynomialFitConstraint):
             F[indx] = landau.evaluate(self.conc, shape=[n[indx[0]], n[indx[1]], 0.0])
         minima = self.find_extrema(F)
         self.num_minima = len(minima)
-        print(minima)
         return self.weight*self.num_minima
 
     def status_msg(self):
