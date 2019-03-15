@@ -39,6 +39,7 @@ import test_diffraction_updater
 import test_concentration_observer
 import test_interior_minima
 import test_grad_no_profile
+import test_regression_kernels
 
 try:
     os.mkdir("data")
@@ -89,6 +90,7 @@ suite.addTest(loader.loadTestsFromModule(test_diffraction_updater))
 suite.addTest(loader.loadTestsFromModule(test_concentration_observer))
 suite.addTest(loader.loadTestsFromModule(test_interior_minima))
 suite.addTest(loader.loadTestsFromModule(test_grad_no_profile))
+suite.addTest(loader.loadTestsFromModule(test_regression_kernels))
 
 runner = TimeLoggingTestRunner()
 result = runner.run(suite)
