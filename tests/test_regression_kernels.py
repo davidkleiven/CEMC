@@ -2,6 +2,8 @@ import unittest
 import numpy as np
 try:
     from phasefield_cxx import PyQuadraticKernel
+    from phasefield_cxx import PyKernelRegressor
+    from cemc.phasefield.phasefield_util import fit_kernel
     available = True
     reason = ""
 except ImportError as exc:
@@ -33,6 +35,46 @@ class TestRegressionKernels(unittest.TestCase):
         x = 0.23
         expect = 0.75*(1.0 - (x/width)**2)/(width)
         self.assertAlmostEqual(kernel.evaluate(x), expect)
+
+    def test_kernel_regressor(self):
+        if not available:
+            self.skipTest(reason)
+
+        width = 2.0
+        kernel = PyQuadraticKernel(2.0)
+
+        coeff = [0.0, 2.0, -3.0, 0.0]
+        regressor = PyKernelRegressor(-12.0, 12.0)
+        regressor.set_kernel(kernel)
+        regressor.set_coeff(coeff)
+
+        center1 = -4.0
+        center2 = 4.0
+        self.assertAlmostEqual(regressor.evaluate(center1),
+                               coeff[1]*kernel.evaluate(0.0))
+        self.assertAlmostEqual(regressor.evaluate(center2),
+                               coeff[2]*kernel.evaluate(0.0))
+        self.assertAlmostEqual(regressor.deriv(center1),
+                               coeff[1]*kernel.deriv(0.0))
+        self.assertAlmostEqual(regressor.deriv(center2),
+                               coeff[2]*kernel.deriv(0.0))
+
+        # Try outside domain
+        self.assertAlmostEqual(regressor.evaluate(1000.0), 0.0)
+        self.assertAlmostEqual(regressor.evaluate(-1000.0), 0.0)
+
+    def test_fit_kernel(self):
+        if not available:
+            self.skipTest(reason)
+
+        width = 4.1
+        kernel = PyQuadraticKernel(width)
+        x = np.linspace(0.0, 10.0, 500, endpoint=True)
+        y = x**2
+        num_kernels = 321
+        regressor = fit_kernel(x=x, y=y, num_kernels=num_kernels, kernel=kernel)
+        y_fit = regressor.evaluate(x)
+        self.assertTrue(np.allclose(y, y_fit))
 
 
 if __name__ == "__main__":
