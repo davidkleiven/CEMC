@@ -63,7 +63,7 @@ class GradientCoeffNoExplicitProfile(object):
             deriv = self.evaluator.derivative(variables, free_param)**2
 
             if np.any(free_energy < -tol):
-                raise RuntimeError("It appears like forming an interface {} "
+                raise RuntimeError("It appears like forming the interface {} "
                                    "lowers the energy!".format(interface))
 
             free_energy[free_energy < 0.0] = 0.0
