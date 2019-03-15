@@ -114,7 +114,6 @@ class TwoPhaseLandauPolynomial(object):
 
         if delta < 0.0:
             return 0.0
-
         n_eq = -C/(3.0*D) + np.sqrt(delta)
         if n_eq < 0.0:
             return 0.0
@@ -234,7 +233,8 @@ class TwoPhaseLandauPolynomial(object):
         else:
             raise ValueError("Unknown derivative type!")
 
-    def fit(self, conc, free_energy, minimum_at_ends=True, weights={}):
+    def fit(self, conc, free_energy, minimum_at_ends=True, weights={},
+            init_shape_coeff=None, sequential=False):
         """Fit the free energy functional.
 
         :param numpy.ndarray conc2. Concentrations in the second phase
@@ -249,6 +249,10 @@ class TwoPhaseLandauPolynomial(object):
                 The effect of this is to penalize solutions that has a shape
                 order paremter very different from one.
         """
+        if init_shape_coeff is not None:
+            if len(init_shape_coeff) != 2:
+                raise ValueError("init_shape_coeff have to be None or "
+                                 "of a list of length 2")
         F2 = free_energy[conc > self.c2]
         conc2 = conc[conc > self.c2]
 
@@ -266,7 +270,7 @@ class TwoPhaseLandauPolynomial(object):
 
         # Fit a polynomial to the last part assuming the equillibrium
         # shape parameter is 1
-        self.conc_coeff2 = np.polyfit(remains, conc2,
+        self.conc_coeff2 = np.polyfit(conc2, remains,
                                       self.conc_order2)
 
         # Try to find the two remaining parameters such that the
@@ -281,14 +285,10 @@ class TwoPhaseLandauPolynomial(object):
         D = (-p2_1 - 2*C)/3.0
         self.coeff_shape[0] = C
         self.coeff_shape[2] = D
-        #self.conc_coeff2[-1] -= (C+D)
-
-        # Confirm that the calculated shapr order parameter
-        # indeed is close to the 1 (as it is supposed to be)
-        #assert abs(self.equil_shape_order(c_min_phase2) - 1.0) < 1E-4
 
         n_eq_phase1 = weights.get("eq_phase1", 0.0)
         n_eq_phase2 = weights.get("eq_phase2", 0.0)
+
         def mse(x):
             self.conc_coeff2 = x[:self.conc_order2+1]
             self.coeff_shape[0] = x[-2]
@@ -304,7 +304,10 @@ class TwoPhaseLandauPolynomial(object):
             # Also add penalty if order parameter is far from the expected
             # value
             n_eq = self.equil_shape_order(c_min_phase2)
-            return mse + n_eq_phase1*mse_eq + n_eq_phase2*(n_eq - 1.0)**2
+            n_eq = np.array(self.equil_shape_order(conc2))
+            mse_eq2 = np.sum((n_eq-1.0)**2)
+            print(mse)
+            return mse + n_eq_phase1*mse_eq + n_eq_phase2*mse_eq2*2
 
         if SCIPY_VERSION < '1.2.1':
             raise RuntimeError("Scipy version must be larger than 1.2.1!")
@@ -334,16 +337,23 @@ class TwoPhaseLandauPolynomial(object):
 
         x0 = np.zeros(self.conc_order2+3)
 
-        B = 0.5  # TODO: We need to be able to set this
         x0[:-2] = self.conc_coeff2
+        if init_shape_coeff is not None:
+            C = init_shape_coeff[0]
+            D = init_shape_coeff[1]
+
         x0[-2] = C
         x0[-1] = D
+        print("Using init_shape_coeff: {}".format(x0[-2:]))
 
-        res = minimize(mse, x0=x0, method="SLSQP",
-                       constraints=[cnst], options={"eps": 0.01})
-        self.conc_coeff2 = res["x"][:-2]
-        self.coeff_shape[0] = res["x"][-2]
-        self.coeff_shape[2] = res["x"][-1]
+        # res = minimize(mse, x0=x0, method="SLSQP",
+        #                constraints=[cnst], options={"eps": 0.01})
+        #res = minimize(mse, x0=x0, method="Nelder-Mead", options={"eps": 0.01})
+        # self.conc_coeff2 = res["x"][:-2]
+        # self.coeff_shape[0] = res["x"][-2]
+        # self.coeff_shape[2] = res["x"][-1]
+        self.coeff_shape[0] = C
+        self.coeff_shape[2] = D
 
     def to_dict(self):
         """Store the required arguments that can be used to
@@ -481,6 +491,8 @@ class TwoPhaseLandauPolynomial(object):
         conc = np.linspace(0.0, 1.0, 100)
         ph1 = np.polyval(self.conc_coeff, conc)
         ax.plot(conc, ph1, label="Phase1")
+        ax.plot(conc, np.polyval(self.conc_coeff2, conc), label="Phase2")
+        ax.legend()
         return fig
 
     def fit_fixed_conc_varying_eta(self, conc, eta, free_energy, weights={},
