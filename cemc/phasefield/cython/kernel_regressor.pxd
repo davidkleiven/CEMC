@@ -14,3 +14,5 @@ cdef extern from "kernel_regressor.hpp":
 
         void set_coeff(vector[double] coeff)
 
+        double evaluate_kernel(unsigned int i, double x)
+
