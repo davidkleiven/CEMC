@@ -28,6 +28,6 @@ class QuadraticKernel: public RegressionKernel{
         double width{1.0};
 
         /** Calculate the amplitude of the kernel */
-        double amplitude() const{return 3.0*width/2.0};
+        double amplitude() const{return 3.0*width/2.0;};
 };
 #endif
