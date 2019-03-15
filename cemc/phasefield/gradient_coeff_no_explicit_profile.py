@@ -36,7 +36,7 @@ class GradientCoeffNoExplicitProfile(object):
         npoints = 300
         tol = 1E-6
         for interface in self.boundary.keys():
-
+            print(interface)
             # Take the first varying parameter as the integration
             # variable
             free_param = self.params_vary[interface][0]
@@ -63,8 +63,8 @@ class GradientCoeffNoExplicitProfile(object):
             deriv = self.evaluator.derivative(variables, free_param)**2
 
             if np.any(free_energy < -tol):
-                raise RuntimeError("It appears like forming an interface "
-                                   "lowers the energy!")
+                raise RuntimeError("It appears like forming an interface {} "
+                                   "lowers the energy!".format(interface))
 
             free_energy[free_energy < 0.0] = 0.0
             integrand = np.sqrt(free_energy)
