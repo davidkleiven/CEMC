@@ -2,11 +2,11 @@
 
 from cemc.phasefield.cython.quadratic_kernel cimport QuadraticKernel
 
-cdef class PyQuadtraticKernel:
+cdef class PyQuadraticKernel:
     cdef QuadraticKernel *thisptr
 
-    def __cinit__(double width):
-        thisptr = new QuadraticKernel(width)
+    def __cinit__(self, double width):
+        self.thisptr = new QuadraticKernel(width)
 
     def __dealloc__(self):
         del self.thisptr
