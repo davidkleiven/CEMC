@@ -105,8 +105,13 @@ class GradientCoeffNoExplicitProfile(object):
                 lhs.append(self.interface_energy[interface])
             lhs = np.array(lhs)
             rhs = np.array(rhs)
-            print(lhs-rhs)
             return lhs - rhs
-        sol = fsolve(func, self.sqrt_grad_coeff, maxfev=100000)
+        sol, info, ier, mesg = fsolve(func, self.sqrt_grad_coeff,
+                                      maxfev=100000, full_output=1)
+        print("===================================================")
+        print("==        GRADIENT COEFFICIENT SOLVER INFO       ==")
+        print("===================================================")
+        print(info)
+        print("===================================================")
         self.grad_coeff = sol**2
         return self.grad_coeff
