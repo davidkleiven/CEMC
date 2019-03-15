@@ -28,5 +28,7 @@ class KernelRegressor{
         unsigned int upper_non_zero_kernel(double x) const;
         bool outside_domain(double x) const;
         double kernel_center(unsigned int indx) const;
+
+        double kernel_separation() const;
 };
 #endif
