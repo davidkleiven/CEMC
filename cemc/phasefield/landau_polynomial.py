@@ -1,7 +1,10 @@
 import numpy as np
 from scipy.optimize import minimize, LinearConstraint, fsolve
 from scipy.optimize import NonlinearConstraint
+from cemc.phasefield.phasefield_util import fit_kernel
+from phasefield_cxx import PyQuadraticKernel
 import scipy
+import time
 
 SCIPY_VERSION = scipy.__version__
 
@@ -79,7 +82,8 @@ class TwoPhaseLandauPolynomial(object):
     def __init__(self, c1=0.0, c2=1.0, num_dir=3, init_guess=None,
                  conc_order1=2, conc_order2=2):
         self.conc_coeff2 = np.zeros(conc_order2+1)
-        self.conc_coeff = np.zeros(conc_order1+1)
+        self._kernel = None
+        self._phase_one_regressor = None
         self.coeff_shape = np.zeros(5)
         self.conc_order1 = conc_order1
         self.conc_order2 = conc_order2
@@ -88,6 +92,26 @@ class TwoPhaseLandauPolynomial(object):
         self.init_guess = init_guess
         self.num_dir = num_dir
         self.boundary_coeff = None
+
+    @property
+    def phase_one_regressor(self):
+        if self._phase_one_regressor is None:
+            raise RuntimeError("It appears like no regressor was set. Call the fit function!")
+        return self._phase_one_regressor
+
+    @phase_one_regressor.setter
+    def phase_one_regressor(self, new_obj):
+        self._phase_one_regressor = new_obj
+
+    @property
+    def kernel(self):
+        if self._kernel is None:
+            raise RuntimeError("No kernel has been set!")
+        return self._kernel
+
+    @kernel.setter
+    def kernel(self, new_obj):
+        self._kernel = new_obj
 
     @array_func
     def equil_shape_order(self, conc):
@@ -158,7 +182,7 @@ class TwoPhaseLandauPolynomial(object):
         """
 
         n_eq = self.equil_shape_order(conc)
-        return np.polyval(self.conc_coeff, conc) + \
+        return self.phase_one_regressor.evaluate(conc) + \
             self._eval_phase2(conc)*n_eq**2 + \
             self.coeff_shape[0]*n_eq**4 + \
             self.coeff_shape[2]*n_eq**6
@@ -180,7 +204,7 @@ class TwoPhaseLandauPolynomial(object):
         full_shape = np.zeros(3)
         full_shape[:len(shape)] = shape
         shape = full_shape
-        return np.polyval(self.conc_coeff, conc) + \
+        return self.phase_one_regressor.evaluate(conc) + \
             self._eval_phase2(conc)*np.sum(shape**2) + \
             self.coeff_shape[0]*np.sum(shape**4) + \
             self.coeff_shape[1]*(shape[0]**2 * shape[1]**2 +
@@ -233,8 +257,8 @@ class TwoPhaseLandauPolynomial(object):
         else:
             raise ValueError("Unknown derivative type!")
 
-    def fit(self, conc, free_energy, minimum_at_ends=True, weights={},
-            init_shape_coeff=None, sequential=False):
+    def fit(self, conc, free_energy, weights={},
+            init_shape_coeff=None, kernel_width=0.2, num_kernels=30):
         """Fit the free energy functional.
 
         :param numpy.ndarray conc2. Concentrations in the second phase
@@ -264,39 +288,72 @@ class TwoPhaseLandauPolynomial(object):
         # Find index where the concentration is larger the c2
         indx = np.argmin((np.abs(conc-self.c2)))
         y[conc > self.c2] = y[indx]
-        self.conc_coeff = np.linalg.lstsq(X, y)[0]
-
-        remains = F2 - np.polyval(self.conc_coeff, conc2)
-
-        # Fit a polynomial to the last part assuming the equillibrium
-        # shape parameter is 1
-        self.conc_coeff2 = np.polyfit(conc2, remains,
-                                      self.conc_order2)
+        self.kernel = PyQuadraticKernel(kernel_width)
+        self.phase_one_regressor = fit_kernel(x=conc, y=y,
+                                              num_kernels=num_kernels,
+                                              kernel=self.kernel)
+        remains = F2 - self.phase_one_regressor.evaluate(conc2)
 
         # Try to find the two remaining parameters such that the
         # equillibrium shape parameters is close to 1
         pos1 = np.argmin(remains)
         c_min_phase2 = conc2[pos1]
-        p2_1 = np.polyval(self.conc_coeff2, c_min_phase2)
 
-        # Second position (here n_eq = 0)
-        p2_2 = np.polyval(self.conc_coeff2, conc2[0])
-        C = -p2_2/2.0
-        D = (-p2_1 - 2*C)/3.0
+        n_eq_phase1 = weights.get("eq_phase1", 1.0)
+        n_eq_phase2 = weights.get("eq_phase2", 0.0)
+
+        matrix = np.zeros((4, 4))
+        rhs = np.zeros(4)
+
+        # Equation 1: n_eq = 1 at minimum
+        matrix[0, 0] = c_min_phase2
+        matrix[0, 1] = 1
+        matrix[0, 2] = 3
+        matrix[0, 3] = 2
+
+        # Equation 2: match at connection
+        matrix[1, 0] = self.c2
+        matrix[1, 1] = 1.0
+        matrix[1, 2] = 0.5**4
+        matrix[1, 3] = 0.5**6
+
+        # Equation 3 match half way
+        target_conc = (self.c2 + c_min_phase2)*0.5
+        indx = np.argmin(np.abs(conc2 - target_conc))
+        matrix[2, 0] = target_conc
+        matrix[2, 1] = 1.0
+        matrix[2, 2] = 0.9**4
+        matrix[2, 3] = 0.9**6
+        rhs[2] = remains[indx]
+
+        # Equation 4: match at left end
+        matrix[3, 0] = conc2[-1]
+        matrix[3, 1:] = 1.0
+        rhs[3] = remains[-1]
+        print(matrix)
+        init_coeff = np.linalg.solve(matrix, rhs)
+        self.conc_coeff2[:] = init_coeff[:2]
+        C = init_coeff[2]
+        D = init_coeff[3]
         self.coeff_shape[0] = C
         self.coeff_shape[2] = D
 
-        n_eq_phase1 = weights.get("eq_phase1", 0.0)
-        n_eq_phase2 = weights.get("eq_phase2", 0.0)
+        fitted = self.evaluate(conc)
+        from matplotlib import pyplot as plt
+        plt.plot(conc, fitted)
+        plt.plot(conc, free_energy)
+        plt.show()
+        #exit()
 
         def mse(x):
             self.conc_coeff2 = x[:self.conc_order2+1]
             self.coeff_shape[0] = x[-2]
             self.coeff_shape[2] = x[-1]
-            pred = self.evaluate(conc)
+            pred = self.evaluate(conc2)
             pred = np.array(pred)
 
-            mse = np.mean((pred - free_energy)**2)
+            #mse = np.mean((pred - free_energy)**2)
+            mse = np.mean((pred - F2)**2)
             concs = np.linspace(0.0, self.c2, 10).tolist()
             n_eq = np.array(self.equil_shape_order(concs))
             mse_eq = np.sum(n_eq**2)
@@ -306,13 +363,19 @@ class TwoPhaseLandauPolynomial(object):
             n_eq = self.equil_shape_order(c_min_phase2)
             n_eq = np.array(self.equil_shape_order(conc2))
             mse_eq2 = np.sum((n_eq-1.0)**2)
-            print(mse)
-            return mse + n_eq_phase1*mse_eq + n_eq_phase2*mse_eq2*2
+
+            # Extract some parameters
+            A = x[0]
+            B = x[1]
+            C = x[2]
+            D = x[3]
+            trans_pt = (C**2/D - B)/A
+            return mse + 0.0001*(trans_pt - self.c2)**2
 
         if SCIPY_VERSION < '1.2.1':
             raise RuntimeError("Scipy version must be larger than 1.2.1!")
 
-        num_constraints = 3
+        num_constraints = 2
         A = np.zeros((num_constraints, self.conc_order2+3))
         lb = np.zeros(num_constraints)
         ub = np.zeros(num_constraints)
@@ -329,12 +392,6 @@ class TwoPhaseLandauPolynomial(object):
         lb[1] = 0.0
         ub[1] = np.inf
 
-        # Make sure that the last coefficient is larger than
-        # the secnod largest
-        A[2, -2] = 1.0
-        lb[2] = -np.inf
-        ub[2] = 0.0
-
         x0 = np.zeros(self.conc_order2+3)
 
         x0[:-2] = self.conc_coeff2
@@ -346,14 +403,11 @@ class TwoPhaseLandauPolynomial(object):
         x0[-1] = D
         print("Using init_shape_coeff: {}".format(x0[-2:]))
 
-        # res = minimize(mse, x0=x0, method="SLSQP",
-        #                constraints=[cnst], options={"eps": 0.01})
-        #res = minimize(mse, x0=x0, method="Nelder-Mead", options={"eps": 0.01})
-        # self.conc_coeff2 = res["x"][:-2]
-        # self.coeff_shape[0] = res["x"][-2]
-        # self.coeff_shape[2] = res["x"][-1]
-        self.coeff_shape[0] = C
-        self.coeff_shape[2] = D
+        res = minimize(mse, x0=x0, method="SLSQP",
+                       constraints=[cnst], options={"eps": 0.0001})
+        self.conc_coeff2 = res["x"][:-2]
+        self.coeff_shape[0] = res["x"][-2]
+        self.coeff_shape[2] = res["x"][-1]
 
     def to_dict(self):
         """Store the required arguments that can be used to
@@ -361,13 +415,6 @@ class TwoPhaseLandauPolynomial(object):
         from itertools import permutations
         data = {}
         data["terms"] = []
-        num_terms = len(self.conc_coeff)
-        for power, c in enumerate(self.conc_coeff.tolist()):
-            entry = {
-                "coeff": c,
-                "powers": [num_terms-power-1, 0, 0, 0]
-            }
-            data["terms"].append(entry)
 
         num_terms = len(self.conc_coeff2)
         for power, c in enumerate(self.conc_coeff2.tolist()):
@@ -489,7 +536,7 @@ class TwoPhaseLandauPolynomial(object):
         fig = plt.figure()
         ax = fig.add_subplot(1, 1, 1)
         conc = np.linspace(0.0, 1.0, 100)
-        ph1 = np.polyval(self.conc_coeff, conc)
+        ph1 = self.phase_one_regressor.evaluate(conc)
         ax.plot(conc, ph1, label="Phase1")
         ax.plot(conc, np.polyval(self.conc_coeff2, conc), label="Phase2")
         ax.legend()
@@ -539,7 +586,9 @@ class TwoPhaseLandauPolynomial(object):
         A[0, -1] = 1.0
 
         cnst = LinearConstraint(A, lb, ub)
-        res = minimize(mse_function, x0, method="SLSQP", constraints=cnst)
+        cb = MinimizationProgressCallback(10, constraints=constraints)
+        res = minimize(mse_function, x0, method="SLSQP", constraints=cnst,
+                       callback=cb)
 
         # Update the shape coefficients
         self.coeff_shape[1] = res["x"][0]
@@ -568,4 +617,19 @@ class TwoPhaseLandauPolynomial(object):
         minval = np.min(F)
         scanned[scanned > minval] = minval
         return np.mean((scanned-minval)**2)
-                
+
+
+class MinimizationProgressCallback(object):
+    def __init__(self, log_every_sec, constraints=[]):
+        self.log_every_sec = log_every_sec
+        self.now = time.time()
+        self.constraints = constraints
+
+    def log(self, msg):
+        print(msg)
+
+    def __call__(self, xk):
+        if time.time() - self.now > self.log_every_sec:
+            for cnst in self.constraints:
+                self.log(cnst.status_msg())
+            self.now = time.time()
