@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import os
 try:
-    from cemc.tools import TwoPhaseLandauPolynomial
+    from cemc.phasefield import TwoPhaseLandauPolynomial
     from phasefield_cxx import PyTwoPhaseLandau
     from cemc.phasefield.tools import get_polyterms
     available = True
