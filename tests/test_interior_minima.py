@@ -19,7 +19,7 @@ class TestInteriorMinima(unittest.TestCase):
         data = ((X-3)**2 + (Y-4)**2)**2
         int_min = InteriorMinima()
         minima = int_min.find_extrema(data)
-        self.assertEqual(minima, set((4, 3)))
+        self.assertEqual(set(minima), set([(4, 3)]))
 
 
 def show_data(data):
