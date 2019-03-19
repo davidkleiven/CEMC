@@ -267,7 +267,7 @@ class TwoPhaseLandauPolynomial(object):
 
     def fit(self, conc, free_energy, weights={},
             init_shape_coeff=None, kernel_width=0.2, num_kernels=30,
-            show=True, width=0.1):
+            show=True, width=0.1, smear_width=0, shape="auto"):
         """Fit the free energy functional.
 
         :param numpy.ndarray conc2. Concentrations in the second phase
@@ -295,121 +295,65 @@ class TwoPhaseLandauPolynomial(object):
         minimum = np.argmin(np.abs(conc - self.c2))
         free_energy -= free_energy[minimum]
 
-        def mse(x):
-            A = self._get_slope_parameter(x[0], x[1], conc[indx_min])
-            self.conc_coeff2[0] = A
-            self.conc_coeff2[1] = -A*self.c2
-            self.coeff_shape[0] = x[0]
-            self.coeff_shape[2] = x[1]
-            pred = self.evaluate(conc_fit)
-            pred = np.array(pred)
-            mse = np.mean((pred - F_fit)**2)
-            return mse
-
-        if SCIPY_VERSION < '1.2.1':
-            raise RuntimeError("Scipy version must be larger than 1.2.1!")
-
-        n_eq = 2.0/3.0
-        num_constraints = 3
-        A = np.zeros((num_constraints, 2))
-        lb = np.zeros(num_constraints)
-        ub = np.zeros(num_constraints)
-
-        # Make sure last coefficient is positive
-        A[0, -1] = 1.0
-        lb[0] = 1.0
-        ub[0] = np.inf
-        cnst = LinearConstraint(A, lb, ub)
-
-        # Make sure we have a local minimum at n_eq
-        A[1, 1] = 3.0*n_eq**4
-        A[1, 0] = 1.0*n_eq**2
-        lb[1] = 0.0
-        ub[1] = np.inf
-
-        # Make sure second coefficient is negative
-        A[2, 0] = 1.0
-        lb[2] = -np.inf
-        ub[2] = 0.0
-
-        x0 = np.zeros(2)
-        x0[0] = -27*free_energy[indx_min]
-        x0[1] = -x0[0]
+        if shape == "auto":
+            shape = 27*free_energy[indx_min]
 
         # Update the coefficients
-        A = self._get_slope_parameter(x0[0], x0[1], conc[indx_min])
+        A = self._get_slope_parameter(-shape, shape, conc[indx_min])
         self.conc_coeff2[0] = A
         self.conc_coeff2[1] = -A*self.c2
-        self.coeff_shape[0] = x0[0]
-        self.coeff_shape[2] = x0[1]
-        print(A)
+        self.coeff_shape[0] = -shape
+        self.coeff_shape[2] = shape
 
-        print("Equil shape order: ", self.equil_shape_order(self.c2)**2)
-
-        # res = minimize(mse, x0=x0, method="SLSQP",
-        #                constraints=[cnst], options={"eps": 0.0001})
-        # x = res["x"]
-        # A = self._get_slope_parameter(x[0], x[1], conc[indx_min])
-        # self.conc_coeff2[0] = A
-        # self.conc_coeff2[1] = -A*self.c2
-
-        # self.coeff_shape[0] = res["x"][0]
-        # self.coeff_shape[2] = res["x"][1]
-        tol = 1E-8
-        print(self.evaluate(self.c2 - width+tol))
-        print(free_energy[indx_min])
-        reminder = free_energy - self.evaluate(conc+tol)
-
-        # Make sure that the reminder is continuous at the jump
-        print(reminder[indx_min])
+        # Subtract of the reminder that needs to be fitted with 
+        # Kernel regression
+        reminder = free_energy - self.evaluate(conc)
 
         # Smear the reminder in the critical area
-        n_smear = 30
-        smear_data = reminder[indx_min-n_smear:indx_min+n_smear]
-        deriv1 = reminder[indx_min-n_smear] - reminder[indx_min-n_smear-1]
-        deriv2 = reminder[indx_min+n_smear+1] - reminder[indx_min+n_smear]
+        if smear_width > 0:
+            smear_data = reminder[indx_min-smear_width:indx_min+smear_width]
+            deriv1 = reminder[indx_min-smear_width] - \
+                reminder[indx_min-smear_width-1]
+            deriv2 = reminder[indx_min+smear_width+1] - \
+                reminder[indx_min+smear_width]
 
-        matrix = np.zeros((4, 4))
-        rhs = np.zeros(4)
-        imax = n_smear
-        imin = -n_smear
+            matrix = np.zeros((4, 4))
+            rhs = np.zeros(4)
+            imax = smear_width
+            imin = -smear_width
 
-        for i in range(4):
-            # Continuity at beginning
-            matrix[0, i] = imin**(3-i)
+            for i in range(4):
+                # Continuity at beginning
+                matrix[0, i] = imin**(3-i)
 
-            # Continuity at end
-            matrix[1, i] = imax**(3-i)
+                # Continuity at end
+                matrix[1, i] = imax**(3-i)
 
-            # Smooth at beginning
-            if i < 3:
-                matrix[2, i] = (3-i)*imin**(3-i-1)
-                matrix[3, i] = (3-i)*imax**(3-i-1)
-        rhs[0] = reminder[indx_min-n_smear]
-        rhs[1] = reminder[indx_min+n_smear]
-        rhs[2] = deriv1
-        rhs[3] = deriv2
-        coeff = np.linalg.solve(matrix, rhs)
-        x = np.linspace(imin, imax, 2*n_smear)
-        reminder[indx_min-n_smear:indx_min+n_smear] = sum(coeff[i]*x**(3-i) for i in range(4))
-        from matplotlib import pyplot as plt
-        plt.plot(reminder)
-        plt.plot(self.evaluate(conc+tol))
-        plt.show()
-        #exit()
-        #assert abs(reminder[indx_min]) < 1E-6
-        #self.kernel = PyQuadraticKernel(kernel_width)
+                # Smooth at beginning
+                if i < 3:
+                    matrix[2, i] = (3-i)*imin**(3-i-1)
+                    matrix[3, i] = (3-i)*imax**(3-i-1)
+            rhs[0] = reminder[indx_min-smear_width]
+            rhs[1] = reminder[indx_min+smear_width]
+            rhs[2] = deriv1
+            rhs[3] = deriv2
+            coeff = np.linalg.solve(matrix, rhs)
+            x = np.linspace(imin, imax, 2*smear_width)
+            reminder[indx_min-smear_width:indx_min+smear_width] = \
+                sum(coeff[i]*x**(3-i) for i in range(4))
+
         self.kernel = PyGaussianKernel(kernel_width)
-        self.phase_one_regressor = fit_kernel(x=conc, y=reminder, num_kernels=num_kernels, kernel=self.kernel)
+        self.phase_one_regressor = fit_kernel(
+            x=conc, y=reminder, num_kernels=num_kernels, kernel=self.kernel)
 
         if show:
             from matplotlib import pyplot as plt
             fig = plt.figure()
             ax = fig.add_subplot(1, 2, 1)
             n_eq = np.array(self.equil_shape_order(conc))
-            #print(n_eq)
             ax.plot(conc, free_energy)
             ax.plot(conc, self.evaluate(conc))
+            ax.plot(conc, self.phase_one_regressor.evaluate(conc))
             ax.axvline(conc[indx_min], ls="--", color="gray")
             ax.axvline(conc[indx_max], ls="--", color="gray")
 
