@@ -51,6 +51,7 @@ phasefield_sources = ["two_phase_landau.cpp", "mat4D.cpp", "khacaturyan.cpp",
                       "polynomial.cpp", "regression_kernels.cpp", "kernel_regressor.cpp"]
 
 phasefield_sources = [src_phase + "/" + x for x in phasefield_sources]
+phasefield_sources.append(src_folder+"/"+"additional_tools.cpp")
 phasefield_sources.append("cemc/phasefield/cython/phasefield_cxx.pyx")
 
 define_macros = [("PARALLEL_KHACHATURYAN_INTEGRAL", None)]
