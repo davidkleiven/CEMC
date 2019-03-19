@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import minimize, LinearConstraint, fsolve
 from scipy.optimize import NonlinearConstraint
 from cemc.phasefield.phasefield_util import fit_kernel
-from phasefield_cxx import PyQuadraticKernel, PyKernelRegressor
+from phasefield_cxx import PyKernelRegressor, PyGaussianKernel
 import scipy
 import time
 
@@ -398,7 +398,8 @@ class TwoPhaseLandauPolynomial(object):
         plt.show()
         #exit()
         #assert abs(reminder[indx_min]) < 1E-6
-        self.kernel = PyQuadraticKernel(kernel_width)
+        #self.kernel = PyQuadraticKernel(kernel_width)
+        self.kernel = PyGaussianKernel(kernel_width)
         self.phase_one_regressor = fit_kernel(x=conc, y=reminder, num_kernels=num_kernels, kernel=self.kernel)
 
         if show:
