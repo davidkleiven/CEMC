@@ -16,3 +16,7 @@ cdef extern from "kernel_regressor.hpp":
 
         double evaluate_kernel(unsigned int i, double x)
 
+        object to_dict()
+
+        void from_dict(object dict_repr) except+
+

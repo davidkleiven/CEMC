@@ -100,6 +100,48 @@ class TestRegressionKernels(unittest.TestCase):
         self.assertAlmostEqual(kernel.deriv(0.0), 0.0)
         self.assertAlmostEqual(kernel.deriv(width), expected/width)
 
+    def test_to_dict(self):
+        if not available:
+            self.skipTest(reason)
+
+        width = 2.0
+        kernel = PyGaussianKernel(width)
+        regressor = PyKernelRegressor(0.0, 1.0)
+        coeff = np.linspace(0.0, 10.0, 100)
+        regressor.set_coeff(coeff)
+        regressor.set_kernel(kernel)
+
+        dict_repr = regressor.to_dict()
+        self.assertAlmostEqual(0.0, dict_repr["xmin"])
+        self.assertAlmostEqual(1.0, dict_repr["xmax"])
+        self.assertEqual("gaussian", dict_repr["kernel_name"])
+        self.assertTrue(np.allclose(coeff, dict_repr["coeff"]))
+
+    def test_from_dict(self):
+        if not available:
+            self.skipTest(reason)
+        width = 2.0
+        kernel = PyGaussianKernel(width)
+        regressor = PyKernelRegressor(0.0, 1.0)
+        coeff = np.linspace(0.0, 10.0, 100)
+        regressor.set_coeff(coeff)
+        regressor.set_kernel(kernel)
+
+        # Evaluate at points
+        x_values = [0.0, 2.0, -2.0, 5.0]
+        y_values_orig = regressor.evaluate(x_values)
+
+        dict_repr = regressor.to_dict()
+
+        regressor.from_dict(dict_repr)
+        y_values_new = regressor.evaluate(x_values)
+        self.assertTrue(np.allclose(y_values_orig, y_values_new))
+
+        # Verify that exception is raised if a wrong kernel is passed
+        dict_repr["kernel_name"] = "quadratic"
+        with self.assertRaises(ValueError):
+            regressor.from_dict(dict_repr)
+
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
     unittest.main(testRunner=TimeLoggingTestRunner)

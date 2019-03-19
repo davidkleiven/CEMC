@@ -38,3 +38,9 @@ cdef class PyKernelRegressor:
         for i in range(len(coeff)):
             vec_coeff.push_back(coeff[i])
         self.thisptr.set_coeff(vec_coeff)
+
+    def to_dict(self):
+        return self.thisptr.to_dict()
+
+    def from_dict(self, dict_repr):
+        self.thisptr.from_dict(dict_repr)
