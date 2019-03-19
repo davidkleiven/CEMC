@@ -6,6 +6,7 @@ const double PI = acos(-1.0);
 QuadraticKernel::QuadraticKernel(double width): RegressionKernel(), width(width){
     lower_limit = -width;
     upper_limit = width;
+    name = "quadratic";
 }
 double QuadraticKernel::evaluate(double x) const{
     if (is_outside_support(x)){
@@ -32,6 +33,7 @@ double QuadraticKernel::deriv(double x) const{
 GaussianKernel::GaussianKernel(double std_dev): RegressionKernel(), std_dev(std_dev){
     lower_limit = -5*std_dev;
     upper_limit = 5*std_dev;
+    name = "gaussian";
 };
 
 double GaussianKernel::evaluate(double x) const{

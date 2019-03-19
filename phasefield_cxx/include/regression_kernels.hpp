@@ -1,5 +1,6 @@
 #ifndef REGRESSION_KERNEL_H
 #define REGRESSION_KERNEL_H
+#include <string>
 
 class RegressionKernel{
     public:
@@ -17,11 +18,15 @@ class RegressionKernel{
         /** Lower limit */
         double lower() const{return lower_limit;};
 
+        /** Get the name of the kernel */
+        const std::string& get_name() const{return name;};
+
         /** Check if the point is outside the kernels support */
         virtual bool is_outside_support(double x) const{return false;};
     protected:
         double upper_limit{0.0};
         double lower_limit{0.0};
+        std::string name{"default"};
 };
 
 class QuadraticKernel: public RegressionKernel{
