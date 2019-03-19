@@ -1,6 +1,7 @@
 #ifndef REGRESSION_KERNEL_H
 #define REGRESSION_KERNEL_H
 #include <string>
+#include <Python.h>
 
 class RegressionKernel{
     public:
@@ -23,6 +24,12 @@ class RegressionKernel{
 
         /** Check if the point is outside the kernels support */
         virtual bool is_outside_support(double x) const{return false;};
+
+        /** Get a Python dictionary with the parameter */
+        virtual PyObject *to_dict() const;
+
+        /** Set parameters from a dictionary */
+        virtual void from_dict(PyObject *dict_repr);
     protected:
         double upper_limit{0.0};
         double lower_limit{0.0};
@@ -41,6 +48,9 @@ class QuadraticKernel: public RegressionKernel{
 
         /** Check if the point is outside the support of the kernel */
         virtual bool is_outside_support(double x) const override final;
+
+        /** Get a Python dictionary representation of the parameters */
+        virtual PyObject *to_dict() const override final;
     private:
         double width{1.0};
 
@@ -60,6 +70,9 @@ class GaussianKernel: public RegressionKernel{
 
         /** Check if the value is outside the support */
         virtual bool is_outside_support(double x) const override final;
+
+        /** Get a Python dictionary representation of the parameters */
+        virtual PyObject *to_dict() const override final;
     private:
         double std_dev{1.0};
 };

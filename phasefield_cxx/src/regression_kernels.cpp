@@ -1,7 +1,17 @@
 #include "regression_kernels.hpp"
+#include "additional_tools.hpp"
 #include <cmath>
 
 const double PI = acos(-1.0);
+
+PyObject* RegressionKernel::to_dict() const{
+    PyObject *dict_repr = PyDict_New();
+
+    PyDict_SetItemString(dict_repr, "lower_limit", PyFloat_FromDouble(lower_limit));
+    PyDict_SetItemString(dict_repr, "upper_limit", PyFloat_FromDouble(upper_limit));
+    PyDict_SetItemString(dict_repr, "name", string2py(get_name()));
+    return dict_repr;
+}
 
 QuadraticKernel::QuadraticKernel(double width): RegressionKernel(), width(width){
     lower_limit = -width;
@@ -28,6 +38,13 @@ double QuadraticKernel::deriv(double x) const{
     return -2*amplitude()*x/(width*width);
 }
 
+PyObject *QuadraticKernel::to_dict() const{
+    PyObject *dict_repr = RegressionKernel::to_dict();
+
+    PyDict_SetItemString(dict_repr, "width", PyFloat_FromDouble(width));
+    return dict_repr;
+}
+
 /** Gaussian kernel */
 
 GaussianKernel::GaussianKernel(double std_dev): RegressionKernel(), std_dev(std_dev){
@@ -47,4 +64,11 @@ double GaussianKernel::deriv(double x) const{
 
 bool GaussianKernel::is_outside_support(double x) const{
     return x < lower_limit || x > upper_limit;
+}
+
+PyObject* GaussianKernel::to_dict() const{
+    PyObject *dict_repr = RegressionKernel::to_dict();
+
+    PyDict_SetItemString(dict_repr, "std_dev", PyFloat_FromDouble(std_dev));
+    return dict_repr;
 }
