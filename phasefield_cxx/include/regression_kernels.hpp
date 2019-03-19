@@ -16,6 +16,9 @@ class RegressionKernel{
 
         /** Lower limit */
         double lower() const{return lower_limit;};
+
+        /** Check if the point is outside the kernels support */
+        virtual bool is_outside_support(double x) const{return false;};
     protected:
         double upper_limit{0.0};
         double lower_limit{0.0};
@@ -32,11 +35,27 @@ class QuadraticKernel: public RegressionKernel{
         virtual double deriv(double x) const override final;
 
         /** Check if the point is outside the support of the kernel */
-        bool is_outside_support(double x) const;
+        virtual bool is_outside_support(double x) const override final;
     private:
         double width{1.0};
 
         /** Calculate the amplitude of the kernel */
         double amplitude() const{return 0.75/width;};
+};
+
+class GaussianKernel: public RegressionKernel{
+    public:
+        GaussianKernel(double std_dev);
+
+        /** Evaluate the kernel */
+        virtual double evaluate(double x) const override final;
+
+        /** Calculate the derivative of the kernel */
+        virtual double deriv(double x) const override final;
+
+        /** Check if the value is outside the support */
+        virtual bool is_outside_support(double x) const override final;
+    private:
+        double std_dev{1.0};
 };
 #endif

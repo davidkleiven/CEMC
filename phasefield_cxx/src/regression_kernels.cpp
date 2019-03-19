@@ -1,5 +1,7 @@
 #include "regression_kernels.hpp"
+#include <cmath>
 
+const double PI = acos(-1.0);
 
 QuadraticKernel::QuadraticKernel(double width): RegressionKernel(), width(width){
     lower_limit = -width;
@@ -23,4 +25,25 @@ double QuadraticKernel::deriv(double x) const{
     }
 
     return -2*amplitude()*x/(width*width);
+}
+
+/** Gaussian kernel */
+
+GaussianKernel::GaussianKernel(double x): RegressionKernel(), std_dev(std_dev){
+    lower_limit = -5*std_dev;
+    upper_limit = 5*std_dev;
+};
+
+double GaussianKernel::evaluate(double x) const{
+    double prefactor = 1.0/sqrt(2.0*PI*std_dev*std_dev);
+    return prefactor*exp(-0.5*pow(x/std_dev, 2));
+}
+
+double GaussianKernel::deriv(double x) const{
+    return x*evaluate(x)/pow(std_dev, 2);
+}
+
+bool GaussianKernel::is_outside_support(double x) const{
+    double width = 5*std_dev;
+    return x < -width || x > width;
 }
