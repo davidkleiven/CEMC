@@ -100,6 +100,26 @@ class TestRegressionKernels(unittest.TestCase):
         self.assertAlmostEqual(kernel.deriv(0.0), 0.0)
         self.assertAlmostEqual(kernel.deriv(width), expected/width)
 
+    def test_to_dict_quadratic(self):
+        if not available:
+            self.skipTest(reason)
+        width = 2.0
+        kernel = PyQuadraticKernel(width)
+        dict_repr = kernel.to_dict()
+        self.assertAlmostEqual(width, dict_repr["width"])
+        self.assertAlmostEqual(width, dict_repr["upper_limit"])
+        self.assertAlmostEqual(-width, dict_repr["lower_limit"])
+
+    def test_to_dict_gaussian(self):
+        if not available:
+            self.skipTest(reason)
+        width = 2.0
+        kernel = PyGaussianKernel(width)
+        dict_repr = kernel.to_dict()
+        self.assertAlmostEqual(width, dict_repr["std_dev"])
+        self.assertAlmostEqual(5*width, dict_repr["upper_limit"])
+        self.assertAlmostEqual(-5*width, dict_repr["lower_limit"])
+
     def test_to_dict(self):
         if not available:
             self.skipTest(reason)

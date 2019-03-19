@@ -27,6 +27,12 @@ cdef class PyQuadraticKernel(PyRegressionKernel):
     def deriv(self, x):
         return self.thisptr.deriv(x)
 
+    def to_dict(self):
+        return self.thisptr.to_dict()
+
+    def from_dict(self, dict_repr):
+        self.thisptr.from_dict(dict_repr)
+
 cdef class PyGaussianKernel(PyRegressionKernel):
 
     def __cinit__(self, double std_dev):
@@ -40,3 +46,9 @@ cdef class PyGaussianKernel(PyRegressionKernel):
 
     def deriv(self, x):
         return self.thisptr.deriv(x)
+
+    def to_dict(self):
+        return self.thisptr.to_dict()
+
+    def from_dict(self, dict_repr):
+        self.thisptr.from_dict(dict_repr)

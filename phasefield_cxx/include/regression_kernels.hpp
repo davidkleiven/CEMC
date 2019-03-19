@@ -6,6 +6,7 @@
 class RegressionKernel{
     public:
         RegressionKernel(){};
+        virtual ~RegressionKernel(){};
 
         /** Evaluate the kernel */
         virtual double evaluate(double x) const = 0;
@@ -29,7 +30,7 @@ class RegressionKernel{
         virtual PyObject *to_dict() const;
 
         /** Set parameters from a dictionary */
-        virtual void from_dict(PyObject *dict_repr);
+        virtual void from_dict(PyObject *dict_repr){};
     protected:
         double upper_limit{0.0};
         double lower_limit{0.0};
