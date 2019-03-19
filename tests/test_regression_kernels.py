@@ -3,6 +3,7 @@ import numpy as np
 try:
     from phasefield_cxx import PyQuadraticKernel
     from phasefield_cxx import PyKernelRegressor
+    from phasefield_cxx import PyGaussianKernel
     from cemc.phasefield.phasefield_util import fit_kernel
     available = True
     reason = ""
@@ -76,6 +77,28 @@ class TestRegressionKernels(unittest.TestCase):
         y_fit = regressor.evaluate(x)
         self.assertTrue(np.allclose(y, y_fit))
 
+    def test_gaussian_kernel(self):
+        if not available:
+            self.skipTest(reason)
+
+        width = 2.0
+        kernel = PyGaussianKernel(width)
+
+        # Confirm that the integral is 1
+        w = np.linspace(-10*width, 10*width, 20000).tolist()
+
+        values = [kernel.evaluate(x) for x in w]
+        integral = np.trapz(values, dx=w[1] - w[0])
+        self.assertAlmostEqual(integral, 1.0, places=4)
+
+        # Check some values
+        expected = np.exp(-0.5)*0.5/np.sqrt(2*np.pi)
+        self.assertAlmostEqual(kernel.evaluate(width), expected)
+        self.assertAlmostEqual(kernel.evaluate(-width), expected)
+
+        # Check derivatives
+        self.assertAlmostEqual(kernel.deriv(0.0), 0.0)
+        self.assertAlmostEqual(kernel.deriv(width), expected/width)
 
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
