@@ -3,6 +3,7 @@
 
 #include "regression_kernels.hpp"
 #include <vector>
+#include <Python.h>
 
 class KernelRegressor{
     public:
@@ -21,6 +22,12 @@ class KernelRegressor{
 
         /** Get the value of a single kernel */
         double evaluate_kernel(unsigned int i, double x) const;
+
+        /** Return a dictionary representation of the object */
+        PyObject *to_dict() const;
+
+        /** Initialize the object from a dictionary */
+        void from_dict(PyObject *dict_repr);
     private:
         const RegressionKernel *kernel{nullptr};
         std::vector<double> coeff;

@@ -1,5 +1,8 @@
 #include "kernel_regressor.hpp"
+#include "additional_tools.hpp"
+#include <sstream>
 #include<iostream>
+#include <stdexcept>
 
 using namespace std;
 
@@ -61,4 +64,43 @@ double KernelRegressor::kernel_separation() const{
 
 double KernelRegressor::evaluate_kernel(unsigned int i, double x) const{
     return kernel->evaluate(x-kernel_center(i));
+}
+
+PyObject *KernelRegressor::to_dict() const{
+    PyObject *dict_repr = PyDict_New();
+    PyObject *coeff_list = PyList_New(coeff.size());
+    for (unsigned int i=0;i<coeff.size();i++){
+        PyObject *pycoeff = PyFloat_FromDouble(coeff[i]);
+
+        // NOTE: SetItem steals the reference from pycoeff
+        PyList_SetItem(coeff_list, i, pycoeff);
+    }
+
+    PyDict_SetItemString(dict_repr, "coeff", coeff_list);
+    PyDict_SetItemString(dict_repr, "xmin", PyFloat_FromDouble(xmin));
+    PyDict_SetItemString(dict_repr, "xmax", PyFloat_FromDouble(xmax));
+    PyDict_SetItemString(dict_repr, "kernel_name", string2py(kernel->get_name()));
+    return dict_repr;
+}
+
+void KernelRegressor::from_dict(PyObject *dict_repr){
+    string retrieved_name = py2string(PyDict_GetItemString(dict_repr, "kernel_name"));
+    if (retrieved_name != kernel->get_name()){
+        stringstream ss;
+        ss << "Expected that the kernel type is " << kernel->get_name();
+        ss << " got " << retrieved_name;
+        throw invalid_argument(ss.str());
+    }
+
+    // Initialize xmin and xmax
+    this->xmin = PyFloat_AsDouble(PyDict_GetItemString(dict_repr, "xmin"));
+    this->xmax = PyFloat_AsDouble(PyDict_GetItemString(dict_repr, "xmax"));
+
+    // Initialize the coefficients
+    PyObject *pycoeff = PyDict_GetItemString(dict_repr, "coeff");
+    unsigned int size = PyList_Size(pycoeff);
+    coeff.resize(size);
+    for (unsigned int i=0;i<size;i++){
+        coeff[i] = PyFloat_AsDouble(PyList_GetItem(pycoeff, i));
+    }
 }
