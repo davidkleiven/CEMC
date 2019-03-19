@@ -29,7 +29,7 @@ double QuadraticKernel::deriv(double x) const{
 
 /** Gaussian kernel */
 
-GaussianKernel::GaussianKernel(double x): RegressionKernel(), std_dev(std_dev){
+GaussianKernel::GaussianKernel(double std_dev): RegressionKernel(), std_dev(std_dev){
     lower_limit = -5*std_dev;
     upper_limit = 5*std_dev;
 };
@@ -44,6 +44,5 @@ double GaussianKernel::deriv(double x) const{
 }
 
 bool GaussianKernel::is_outside_support(double x) const{
-    double width = 5*std_dev;
-    return x < -width || x > width;
+    return x < lower_limit || x > upper_limit;
 }
