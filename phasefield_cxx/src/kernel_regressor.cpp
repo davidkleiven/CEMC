@@ -3,6 +3,7 @@
 
 using namespace std;
 
+const double INF = 1E10;
 int KernelRegressor::lower_non_zero_kernel(double x) const{
     if (outside_domain(x)){
         return 0;
@@ -50,7 +51,7 @@ double KernelRegressor::deriv(double x) const{
 
 double KernelRegressor::kernel_separation() const{
     if (coeff.size() <= 1){
-        return 0.0;
+        return INF;
     }
 
     double domain_size = xmax - xmin;
