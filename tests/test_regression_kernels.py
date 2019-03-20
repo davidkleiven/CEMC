@@ -98,7 +98,7 @@ class TestRegressionKernels(unittest.TestCase):
 
         # Check derivatives
         self.assertAlmostEqual(kernel.deriv(0.0), 0.0)
-        self.assertAlmostEqual(kernel.deriv(width), expected/width)
+        self.assertAlmostEqual(kernel.deriv(width), -expected/width)
 
     def test_to_dict_quadratic(self):
         if not available:

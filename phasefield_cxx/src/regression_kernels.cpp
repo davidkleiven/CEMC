@@ -71,7 +71,7 @@ double GaussianKernel::evaluate(double x) const{
 }
 
 double GaussianKernel::deriv(double x) const{
-    return x*evaluate(x)/pow(std_dev, 2);
+    return -x*evaluate(x)/pow(std_dev, 2);
 }
 
 bool GaussianKernel::is_outside_support(double x) const{
