@@ -267,7 +267,8 @@ class TwoPhaseLandauPolynomial(object):
 
     def fit(self, conc, free_energy, weights={},
             init_shape_coeff=None, kernel_width=0.2, num_kernels=30,
-            show=True, width=0.1, smear_width=0, shape="auto"):
+            show=True, width=0.1, smear_width=0, shape="auto",
+            lamb=None):
         """Fit the free energy functional.
 
         :param numpy.ndarray conc2. Concentrations in the second phase
@@ -344,7 +345,8 @@ class TwoPhaseLandauPolynomial(object):
 
         self.kernel = PyGaussianKernel(kernel_width)
         self.phase_one_regressor = fit_kernel(
-            x=conc, y=reminder, num_kernels=num_kernels, kernel=self.kernel)
+            x=conc, y=reminder, num_kernels=num_kernels, kernel=self.kernel,
+            lamb=lamb)
 
         if show:
             from matplotlib import pyplot as plt
