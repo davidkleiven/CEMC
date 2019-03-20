@@ -68,14 +68,14 @@ class TestRegressionKernels(unittest.TestCase):
         if not available:
             self.skipTest(reason)
 
-        width = 4.1
-        kernel = PyQuadraticKernel(width)
+        width = 0.5
+        kernel = PyGaussianKernel(width)
         x = np.linspace(0.0, 10.0, 500, endpoint=True)
         y = x**2
-        num_kernels = 321
+        num_kernels = 60
         regressor = fit_kernel(x=x, y=y, num_kernels=num_kernels, kernel=kernel)
         y_fit = regressor.evaluate(x)
-        self.assertTrue(np.allclose(y, y_fit))
+        self.assertTrue(np.allclose(y, y_fit, atol=1E-4))
 
     def test_gaussian_kernel(self):
         if not available:
