@@ -397,6 +397,13 @@ class TwoPhaseLandauPolynomial(object):
                 }
                 used_perms.add(perm)
                 data["terms"].append(entry)
+
+        # Store the kernel regressor
+        try:
+            data["kernel_regressor"] = self.phase_one_regressor.to_dict()
+            data["kernel"] = self.kernel.to_dict()
+        except RuntimeError:
+            pass
         return data
 
     def save_poly_terms(self, fname="pypolyterm.json"):
