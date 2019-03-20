@@ -30,7 +30,7 @@ class RegressionKernel{
         virtual PyObject *to_dict() const;
 
         /** Set parameters from a dictionary */
-        virtual void from_dict(PyObject *dict_repr){};
+        virtual void from_dict(PyObject *dict_repr);
     protected:
         double upper_limit{0.0};
         double lower_limit{0.0};
@@ -52,6 +52,9 @@ class QuadraticKernel: public RegressionKernel{
 
         /** Get a Python dictionary representation of the parameters */
         virtual PyObject *to_dict() const override final;
+
+        /** Initialise object from dictionary */
+        virtual void from_dict(PyObject *dict_repr) override final;
     private:
         double width{1.0};
 
@@ -74,6 +77,9 @@ class GaussianKernel: public RegressionKernel{
 
         /** Get a Python dictionary representation of the parameters */
         virtual PyObject *to_dict() const override final;
+
+        /** Initialise object from dictionary */
+        virtual void from_dict(PyObject *dict_repr) override final;
     private:
         double std_dev{1.0};
 };
