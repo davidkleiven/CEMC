@@ -245,9 +245,8 @@ class TwoPhaseLandauPolynomial(object):
         shape = full_shape
 
         if var == "conc":
-            p1_der = np.polyder(self.conc_coeff)
             p2_der = np.polyder(self.conc_coeff2)
-            return np.polyval(p1_der, conc) + \
+            return self.phase_one_regressor.deriv(conc) + \
                 np.polyval(p2_der, conc)*np.sum(shape**2)
 
         elif var == "shape":
