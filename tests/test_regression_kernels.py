@@ -137,6 +137,30 @@ class TestRegressionKernels(unittest.TestCase):
         self.assertEqual("gaussian", dict_repr["kernel_name"])
         self.assertTrue(np.allclose(coeff, dict_repr["coeff"]))
 
+    def test_quadratic_from_dict(self):
+        if not available:
+            self.skipTest(reason)
+        width = 2.0
+        kernel = PyQuadraticKernel(width)
+        dict_repr = kernel.to_dict()
+
+        x0 = -0.34
+        k0 = kernel.evaluate(x0)
+        kernel.from_dict(dict_repr)
+        self.assertAlmostEqual(k0, kernel.evaluate(x0))
+
+    def test_gaussian_from_dict(self):
+        if not available:
+            self.skipTest(reason)
+        width = 2.0
+        kernel = PyGaussianKernel(width)
+        dict_repr = kernel.to_dict()
+
+        x0 = -0.34
+        k0 = kernel.evaluate(x0)
+        kernel.from_dict(dict_repr)
+        self.assertAlmostEqual(k0, kernel.evaluate(x0))
+
     def test_from_dict(self):
         if not available:
             self.skipTest(reason)
