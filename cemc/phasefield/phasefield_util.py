@@ -21,9 +21,11 @@ def fit_kernel(x=[], y=[], num_kernels=1, kernel=None, lamb=None):
     if lamb is None:
         coeff = np.linalg.lstsq(matrix, y)[0]
     else:
-        N = matrix.shape[1]
-        prec = np.linalg.inv(matrix.T.dot(matrix) + lamb*np.identity(N))
-        coeff = prec.dot(matrix.T.dot(y))
+        u, d, vh = np.linalg.svd(matrix, full_matrices=False)
+        D = np.diag(d/(lamb + d**2))
+        Uy = u.T.dot(y)
+        DUy = D.dot(Uy)
+        coeff = vh.T.dot(DUy)
     regressor.set_coeff(coeff)
     return regressor
 
