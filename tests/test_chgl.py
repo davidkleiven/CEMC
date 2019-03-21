@@ -3,12 +3,16 @@ import os
 import numpy as np
 try:
     from phasefield_cxx import PyCHGL
-    from phasefield_cxx import PyPolynomialTerm
+    from phasefield_cxx import PyTwoPhaseLandau
+    from phasefield_cxx import PyPolynomial
+    from phasefield_cxx import PyKernelRegressor
+    from phasefield_cxx import PyGaussianKernel
     available = True
     reason = ""
 except ImportError as exc:
     available = False
     reason = str(exc)
+    print(reason)
 
 
 class TestCHGL(unittest.TestCase):
@@ -32,7 +36,38 @@ class TestCHGL(unittest.TestCase):
         chgl = self.get_chgl()
         chgl.print_polynomial()
         chgl.random_initialization([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
+        with self.assertRaises(RuntimeError):
+            chgl.run(5, 1000)
+
+        # We set a free energy form
+        landau = PyTwoPhaseLandau()
+
+        # This polynomial has the wrong size
+        # make sure that an exception is raised
+        poly = PyPolynomial(2)
+        regressor = PyKernelRegressor(0.0, 1.0)
+        kernel = PyGaussianKernel(2.0)
+
+        # Case 1: Fail because no kernel is set
+        with self.assertRaises(ValueError):
+            chgl.set_free_energy(landau)
+
+        # Case 2: Fail because no polynomial is set
+        regressor.set_kernel(kernel)
+        landau.set_kernel_regressor(regressor)
+        with self.assertRaises(RuntimeError):
+            chgl.set_free_energy(landau)
+        
+        # Case 3: Fail because the polynomial has wrong dimension
+        landau.set_polynomial(poly)
+        with self.assertRaises(ValueError):
+            chgl.set_free_energy(landau)
+
+        poly = PyPolynomial(3)
+        landau.set_polynomial(poly)
+        chgl.set_free_energy(landau)
         chgl.run(5, 1000)
+
 
     def test_npy_array(self):
         if not available:

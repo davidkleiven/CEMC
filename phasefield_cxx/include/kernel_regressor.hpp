@@ -11,6 +11,9 @@ class KernelRegressor{
 
         void set_kernel(const RegressionKernel &new_kernel){kernel = &new_kernel;};
 
+        /** Return true if the kernel is set */
+        bool kernel_is_set() const{ return kernel != nullptr; }
+
         /** Evaluate */
         double evaluate(double x) const;
 

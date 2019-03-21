@@ -11,7 +11,7 @@ template<int dim>
 CHGL<dim>::CHGL(int L, const std::string &prefix, unsigned int num_gl_fields, \
            double M, double alpha, double dt, double gl_damping, 
            const interface_vec_t &interface): PhaseFieldSimulation<dim>(L, prefix, num_gl_fields+1), \
-           M(M), alpha(alpha), dt(dt), gl_damping(gl_damping), interface(interface), free_energy(num_gl_fields+1){
+           M(M), alpha(alpha), dt(dt), gl_damping(gl_damping), interface(interface){
                if (dim == 1){
                     cmplx_grid_ptr = new MMSP::grid<dim, MMSP::vector<fftw_complex> >(this->num_fields, 0, L);
                 }
@@ -30,15 +30,14 @@ CHGL<dim>::~CHGL(){
 }
 
 template<int dim>
-void CHGL<dim>::add_free_energy_term(double coeff, const PolynomialTerm &polyterm){
-    free_energy.add_term(coeff, polyterm);
-}
-
-template<int dim>
 void CHGL<dim>::update(int nsteps){
     #ifndef HAS_FFTW
         throw runtime_error("CHGL requires FFTW!");
     #endif
+
+    if (!this->free_energy){
+        throw runtime_error("Free Energy is not set!");
+    }
 
     if (!is_initialized){
         from_parent_grid();
@@ -81,8 +80,13 @@ void CHGL<dim>::update(int nsteps){
             }
             MMSP::vector<fftw_complex> free_eng_deriv(phi.length());
             double *phi_raw_ptr = &(phi_real[0]);
-            for (unsigned int j=0;j<phi.length();j++){
-                free_eng_deriv[j].re = free_energy.deriv(phi_raw_ptr, j);
+
+            // Get partial derivative with respect to concentration
+            free_eng_deriv[0].re = this->free_energy->partial_deriv_conc(phi_raw_ptr);
+            free_eng_deriv[0].im = 0.0;
+
+            for (unsigned int j=1;j<phi.length();j++){
+                free_eng_deriv[j].re = this->free_energy->partial_deriv_shape(phi_raw_ptr, j-1);
                 free_eng_deriv[j].im = 0.0;
             }
             free_energy_real_space(i) = free_eng_deriv;
@@ -217,7 +221,28 @@ void CHGL<dim>::to_parent_grid() const{
 
 template<int dim>
 void CHGL<dim>::print_polynomial() const{
-    cout << free_energy << endl;
+    //cout << *free_energy << endl;
+}
+
+template<int dim>
+void CHGL<dim>::set_free_energy(const TwoPhaseLandau &poly){
+    if (!poly.get_regressor()){
+        throw invalid_argument("TwoPhaseLanday has no kernel regressor!");
+    }
+
+    if (!poly.get_regressor()->kernel_is_set()){
+        throw invalid_argument("The Kernel Regressor has no kernel!");
+    }
+
+    if (poly.get_poly_dim() != this->num_fields){
+        stringstream ss;
+        ss << "The polynomial passed has wrong dimension!";
+        ss << "Expected: " << this->num_fields;
+        ss << " Got: " << poly.get_poly_dim();
+        throw invalid_argument(ss.str());
+    }
+
+    free_energy = &poly;
 }
 
 

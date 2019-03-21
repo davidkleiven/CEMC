@@ -3,8 +3,8 @@
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 
-cdef extern from "polynomial_term.hpp":
-    cdef cppclass PolynomialTerm:
+cdef extern from "two_phase_landau.hpp":
+    cdef cppclass TwoPhaseLandau:
         pass
 
 cdef extern from "chgl.hpp":
@@ -15,7 +15,7 @@ cdef extern from "chgl.hpp":
 
         void update(int steps)
 
-        void run(unsigned int start, unsigned int nsteps, int increment)
+        void run(unsigned int start, unsigned int nsteps, int increment) except+
 
         void random_initialization(unsigned int field, double lower, double upper)
 
@@ -25,6 +25,6 @@ cdef extern from "chgl.hpp":
 
         object to_npy_array() except +
 
-        void add_free_energy_term(double coeff, PolynomialTerm &polyter)
+        void set_free_energy(TwoPhaseLandau &polyter) except+
 
         void print_polynomial()

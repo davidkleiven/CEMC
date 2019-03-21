@@ -1,8 +1,7 @@
 #ifndef CHGL_H
 #define CHGL_H
 #include "phase_field_simulation.hpp"
-#include "polynomial.hpp"
-#include "polynomial_term.hpp"
+#include "two_phase_landau.hpp"
 
 #ifdef HAS_FFTW
     #include <fftw.h>
@@ -25,7 +24,7 @@ public:
     virtual ~CHGL();
 
     /** Add a new free energy term to the model */
-    void add_free_energy_term(double coeff, const PolynomialTerm &polyterm);
+    void set_free_energy(const TwoPhaseLandau &poly);
 
     /** Print the polynomial used to screen */
     void print_polynomial() const;
@@ -38,7 +37,7 @@ private:
     double dt;
     double gl_damping;
     interface_vec_t interface;
-    Polynomial free_energy;
+    const TwoPhaseLandau *free_energy{nullptr};
     MMSP::grid<dim, MMSP::vector<fftw_complex> > *cmplx_grid_ptr{nullptr};
 
     /** Check that the provided interfaces vector matches requirements */
