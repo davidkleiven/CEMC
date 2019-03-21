@@ -68,7 +68,7 @@ class TestLandauPolynomial(unittest.TestCase):
     def test_partial_derivative(self):
         if not available:
             self.skipTest(reason)
-        
+
         poly = TwoPhaseLandauPolynomial(c1=0.0, c2=0.5)
         poly.conc_coeff2 = [-1, 2, 0]
         poly.coeff_shape[0] = 2
