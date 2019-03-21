@@ -8,6 +8,11 @@ void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in,
     fftwnd_plan plan = fftwnd_create_plan(dim, dims, direction, FFTW_ESTIMATE | FFTW_IN_PLACE);
 
     int num_elements = MMSP::nodes(grid_in);
+    double normalization = 1.0;
+
+    if (direction == FFTW_BACKWARD){
+        normalization = num_elements;
+    }
 
     // Ensure consistent nodes
     if (MMSP::nodes(grid_out) != num_elements){
@@ -70,7 +75,7 @@ void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in,
         #pragma omp parallel for
         #endif
         for (unsigned int i=0;i<MMSP::nodes(grid_out);i++){
-            grid_out(i)[field] = A[i];
+            grid_out(i)[field] = A[i]/normalization;
         }
     }
 
