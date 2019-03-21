@@ -4,6 +4,10 @@ import os
 try:
     from cemc.phasefield import TwoPhaseLandauPolynomial
     from phasefield_cxx import PyTwoPhaseLandau
+    from phasefield_cxx import PyPolynomial
+    from phasefield_cxx import PyKernelRegressor
+    from phasefield_cxx import PyPolynomialTerm
+    from phasefield_cxx import PyGaussianKernel
     from cemc.phasefield.tools import get_polyterms
     available = True
     reason = ""
@@ -38,29 +42,43 @@ class TestLandauPolynomial(unittest.TestCase):
     def test_Cxx_poly(self):
         if not available:
             self.skipTest(reason)
-        c1 = 0.0
-        c2 = 0.8
-        coeff = [1.0, 2.0, 3.0, 4.0]
-        pypoly = PyTwoPhaseLandau(c1, c2, coeff)
+        landau_poly = PyTwoPhaseLandau()
+        term = PyPolynomialTerm([1, 1, 1])
+        poly = PyPolynomial(3)
+        coeff = 2.5
+        poly.add_term(coeff, term)
 
-        shape = [1.0, 0.0, 0.0]
-        shape_npy = np.array(shape)
+        width = 2.0
+        kernel = PyGaussianKernel(width)
+
+        regressor = PyKernelRegressor(0.0, 1.0)
+        regressor.set_kernel(kernel)
+        regressor.set_coeff([1.0, 1.0, 1.0, 1.0, 1.0])
+        landau_poly.set_kernel_regressor(regressor)
+        landau_poly.set_polynomial(poly)
+
+        shape = [0.5, 0.5]
         c = 0.5
-        expect = coeff[0]*(c-c1)**2 + \
-            coeff[1]*(c - c2)*np.sum(shape_npy**2) + \
-            coeff[2]*np.sum(shape_npy**4) + coeff[3]*np.sum(shape_npy**2)**3
-        self.assertAlmostEqual(pypoly.evaluate(c, shape), expect)
+        _ = landau_poly.evaluate(c, shape)
+        deriv1 = landau_poly.partial_deriv_shape(c, shape, 0)
+        deriv2 = landau_poly.partial_deriv_shape(c, shape, 1)
+        self.assertAlmostEqual(deriv1, deriv2)
+        self.assertAlmostEqual(deriv1, coeff*shape[0]*c)
 
     def test_partial_derivative(self):
         if not available:
             self.skipTest(reason)
         
         poly = TwoPhaseLandauPolynomial(c1=0.0, c2=0.5)
-        poly.conc_coeff = [1, -2, 3]
         poly.conc_coeff2 = [-1, 2, 0]
         poly.coeff_shape[0] = 2
         poly.coeff_shape[2] = 5
 
+        kernel = PyGaussianKernel(2.0)
+        regressor = PyKernelRegressor(0.0, 1.0)
+        regressor.set_kernel(kernel)
+
+        poly.phase_one_regressor = regressor
         # Verify that we get a value error if we pass an unknown
         # variable
         with self.assertRaises(ValueError):
@@ -69,8 +87,7 @@ class TestLandauPolynomial(unittest.TestCase):
         conc = 0.4
         shape = 0.2
         pd_conc = poly.partial_derivative(conc, shape=shape, var="conc")
-        expected = np.polyval(np.polyder(poly.conc_coeff), conc)
-        expected += np.polyval(np.polyder(poly.conc_coeff2), conc)*shape**2
+        expected = np.polyval(np.polyder(poly.conc_coeff2), conc)*shape**2
         self.assertAlmostEqual(pd_conc, expected)
 
         pd_shape = poly.partial_derivative(conc, shape=shape, var="shape")
@@ -177,6 +194,8 @@ class TestLandauPolynomial(unittest.TestCase):
         self.assertAlmostEqual(fd_deriv, deriv, places=4)
 
     def test_array_decorator_only_conc(self):
+        if not available:
+            self.skipTest(reason)
         poly = TwoPhaseLandauPolynomial(c1=0.0, c2=0.5, conc_order1=2,
                                         conc_order2=1)
 
@@ -198,6 +217,8 @@ class TestLandauPolynomial(unittest.TestCase):
             poly.eval_at_equil([[0.5, 0.2], [0.1, 0.2]])
 
     def test_array_decorator_mixed(self):
+        if not available:
+            self.skipTest(reason)
         poly = TwoPhaseLandauPolynomial(c1=0.0, c2=0.5, conc_order1=2,
                                         conc_order2=1)
 
@@ -237,9 +258,10 @@ class TestLandauPolynomial(unittest.TestCase):
             poly.evaluate([0.2, 0.3], shape=[[0.1, 0.0, 0.0]])
 
     def test_export(self):
+        if not available:
+            self.skipTest(reason)
         poly = TwoPhaseLandauPolynomial(c1=0.0, c2=0.0, conc_order1=3,
                                         conc_order2=4)
-        poly.conc_coeff[:] = np.array([4.0, 5.0, -2.0, 1.0])
         poly.conc_coeff2[:] = np.array([2.0, -1.0, 0.2, -5.0, 10.0])
         poly.coeff_shape[:] = [2.0, -1.0, 3.0, 2.3, 5.0]
 

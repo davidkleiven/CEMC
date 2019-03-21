@@ -9,10 +9,10 @@ class TwoPhaseLandau{
         TwoPhaseLandau();
 
         /** Set the kernel regressor */
-        void set_kernel_regressor(const KernelRegressor &regr);
+        void set_kernel_regressor(const KernelRegressor &regr){regressor = &regr;};
 
         /** Set the polymial */
-        void set_polynomial(const Polynomial &poly);
+        void set_polynomial(const Polynomial &poly){polynomial = &poly;};
 
         /** Evaluate the shape polynomial*/
         double evaluate(double conc, const std::vector<double> &shape) const;
