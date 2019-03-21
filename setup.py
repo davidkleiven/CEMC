@@ -94,10 +94,7 @@ phase_field_mod = Extension("phasefield_cxx", sources=phasefield_sources,
                                           os.environ.get("MMSP_HOME", "./")+"/include"],
                             extra_compile_args=extra_comp_args,
                             language="c++", define_macros=define_macros,
-                            libraries=["gomp", "pthread", "z", "png",
-                                       "vtkCommonCore", "vtkCommonDataModel",
-                                       "vtkIOXML"] + optional_lib_phasefield,
-                            library_dirs=[os.environ.get("VTKLIB", "./")])
+                            libraries=["gomp", "pthread", "z"] + optional_lib_phasefield)
 
 ext_mods = [cemc_cpp_code]
 if "--with-phasefield" in sys.argv:
