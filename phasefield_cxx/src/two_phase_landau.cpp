@@ -2,16 +2,30 @@
 #include <cmath>
 
 using namespace std;
-TwoPhaseLandau::TwoPhaseLandau(double c1, double c2, const vector<double> &coefficients): \
-    c1(c1), c2(c2), coeff(coefficients){};
+TwoPhaseLandau::TwoPhaseLandau(){};
 
 double TwoPhaseLandau::evaluate(double conc, const vector<double> &shape) const{
-    double sum_sq = 0.0;
-    double sum_quad = 0.0;
+    double value = regressor->evaluate(conc);
 
-    for (double s : shape){
-        sum_sq += s*s;
-        sum_quad += pow(s, 4);
-    }
-    return coeff[0]*pow(conc - c1, 2) + coeff[1]*(conc - c2)*sum_sq + coeff[2]*sum_quad + coeff[3]*pow(sum_sq, 3);
+    double x[4];
+    x[0] = conc;
+    memcpy(x+1, &shape[0], sizeof(double)*shape.size());
+    value += polynomial->evaluate(x);
+    return value;
+}
+
+double TwoPhaseLandau::partial_deriv_conc(double conc, const vector<double> &shape) const{
+    double value = regressor->deriv(conc);
+    double x[4];
+    x[0] = conc;
+    memcpy(x+1, &shape[0], sizeof(double)*shape.size());
+    value += polynomial->deriv(x, 0);
+    return value;
+}
+
+double TwoPhaseLandau::partial_deriv_shape(double conc, const std::vector<double> &shape, unsigned int direction) const{
+    double x[4];
+    x[0] = conc;
+    memcpy(x+1, &shape[0], sizeof(double)*shape.size());
+    return polynomial->deriv(x, direction+1);
 }
