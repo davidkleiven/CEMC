@@ -75,7 +75,8 @@ void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in,
         #pragma omp parallel for
         #endif
         for (unsigned int i=0;i<MMSP::nodes(grid_out);i++){
-            grid_out(i)[field] = A[i]/normalization;
+            A[i].re /= normalization;
+            grid_out(i)[field] = A[i];
         }
     }
 
@@ -102,3 +103,26 @@ void divide(MMSP::vector<T> &vec, double val){
         vec[i] /= val;
     }
 };
+
+
+template<int dim>
+void max_value(const MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid, MMSP::vector<double> &max_val){
+    for (unsigned int field=0;field<MMSP::fields(grid);field++){
+        max_val[field] = 0.0;
+        for (unsigned int node=0;node<MMSP::nodes(grid);node++){
+            double abs_val = sqrt(pow(grid(node)[field].re, 2) + pow(grid(node)[field].im, 2));
+
+            if (abs_val > max_val[field]){
+                max_val[field] = abs_val;
+            }
+        }
+    }
+}
+
+template<class T>
+std::ostream& operator<<(std::ostream &out, MMSP::vector<T> &vec){
+    for (unsigned int i=0;i<vec.length();i++){
+        out << vec[i] << " ";
+    }
+    return out;
+}

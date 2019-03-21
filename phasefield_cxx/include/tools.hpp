@@ -6,6 +6,8 @@
 #include <vector>
 #include <sstream>
 #include <stdexcept>
+#include <iostream>
+#include <cmath>
 
 template<int dim, typename T>
 T partial_double_derivative(const MMSP::grid<dim, T> &GRID, const MMSP::vector<int> &x, unsigned int dir){
@@ -39,6 +41,12 @@ void k_vector(const MMSP::vector<int> &pos, MMSP::vector<double> &k_vec, int N);
 
 template<int dim>
 void get_dims(const MMSP::grid<dim, MMSP::vector<fftw_complex> >&grid_in, int dims[3]);
+
+template<int dim>
+void max_value(const MMSP::grid<dim, MMSP::vector<fftw_complex> >&grid, MMSP::vector<double> &max_val);
+
+template<class T>
+std::ostream& operator<<(std::ostream &out, MMSP::vector<T> &vec);
 
 double norm(const MMSP::vector<double> &vec);
 void dot(const mat3x3 &mat1, const MMSP::vector<double> &vec, MMSP::vector<double> &out);
