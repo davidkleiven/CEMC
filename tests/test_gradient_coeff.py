@@ -6,21 +6,21 @@ try:
     from scipy.interpolate import interp1d
     available = True
     reason = ""
+
+    class SingleParameterRhs(GradientCoefficientRhsBuilder):
+        def __init__(self, boundary_values):
+            GradientCoefficientRhsBuilder.__init__(self, boundary_values)
+
+        def grad(self, c):
+            """Gradient with respect to all parameters."""
+            return 4*c**3 - 4*c
+
+        def evaluate(self, c):
+            return (1.0 - c**2)**2
+
 except ImportError as exc:
     available = False
     reason = str(exc)
-
-
-class SingleParameterRhs(GradientCoefficientRhsBuilder):
-    def __init__(self, boundary_values):
-        GradientCoefficientRhsBuilder.__init__(self, boundary_values)
-
-    def grad(self, c):
-        """Gradient with respect to all parameters."""
-        return 4*c**3 - 4*c
-
-    def evaluate(self, c):
-        return (1.0 - c**2)**2
 
 
 class TestGradientCoeff(unittest.TestCase):

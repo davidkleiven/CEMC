@@ -11,6 +11,8 @@ except ImportError as exc:
 
 class TestHyperTangentBVP(unittest.TestCase):
     def test_excact(self):
+        if not available:
+            self.skipTest(reason)
         boundary = [[0.0, 1.0]]
 
         K = 1.0
@@ -32,6 +34,8 @@ class TestHyperTangentBVP(unittest.TestCase):
         self.assertAlmostEqual(res, w, places=2)
 
     def test_exact_two_parameter(self):
+        if not available:
+            self.skipTest(reason)
         x = np.linspace(-5.0, 5.0, 100)
         boundary = [[0.0, 1.0], [0.0, 1.5]]
         K1 = 1.0
