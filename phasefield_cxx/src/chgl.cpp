@@ -133,7 +133,7 @@ void CHGL<dim>::update(int nsteps){
             }
         }
 
-        // Inverse Fourier transform
+        // Inverse Fourier transform --> output intto gr
         fft->execute(ft_fields, gr, FFTW_BACKWARD, all_fields);
 
         //  MMSP::vector<double> lapl_phi = MMSP::laplacian(gr, i);
@@ -223,6 +223,7 @@ void CHGL<dim>::to_parent_grid() const{
     for (unsigned int field=0;field<this->num_fields;field++)
     {
         (*(this->grid_ptr))(i)[field] = (*(this->cmplx_grid_ptr))(i)[field].re;
+        (*(this->cmplx_grid_ptr))(i)[field].im = 0.0;
     }
 }
 
@@ -265,6 +266,7 @@ void CHGL<dim>::save_free_energy_map(const std::string &fname) const{
 
         free_energy_grid(i)[0] = free_energy->evaluate(x);
         free_energy_grid(i)[1] = free_energy->partial_deriv_conc(x);
+        free_energy_grid(i)[2] = free_energy->partial_deriv_shape(x, 0);
     }
 
     free_energy_grid.output(fname.c_str());
