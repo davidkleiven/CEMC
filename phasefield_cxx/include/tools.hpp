@@ -8,6 +8,8 @@
 #include <stdexcept>
 #include <iostream>
 #include <cmath>
+#include <string>
+#include <fstream>
 
 template<int dim, typename T>
 T partial_double_derivative(const MMSP::grid<dim, T> &GRID, const MMSP::vector<int> &x, unsigned int dir){
@@ -54,6 +56,9 @@ double dot(const MMSP::vector<double> &vec1, const MMSP::vector<double> &vec2);
 
 template<class T>
 void divide(MMSP::vector<T> &vec, double factor);
+
+template<int dim>
+void save_complex_field(const std::string &fname, MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid, unsigned int field);
 
 #include "tools.tpp"
 #endif

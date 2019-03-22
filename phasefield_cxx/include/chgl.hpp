@@ -12,6 +12,7 @@
 #include "MMSP.grid.h"
 #include "MMSP.vector.h"
 #include <vector>
+#include <string>
 
 typedef std::vector<std::vector<double> > interface_vec_t;
 
@@ -26,6 +27,9 @@ public:
 
     /** Add a new free energy term to the model */
     void set_free_energy(const TwoPhaseLandau &poly);
+
+    /** Return an array of the free energy */
+    void save_free_energy_map(const std::string &fname) const;
 
     /** Print the polynomial used to screen */
     void print_polynomial() const;

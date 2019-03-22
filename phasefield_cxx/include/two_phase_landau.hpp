@@ -19,6 +19,7 @@ class TwoPhaseLandau{
 
         /** Evaluate the shape polynomial*/
         double evaluate(double conc, const std::vector<double> &shape) const;
+        double evaluate(double x[]) const;
 
         /** Evaluate the derivative */
         double partial_deriv_conc(double conc, const std::vector<double> &shape) const;

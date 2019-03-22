@@ -4,6 +4,7 @@
 #include "MMSP.vector.h"
 #include <vector>
 #include <omp.h>
+#include <iostream>
 #ifdef HAS_FFTW
     #include <fftw.h>
 #else
@@ -35,6 +36,7 @@ class FFTW{
 
         template<int dim>
         void check_grids(const ft_grid_t<dim> & grid_in, ft_grid_t<dim> &grid_out) const;
+        static bool multithread_initialized;
 };
 
 

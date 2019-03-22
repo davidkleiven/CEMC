@@ -99,7 +99,7 @@ void CHGL<dim>::update(int nsteps){
 
         // Fourier transform all the fields --> output in ft_fields
         fft->execute(gr, ft_fields, FFTW_FORWARD, all_fields);
-        fft->save_buffer("data/ft_chempot.csv", FFTW::ExportType::MODULUS);
+        //save_complex_field("data/chempot.csv", ft_fields, 0);
 
         // Fourier transform the free energy --> output info grid
         fft->execute(free_energy_real_space, gr, FFTW_FORWARD, all_fields);
@@ -210,6 +210,7 @@ void CHGL<dim>::from_parent_grid(){
     for (unsigned int field=0;field<this->num_fields;field++)
     {
         (*(this->cmplx_grid_ptr))(i)[field].re = (*(this->grid_ptr))(i)[field];
+        (*(this->cmplx_grid_ptr))(i)[field].im = 0.0;
     }
 }
 
@@ -251,7 +252,23 @@ void CHGL<dim>::set_free_energy(const TwoPhaseLandau &poly){
     free_energy = &poly;
 }
 
+template<int dim>
+void CHGL<dim>::save_free_energy_map(const std::string &fname) const{
+    MMSP::grid<dim, MMSP::vector<double> > free_energy_grid(*this->grid_ptr);
 
+    for (unsigned int i=0;i<MMSP::nodes(*this->grid_ptr);i++)
+    {
+        double x[dim+1];
+        for (unsigned int field=0;field<MMSP::fields(free_energy_grid);field++){
+            x[field] = (*this->grid_ptr)(i)[field];
+        }
+
+        free_energy_grid(i)[0] = free_energy->evaluate(x);
+        free_energy_grid(i)[1] = free_energy->partial_deriv_conc(x);
+    }
+
+    free_energy_grid.output(fname.c_str());
+}
 // Explicit instantiations
 template class CHGL<1>;
 template class CHGL<2>;

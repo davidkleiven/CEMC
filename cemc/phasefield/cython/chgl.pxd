@@ -28,3 +28,5 @@ cdef extern from "chgl.hpp":
         void set_free_energy(TwoPhaseLandau &polyter) except+
 
         void print_polynomial()
+
+        void save_free_energy_map(string &fname)

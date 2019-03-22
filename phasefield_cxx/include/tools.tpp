@@ -1,3 +1,4 @@
+#include <fstream>
 #ifdef HAS_FFTW
 
 template<int dim>
@@ -125,4 +126,19 @@ std::ostream& operator<<(std::ostream &out, MMSP::vector<T> &vec){
         out << vec[i] << " ";
     }
     return out;
+}
+
+template<int dim>
+void save_complex_field(const std::string &fname, MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid, unsigned int field){
+
+    std::ofstream ofs(fname);
+
+    if (!ofs.good()){
+        throw std::runtime_error("Cannot open file!");
+    }
+
+    for (unsigned int i=0;i<MMSP::nodes(grid);i++){
+        ofs << grid(i)[field].re << ",";
+    }
+    ofs.close();
 }

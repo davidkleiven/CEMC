@@ -5,11 +5,14 @@ using namespace std;
 TwoPhaseLandau::TwoPhaseLandau(){};
 
 double TwoPhaseLandau::evaluate(double conc, const vector<double> &shape) const{
-    double value = regressor->evaluate(conc);
-
     double x[4];
     x[0] = conc;
     memcpy(x+1, &shape[0], sizeof(double)*shape.size());
+    return evaluate(x);
+}
+
+double TwoPhaseLandau::evaluate(double x[]) const{
+    double value = regressor->evaluate(x[0]);
     value += polynomial->evaluate(x);
     return value;
 }
