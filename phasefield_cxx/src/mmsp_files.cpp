@@ -6,3 +6,4 @@
 #include "cahn_hilliard_phasefield.cpp"
 #include "chgl.cpp"
 #include "multidirectional_khachaturyan.cpp"
+#include "fftw_mmsp.cpp"

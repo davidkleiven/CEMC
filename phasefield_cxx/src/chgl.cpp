@@ -12,14 +12,18 @@ CHGL<dim>::CHGL(int L, const std::string &prefix, unsigned int num_gl_fields, \
            double M, double alpha, double dt, double gl_damping, 
            const interface_vec_t &interface): PhaseFieldSimulation<dim>(L, prefix, num_gl_fields+1), \
            M(M), alpha(alpha), dt(dt), gl_damping(gl_damping), interface(interface){
+               int dims[3] = {L, L, L};
                if (dim == 1){
                     cmplx_grid_ptr = new MMSP::grid<dim, MMSP::vector<fftw_complex> >(this->num_fields, 0, L);
+                    fft = new FFTW(1, dims);
                 }
                 else if (dim == 2){
                     cmplx_grid_ptr = new MMSP::grid<dim, MMSP::vector<fftw_complex> >(this->num_fields, 0, L, 0, L);
+                    fft = new FFTW(2, dims);
                 }
                 else if (dim == 3){
                     cmplx_grid_ptr = new MMSP::grid<dim, MMSP::vector<fftw_complex> >(this->num_fields, 0, L, 0, L, 0, L);
+                    fft = new FFTW(3, dims);
                 }
                check_interface_vector();
            };
@@ -27,6 +31,7 @@ CHGL<dim>::CHGL(int L, const std::string &prefix, unsigned int num_gl_fields, \
 template<int dim>
 CHGL<dim>::~CHGL(){
     delete cmplx_grid_ptr; cmplx_grid_ptr = nullptr;
+    delete fft; fft = nullptr;
 }
 
 template<int dim>
@@ -93,10 +98,10 @@ void CHGL<dim>::update(int nsteps){
         }
 
         // Fourier transform all the fields --> output in ft_fields
-        fft_mmsp_grid(gr, ft_fields, FFTW_FORWARD, dims, all_fields);
+        fft->execute((gr, ft_fields, FFTW_FORWARD, all_fields);
 
         // Fourier transform the free energy --> output info grid
-        fft_mmsp_grid(free_energy_real_space, gr, FFTW_FORWARD, dims, all_fields);
+        fft->execute(free_energy_real_space, gr, FFTW_FORWARD, all_fields);
 
         // Update using semi-implicit scheme
         #ifndef NO_PHASEFIELD_PARALLEL
@@ -128,7 +133,7 @@ void CHGL<dim>::update(int nsteps){
         }
 
         // Inverse Fourier transform
-        fft_mmsp_grid(ft_fields, gr, FFTW_BACKWARD, dims, all_fields);
+        fft->execute(ft_fields, gr, FFTW_BACKWARD, all_fields);
 
         //  MMSP::vector<double> lapl_phi = MMSP::laplacian(gr, i);
         //  MMSP::vector<double> free_eng_deriv(phi.length());

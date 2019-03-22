@@ -2,6 +2,7 @@
 #define CHGL_H
 #include "phase_field_simulation.hpp"
 #include "two_phase_landau.hpp"
+#include "fftw_mmsp.hpp"
 
 #ifdef HAS_FFTW
     #include <fftw.h>
@@ -39,6 +40,8 @@ private:
     interface_vec_t interface;
     const TwoPhaseLandau *free_energy{nullptr};
     MMSP::grid<dim, MMSP::vector<fftw_complex> > *cmplx_grid_ptr{nullptr};
+
+    FFTW *fft{nullptr};
 
     /** Check that the provided interfaces vector matches requirements */
     void check_interface_vector() const;
