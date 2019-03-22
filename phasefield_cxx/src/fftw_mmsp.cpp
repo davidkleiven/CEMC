@@ -1,5 +1,6 @@
 #include "fftw_mmsp.hpp"
 #include <stdexcept>
+#include <fstream>
 using namespace std;
 
 FFTW::FFTW(unsigned int dim, const int *dims): dimension(dim){
@@ -23,4 +24,27 @@ FFTW::~FFTW(){
         fftwnd_destroy_plan(backward_plan);
         delete [] buffer;
     #endif
+}
+
+void FFTW::save_buffer(const string &fname, ExportType exp){
+    ofstream ofs(fname);
+
+    if (!ofs.good()){
+        throw runtime_error("Could not write buffer to file!");
+    }
+
+    for (unsigned int i=0;i<num_elements_from_dims;i++){
+        switch(exp){
+            case ExportType::IMAG:
+                ofs << buffer[i].im << ",";
+                break;
+            case ExportType::REAL:
+                ofs << buffer[i].re << ",";
+                break;
+            case ExportType::MODULUS:
+                ofs << sqrt(pow(buffer[i].re, 2) + pow(buffer[i].im, 2));
+                break;
+        }
+    }
+    ifs.close();
 }

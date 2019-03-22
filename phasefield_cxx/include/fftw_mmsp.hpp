@@ -15,12 +15,17 @@ using ft_grid_t = MMSP::grid<dim, MMSP::vector<fftw_complex> >;
 
 class FFTW{
     public:
+        enum class ExportType{REAL, IMAG, MODULUS};
+
         FFTW(unsigned int dim, const int *dims);
         ~FFTW();
 
         template<int dim>
         void execute(const ft_grid_t<dim> & grid_in, ft_grid_t<dim> &grid_out, fftw_direction direction,
                      const std::vector<int> &ft_fields);
+
+        /** Export buffer */
+        void save_buffer(const std::string &fname, ExportType exp) const;
     private:
         unsigned int dimension{0};
         unsigned int num_elements_from_dims{0};
