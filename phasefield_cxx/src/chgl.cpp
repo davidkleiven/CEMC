@@ -98,7 +98,8 @@ void CHGL<dim>::update(int nsteps){
         }
 
         // Fourier transform all the fields --> output in ft_fields
-        fft->execute((gr, ft_fields, FFTW_FORWARD, all_fields);
+        fft->execute(gr, ft_fields, FFTW_FORWARD, all_fields);
+        fft->save_buffer("data/ft_chempot.csv", FFTW::ExportType::MODULUS);
 
         // Fourier transform the free energy --> output info grid
         fft->execute(free_energy_real_space, gr, FFTW_FORWARD, all_fields);

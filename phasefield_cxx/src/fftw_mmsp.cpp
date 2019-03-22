@@ -26,7 +26,7 @@ FFTW::~FFTW(){
     #endif
 }
 
-void FFTW::save_buffer(const string &fname, ExportType exp){
+void FFTW::save_buffer(const string &fname, ExportType exp) const{
     ofstream ofs(fname);
 
     if (!ofs.good()){
@@ -46,5 +46,5 @@ void FFTW::save_buffer(const string &fname, ExportType exp){
                 break;
         }
     }
-    ifs.close();
+    ofs.close();
 }
