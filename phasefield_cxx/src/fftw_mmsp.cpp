@@ -42,7 +42,7 @@ void FFTW::save_buffer(const string &fname, ExportType exp){
                 ofs << buffer[i].re << ",";
                 break;
             case ExportType::MODULUS:
-                ofs << sqrt(pow(buffer[i].re, 2) + pow(buffer[i].im, 2));
+                ofs << sqrt(pow(buffer[i].re, 2) + pow(buffer[i].im, 2)) << ",";
                 break;
         }
     }
