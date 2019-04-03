@@ -263,7 +263,8 @@ class SGCMonteCarlo(mc.Montecarlo):
         for key in keys:
             self.chem_pots.append(chem_potential[key])
             self.chem_pot_names.append(key)
-            eci[key] -= chem_potential[key]
+            current_eci = eci.get(key, 0.0)
+            eci[key] = current_eci - chem_potential[key]
         self.atoms.get_calculator().update_ecis(eci)
         self.chem_pot_in_ecis = True
         self.current_energy = self.atoms.get_calculator().get_energy()
