@@ -49,6 +49,11 @@ class PseudoBinarySGC(SGCMonteCarlo):
             atoms_indx[symb].add(atom.index)
         return atoms_indx
 
+    def set_symbols(self, symbols):
+        """Update the symbols."""
+        super(PseudoBinarySGC, self).set_symbols(symbols)
+        self.atoms_indx = self._init_symbol_tracker()
+
     def _check_group(self):
         """Check that the group argument given by the user is fine."""
         if len(self.groups) != 2:

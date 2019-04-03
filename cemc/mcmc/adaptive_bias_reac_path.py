@@ -198,18 +198,22 @@ class AdaptiveBiasReactionPathSampler(object):
         in a database.
     :param bool delete_db_if_exists: If True any existing DB containing
         structures will be delted prior to the run.
+    :param bool ignore_equil_steps: If True MC trial steps that leads to no 
+        change in the reaction coordinate will not be counted
     """
     def __init__(self, mc_obj=None, react_crd_init=None, n_bins=100, 
                  data_file="adaptive_bias_path_sampler.h5",
                  react_crd=[0.0, 1.0], mod_factor=0.01, convergence_factor=0.8,
                  save_interval=600, log_msg_interval=30, db_struct="adaptive_bias.db",
                  delete_db_if_exists=False, mpicomm=None,
-                 check_convergence_interval=10000, check_user_input=True):
+                 check_convergence_interval=10000, check_user_input=True,
+                 ignore_equil_steps=True):
 
         self.bias = AdaptiveBiasPotential(lim=react_crd, n_bins=n_bins, 
                                         mod_factor=mod_factor, 
                                         reac_init=react_crd_init, T=mc_obj.T,
                                         mc=mc_obj, db_bin_data=db_struct)
+        self.ignore_equil_steps = ignore_equil_steps
         self.mc = mc_obj
         self.mpicomm = mpicomm
         self.mc.add_bias(self.bias)
@@ -303,6 +307,9 @@ class AdaptiveBiasReactionPathSampler(object):
 
     def update(self):
         """Update the history."""
+        trial_alter = self._trial_move_alter_reac_crd(self.mc.trial_move)
+        if self.ignore_equil_steps and not trial_alter:
+            return
         self.bias.update()
         value = self.bias.reac_init.get(None)
         bin_indx = self.bias.get_bin(value)
@@ -407,6 +414,7 @@ class AdaptiveBiasReactionPathSampler(object):
                  "".format(self.current_min_val, self.current_max_val,
                            self.average_visits, num_visited, self.last_visited_bin,
                            acc_rate, self.current_min_bin))
+        self.log("Current formua: {}".format(self.mc.atoms.get_chemical_formula()))
 
     @property
     def rank(self):
@@ -480,24 +488,39 @@ class AdaptiveBiasReactionPathSampler(object):
         now = time.time()
         try:
             while not conv:
-                self.mc._mc_step()
+                energy, acc = self.mc._mc_step()
                 self.current_mc_step += 1
+
+                if acc:
+                    # Call the update method of the constraint and the
+                    # initializer
+                    self.update_range_and_initializer(self.mc.trial_move)
+
                 self.update()
                 if time.time() - now > self.output_every:
                     self.progress_message()
                     now = time.time()
-                
+
                 if time.time() - self.last_save > self.save_interval:
                     self.save()
                     self.last_save = time.time()
 
                 # Check convergence only occationally as this involve
                 # collective communication
-                if self.current_mc_step%self.check_convergence_interval == 0:
+                if self.current_mc_step % self.check_convergence_interval == 0:
                     conv = self.converged()
         except Exception as exc:
             print("Rank {}: {}".format(self.rank, str(exc)))
 
+    def _trial_move_alter_reac_crd(self, trial_move):
+        """Return True if the trial move alter the reaction coordinate."""
+        current_val = self.bias.reac_init.get(self.mc.atoms)
+        trial_val = self.bias.reac_init.get(self.mc.atoms, trial_move)
+        tol = 1E-6
+        return abs(current_val - trial_val) > tol
 
+    def update_range_and_initializer(self, system_changes):
+        self.reac_init.update(system_changes)
 
-                
+        if self.rng_constraint is not None:
+            self.rng_constraint.update(system_changes)

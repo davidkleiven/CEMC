@@ -26,6 +26,8 @@ import test_parallel_tempering
 import test_adaptive_bias_potential
 import test_isotropic_strain_energy
 import test_khacaturyan
+import test_binary_phase_diag
+import test_diffraction_updater
 
 try:
     os.mkdir("data")
@@ -63,6 +65,8 @@ suite.addTests(loader.loadTestsFromModule(test_parallel_tempering))
 suite.addTests(loader.loadTestsFromModule(test_adaptive_bias_potential))
 suite.addTest(loader.loadTestsFromModule(test_isotropic_strain_energy))
 suite.addTest(loader.loadTestsFromModule(test_khacaturyan))
+suite.addTest(loader.loadTestsFromModule(test_binary_phase_diag))
+suite.addTest(loader.loadTestsFromModule(test_diffraction_updater))
 
 runner = TimeLoggingTestRunner()
 result = runner.run(suite)
