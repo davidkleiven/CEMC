@@ -243,10 +243,10 @@ class SGCMonteCarlo(mc.Montecarlo):
         self._chemical_potential = chem_pot
         if self.chem_pot_in_ecis:
             self._reset_eci_to_original(self.atoms.get_calculator().eci)
-        self._include_chemcical_potential_in_ecis(
+        self._include_chemical_potential_in_ecis(
             chem_pot, self.atoms.get_calculator().eci)
 
-    def _include_chemcical_potential_in_ecis(self, chem_potential, eci):
+    def _include_chemical_potential_in_ecis(self, chem_potential, eci):
         """
         Including the chemical potentials in the ecis
 
@@ -306,7 +306,7 @@ class SGCMonteCarlo(mc.Montecarlo):
         for i in range(window_length):
             self.averager.reset()
             self._mc_step()
-            singl = self.averger.singlets
+            singl = self.averager.singlets
             for i in range(len(singl)):
                 singlets[i].append(singl[i])
 
@@ -474,7 +474,7 @@ class SGCMonteCarlo(mc.Montecarlo):
         for i, b in enumerate(bf):
             for s, col in index.items():
                 matrix[i, col] = b[s]
-        
+
         matrix[-1, :] = 1.0
         rhs = np.zeros(len(self.symbols))
         rhs[:-1] = avg_singlets
