@@ -6,7 +6,8 @@ class GradientCoeffNoExplicitProfile(object):
     def __init__(self, evaluator, boundary,
                  interface_energy, params_vary,
                  num_density, init_grad_coeff=None,
-                 apply_energy_correction=False):
+                 apply_energy_correction=False,
+                 neg2zero=False):
         from cemc.phasefield import GradCoeffEvaluator
 
         if not isinstance(evaluator, GradCoeffEvaluator):
@@ -27,6 +28,7 @@ class GradientCoeffNoExplicitProfile(object):
         else:
             self.grad_coeff = np.array(self.grad_coeff)
         self.sqrt_grad_coeff = np.sqrt(self.grad_coeff)
+        self.negative2zero = neg2zero
 
     @property
     def num_variables(self):
@@ -78,7 +80,7 @@ class GradientCoeffNoExplicitProfile(object):
                 free_energy -= (slope*grid + intercept)
             deriv = self.evaluator.derivative(variables, free_param)**2
 
-            if np.any(free_energy < -tol):
+            if np.any(free_energy < -tol) and not self.negative2zero:
                 minval = np.min(free_energy)
                 raise RuntimeError("It appears like forming the interface {} "
                                    "lowers the energy! Minimum surface "
