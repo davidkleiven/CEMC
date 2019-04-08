@@ -1,8 +1,34 @@
 import numpy as np
 
 
-def fit_kernel(x=[], y=[], num_kernels=1, kernel=None, lamb=None):
+def fit_kernel(x=[], y=[], num_kernels=1, kernel=None, lamb=None,
+               extrapolate="none", extrap_range=0.1):
     from phasefield_cxx import PyKernelRegressor
+
+    allowed_extrapolations = ["none", "linear"]
+    if extrapolate not in allowed_extrapolations:
+        raise ValueError("extrapolate has to be one of {}"
+                         "".format(allowed_extrapolations))
+
+    if extrapolate == "linear":
+        # Add extrapolation to the beginning
+        extrap_range = extrap_range*(x[-1] - x[0])
+        dx = x[1] - x[0]
+        dy = y[1] - y[0]
+        slope = dy/dx
+        x_extrap = np.arange(x[0] - extrap_range, x[0], dx)
+        y_extrap = y[0] + (dy/dx)*(x_extrap - x[0])
+        x = np.concatenate((x_extrap, x))
+        y = np.concatenate((y_extrap, y))
+
+        # Add extrapolation to end
+        dx = x[-1] - x[-2]
+        dy = y[-1] - y[-2]
+        x_extrap = np.arange(x[-1], x[-1] + extrap_range, dx)
+        y_extrap = y[-1] + (dy/dx)*(x_extrap - x[-1])
+        x = np.concatenate((x, x_extrap))
+        y = np.concatenate((y, y_extrap))
+
     regressor = PyKernelRegressor(np.min(x), np.max(x))
 
     coeff = np.zeros(num_kernels)
