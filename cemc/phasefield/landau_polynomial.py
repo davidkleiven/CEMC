@@ -362,7 +362,7 @@ class TwoPhaseLandauPolynomial(object):
 
         self.phase_one_regressor = fit_kernel(
             x=conc, y=reminder, num_kernels=num_kernels, kernel=self.kernel,
-            lamb=lamb, extrapolate='linear')
+            lamb=lamb, extrapolate='linear', extrap_range=0.5)
 
         if show:
             from matplotlib import pyplot as plt
