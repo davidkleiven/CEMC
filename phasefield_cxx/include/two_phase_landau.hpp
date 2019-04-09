@@ -14,6 +14,9 @@ class TwoPhaseLandau{
         /** Set the polymial */
         void set_polynomial(const Polynomial &poly){polynomial = &poly;};
 
+        /** Set discontinuity jump */
+        void set_discontinuity(double conc, double jump);
+
         /** Get the dimension of the polynomial */
         unsigned int get_poly_dim() const;
 
@@ -34,5 +37,11 @@ class TwoPhaseLandau{
     private:
         const KernelRegressor *regressor{nullptr};
         const Polynomial *polynomial{nullptr};
+
+        /** Return contribution from discontiuity jump */
+        double jump_contrib(double conc) const {return conc >= disc_conc ? -disc_jump : 0.0;};
+
+        double disc_jump{0.0};
+        double disc_conc{0.0};
 };
 #endif

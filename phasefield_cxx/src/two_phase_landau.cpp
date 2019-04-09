@@ -14,7 +14,7 @@ double TwoPhaseLandau::evaluate(double conc, const vector<double> &shape) const{
 double TwoPhaseLandau::evaluate(double x[]) const{
     double value = regressor->evaluate(x[0]);
     value += polynomial->evaluate(x);
-    return value;
+    return value + jump_contrib(x[0]);
 }
 
 double TwoPhaseLandau::partial_deriv_conc(double conc, const vector<double> &shape) const{
@@ -46,4 +46,9 @@ unsigned int TwoPhaseLandau::get_poly_dim() const{
         throw runtime_error("Dimension of polynmoial requested, but no polynomial is set!");
     }
     return polynomial->get_dim();
+}
+
+void TwoPhaseLandau::set_discontinuity(double conc, double jump){
+    disc_conc = conc;
+    disc_jump = jump;
 }

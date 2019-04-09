@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.optimize import minimize, LinearConstraint, fsolve
 from scipy.optimize import NonlinearConstraint
-from cemc.phasefield.phasefield_util import fit_kernel
+from cemc.phasefield.phasefield_util import fit_kernel, heaviside
 from phasefield_cxx import PyKernelRegressor, PyGaussianKernel
 import scipy
 import time
@@ -92,6 +92,8 @@ class TwoPhaseLandauPolynomial(object):
         self.init_guess = init_guess
         self.num_dir = num_dir
         self.boundary_coeff = None
+        self.discontinuity_conc = 0.0
+        self.discontinuity_jump = 0.0
 
     @property
     def phase_one_regressor(self):
@@ -190,7 +192,8 @@ class TwoPhaseLandauPolynomial(object):
         return self._eval_phase1(conc) + \
             self._eval_phase2(conc)*n_eq**2 + \
             self.coeff_shape[0]*n_eq**4 + \
-            self.coeff_shape[2]*n_eq**6
+            self.coeff_shape[2]*n_eq**6 - \
+            self.discontinuity_jump*heaviside(conc - self.discontinuity_conc)
 
     @array_func
     def evaluate(self, conc, shape=None):
@@ -219,7 +222,8 @@ class TwoPhaseLandauPolynomial(object):
             self.coeff_shape[3]*(shape[0]**4 * (shape[1]**2 + shape[2]**2) +
                                  shape[1]**4 * (shape[0]**2 + shape[2]**2) +
                                  shape[2]**4 * (shape[0]**2 + shape[1]**2)) + \
-            self.coeff_shape[4]*np.prod(shape**2)
+            self.coeff_shape[4]*np.prod(shape**2) - \
+            self.discontinuity_jump*heaviside(conc - self.discontinuity_conc)
 
     @array_func
     def partial_derivative(self, conc, shape=None, var="conc", direction=0):
@@ -296,7 +300,8 @@ class TwoPhaseLandauPolynomial(object):
         free_energy -= free_energy[minimum]
 
         if shape == "auto":
-            shape = 27*free_energy[indx_min]
+            shape = 27*(free_energy[indx_min] - free_energy[minimum])
+            assert shape > 0.0
 
         # Update the coefficients
         A = self._get_slope_parameter(-shape, shape, conc[indx_min])
@@ -308,6 +313,12 @@ class TwoPhaseLandauPolynomial(object):
         # Subtract of the reminder that needs to be fitted with 
         # Kernel regression
         reminder = free_energy - self.evaluate(conc)
+
+        from matplotlib import pyplot as plt
+        plt.plot(conc, reminder)
+        plt.plot(conc, self.evaluate(conc))
+        plt.plot(conc, free_energy)
+        plt.show()
 
         # Smear the reminder in the critical area
         if smear_width > 0:
@@ -343,6 +354,12 @@ class TwoPhaseLandauPolynomial(object):
                 sum(coeff[i]*x**(3-i) for i in range(4))
 
         self.kernel = PyGaussianKernel(kernel_width)
+
+        # Remove discontinuity
+        self.discontinuity_jump = reminder[indx_min] - reminder[indx_min+1]
+        self.discontinuity_conc = conc[indx_min]
+        reminder[indx_min+1:] += self.discontinuity_jump
+
         self.phase_one_regressor = fit_kernel(
             x=conc, y=reminder, num_kernels=num_kernels, kernel=self.kernel,
             lamb=lamb, extrapolate='linear')
@@ -398,6 +415,9 @@ class TwoPhaseLandauPolynomial(object):
                 }
                 used_perms.add(perm)
                 data["terms"].append(entry)
+
+        data["discontinuity_jump"] = self.discontinuity_jump
+        data["discontinuity_conc"] = self.discontinuity_conc
 
         # Store the kernel regressor
         try:

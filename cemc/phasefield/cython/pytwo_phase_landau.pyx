@@ -22,6 +22,9 @@ cdef class PyTwoPhaseLandau:
     def set_polynomial(self, PyPolynomial pypoly):
         self.thisptr.set_polynomial(dereference(pypoly.thisptr))
 
+    def set_discontinuity(self, conc, jump):
+        self.thisptr.set_discontinuity(conc, jump)
+
     def partial_deriv_conc(self, conc, shape):
         cdef vector[double] shp_vec
         for i in range(len(shape)):

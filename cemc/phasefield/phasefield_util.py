@@ -54,3 +54,7 @@ def fit_kernel(x=[], y=[], num_kernels=1, kernel=None, lamb=None,
         coeff = vh.T.dot(DUy)
     regressor.set_coeff(coeff)
     return regressor
+
+
+def heaviside(x):
+    return float(x > 0.0)

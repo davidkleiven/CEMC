@@ -126,10 +126,10 @@ void CHGL<dim>::update(int nsteps){
                 }
 
                 ft_fields(i)[field].re = (ft_fields(i)[field].re - gr(i)[field].re*gl_damping*dt) / \
-                    (1.0 - 2*gl_damping*dt*interface_term);
+                    (1.0 + 2*gl_damping*dt*interface_term);
 
                 ft_fields(i)[field].im = (ft_fields(i)[field].im - gr(i)[field].im*gl_damping*dt) / \
-                    (1.0 - 2*gl_damping*dt*interface_term);
+                    (1.0 + 2*gl_damping*dt*interface_term);
             }
         }
 

@@ -17,3 +17,5 @@ cdef extern from "two_phase_landau.hpp":
       void set_kernel_regressor(KernelRegressor &regresssor)
 
       void set_polynomial(Polynomial &poly)
+
+      void set_discontinuity(double conc, double jump)
