@@ -8,3 +8,4 @@
 #include "multidirectional_khachaturyan.cpp"
 #include "fftw_mmsp.cpp"
 #include "chgl_realspace.cpp"
+#include "conjugate_gradient.cpp"

@@ -48,7 +48,7 @@ public:
 
     /** Calculate the energy of the system */
     virtual double energy() const;
-private:
+protected:
     double M;
     double alpha;
     double dt;

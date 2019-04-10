@@ -3,6 +3,7 @@
 #include "MMSP.grid.h"
 #include "MMSP.vector.h"
 #include "fftw_complex_placeholder.hpp"
+#include "khachaturyan.hpp"
 #include <vector>
 #include <sstream>
 #include <stdexcept>
@@ -53,12 +54,17 @@ std::ostream& operator<<(std::ostream &out, MMSP::vector<T> &vec);
 double norm(const MMSP::vector<double> &vec);
 void dot(const mat3x3 &mat1, const MMSP::vector<double> &vec, MMSP::vector<double> &out);
 double dot(const MMSP::vector<double> &vec1, const MMSP::vector<double> &vec2);
+double dot(const std::vector<double> &v1, const std::vector<double> &v2);
 
 template<class T>
 void divide(MMSP::vector<T> &vec, double factor);
 
 template<int dim>
 void save_complex_field(const std::string &fname, MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid, unsigned int field);
+
+void inplace_minus(std::vector<double> &vec1, const std::vector<double> &vec2);
+
+double inf_norm(const std::vector<double> &vec);
 
 #include "tools.tpp"
 #endif
