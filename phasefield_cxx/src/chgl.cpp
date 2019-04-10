@@ -40,6 +40,7 @@ void CHGL<dim>::update(int nsteps){
     if (!old_energy_initialized){
         old_energy_initialized = true;
         old_energy = energy();
+        cout << "Initial energy: " << old_energy << endl;
     }
 
     #ifndef HAS_FFTW
@@ -50,10 +51,7 @@ void CHGL<dim>::update(int nsteps){
         throw runtime_error("Free Energy is not set!");
     }
 
-    if (!is_initialized){
-        from_parent_grid();
-        is_initialized = true;
-    }
+    from_parent_grid();
 
     int rank = 0;
 	#ifdef MPI_VERSION
@@ -190,6 +188,7 @@ void CHGL<dim>::update(int nsteps){
     }
     else{
         // Transfer to parents grid
+        old_energy = new_energy;
         to_parent_grid();
     }
 
