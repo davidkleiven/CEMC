@@ -16,12 +16,17 @@ public:
 
     /** Implement the update function */
     virtual void update(int nsteps) override;
+
+    /** Calculate the energy of the system */
+    virtual double energy() const override;
 private:
     unsigned int implicitDir{0};
     std::array<SparseMatrix, dim+1> matrices;
     bool did_build_matrices{false};
 
-    unsigned int node_index(const MMSP::vector<int> &pos) const;
+    MMSP::vector<int> & wrap(MMSP::vector<int> &pos) const;
+
+    unsigned int node_index(MMSP::vector<int> &pos) const;
 };
 
 #endif

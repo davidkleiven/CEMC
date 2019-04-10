@@ -1,5 +1,6 @@
 #include "conjugate_gradient.hpp"
 #include "tools.hpp"
+#include <iostream>
 
 using namespace std;
 ConjugateGradient::ConjugateGradient(double tol): tol(tol){};
@@ -14,7 +15,7 @@ void ConjugateGradient::solve(const SparseMatrix &mat, const vector<double> &rhs
 
     vector<double> p = residual;
 
-    while (true){
+    while (inf_norm(residual) > tol){
         fill(dotProd.begin(), dotProd.end(), 0.0);
         mat.dot(p, dotProd);
 

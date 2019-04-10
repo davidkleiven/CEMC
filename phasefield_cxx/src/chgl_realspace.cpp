@@ -31,7 +31,7 @@ void CHGLRealSpace<dim>::build2D(){
         for (int j=-1;j<2;j+=2){
             MMSP::vector<int> pos = this->grid_ptr->position(i);
             pos[dir] += j;
-            unsigned int col = indexGrid(pos);
+            unsigned int col = indexGrid(wrap(pos));
             matrix.insert(i, col, -8*factor);
         }
 
@@ -40,7 +40,7 @@ void CHGLRealSpace<dim>::build2D(){
         for (int j=-2;j<5;j+=4){
             MMSP::vector<int> pos = this->grid_ptr->position(i);
             pos[dir] += j;
-            unsigned int col = indexGrid(pos);
+            unsigned int col = indexGrid(wrap(pos));
             matrix.insert(i, col, factor);
         }
 
@@ -50,27 +50,42 @@ void CHGLRealSpace<dim>::build2D(){
             MMSP::vector<int> pos = this->grid_ptr->position(i);
             pos[0] += ix;
             pos[1] += iy;
-            unsigned int col = indexGrid(pos);
+            unsigned int col = indexGrid(wrap(pos));
             matrix.insert(i, col, 2*factor);
         }
     }
 
     // Build GL part
-    factor = 2*this->L*this->dt;
+    factor = 2*this->gl_damping*this->dt;
     for (unsigned int field=1;field<dim+1;field++){
         SparseMatrix& mat = matrices[field];
         for (unsigned int i=0;i<MMSP::nodes(*this->grid_ptr);i++){
-            matrix.insert(i, i, 1.0 + 2*factor*(this->interface[field-1][0] + this->interface[field-1][1]));
+            mat.insert(i, i, 1.0 + 2*factor*(this->interface[field-1][0] + this->interface[field-1][1]));
 
             for (unsigned int dir=0;dir<2;dir++)
             for (int ix=-1;ix<2;ix+=2){
                 MMSP::vector<int> pos = this->grid_ptr->position(i);
                 pos[dir] += ix;
-                unsigned int col = indexGrid(pos);
-                matrix.insert(i, col, -factor*this->interface[field-1][dir]);
+                unsigned int col = indexGrid(wrap(pos));
+                mat.insert(i, col, -factor*this->interface[field-1][dir]);
             }
         }
     }
+
+    matrices[2].save("data/matrixfiel2.csv");
+}
+
+template<int dim>
+MMSP::vector<int> & CHGLRealSpace<dim>::wrap(MMSP::vector<int> &pos) const{
+    for (unsigned int i=0;i<pos.length();i++){
+        if (pos[i] < 0){
+            pos[i] = this->L - 1;
+        }
+        else if (pos[i] >= this->L){
+            pos[i] = 0;
+        }
+    }
+    return pos;
 }
 
 
@@ -125,7 +140,7 @@ void CHGLRealSpace<dim>::update(int nsteps){
                     rhs.push_back(gr(i)[field] + this->dt*this->M*MMSP::laplacian(deriv_free_eng, i, 0));
                 }
                 else{
-                    rhs.push_back(gr(i)[field] + this->dt*this->gl_damping*deriv_free_eng(i)[field]);
+                    rhs.push_back(gr(i)[field] - this->dt*this->gl_damping*deriv_free_eng(i)[field]);
                 }
             }
 
@@ -140,7 +155,44 @@ void CHGLRealSpace<dim>::update(int nsteps){
     }
 
     // TODO: Print energy
+    cout << "Energy: " << energy() << endl;
 }
+
+template<int dim>
+double CHGLRealSpace<dim>::energy() const{
+
+    double integral = 0.0;
+
+    // Construct a temperatry copy
+    MMSP::grid<dim, MMSP::vector<double> >& gr = *this->grid_ptr;
+
+    // Calculate the contribution from the free energy
+    for (unsigned int i=0;i<MMSP::nodes(gr);i++){
+
+        // Contribution from free energy
+        MMSP::vector<double> phi_real(MMSP::fields(gr));
+        double *phi_raw_ptr = &(phi_real[0]);
+        integral += this->free_energy->evaluate(phi_raw_ptr);
+
+        // Contribution from gradient terms
+        MMSP::vector<int> pos = gr.position(i);
+        MMSP::vector<double> grad = MMSP::gradient(gr, pos, 0);
+
+        // Add contribution from Cahn-Hilliard
+        integral += this->alpha*pow(norm(grad), 2);
+
+        // Add contribbution from GL fields
+        for (unsigned int gl=1;gl < MMSP::fields(gr);gl++){
+            grad = MMSP::gradient(gr, pos, gl);
+
+            for (unsigned int dir=0;dir<dim;dir++){
+                integral += this->interface[gl-1][dir]*pow(grad[dir], 2);
+            }
+        }
+    }
+
+    return integral/MMSP::nodes(gr);
+}    
 
 
 // Explicit instantiations
