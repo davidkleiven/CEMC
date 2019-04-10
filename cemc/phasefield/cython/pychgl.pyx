@@ -130,4 +130,12 @@ cdef class PyCHGL:
             self.thisptr2D.use_adaptive_stepping(min_dt, increase_every_update)
         elif self.dim == 3:
             self.thisptr3D.use_adaptive_stepping(min_dt, increase_every_update)
+
+    def set_filter(self, width):
+        if self.dim == 1:
+            self.thisptr1D.set_filter(width)
+        elif self.dim == 2:
+            self.thisptr2D.set_filter(width)
+        elif self.dim == 3:
+            self.thisptr3D.set_filter(width)
             

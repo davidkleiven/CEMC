@@ -37,12 +37,6 @@ CHGL<dim>::~CHGL(){
 template<int dim>
 void CHGL<dim>::update(int nsteps){
 
-    if (!old_energy_initialized){
-        old_energy_initialized = true;
-        old_energy = energy();
-        cout << "Initial energy: " << old_energy << endl;
-    }
-
     #ifndef HAS_FFTW
         throw runtime_error("CHGL requires FFTW!");
     #endif
@@ -52,6 +46,12 @@ void CHGL<dim>::update(int nsteps){
     }
 
     from_parent_grid();
+
+    if (!old_energy_initialized){
+        old_energy_initialized = true;
+        old_energy = energy();
+        cout << "Initial energy: " << old_energy << endl;
+    }
 
     int rank = 0;
 	#ifdef MPI_VERSION
@@ -103,7 +103,8 @@ void CHGL<dim>::update(int nsteps){
 
         // Fourier transform all the fields --> output in ft_fields
         fft->execute(gr, ft_fields, FFTW_FORWARD, all_fields);
-        //save_complex_field("data/chempot.csv", ft_fields, 0);
+        //save_complex_field("data/conc_ft.csv", ft_fields, 0);
+        //exit(1);
 
         // Fourier transform the free energy --> output info grid
         fft->execute(free_energy_real_space, gr, FFTW_FORWARD, all_fields);
@@ -138,7 +139,28 @@ void CHGL<dim>::update(int nsteps){
             }
         }
 
-        // Inverse Fourier transform --> output intto gr
+        if (use_filter){
+            #ifndef NO_PHASEFIELD_PARALLEL
+            #pragma omp parallel for
+            #endif
+            for (int i=0;i<MMSP::nodes(ft_fields);i++){
+                MMSP::vector<int> pos = ft_fields.position(i);
+                MMSP::vector<double> k_vec(pos.length());
+                k_vector(pos, k_vec, this->L);
+                double k = norm(k_vec);
+
+                for (int field=0;field<MMSP::fields(ft_fields);field++){
+                    double w = gaussian_filter_weight(k);
+                    ft_fields(i)[field].re *= w;
+                    ft_fields(i)[field].im *= w;
+                }
+            }
+        }
+
+        // save_complex_field("data/conc_ft.csv", ft_fields, 0);
+        // exit(1);
+
+        // Inverse Fourier transform --> output into gr
         fft->execute(ft_fields, gr, FFTW_BACKWARD, all_fields);
 
         //  MMSP::vector<double> lapl_phi = MMSP::laplacian(gr, i);
@@ -180,6 +202,7 @@ void CHGL<dim>::update(int nsteps){
 
 
     double new_energy = energy();
+    bool did_update = false;
 
     if ((new_energy > old_energy) && adaptive_dt){
         // We don't transfer the solution
@@ -190,11 +213,12 @@ void CHGL<dim>::update(int nsteps){
         // Transfer to parents grid
         old_energy = new_energy;
         to_parent_grid();
+        did_update = true;
     }
 
     update_counter += 1;
 
-    if ((update_counter%increase_dt == 0) && adaptive_dt){
+    if ((update_counter%increase_dt == 0) && adaptive_dt && did_update){
         dt *= 2.0;
         cout << "Try to increase dt again. New dt = " << dt;
     }
@@ -308,24 +332,37 @@ template<int dim>
 double CHGL<dim>::energy() const{
 
     double integral = 0.0;
+    // Construct a temperatry copy
+    MMSP::grid<dim, MMSP::vector<double> > temp_field(*this->grid_ptr);
+
+    // Transfor the real part of the complex field to temp
+    #ifndef NO_PHASEFIELD_PARALLEL
+    #pragma omp parallel for
+    #endif
+    for (unsigned int i=0;i<MMSP::nodes(temp_field);i++)
+    for (unsigned int field=0;field<this->num_fields;field++)
+    {
+        temp_field(i)[field] = (*(this->cmplx_grid_ptr))(i)[field].re;
+    }
+
     // Calculate the contribution from the free energy
-    for (unsigned int i=0;i<MMSP::nodes(*this->grid_ptr);i++){
+    for (unsigned int i=0;i<MMSP::nodes(temp_field);i++){
 
         // Contribution from free energy
-        MMSP::vector<double> phi_real(MMSP::fields(*this->grid_ptr));
+        MMSP::vector<double> phi_real(MMSP::fields(temp_field));
         double *phi_raw_ptr = &(phi_real[0]);
         integral += this->free_energy->evaluate(phi_raw_ptr);
 
         // Contribution from gradient terms
-        MMSP::vector<int> pos = this->grid_ptr->position(i);
-        MMSP::vector<double> grad = MMSP::gradient(*this->grid_ptr, pos, 0);
+        MMSP::vector<int> pos = temp_field.position(i);
+        MMSP::vector<double> grad = MMSP::gradient(temp_field, pos, 0);
 
         // Add contribution from Cahn-Hilliard
         integral += alpha*pow(norm(grad), 2);
 
         // Add contribbution from GL fields
-        for (unsigned int gl=1;gl < MMSP::fields(*this->grid_ptr);gl++){
-            grad = MMSP::gradient(*this->grid_ptr, pos, gl);
+        for (unsigned int gl=1;gl < MMSP::fields(temp_field);gl++){
+            grad = MMSP::gradient(temp_field, pos, gl);
 
             for (unsigned int dir=0;dir<dim;dir++){
                 integral += interface[gl-1][dir]*pow(grad[dir], 2);
@@ -333,7 +370,7 @@ double CHGL<dim>::energy() const{
         }
     }
 
-    return integral/MMSP::nodes(*this->grid_ptr);
+    return integral/MMSP::nodes(temp_field);
 }
 
 template<int dim>
@@ -344,6 +381,21 @@ void CHGL<dim>::use_adaptive_stepping(double min_dt, unsigned int inc_every){
 
     cout << "Using adaptive time steps. Min dt: " << min_dt << ". Attempt increase every " << increase_dt << " update.\n";
 };
+
+template<int dim>
+double CHGL<dim>::gaussian_filter_weight(double k) const{
+    double a = 1.0/(2.0*pow(filter_width, 2));    
+    return exp(-pow(k*PI, 2)/a);
+    //return sqrt(PI/a)*exp(-pow(k*PI, 2)/a);
+}
+
+template<int dim>
+void CHGL<dim>::set_filter(double width){
+    use_filter = true;
+    filter_width = width;
+
+    cout << "Applying gaussian filter of with " << filter_width << endl;
+}
 
 // Explicit instantiations
 template class CHGL<1>;
