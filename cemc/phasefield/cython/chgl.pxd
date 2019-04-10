@@ -32,3 +32,5 @@ cdef extern from "chgl.hpp":
         void save_free_energy_map(string &fname)
 
         void use_HeLiuTang_stabilizer(double coeff)
+
+        void use_adaptive_stepping(double min_dt, int increase_dt_every)

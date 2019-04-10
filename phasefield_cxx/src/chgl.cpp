@@ -36,6 +36,12 @@ CHGL<dim>::~CHGL(){
 
 template<int dim>
 void CHGL<dim>::update(int nsteps){
+
+    if (!old_energy_initialized){
+        old_energy_initialized = true;
+        old_energy = energy();
+    }
+
     #ifndef HAS_FFTW
         throw runtime_error("CHGL requires FFTW!");
     #endif
@@ -174,8 +180,27 @@ void CHGL<dim>::update(int nsteps){
 		//MMSP::ghostswap(gr);
 	}
 
-    // Transfer to parents grid
-    to_parent_grid();
+
+    double new_energy = energy();
+
+    if ((new_energy > old_energy) && adaptive_dt){
+        // We don't transfer the solution
+        dt /= 2.0;
+        cout << "Timestep refined. New dt = " << dt;
+    }
+    else{
+        // Transfer to parents grid
+        to_parent_grid();
+    }
+
+    update_counter += 1;
+
+    if ((update_counter%increase_dt == 0) && adaptive_dt){
+        dt *= 2.0;
+        cout << "Try to increase dt again. New dt = " << dt;
+    }
+
+    cout << "Energy: " << new_energy << endl;
 }
 
 template<int dim>
@@ -278,6 +303,47 @@ void CHGL<dim>::use_HeLiuTang_stabilizer(double coeff){
     stab_coeff = coeff;
 
     cout << "Using He-Liu-Tang first order stabilizer with coefficient " << stab_coeff << endl;
+};
+
+template<int dim>
+double CHGL<dim>::energy() const{
+
+    double integral = 0.0;
+    // Calculate the contribution from the free energy
+    for (unsigned int i=0;i<MMSP::nodes(*this->grid_ptr);i++){
+
+        // Contribution from free energy
+        MMSP::vector<double> phi_real(MMSP::fields(*this->grid_ptr));
+        double *phi_raw_ptr = &(phi_real[0]);
+        integral += this->free_energy->evaluate(phi_raw_ptr);
+
+        // Contribution from gradient terms
+        MMSP::vector<int> pos = this->grid_ptr->position(i);
+        MMSP::vector<double> grad = MMSP::gradient(*this->grid_ptr, pos, 0);
+
+        // Add contribution from Cahn-Hilliard
+        integral += alpha*pow(norm(grad), 2);
+
+        // Add contribbution from GL fields
+        for (unsigned int gl=1;gl < MMSP::fields(*this->grid_ptr);gl++){
+            grad = MMSP::gradient(*this->grid_ptr, pos, gl);
+
+            for (unsigned int dir=0;dir<dim;dir++){
+                integral += interface[gl-1][dir]*pow(grad[dir], 2);
+            }
+        }
+    }
+
+    return integral/MMSP::nodes(*this->grid_ptr);
+}
+
+template<int dim>
+void CHGL<dim>::use_adaptive_stepping(double min_dt, unsigned int inc_every){
+    adaptive_dt = true;
+    minimum_dt=min_dt;
+    increase_dt = inc_every;
+
+    cout << "Using adaptive time steps. Min dt: " << min_dt << ". Attempt increase every " << increase_dt << " update.\n";
 };
 
 // Explicit instantiations

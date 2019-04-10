@@ -32,6 +32,9 @@ public:
     /** Update function */
     virtual void update(int steps) = 0;
 
+    /** Return the energy of the system (for logging purposes) */
+    virtual double energy() const{return 0.0;};
+
     /** Run the simulation */
     void run(unsigned int start, unsigned int nsteps, int increment);
 protected:

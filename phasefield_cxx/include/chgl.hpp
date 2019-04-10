@@ -37,14 +37,27 @@ public:
     /** Use the stablization scheme by He Lio and Tang */
     void use_HeLiuTang_stabilizer(double coeff);
 
+    /** Refine the time step if the energy increases */
+    void use_adaptive_stepping(double min_dt, unsigned int inc_every);
+
     /** Implement the update function */
     virtual void update(int nsteps) override;
+
+    /** Calculate the energy of the system */
+    virtual double energy() const;
 private:
     double M;
     double alpha;
     double dt;
     double gl_damping;
     double stab_coeff{0.0};
+    bool adaptive_dt{false};
+    double minimum_dt{1E-8};
+    double old_energy{0.0};
+    bool old_energy_initialized{false};
+    unsigned int increase_dt{100000};
+    unsigned int update_counter{0};
+
     interface_vec_t interface;
     const TwoPhaseLandau *free_energy{nullptr};
     MMSP::grid<dim, MMSP::vector<fftw_complex> > *cmplx_grid_ptr{nullptr};
