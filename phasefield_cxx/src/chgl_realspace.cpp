@@ -1,4 +1,5 @@
 #include "chgl_realspace.hpp"
+#include "conjugate_gradient.hpp"
 
 template<int dim>
 CHGLRealSpace<dim>::CHGLRealSpace(int L, const std::string &prefix, unsigned int num_gl_fields, \
@@ -12,6 +13,7 @@ void CHGLRealSpace<dim>::build2D(){
         throw runtime_error("Build2D should never be called when dimension is not 2!");
     }
 
+    did_build_matrices = true;
     MMSP::grid<2, int> indexGrid(1, 0, this->L, 0, this->L);
     for (unsigned int i=0;i<MMSP::nodes(indexGrid);i++){
         indexGrid(i) = i;
@@ -69,6 +71,75 @@ void CHGLRealSpace<dim>::build2D(){
             }
         }
     }
+}
+
+
+template<int dim>
+void CHGLRealSpace<dim>::update(int nsteps){
+
+    if (!did_build_matrices){
+        throw runtime_error("The matrices for implicit solution has not been built!");
+    }
+    int rank = 0;
+	#ifdef MPI_VERSION
+    rank = MPI::COMM_WORLD.Get_rank();
+    #endif
+
+    MMSP::grid<dim, MMSP::vector<double> >& gr = *this->grid_ptr;
+    MMSP::grid<dim, MMSP::vector<double> > deriv_free_eng(gr);
+
+    ConjugateGradient cg(1E-5);
+	MMSP::ghostswap(deriv_free_eng);
+
+    for (int step=0;step<nsteps;step++){
+        // Calculate all the derivatives
+        if (rank == 0){
+                MMSP::print_progress(step, nsteps);
+            }
+        #ifndef NO_PHASEFIELD_PARALLEL
+        #pragma omp parallel for
+        #endif
+        for (int i=0;i<MMSP::nodes(gr);i++){
+            MMSP::vector<double> phi = gr(i);
+            MMSP::vector<double> free_eng_deriv(phi.length());
+
+            double *phi_raw_ptr = &(phi[0]);
+
+            // Get partial derivative with respect to concentration
+            free_eng_deriv[0]= this->free_energy->partial_deriv_conc(phi_raw_ptr);
+
+            for (unsigned int j=1;j<phi.length();j++){
+                free_eng_deriv[j] = this->free_energy->partial_deriv_shape(phi_raw_ptr, j-1);
+            }
+            deriv_free_eng(i) = free_eng_deriv;
+        }
+
+        // Solve each field with the conjugate gradient method
+        for (unsigned int field=0;field<MMSP::fields(gr);field++){
+            vector<double> rhs;
+            vector<double> field_values;
+            for (unsigned int i=0;i<MMSP::nodes(gr);i++){
+                field_values.push_back(gr(i)[field]);
+
+                if (field == 0){
+                    rhs.push_back(gr(i)[field] + this->dt*this->M*MMSP::laplacian(deriv_free_eng, i, 0));
+                }
+                else{
+                    rhs.push_back(gr(i)[field] + this->dt*this->gl_damping*deriv_free_eng(i)[field]);
+                }
+            }
+
+            // Solve with CG
+            cg.solve(matrices[field], rhs, field_values);
+
+            // Transfer the field values back
+            for (unsigned int i=0;i<MMSP::nodes(gr);i++){
+                gr(i)[field] = field_values[i];
+            }
+        }
+    }
+
+    // TODO: Print energy
 }
 
 

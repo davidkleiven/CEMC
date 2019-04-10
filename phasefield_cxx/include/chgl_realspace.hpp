@@ -13,9 +13,13 @@ public:
 
     /** Build the matrix for CHGL equations */
     void build2D();
+
+    /** Implement the update function */
+    virtual void update(int nsteps) override;
 private:
     unsigned int implicitDir{0};
     std::array<SparseMatrix, dim+1> matrices;
+    bool did_build_matrices{false};
 
     unsigned int node_index(const MMSP::vector<int> &pos) const;
 };
