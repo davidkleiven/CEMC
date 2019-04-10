@@ -115,8 +115,9 @@ void CHGL<dim>::update(int nsteps){
             double k = norm(k_vec);
 
             // Update Cahn-Hilliard term
-            ft_fields(i)[0].re = (ft_fields(i)[0].re + gr(i)[0].re*M*dt*pow(k, 2))/(1.0 + 2*dt*alpha*pow(k, 4));
-            ft_fields(i)[0].im = (ft_fields(i)[0].im + gr(i)[0].im*M*dt*pow(k, 2))/(1.0 + 2*dt*alpha*pow(k, 4));
+            ft_fields(i)[0].re = (ft_fields(i)[0].re + (gr(i)[0].re*M + stab_coeff)*dt*pow(k, 2))/(1.0 + 2*M*dt*alpha*pow(k, 4) + dt*stab_coeff*pow(k, 2));
+
+            ft_fields(i)[0].im = (ft_fields(i)[0].im + (gr(i)[0].im*M + stab_coeff)*dt*pow(k, 2))/(1.0 + 2*M*dt*alpha*pow(k, 4) + dt*stab_coeff*pow(k, 2));
 
             // Update the GL equations
             for (unsigned int field=1;field<MMSP::fields(gr);field++){
@@ -125,11 +126,11 @@ void CHGL<dim>::update(int nsteps){
                     interface_term += interface[field-1][dir]*pow(k_vec[dir], 2);
                 }
 
-                ft_fields(i)[field].re = (ft_fields(i)[field].re - gr(i)[field].re*gl_damping*dt) / \
-                    (1.0 + 2*gl_damping*dt*interface_term);
+                ft_fields(i)[field].re = (ft_fields(i)[field].re - gr(i)[field].re*gl_damping*dt + stab_coeff*dt*pow(k, 2)) / \
+                    (1.0 + 2*gl_damping*dt*interface_term + stab_coeff*dt*pow(k, 2));
 
-                ft_fields(i)[field].im = (ft_fields(i)[field].im - gr(i)[field].im*gl_damping*dt) / \
-                    (1.0 + 2*gl_damping*dt*interface_term);
+                ft_fields(i)[field].im = (ft_fields(i)[field].im - gr(i)[field].im*gl_damping*dt + stab_coeff*dt*pow(k, 2)) / \
+                    (1.0 + 2*gl_damping*dt*interface_term + stab_coeff*dt*pow(k, 2));
             }
         }
 

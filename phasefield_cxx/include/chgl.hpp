@@ -34,6 +34,9 @@ public:
     /** Print the polynomial used to screen */
     void print_polynomial() const;
 
+    /** Use the stablization scheme by He Lio and Tang */
+    void use_HeLiuTang_stablizer(double \coeff){stab_coeff = coeff;};
+
     /** Implement the update function */
     virtual void update(int nsteps) override;
 private:
@@ -41,6 +44,7 @@ private:
     double alpha;
     double dt;
     double gl_damping;
+    double stab_coeff{0.0};
     interface_vec_t interface;
     const TwoPhaseLandau *free_energy{nullptr};
     MMSP::grid<dim, MMSP::vector<fftw_complex> > *cmplx_grid_ptr{nullptr};
