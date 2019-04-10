@@ -113,3 +113,12 @@ cdef class PyCHGL:
             self.thisptr2D.save_free_energy_map(fname)
         elif self.dim == 3:
             self.thisptr3D.save_free_energy_map(fname)
+
+    def use_HeLiuTang_stabilizer(self, coeff):
+        if self.dim == 1:
+            self.thisptr1D.use_HeLiuTang_stabilizer(coeff)
+        elif self.dim == 2:
+            self.thisptr2D.use_HeLiuTang_stabilizer(coeff)
+        elif self.dim == 3:
+            self.thisptr3D.use_HeLiuTang_stabilizer(coeff)
+            

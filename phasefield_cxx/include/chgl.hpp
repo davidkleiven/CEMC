@@ -35,7 +35,7 @@ public:
     void print_polynomial() const;
 
     /** Use the stablization scheme by He Lio and Tang */
-    void use_HeLiuTang_stablizer(double \coeff){stab_coeff = coeff;};
+    void use_HeLiuTang_stabilizer(double coeff);
 
     /** Implement the update function */
     virtual void update(int nsteps) override;

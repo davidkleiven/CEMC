@@ -30,3 +30,5 @@ cdef extern from "chgl.hpp":
         void print_polynomial()
 
         void save_free_energy_map(string &fname)
+
+        void use_HeLiuTang_stabilizer(double coeff)
