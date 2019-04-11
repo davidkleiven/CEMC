@@ -1,4 +1,5 @@
 #include "two_phase_landau.hpp"
+#include "tools.hpp"
 #include <cmath>
 
 using namespace std;
@@ -25,6 +26,21 @@ double TwoPhaseLandau::partial_deriv_conc(double conc, const vector<double> &sha
 }
 
 double TwoPhaseLandau::partial_deriv_conc(double x[]) const{
+    const unsigned int N = 5;
+    const double dx = 0.05/N;
+    double current_conc = x[0]-dx/2.0;
+    double concs[N];
+    double energies[N];
+
+    for (unsigned int i=0;i<N;i++){
+        concs[i] = current_conc;
+        x[0] = current_conc;
+        current_conc += dx;
+        energies[i] = this->evaluate(x);
+    }
+    return least_squares_slope(concs, energies, N);
+
+
     double value = regressor->deriv(x[0]);
     value += polynomial->deriv(x, 0); 
     return value + jump_contrib_deriv(x[0]);

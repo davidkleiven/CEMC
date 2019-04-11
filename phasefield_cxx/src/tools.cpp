@@ -74,3 +74,19 @@ double inf_norm(const vector<double> &vec){
     }
     return max_val;
 }
+
+double least_squares_slope(double x[], double y[], unsigned int N){
+    double Sxx = 0.0;
+    double Sxy = 0.0;
+    double Sx = 0.0;
+    double Sy = 0.0;
+
+    for (unsigned int i=0;i<N;i++){
+        Sx += x[i];
+        Sy += y[i];
+        Sxy += x[i]*y[i];
+        Sxx += x[i]*x[i];
+    }
+
+    return (N*Sxy - Sx*Sy)/(N*Sxx - Sx*Sx);
+}

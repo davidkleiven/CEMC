@@ -66,5 +66,6 @@ void inplace_minus(std::vector<double> &vec1, const std::vector<double> &vec2);
 
 double inf_norm(const std::vector<double> &vec);
 
+double least_squares_slope(double x[], double y[], unsigned int N);
 #include "tools.tpp"
 #endif
