@@ -45,6 +45,6 @@ class TwoPhaseLandau{
 
         double disc_jump{0.0};
         double disc_conc{0.0};
-        double step_func_width{0.01};
+        double step_func_width{0.1};
 };
 #endif

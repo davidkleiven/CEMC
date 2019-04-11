@@ -61,6 +61,10 @@ void PhaseFieldSimulation<dim>::run(unsigned int start, unsigned int nsteps, int
         stringstream ss;
         ss << prefix << get_digit_string(iter+increment) << ".grid";
         grid_ptr->output(ss.str().c_str());
+
+        if (this->quit){
+            break;
+        }
     }
 }
 

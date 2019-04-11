@@ -42,6 +42,7 @@ protected:
     std::string prefix;
     unsigned int num_fields{1};
     unsigned int num_digits_in_file{10};
+    bool quit{false};
 
     /** Get iteration identifier with 10 digits */
     std::string get_digit_string(unsigned int iter) const;

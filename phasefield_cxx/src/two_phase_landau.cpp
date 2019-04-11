@@ -55,10 +55,12 @@ void TwoPhaseLandau::set_discontinuity(double conc, double jump){
 
 double TwoPhaseLandau::jump_contrib(double conc) const{
     double x = (conc - disc_conc)/step_func_width;
+    return 0.0;
     return -disc_jump*0.5*(1 + tanh(x));
 }
 
 double TwoPhaseLandau::jump_contrib_deriv(double conc) const{
     double x = (conc - disc_conc)/step_func_width;
+    return 0.0;
     return -disc_jump*0.5*(1 - pow(tanh(x), 2))/step_func_width;
 }

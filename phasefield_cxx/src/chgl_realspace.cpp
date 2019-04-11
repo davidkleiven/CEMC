@@ -191,6 +191,11 @@ void CHGLRealSpace<dim>::update(int nsteps){
         build2D();
         cout << "Time step increased. New dt: " << this->dt << endl;
     }
+
+    if (this->dt < this->minimum_dt){
+        cout << "Reached minimum timestep\n";
+        this->quit = true;
+    }
 }
 
 template<int dim>

@@ -291,6 +291,10 @@ class TwoPhaseLandauPolynomial(object):
                 raise ValueError("init_shape_coeff have to be None or "
                                  "of a list of length 2")
 
+        if (width is None):
+            peak = np.argmax(free_energy)
+            conc_max = conc[peak]
+            width = self.c2 - conc_max
         indx_min = np.argmin(np.abs(conc - self.c2 + width))
         indx_max = np.argmin(np.abs(conc - self.c2 - width))
 
