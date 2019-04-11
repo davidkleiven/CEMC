@@ -58,3 +58,7 @@ def fit_kernel(x=[], y=[], num_kernels=1, kernel=None, lamb=None,
 
 def heaviside(x):
     return float(x > 0.0)
+
+
+def smeared_heaviside(x, w):
+    return (1 + np.tanh(x/w))
