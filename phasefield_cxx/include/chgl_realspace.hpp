@@ -28,6 +28,8 @@ private:
 
     unsigned int node_index(MMSP::vector<int> &pos) const;
 
+    void add_cook_noise_to_fd_scheme(std::vector<double> &rhs, int field) const;
+
     /** Return the prefactor for the central stencil of the laplacian */
     double laplacian_central_stencil() const;
 };

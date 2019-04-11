@@ -251,6 +251,23 @@ double CHGLRealSpace<dim>::laplacian_central_stencil() const{
     }
 }
 
+template<int dim>
+void CHGLRealSpace<dim>::add_cook_noise_to_fd_scheme(std::vector<double> &rhs, int field) const{
+    if (this->cook_noise.size() < field){
+        return;
+    }
+
+    vector<double> noise(rhs.size());
+    this->cook_noise[field]->create(noise);
+
+    #ifndef NO_PHASEFIELD_PARALLEL
+    #pragma omp parallel for
+    #endif
+    for (unsigned int i=0;i<rhs.size();i++){
+        rhs[i] += noise[i];
+    }
+
+}
 // Explicit instantiations
 template class CHGLRealSpace<1>;
 template class CHGLRealSpace<2>;
