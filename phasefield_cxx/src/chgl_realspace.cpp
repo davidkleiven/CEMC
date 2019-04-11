@@ -103,12 +103,18 @@ void CHGLRealSpace<dim>::update(int nsteps){
     rank = MPI::COMM_WORLD.Get_rank();
     #endif
 
-    this->old_energy = energy();
+    if (!this->old_energy_initialized){
+        this->old_energy = energy();
+        this->old_energy_initialized = true;
+        cout << "Initial energy " << this->old_energy << endl;
+    }
+    
 
     // Keep a copy of the grid
     MMSP::grid<dim, MMSP::vector<double> > gr_cpy(*this->grid_ptr);
+    gr_cpy.copy(*this->grid_ptr);
 
-    MMSP::grid<dim, MMSP::vector<double> > gr = *this->grid_ptr;
+    MMSP::grid<dim, MMSP::vector<double> > &gr = *this->grid_ptr;
     MMSP::grid<dim, MMSP::vector<double> > deriv_free_eng(gr);
 
     ConjugateGradient cg(1E-5);
@@ -165,7 +171,7 @@ void CHGLRealSpace<dim>::update(int nsteps){
     // Calculate the energy
     double new_energy = energy();
     bool did_lower_timestep = false;
-    if ((new_energy > this->old_energy) && (this->adaptive_dt)){
+    if (((new_energy > this->old_energy) && (this->adaptive_dt)) || isnan(new_energy)){
         this->dt /= 2.0; // Reduce time step
         build2D(); // Rebuild matrices
         gr_cpy.swap(*this->grid_ptr);
