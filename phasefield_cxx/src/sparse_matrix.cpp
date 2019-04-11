@@ -17,6 +17,9 @@ void SparseMatrix::insert(unsigned int r, unsigned int c, double value){
 
 
 void SparseMatrix::dot(const vector<double> &vec, vector<double> &out) const{
+
+    // TODO: Parallilize this loop. Remember that two processes
+    // cannot update the same index of out simultaneously
     for (unsigned int i=0;i<values.size();i++){
         out[row[i]] += values[i]*vec[col[i]];
     }
