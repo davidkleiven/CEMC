@@ -202,6 +202,9 @@ double CHGLRealSpace<dim>::energy() const{
     MMSP::grid<dim, MMSP::vector<double> >& gr = *this->grid_ptr;
 
     // Calculate the contribution from the free energy
+    #ifndef NO_PHASEFIELD_PARALLEL
+    #pragma omp parallel for reduction(+ : integral)
+    #endif
     for (unsigned int i=0;i<MMSP::nodes(gr);i++){
 
         // Contribution from free energy
@@ -229,6 +232,19 @@ double CHGLRealSpace<dim>::energy() const{
     return integral/MMSP::nodes(gr);
 }    
 
+template<int dim>
+double CHGLRealSpace<dim>::laplacian_central_stencil() const{
+    switch(dim){
+        case 1:
+            return -2.0;
+        case 2:
+            return -4.0;
+        case 3:
+            return -6.0;
+        default:
+            throw invalid_argument("Dimension has to be 1, 2 or 3!");
+    }
+}
 
 // Explicit instantiations
 template class CHGLRealSpace<1>;

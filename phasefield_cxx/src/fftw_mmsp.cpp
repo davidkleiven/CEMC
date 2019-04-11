@@ -29,8 +29,8 @@ FFTW::FFTW(unsigned int dim, const int *dims): dimension(dim){
             num_elements_from_dims *= dims[i];
         }
         buffer = new fftw_complex[num_elements_from_dims];
-    #else
-        throw runtime_error("FFTW class cannot be initialized when the code has been compiled without the HAS_FFTW macro!");
+    // #else
+    //     throw runtime_error("FFTW class cannot be initialized when the code has been compiled without the HAS_FFTW macro!");
     #endif
 }
 

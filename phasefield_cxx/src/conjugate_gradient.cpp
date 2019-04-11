@@ -23,6 +23,9 @@ void ConjugateGradient::solve(const SparseMatrix &mat, const vector<double> &rhs
         double alpha = r_dot_r/dot(p, dotProd);
 
         // Update x
+        #ifndef NO_PHASEFIELD_PARALLEL
+        #pragma omp parallel for
+        #endif
         for (unsigned int i=0;i<x.size();i++){
             x[i] += alpha*p[i];
             residual[i] -= alpha*dotProd[i];
@@ -35,6 +38,9 @@ void ConjugateGradient::solve(const SparseMatrix &mat, const vector<double> &rhs
         double beta = dot(residual, residual)/r_dot_r;
 
         // Update p
+        #ifndef NO_PHASEFIELD_PARALLEL
+        #pragma omp parallel for
+        #endif
         for (unsigned int i=0;i<p.size();i++){
             p[i] = residual[i] + beta*p[i];
         }

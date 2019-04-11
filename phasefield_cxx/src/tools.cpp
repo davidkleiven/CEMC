@@ -1,5 +1,6 @@
 #include "tools.hpp"
 #include <cmath>
+#include <omp.h>
 
 const double PI = acos(-1.0);
 
@@ -37,6 +38,9 @@ double dot(const MMSP::vector<double> &vec1, const MMSP::vector<double> &vec2){
 
 double dot(const vector<double> &v1, const vector<double> &v2){
     double inner_prod = 0.0;
+    #ifndef NO_PHASEFIELD_PARALLEL
+    #pragma omp parallel for reduction(+ : inner_prod)
+    #endif
     for (unsigned int i=0;i<v1.size();i++){
         inner_prod += v1[i]*v2[i];
     }
@@ -52,6 +56,9 @@ double norm(const MMSP::vector<double> &vec){
 }
 
 void inplace_minus(vector<double> &vec1, const vector<double> &vec2){
+    #ifndef NO_PHASEFIELD_PARALLEL
+    #pragma omp parallel for
+    #endif
     for (unsigned int i=0;i<vec1.size();i++){
         vec1[i] -= vec2[i];
     }
@@ -59,6 +66,9 @@ void inplace_minus(vector<double> &vec1, const vector<double> &vec2){
 
 double inf_norm(const vector<double> &vec){
     double max_val = abs(vec[0]);
+    #ifndef NO_PHASEFIELD_PARALLEL
+    #pragma omp parallel for reduction(max : max_val)
+    #endif
     for (unsigned int i=0;i<vec.size();i++){
         max_val = abs(vec[i]) > max_val ? abs(vec[i]) : max_val;
     }

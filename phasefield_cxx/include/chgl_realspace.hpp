@@ -27,6 +27,9 @@ private:
     MMSP::vector<int> & wrap(MMSP::vector<int> &pos) const;
 
     unsigned int node_index(MMSP::vector<int> &pos) const;
+
+    /** Return the prefactor for the central stencil of the laplacian */
+    double laplacian_central_stencil() const;
 };
 
 #endif

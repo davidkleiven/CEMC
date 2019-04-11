@@ -8,9 +8,6 @@
 #ifdef HAS_FFTW
     #include <complex>
     #include <fftw.h>
-#else
-    const int FFTW_FORWARD = 1;
-    const int FFTW_BACKWARD = -1;
 #endif
 #include "fftw_complex_placeholder.hpp"
 
