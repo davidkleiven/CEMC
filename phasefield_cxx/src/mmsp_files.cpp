@@ -10,3 +10,4 @@
 #include "chgl_realspace.cpp"
 #include "conjugate_gradient.cpp"
 #include "two_phase_landau.cpp"
+#include "chc_noise.cpp"

@@ -117,7 +117,7 @@ void CHGLRealSpace<dim>::update(int nsteps){
     MMSP::grid<dim, MMSP::vector<double> > &gr = *this->grid_ptr;
     MMSP::grid<dim, MMSP::vector<double> > deriv_free_eng(gr);
 
-    ConjugateGradient cg(1E-5);
+    ConjugateGradient cg(1E-8);
 	MMSP::ghostswap(deriv_free_eng);
 
     for (int step=0;step<nsteps;step++){
@@ -177,7 +177,7 @@ void CHGLRealSpace<dim>::update(int nsteps){
         gr_cpy.swap(*this->grid_ptr);
         did_lower_timestep = true;
 
-        cout << "Refine timestep. New dt: " << this->dt << endl;
+        cout << "Refine timestep. New dt: " << this->dt  << ". Energy obtained: " << new_energy << endl;
     }
     else{
         cout << "Energy: " << new_energy << endl;
