@@ -27,7 +27,7 @@ double TwoPhaseLandau::partial_deriv_conc(double conc, const vector<double> &sha
 double TwoPhaseLandau::partial_deriv_conc(double x[]) const{
     double value = regressor->deriv(x[0]);
     value += polynomial->deriv(x, 0); 
-    return value;
+    return value + jump_contrib_deriv(x[0]);
 }
 
 double TwoPhaseLandau::partial_deriv_shape(double conc, const std::vector<double> &shape, unsigned int direction) const{
@@ -51,4 +51,14 @@ unsigned int TwoPhaseLandau::get_poly_dim() const{
 void TwoPhaseLandau::set_discontinuity(double conc, double jump){
     disc_conc = conc;
     disc_jump = jump;
+}
+
+double TwoPhaseLandau::jump_contrib(double conc) const{
+    double x = (conc - disc_conc)/step_func_width;
+    return -disc_jump*0.5*(1 + tanh(x));
+}
+
+double TwoPhaseLandau::jump_contrib_deriv(double conc) const{
+    double x = (conc - disc_conc)/step_func_width;
+    return -disc_jump*0.5*(1 - pow(tanh(x), 2))/step_func_width;
 }

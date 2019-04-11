@@ -39,9 +39,12 @@ class TwoPhaseLandau{
         const Polynomial *polynomial{nullptr};
 
         /** Return contribution from discontiuity jump */
-        double jump_contrib(double conc) const {return conc >= disc_conc ? -disc_jump : 0.0;};
+        //double jump_contrib(double conc) const {return conc >= disc_conc ? -disc_jump : 0.0;};
+        double jump_contrib(double conc) const;
+        double jump_contrib_deriv(double conc) const;
 
         double disc_jump{0.0};
         double disc_conc{0.0};
+        double step_func_width{0.01};
 };
 #endif

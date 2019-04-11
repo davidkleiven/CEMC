@@ -23,6 +23,8 @@ void CHGLRealSpace<dim>::build2D(){
     double factor = 2.0*this->alpha*this->M*this->dt;
 
     SparseMatrix& matrix = matrices[0];
+    matrix.clear();
+
     for (unsigned int i=0;i<MMSP::nodes(*this->grid_ptr);i++){
         matrix.insert(i, i, 1.0 + 20*factor);
 
@@ -59,6 +61,7 @@ void CHGLRealSpace<dim>::build2D(){
     factor = 2*this->gl_damping*this->dt;
     for (unsigned int field=1;field<dim+1;field++){
         SparseMatrix& mat = matrices[field];
+        mat.clear();
         for (unsigned int i=0;i<MMSP::nodes(*this->grid_ptr);i++){
             mat.insert(i, i, 1.0 + 2*factor*(this->interface[field-1][0] + this->interface[field-1][1]));
 
@@ -100,7 +103,12 @@ void CHGLRealSpace<dim>::update(int nsteps){
     rank = MPI::COMM_WORLD.Get_rank();
     #endif
 
-    MMSP::grid<dim, MMSP::vector<double> >& gr = *this->grid_ptr;
+    this->old_energy = energy();
+
+    // Keep a copy of the grid
+    MMSP::grid<dim, MMSP::vector<double> > gr_cpy(*this->grid_ptr);
+
+    MMSP::grid<dim, MMSP::vector<double> > gr = *this->grid_ptr;
     MMSP::grid<dim, MMSP::vector<double> > deriv_free_eng(gr);
 
     ConjugateGradient cg(1E-5);
@@ -154,8 +162,29 @@ void CHGLRealSpace<dim>::update(int nsteps){
         }
     }
 
-    // TODO: Print energy
-    cout << "Energy: " << energy() << endl;
+    // Calculate the energy
+    double new_energy = energy();
+    bool did_lower_timestep = false;
+    if ((new_energy > this->old_energy) && (this->adaptive_dt)){
+        this->dt /= 2.0; // Reduce time step
+        build2D(); // Rebuild matrices
+        gr_cpy.swap(*this->grid_ptr);
+        did_lower_timestep = true;
+
+        cout << "Refine timestep. New dt: " << this->dt << endl;
+    }
+    else{
+        cout << "Energy: " << new_energy << endl;
+        this->old_energy = new_energy;
+    }
+
+    this->update_counter += 1;
+
+    if ((this->update_counter%this->increase_dt == 0) && this->adaptive_dt && !did_lower_timestep){
+        this->dt *= 2;
+        build2D();
+        cout << "Time step increased. New dt: " << this->dt << endl;
+    }
 }
 
 template<int dim>
