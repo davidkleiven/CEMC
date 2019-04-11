@@ -172,7 +172,7 @@ void CHGLRealSpace<dim>::update(int nsteps){
     double new_energy = energy();
     bool did_lower_timestep = false;
     if (((new_energy > this->old_energy) && (this->adaptive_dt)) || isnan(new_energy)){
-        this->dt /= 2.0; // Reduce time step
+        this->set_timestep(this->dt/2.0);// Reduce time step
         build2D(); // Rebuild matrices
         gr_cpy.swap(*this->grid_ptr);
         did_lower_timestep = true;
@@ -187,7 +187,7 @@ void CHGLRealSpace<dim>::update(int nsteps){
     this->update_counter += 1;
 
     if ((this->update_counter%this->increase_dt == 0) && this->adaptive_dt && !did_lower_timestep){
-        this->dt *= 2;
+        this->set_timestep(this->dt*2);
         build2D();
         cout << "Time step increased. New dt: " << this->dt << endl;
     }

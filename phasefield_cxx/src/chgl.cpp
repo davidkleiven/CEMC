@@ -32,6 +32,11 @@ template<int dim>
 CHGL<dim>::~CHGL(){
     delete cmplx_grid_ptr; cmplx_grid_ptr = nullptr;
     delete fft; fft = nullptr;
+
+    for (unsigned int i=0;i<cook_noise.size();i++){
+        delete cook_noise[i];
+    }
+    cook_noise.clear();
 }
 
 template<int dim>
@@ -206,7 +211,7 @@ void CHGL<dim>::update(int nsteps){
 
     if ((new_energy > old_energy) && adaptive_dt){
         // We don't transfer the solution
-        dt /= 2.0;
+        set_timestep(dt/2.0);
         cout << "Timestep refined. New dt = " << dt;
     }
     else{
@@ -220,6 +225,7 @@ void CHGL<dim>::update(int nsteps){
 
     if ((update_counter%increase_dt == 0) && adaptive_dt && did_update){
         dt *= 2.0;
+        set_timestep(dt*2.0);
         cout << "Try to increase dt again. New dt = " << dt;
     }
 
@@ -397,6 +403,29 @@ void CHGL<dim>::set_filter(double width){
     cout << "Applying gaussian filter of with " << filter_width << endl;
 }
 
+template<int dim>
+void CHGL<dim>::set_cook_noise(double amplitude){
+    for (unsigned int i=0;i<MMSP::fields(*this->grid_ptr);i++){
+        double mobility = 0.0;
+        if (i == 0){
+            mobility = this->alpha;
+        }
+        else{
+            mobility = this->gl_damping;
+        }
+        
+        cook_noise.push_back(new CHCNoise<dim>(mobility, this->dt, amplitude, this->L));
+    }
+}
+
+template<int dim>
+void CHGL<dim>::set_timestep(double new_dt){
+    for (auto* noise : cook_noise){
+        noise->set_timestep(new_dt);
+    }
+
+    this->dt = new_dt;
+}
 // Explicit instantiations
 template class CHGL<1>;
 template class CHGL<2>;

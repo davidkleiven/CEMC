@@ -11,6 +11,7 @@
 
 #include "MMSP.grid.h"
 #include "MMSP.vector.h"
+#include "chc_noise.hpp"
 #include <vector>
 #include <string>
 
@@ -43,6 +44,12 @@ public:
     /** Use Gaussian filter to supress high modes */
     void set_filter(double width);
 
+    /** Add thermal noise to the equations */
+    void set_cook_noise(double amplitude);
+
+    /** Update the timestep */
+    void set_timestep(double new_dt);
+
     /** Implement the update function */
     virtual void update(int nsteps) override;
 
@@ -68,6 +75,7 @@ protected:
     MMSP::grid<dim, MMSP::vector<fftw_complex> > *cmplx_grid_ptr{nullptr};
 
     FFTW *fft{nullptr};
+    std::vector<CHCNoise<dim>*> cook_noise;
 
     /** Check that the provided interfaces vector matches requirements */
     void check_interface_vector() const;
