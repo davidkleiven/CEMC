@@ -356,9 +356,12 @@ class TwoPhaseLandauPolynomial(object):
         self.kernel = PyGaussianKernel(kernel_width)
 
         # Remove discontinuity
-        self.discontinuity_jump = reminder[indx_min] - reminder[indx_min+1]
-        self.discontinuity_conc = conc[indx_min]
-        reminder[indx_min+1:] += self.discontinuity_jump
+        diff = np.abs(reminder - np.roll(reminder, 1))
+        disc_indx = np.argmax(diff[1:])
+        self.discontinuity_jump = reminder[disc_indx] - reminder[disc_indx+1]
+        self.discontinuity_conc = conc[disc_indx]
+        reminder[disc_indx+1:] += self.discontinuity_jump
+
 
         self.phase_one_regressor = fit_kernel(
             x=conc, y=reminder, num_kernels=num_kernels, kernel=self.kernel,
