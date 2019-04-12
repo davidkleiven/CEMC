@@ -86,7 +86,6 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
             unsigned int indx2 = b_tensor_indx[field2];
             misfit_energy[indx][indx2] = contract_tensors(eff_stresses[shape_fields[field1]], strain_models[shape_fields[field2]].get_misfit());
         }
-        
 
         MMSP::grid<dim, MMSP::vector<fftw_complex> > temp_grid(grid_in);
         MMSP::grid<dim, MMSP::vector<fftw_complex> > temp_grid2(grid_in);
@@ -100,11 +99,19 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
 
             // Calculate the green function
             double k = norm(k_vec);
+            
+
+            if (abs(k) < 1E-6){
+                continue;
+            }
+
             divide(k_vec, k); // Convert to unit vector
+
             double *unit_vec_raw_ptr = &(k_vec[0]);
             mat3x3 G;
             mat3x3 B_tensor;
             strain_models.begin()->second.green_function(G, unit_vec_raw_ptr);
+
             unsigned int row = 0;
             unsigned int col = 0;
             for (auto iter1=eff_stresses.begin(); iter1 != eff_stresses.end(); ++iter1){
@@ -129,11 +136,17 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
                         continue;
                     }
 
+                    int indx2 = b_tensor_indx[field2];
                     int field_indx2 = shape_fields[field2];
-                    temp_grid(i)[field_indx1].re += B_tensor[indx][indx]*grid_out(i)[field_indx2].re;
-                    temp_grid2(i)[field_indx1].re += misfit_energy[indx][indx]*shape_squared(i)[field_indx2].re;
-                    temp_grid(i)[field_indx1].im += B_tensor[indx][indx]*grid_out(i)[field_indx2].im;
-                    temp_grid2(i)[field_indx1].im += misfit_energy[indx][indx]*shape_squared(i)[field_indx2].im;
+                    // temp_grid(i)[field_indx1].re += B_tensor[indx][indx]*grid_out(i)[field_indx2].re;
+                    // temp_grid2(i)[field_indx1].re += misfit_energy[indx][indx]*shape_squared(i)[field_indx2].re;
+                    // temp_grid(i)[field_indx1].im += B_tensor[indx][indx]*grid_out(i)[field_indx2].im;
+                    // temp_grid2(i)[field_indx1].im += misfit_energy[indx][indx]*shape_squared(i)[field_indx2].im;
+
+                    temp_grid(i)[field_indx1].re += B_tensor[indx][indx2]*grid_out(i)[field_indx2].re;
+                    temp_grid2(i)[field_indx1].re += misfit_energy[indx][indx2]*shape_squared(i)[field_indx2].re;
+                    temp_grid(i)[field_indx1].im += B_tensor[indx][indx2]*grid_out(i)[field_indx2].im;
+                    temp_grid2(i)[field_indx1].im += misfit_energy[indx][indx2]*shape_squared(i)[field_indx2].im;
                 }
             }
         }

@@ -170,7 +170,10 @@ void CHGLRealSpace<dim>::update(int nsteps){
             // Add Cook noise (note this function does not do anything if the 
             // user has not requested to include noise)
             add_cook_noise_to_fd_scheme(rhs, field);
-            add_strain_contribution(rhs, field);
+
+            if (field > 0){
+                add_strain_contribution(rhs, field);
+            }
 
             // Solve with CG
             cg.solve(matrices[field], rhs, field_values);
@@ -338,7 +341,7 @@ void CHGLRealSpace<dim>::add_strain_contribution(std::vector<double> &rhs, int f
     #pragma omp parallel for
     #endif
     for (unsigned int i=0;i<rhs.size();i++){
-        rhs[i] -= this->dt*this->gl_damping*(*strain_deriv)(i)[field-1].re;
+        rhs[i] -= this->dt*this->gl_damping*(*strain_deriv)(i)[field].re;
     }
 }
 // Explicit instantiations

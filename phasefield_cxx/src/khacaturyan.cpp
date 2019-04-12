@@ -54,6 +54,7 @@ void Khachaturyan::green_function(mat3x3 &G, double direction[3]) const{
             Q[i][p] += elastic(i, j, l, p)*direction[j]*direction[l];
         }
     }
+
     inverse3x3(Q, G);
 }
 
