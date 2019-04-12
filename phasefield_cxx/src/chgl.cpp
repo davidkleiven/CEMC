@@ -382,10 +382,11 @@ double CHGL<dim>::energy() const{
 }
 
 template<int dim>
-void CHGL<dim>::use_adaptive_stepping(double min_dt, unsigned int inc_every){
+void CHGL<dim>::use_adaptive_stepping(double min_dt, unsigned int inc_every, double low_en_cut){
     adaptive_dt = true;
     minimum_dt=min_dt;
     increase_dt = inc_every;
+    lower_energy_cut = low_en_cut;
 
     cout << "Using adaptive time steps. Min dt: " << min_dt << ". Attempt increase every " << increase_dt << " update.\n";
 };

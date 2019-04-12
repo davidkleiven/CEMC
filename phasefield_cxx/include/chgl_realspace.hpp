@@ -11,6 +11,8 @@ public:
          double M, double alpha, double dt, double gl_damping, 
          const interface_vec_t &interface);
 
+    virtual ~CHGLRealSpace();
+
     /** Build the matrix for CHGL equations */
     void build2D();
 
@@ -29,6 +31,9 @@ private:
     unsigned int node_index(MMSP::vector<int> &pos) const;
 
     void add_cook_noise_to_fd_scheme(std::vector<double> &rhs, int field) const;
+    void add_strain_contribution(std::vector<double> &rhs, int field) const;
+    void calculate_strain_contribution();
+    MMSP::grid<dim, MMSP::vector<fftw_complex> > *strain_deriv{nullptr};
 
     /** Return the prefactor for the central stencil of the laplacian */
     double laplacian_central_stencil() const;

@@ -33,6 +33,6 @@ cdef extern from "chgl.hpp":
 
         void use_HeLiuTang_stabilizer(double coeff)
 
-        void use_adaptive_stepping(double min_dt, int increase_dt_every)
+        void use_adaptive_stepping(double min_dt, int increase_dt_every, double low_en_cut)
 
         void set_filter(double width)

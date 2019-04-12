@@ -8,19 +8,21 @@ bool FFTW::multithread_initialized = false;
 
 FFTW::FFTW(unsigned int dim, const int *dims): dimension(dim){
     #ifdef HAS_FFTW
-        if (!this->multithread_initialized){
-            #ifndef NO_PHASEFIELD_PARALLEL
-                int return_code = fftw_init_threads();
-                if (return_code == 0){
-                    throw runtime_error("Could not initialize multithreaded FFTW!");
-                }
-            #endif
-            this->multithread_initialized = true;
-        }
+        // TODO: Make this work with hyperthreading
+        
+        // if (!this->multithread_initialized){
+        //     #ifndef NO_PHASEFIELD_PARALLEL
+        //         int return_code = fftw_init_threads();
+        //         if (return_code == 0){
+        //             throw runtime_error("Could not initialize multithreaded FFTW!");
+        //         }
+        //     #endif
+        //     this->multithread_initialized = true;
+        // }
 
-        #ifndef NO_PHASEFIELD_PARALLEL
-            fftw_plan_with_nthreads(omp_get_max_threads());
-        #endif
+        // #ifndef NO_PHASEFIELD_PARALLEL
+        //     fftw_plan_with_nthreads(omp_get_max_threads());
+        // #endif
         forward_plan =  fftwnd_create_plan(dim, dims, FFTW_FORWARD, FFTW_ESTIMATE | FFTW_IN_PLACE);
         backward_plan = fftwnd_create_plan(dim, dims, FFTW_BACKWARD, FFTW_ESTIMATE | FFTW_IN_PLACE);
 

@@ -12,6 +12,7 @@
 #include "MMSP.grid.h"
 #include "MMSP.vector.h"
 #include "thermal_noise_generator.hpp"
+#include "multidirectional_khachaturyan.hpp"
 #include <vector>
 #include <string>
 
@@ -39,7 +40,7 @@ public:
     void use_HeLiuTang_stabilizer(double coeff);
 
     /** Refine the time step if the energy increases */
-    void use_adaptive_stepping(double min_dt, unsigned int inc_every);
+    void use_adaptive_stepping(double min_dt, unsigned int inc_every, double lower_energy_change_cut);
 
     /** Use Gaussian filter to supress high modes */
     void set_filter(double width);
@@ -52,6 +53,9 @@ public:
 
     /** Update the timestep */
     void set_timestep(double new_dt);
+
+    /** Add a strain model */
+    void add_strain_model(const Khachaturyan &model, unsigned int field){khachaturyan.add_model(model, field);};
 
     /** Implement the update function */
     virtual void update(int nsteps) override;
@@ -71,11 +75,14 @@ protected:
     bool use_filter{false};
     bool old_energy_initialized{false};
     unsigned int increase_dt{100000};
+    double lower_energy_cut{0.0};
     unsigned int update_counter{0};
 
     interface_vec_t interface;
     const TwoPhaseLandau *free_energy{nullptr};
     MMSP::grid<dim, MMSP::vector<fftw_complex> > *cmplx_grid_ptr{nullptr};
+
+    MultidirectionalKhachaturyan khachaturyan;
 
     FFTW *fft{nullptr};
     std::vector<ThermalNoiseGenerator*> cook_noise;

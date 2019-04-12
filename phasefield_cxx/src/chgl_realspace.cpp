@@ -4,8 +4,14 @@
 template<int dim>
 CHGLRealSpace<dim>::CHGLRealSpace(int L, const std::string &prefix, unsigned int num_gl_fields, \
          double M, double alpha, double dt, double gl_damping, 
-         const interface_vec_t &interface): CHGL<dim>(L, prefix, num_gl_fields, M, alpha, dt, gl_damping, interface){};
+         const interface_vec_t &interface): CHGL<dim>(L, prefix, num_gl_fields, M, alpha, dt, gl_damping, interface){
+             strain_deriv = new MMSP::grid<dim, MMSP::vector<fftw_complex> >(*this->grid_ptr, MMSP::fields(*this->grid_ptr)-1);
+         };
 
+template<int dim>
+CHGLRealSpace<dim>::~CHGLRealSpace(){
+    delete strain_deriv; strain_deriv = nullptr;
+}
 
 template<int dim>
 void CHGLRealSpace<dim>::build2D(){
@@ -282,7 +288,7 @@ bool CHGLRealSpace<dim>::should_lower_timestep(double energy) const{
         return true;
     }
 
-    if (abs(this->old_energy) < 0.001){
+    if (abs(energy - this->old_energy) < this->lower_energy_cut){
         return false;
     }
 
@@ -290,7 +296,47 @@ bool CHGLRealSpace<dim>::should_lower_timestep(double energy) const{
     return abs(rel_change) > 0.5;
 }
 
+template<int dim>
+void CHGLRealSpace<dim>::calculate_strain_contribution(){
+    if (this->khachaturyan.num_models() == 0){
+        return;
+    }
 
+    vector<int> shape_fields;
+    for (unsigned int i=0;i<dim;i++){
+        shape_fields.push_back(i);
+    }
+
+    // Create one complex array with the current fields
+    MMSP::grid<dim, MMSP::vector<fftw_complex> > grid_in(*this->grid_ptr, MMSP::fields(*this->grid_ptr)-1);
+    
+
+    // Transfer data grid in
+    #ifndef NO_PHASEFIELD_PARALLEL
+    #pragma omp parallel for
+    #endif
+    for (unsigned int i=0;i<MMSP::nodes(grid_in);i++)
+    for (unsigned int gl_field=0;gl_field<dim;gl_field++){
+        grid_in(i)[gl_field].re = (*this->grid_ptr)(i)[gl_field+1];
+        grid_in(i)[gl_field].im = 0.0;
+    }
+
+    this->khachaturyan.functional_derivative(grid_in, *strain_deriv, shape_fields);
+}
+
+template<int dim>
+void CHGLRealSpace<dim>::add_strain_contribution(std::vector<double> &rhs, int field) const{
+    if (this->khachaturyan.num_models() == 0){
+        return;
+    }
+
+    #ifndef NO_PHASEFIELD_PARALLEL
+    #pragma omp parallel for
+    #endif
+    for (unsigned int i=0;i<rhs.size();i++){
+        rhs[i] -= this->dt*this->gl_damping*(*strain_deriv)(i)[field-1].re;
+    }
+}
 // Explicit instantiations
 template class CHGLRealSpace<1>;
 template class CHGLRealSpace<2>;

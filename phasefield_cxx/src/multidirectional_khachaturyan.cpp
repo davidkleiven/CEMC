@@ -7,6 +7,10 @@ void MultidirectionalKhachaturyan::add_model(const Khachaturyan &model, unsigned
     strain_models[shape_field] = model;
 }
 
+MultidirectionalKhachaturyan::~MultidirectionalKhachaturyan(){
+    delete fft; fft = nullptr;
+}
+
 double MultidirectionalKhachaturyan::B_tensor_element(MMSP::vector<double> &dir, const mat3x3 &green, \
                                                       const mat3x3 &eff_stress1, const mat3x3 &eff_stress2) const
 {
