@@ -7,6 +7,10 @@ cdef extern from "two_phase_landau.hpp":
     cdef cppclass TwoPhaseLandau:
         pass
 
+cdef extern from "khachaturyan.hpp":
+    cdef cppclass Khachaturyan:
+        pass
+
 cdef extern from "chgl.hpp":
     cdef cppclass CHGLRealSpace[T]:
         CHGLRealSpace(int L, string &prefix, unsigned int num_gl_fields, \
@@ -42,3 +46,5 @@ cdef extern from "chgl.hpp":
         void set_cook_noise(double amplitude)
 
         void save_noise_realization(const string &fname, unsigned int field)
+
+        void add_strain_model(Khachaturyan model, int field)
