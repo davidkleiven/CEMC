@@ -270,8 +270,7 @@ void CHGLRealSpace<dim>::add_cook_noise_to_fd_scheme(std::vector<double> &rhs, i
     for (unsigned int i=0;i<rhs.size();i++){
         rhs[i] += this->dt*noise[i];
     }
-
-}
+}   
 
 template<int dim>
 bool CHGLRealSpace<dim>::should_lower_timestep(double energy) const{

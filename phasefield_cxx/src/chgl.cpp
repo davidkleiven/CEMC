@@ -408,7 +408,7 @@ void CHGL<dim>::set_cook_noise(double amplitude){
     for (unsigned int i=0;i<MMSP::fields(*this->grid_ptr);i++){
         double mobility = 0.0;
         if (i == 0){
-            mobility = this->alpha;
+            mobility = this->M;
         }
         else{
             mobility = this->gl_damping;
@@ -425,6 +425,24 @@ void CHGL<dim>::set_timestep(double new_dt){
     }
 
     this->dt = new_dt;
+}
+
+template<int dim>
+void CHGL<dim>::save_noise_realization(const string &fname, unsigned int field) const{
+    if (cook_noise.size() == 0){
+        return;
+    }
+
+    if (field >= cook_noise.size()){
+        stringstream ss;
+        ss << "There are only " << cook_noise.size() << " fields that has noise! ";
+        ss << "Noise realization for field " << field << " requested\n";
+        throw invalid_argument(ss.str());
+    }
+
+    vector<double> noise;
+    cook_noise[field]->create(noise);
+    cook_noise[field]->noise2grid(fname, noise);
 }
 // Explicit instantiations
 template class CHGL<1>;

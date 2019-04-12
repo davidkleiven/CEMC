@@ -45,14 +45,13 @@ cdef class PyCHGLRealSpace:
         self.thisptr2D = NULL
         self.thisptr3D = NULL
 
-
     def run(self, nsteps, increment, start=0):
         if self.dim == 1:
             self.thisptr1D.run(start, nsteps, increment)
         elif self.dim == 2:
             self.thisptr2D.run(start, nsteps, increment)
         elif self.dim == 3:
-            self.thisptr3chgl_realspace
+            self.thisptr3.run(start, nsteps, increment)
 
     def from_file(self, fname):
         if self.dim == 1:
@@ -141,4 +140,20 @@ cdef class PyCHGLRealSpace:
 
     def build2D(self):
         self.thisptr2D.build2D()
+
+    def set_cook_noise(self, amplitude):
+        if self.dim == 1:
+            self.thisptr1D.set_cook_noise(amplitude)
+        elif self.dim == 2:
+            self.thisptr2D.set_cook_noise(amplitude)
+        elif self.dim == 3:
+            self.thisptr3D.set_cook_noise(amplitude)
+
+    def save_noise_realization(self, fname, field):
+        if self.dim == 1:
+            self.thisptr1D.save_noise_realization(fname, field)
+        elif self.dim == 2:
+            self.thisptr2D.save_noise_realization(fname, field)
+        elif self.dim == 3:
+            self.thisptr3D.save_noise_realization(fname, field)
             

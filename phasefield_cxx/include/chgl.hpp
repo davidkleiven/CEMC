@@ -47,6 +47,9 @@ public:
     /** Add thermal noise to the equations */
     void set_cook_noise(double amplitude);
 
+    /** Save a noise replica */
+    void save_noise_realization(const std::string &fname, unsigned int field) const;
+
     /** Update the timestep */
     void set_timestep(double new_dt);
 

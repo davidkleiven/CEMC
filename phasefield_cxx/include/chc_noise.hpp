@@ -2,6 +2,7 @@
 #define CHC_NOISE_H
 
 #include <vector>
+#include <string>
 
 template<int dim>
 class CHCNoise{
@@ -13,6 +14,9 @@ public:
     void create(std::vector<double> &noise) const;
 
     void set_timestep(double new_dt){dt = new_dt;};
+
+    /** Store noise at MMSP grid */
+    void noise2grid(const std::string &fname, const std::vector<double> &noise) const;
 private:
     double mobility{0.0};
     double dt{1.0};
