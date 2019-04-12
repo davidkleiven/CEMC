@@ -4,10 +4,12 @@
 #include <vector>
 #include <string>
 
+#include "thermal_noise_generator.hpp"
+
 template<int dim>
-class CHCNoise{
+class CHCNoise: public ThermalNoiseGenerator{
 public:
-    CHCNoise(double mobility, double dt, double amplitude, unsigned int L);
+    CHCNoise(double dt, double mobility, double amplitude, unsigned int L);
     ~CHCNoise();
 
     /** Create noise */

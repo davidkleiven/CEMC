@@ -3,7 +3,7 @@
 #include <ctime>
 
 template<int dim>
-CHCNoise<dim>::CHCNoise(double mobility, double dt, double amplitude, unsigned int L): mobility(mobility), dt(dt), amplitude(amplitude), L(L){
+CHCNoise<dim>::CHCNoise(double dt, double mobility, double amplitude, unsigned int L): ThermalNoiseGenerator(dt), mobility(mobility), amplitude(amplitude), L(L){
     switch (dim){
         case 1:
             indexGrid = new MMSP::grid<dim, int>(1, 0, L);
@@ -57,12 +57,30 @@ void CHCNoise<dim>::chc_noise(const std::vector<double> &white_noise, std::vecto
         MMSP::vector<int> pos = indexGrid->position(i);
 
         double divergence = 0.0;
-        for (unsigned int dir=0;dir < dim;dir++){
-            int orig_pos = pos[dir];
-            pos[dir] = (pos[dir] + 1)%L;
-            unsigned int indx = (*indexGrid)(pos);
+        // for (unsigned int dir=0;dir < dim;dir++){
+        //     int orig_pos = pos[dir];
+        //     pos[dir] = (pos[dir] + 1)%L;
+        //     unsigned int indx = (*indexGrid)(pos);
 
-            divergence += (white_noise[dim*indx + dir] - white_noise[dim*i + dir]);
+        //     divergence += (white_noise[dim*indx + dir] - white_noise[dim*i + dir]);
+        //     pos[dir] = orig_pos;
+        // }
+
+        for (unsigned int dir=0;dir < dim;dir++)
+        for (int dev=-1;dev < 2;dev += 2){
+            int orig_pos = pos[dir];
+            pos[dir] += dev;
+
+            if (pos[dir] < 0){
+                pos[dir] = L-1;
+            }
+            else if (pos[dir] >= L){
+                pos[dir] = 0;
+            }
+
+            unsigned int indx = (*indexGrid)(pos);
+            divergence += 0.5*dev*white_noise[dim*indx + dir];
+            //divergence += (white_noise[dim*indx + dir] - white_noise[dim*i + dir]);
             pos[dir] = orig_pos;
         }
         noise[i] = sqrt(amplitude*mobility/dt)*divergence;

@@ -49,7 +49,7 @@ src_phase = "phasefield_cxx/src"
 phasefield_sources = ["mat4D.cpp", "khacaturyan.cpp",
                       "linalg.cpp", "cahn_hilliard.cpp", "polynomial_term.cpp",
                       "polynomial.cpp", "regression_kernels.cpp", "kernel_regressor.cpp",
-                      "sparse_matrix.cpp"]
+                      "sparse_matrix.cpp", "gaussian_white_noise.cpp"]
 
 phasefield_sources = [src_phase + "/" + x for x in phasefield_sources]
 phasefield_sources.append(src_folder+"/"+"additional_tools.cpp")

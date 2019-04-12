@@ -1,5 +1,7 @@
 #include "chgl.hpp"
 #include "tools.hpp"
+#include "chc_noise.hpp"
+#include "gaussian_white_noise.hpp"
 #include <stdexcept>
 #include <sstream>
 #include <omp.h>
@@ -409,12 +411,14 @@ void CHGL<dim>::set_cook_noise(double amplitude){
         double mobility = 0.0;
         if (i == 0){
             mobility = this->M;
+            cook_noise.push_back(new CHCNoise<dim>(this->dt, mobility, amplitude, this->L));
         }
         else{
             mobility = this->gl_damping;
+            cook_noise.push_back(new GaussianWhiteNoise(this->dt, mobility*amplitude));
         }
         
-        cook_noise.push_back(new CHCNoise<dim>(mobility, this->dt, amplitude, this->L));
+        
     }
 }
 
@@ -442,7 +446,7 @@ void CHGL<dim>::save_noise_realization(const string &fname, unsigned int field) 
 
     vector<double> noise;
     cook_noise[field]->create(noise);
-    cook_noise[field]->noise2grid(fname, noise);
+    //cook_noise[field]->noise2grid(fname, noise);
 }
 // Explicit instantiations
 template class CHGL<1>;

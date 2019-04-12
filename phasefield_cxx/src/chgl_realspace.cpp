@@ -282,8 +282,12 @@ bool CHGLRealSpace<dim>::should_lower_timestep(double energy) const{
         return true;
     }
 
+    if (abs(this->old_energy) < 0.001){
+        return false;
+    }
+
     double rel_change = (energy - this->old_energy)/this->old_energy;
-    return rel_change > 0.05;
+    return abs(rel_change) > 0.5;
 }
 
 

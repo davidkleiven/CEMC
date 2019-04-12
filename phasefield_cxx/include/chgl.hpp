@@ -11,7 +11,7 @@
 
 #include "MMSP.grid.h"
 #include "MMSP.vector.h"
-#include "chc_noise.hpp"
+#include "thermal_noise_generator.hpp"
 #include <vector>
 #include <string>
 
@@ -78,7 +78,7 @@ protected:
     MMSP::grid<dim, MMSP::vector<fftw_complex> > *cmplx_grid_ptr{nullptr};
 
     FFTW *fft{nullptr};
-    std::vector<CHCNoise<dim>*> cook_noise;
+    std::vector<ThermalNoiseGenerator*> cook_noise;
 
     /** Check that the provided interfaces vector matches requirements */
     void check_interface_vector() const;
