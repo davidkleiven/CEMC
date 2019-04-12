@@ -1,6 +1,7 @@
 #include "mat4D.hpp"
 #include "use_numpy.hpp"
 #include <stdexcept>
+#include <iostream>
 
 using namespace std;
 

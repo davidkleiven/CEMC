@@ -12,7 +12,6 @@ class Khachaturyan{
 public:
     Khachaturyan(){};
     Khachaturyan(unsigned int dim, PyObject *elastic_tensor, PyObject *misfit_strain);
-    Khachaturyan(PyObject *ft_shape_func, PyObject *elastic_tensor, PyObject *misfit_strain);
 
     /** Calculate the green function (omitting normalization factor 1/k^2)*/
     void green_function(mat3x3 &G, double direction[3]) const;
@@ -28,7 +27,7 @@ public:
     const mat3x3& get_misfit() const{return misfit;};
 
     /** Calculate the zeroth order integral */
-    double zeroth_order_integral();
+    double zeroth_order_integral(PyObject *ft_shp);
 private:
     mat3x3 misfit;
     Mat4D elastic;

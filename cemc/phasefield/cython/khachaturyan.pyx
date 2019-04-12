@@ -7,8 +7,9 @@ import numpy as np
 cdef class PyKhachaturyan:
     cdef Khachaturyan *thisptr
 
-    def __cinit__(self, ft_shp, elastic, misfit):
-        self.thisptr = new Khachaturyan(ft_shp, elastic, misfit)
+    def __cinit__(self, int dim, elastic, misfit):
+        self.thisptr = new Khachaturyan(dim, elastic, misfit)
+
 
     def __dealloc__(self):
         del self.thisptr
@@ -29,6 +30,6 @@ cdef class PyKhachaturyan:
             out[i] = dir_c[i]
         return out
 
-    def zeroth_order_integral(self):
-        return self.thisptr.zeroth_order_integral()
+    def zeroth_order_integral(self, ft_shp):
+        return self.thisptr.zeroth_order_integral(ft_shp)
         

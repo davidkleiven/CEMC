@@ -42,6 +42,7 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
         #ifndef HAS_FFTW
             throw std::runtime_error("The package was compiled without FFTW!");
         #endif
+        //std::cout << strain_models[0].elastic.size() << std::endl;
 
         int dims[3];
         get_dims(grid_in, dims);
@@ -71,6 +72,7 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
         std::map<unsigned int, mat3x3> eff_stresses;
         std::map<unsigned int, unsigned int> b_tensor_indx;
         int counter = 0;
+    
         for (auto iter=strain_models.begin(); iter != strain_models.end();++iter){
             iter->second.effective_stress(eff_stresses[iter->first]);
             b_tensor_indx[iter->first] = counter++;
@@ -78,12 +80,13 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
 
         // Calculate the inner product between the effective stress and misfit strain
         mat3x3 misfit_energy;
-        for (unsigned int field1=0;shape_fields.size();field1++)
-        for (unsigned int field2=0;shape_fields.size();field2++){
+        for (unsigned int field1=0;field1 < shape_fields.size();field1++)
+        for (unsigned int field2=0;field2 < shape_fields.size();field2++){
             unsigned int indx = b_tensor_indx[field1];
             unsigned int indx2 = b_tensor_indx[field2];
             misfit_energy[indx][indx2] = contract_tensors(eff_stresses[shape_fields[field1]], strain_models[shape_fields[field2]].get_misfit());
         }
+        
 
         MMSP::grid<dim, MMSP::vector<fftw_complex> > temp_grid(grid_in);
         MMSP::grid<dim, MMSP::vector<fftw_complex> > temp_grid2(grid_in);
@@ -102,7 +105,6 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
             mat3x3 G;
             mat3x3 B_tensor;
             strain_models.begin()->second.green_function(G, unit_vec_raw_ptr);
-
             unsigned int row = 0;
             unsigned int col = 0;
             for (auto iter1=eff_stresses.begin(); iter1 != eff_stresses.end(); ++iter1){
@@ -115,14 +117,13 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
             }
 
             // Update the shape fields
-            for (unsigned int field1=0;i<shape_fields.size();field1++){
+            for (unsigned int field1=0;field1<shape_fields.size();field1++){
                 int indx = b_tensor_indx[field1];
                 int field_indx1 = shape_fields[field1];
                 temp_grid(i)[field_indx1].re = B_tensor[indx][indx]*grid_out(i)[field_indx1].re;
                 temp_grid2(i)[field_indx1].re = misfit_energy[indx][indx]*shape_squared(i)[field_indx1].re;
                 temp_grid(i)[field_indx1].im = B_tensor[indx][indx]*grid_out(i)[field_indx1].im;
                 temp_grid2(i)[field_indx1].im = misfit_energy[indx][indx]*shape_squared(i)[field_indx1].im;
-
                 for (unsigned int field2=0;field2<shape_fields.size();field2++){
                     if (field2 == field1){
                         continue;

@@ -2,13 +2,9 @@
 #include "use_numpy.hpp"
 #include "linalg.hpp"
 #include <omp.h>
+ #include <iostream>
 
 using namespace std;
-Khachaturyan::Khachaturyan(PyObject *ft_shape_func, PyObject *elastic_tensor, PyObject *misfit_strain){
-    elastic.from_numpy(elastic_tensor);
-    convertMisfit(misfit_strain);
-    convertShapeFunc(ft_shape_func);
-}
 
 Khachaturyan::Khachaturyan(unsigned int dim, PyObject *elastic_tensor, PyObject *misfit){
     elastic.from_numpy(elastic_tensor);
@@ -106,7 +102,8 @@ void Khachaturyan::wave_vector(unsigned int indx[3], double vec[3]) const{
     }
 }
 
-double Khachaturyan::zeroth_order_integral(){
+double Khachaturyan::zeroth_order_integral(PyObject *ft_shp){
+    convertShapeFunc(ft_shp);
     mat3x3 eff_stress;
     effective_stress(eff_stress);
     

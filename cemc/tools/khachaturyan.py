@@ -66,8 +66,8 @@ class Khachaturyan(object):
         if pure_python:
             integral = self.zeroth_order_integral_pure_python(ft)
         else:
-            pykhach = PyKhachaturyan(ft, self.C, self.misfit_strain)
-            integral = pykhach.zeroth_order_integral()
+            pykhach = PyKhachaturyan(len(ft.shape), self.C, self.misfit_strain)
+            integral = pykhach.zeroth_order_integral(ft)
 
         diff = self.misfit_strain - self.uniform_strain
         energy = 0.5*np.einsum("ijkl,ij,kl", self.C, diff, diff)

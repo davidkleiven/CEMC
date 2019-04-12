@@ -5,7 +5,7 @@ template<int dim>
 CHGLRealSpace<dim>::CHGLRealSpace(int L, const std::string &prefix, unsigned int num_gl_fields, \
          double M, double alpha, double dt, double gl_damping, 
          const interface_vec_t &interface): CHGL<dim>(L, prefix, num_gl_fields, M, alpha, dt, gl_damping, interface){
-             strain_deriv = new MMSP::grid<dim, MMSP::vector<fftw_complex> >(*this->grid_ptr, MMSP::fields(*this->grid_ptr)-1);
+             strain_deriv = new MMSP::grid<dim, MMSP::vector<fftw_complex> >(*this->grid_ptr, MMSP::fields(*this->grid_ptr));
          };
 
 template<int dim>
@@ -149,6 +149,9 @@ void CHGLRealSpace<dim>::update(int nsteps){
             deriv_free_eng(i) = free_eng_deriv;
         }
 
+        // Calculate the strain functional derivatives
+        calculate_strain_contribution();
+
         // Solve each field with the conjugate gradient method
         for (unsigned int field=0;field<MMSP::fields(gr);field++){
             vector<double> rhs;
@@ -167,6 +170,7 @@ void CHGLRealSpace<dim>::update(int nsteps){
             // Add Cook noise (note this function does not do anything if the 
             // user has not requested to include noise)
             add_cook_noise_to_fd_scheme(rhs, field);
+            add_strain_contribution(rhs, field);
 
             // Solve with CG
             cg.solve(matrices[field], rhs, field_values);
@@ -304,11 +308,11 @@ void CHGLRealSpace<dim>::calculate_strain_contribution(){
 
     vector<int> shape_fields;
     for (unsigned int i=0;i<dim;i++){
-        shape_fields.push_back(i);
+        shape_fields.push_back(i+1);
     }
 
     // Create one complex array with the current fields
-    MMSP::grid<dim, MMSP::vector<fftw_complex> > grid_in(*this->grid_ptr, MMSP::fields(*this->grid_ptr)-1);
+    MMSP::grid<dim, MMSP::vector<fftw_complex> > grid_in(*this->strain_deriv);
     
 
     // Transfer data grid in
