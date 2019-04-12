@@ -158,6 +158,10 @@ void CHGLRealSpace<dim>::update(int nsteps){
                 }
             }
 
+            // Add Cook noise (note this function does not do anything if the 
+            // user has not requested to include noise)
+            add_cook_noise_to_fd_scheme(rhs, field);
+
             // Solve with CG
             cg.solve(matrices[field], rhs, field_values);
 
@@ -171,7 +175,7 @@ void CHGLRealSpace<dim>::update(int nsteps){
     // Calculate the energy
     double new_energy = energy();
     bool did_lower_timestep = false;
-    if (((new_energy > this->old_energy) && (this->adaptive_dt)) || isnan(new_energy)){
+    if (should_lower_timestep(new_energy)){
         this->set_timestep(this->dt/2.0);// Reduce time step
         build2D(); // Rebuild matrices
         gr_cpy.swap(*this->grid_ptr);
@@ -268,6 +272,22 @@ void CHGLRealSpace<dim>::add_cook_noise_to_fd_scheme(std::vector<double> &rhs, i
     }
 
 }
+
+template<int dim>
+bool CHGLRealSpace<dim>::should_lower_timestep(double energy) const{
+    if (!this->adaptive_dt){
+        return false;
+    }
+
+    if (isnan(energy)){
+        return true;
+    }
+
+    double rel_change = (energy - this->old_energy)/this->old_energy;
+    return rel_change > 0.05;
+}
+
+
 // Explicit instantiations
 template class CHGLRealSpace<1>;
 template class CHGLRealSpace<2>;

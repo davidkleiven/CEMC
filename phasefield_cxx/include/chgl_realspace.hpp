@@ -32,6 +32,9 @@ private:
 
     /** Return the prefactor for the central stencil of the laplacian */
     double laplacian_central_stencil() const;
+
+    /** Check if the timestep should be lowered */
+    bool should_lower_timestep(double energy) const;
 };
 
 #endif
