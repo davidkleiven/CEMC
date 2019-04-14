@@ -154,7 +154,7 @@ double inf_norm_diff(const MMSP::grid<dim, MMSP::vector<double> > &grid1, const 
     double max_value = 0.0;
 
     #ifndef NO_PHASEFIELD_PARALLEL
-    #pragma omp parallel for reduction(max : max:value)
+    #pragma omp parallel for reduction(max : max_value)
     #endif
     for (unsigned int node=0;node<MMSP::nodes(grid1);node++){
         for (unsigned int field=0;field<MMSP::fields(grid1);field++){
