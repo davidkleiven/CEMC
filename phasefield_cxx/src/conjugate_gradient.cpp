@@ -14,6 +14,10 @@ void ConjugateGradient::solve(const SparseMatrix &mat, const vector<double> &rhs
     mat.dot(x, Ax);
     inplace_minus(residual, Ax);
 
+    if (inf_norm(residual) < tol){
+        return;
+    }
+
     vector<double> p = residual;
 
     double r_dot_r = dot(residual, residual);
