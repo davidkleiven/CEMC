@@ -146,3 +146,21 @@ void save_complex_field(const std::string &fname, MMSP::grid<dim, MMSP::vector<f
     }
     ofs.close();
 }
+
+template<int dim>
+double inf_norm_diff(const MMSP::grid<dim, MMSP::vector<double> > &grid1, const MMSP::grid<dim, MMSP::vector<double> > &grid2){
+    double max_value = 0.0;
+
+    #ifndef NO_PHASEFIELD_PARALLEL
+    #pragma omp parallel for reduction(max : max:value)
+    #endif
+    for (unsigned int node=0;node<MMSP::nodes(grid1);node++){
+        for (unsigned int field=0;field<MMSP::fields(grid1);field++){
+            double diff = grid1(node)[field] - grid2(node)[field];
+            if (abs(diff) > max_value){
+                max_value = abs(diff);
+            }
+        }
+    }
+    return max_value;
+}

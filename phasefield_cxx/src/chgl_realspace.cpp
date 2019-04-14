@@ -137,6 +137,7 @@ void CHGLRealSpace<dim>::update(int nsteps){
     ConjugateGradient cg(1E-8);
 	MMSP::ghostswap(deriv_free_eng);
 
+    bool did_lower_timestep = false;
     for (int step=0;step<nsteps;step++){
         // Calculate all the derivatives
         if (rank == 0){
@@ -194,23 +195,22 @@ void CHGLRealSpace<dim>::update(int nsteps){
                 gr(i)[field] = field_values[i];
             }
         }
+
+        double max_diff = inf_norm_diff(gr, gr_cpy);
+
+        if (should_lower_timestep(max_diff)){
+            this->set_timestep(this->dt/2.0);// Reduce time step
+            build2D(); // Rebuild matrices
+            gr_cpy.swap(*this->grid_ptr);
+            did_lower_timestep = true;
+            cout << "Refine timestep. New dt: " << this->dt << endl;
+        }
     }
 
     // Calculate the energy
     double new_energy = energy();
-    bool did_lower_timestep = false;
-    if (should_lower_timestep(new_energy)){
-        this->set_timestep(this->dt/2.0);// Reduce time step
-        build2D(); // Rebuild matrices
-        gr_cpy.swap(*this->grid_ptr);
-        did_lower_timestep = true;
-
-        cout << "Refine timestep. New dt: " << this->dt  << ". Energy obtained: " << new_energy << endl;
-    }
-    else{
-        cout << "Energy: " << new_energy << endl;
-        this->old_energy = new_energy;
-    }
+    cout << "Energy: " << new_energy << endl;
+    this->old_energy = new_energy;
 
     this->update_counter += 1;
 
@@ -297,21 +297,16 @@ void CHGLRealSpace<dim>::add_cook_noise_to_fd_scheme(std::vector<double> &rhs, i
 }   
 
 template<int dim>
-bool CHGLRealSpace<dim>::should_lower_timestep(double energy) const{
+bool CHGLRealSpace<dim>::should_lower_timestep(double diff) const{
     if (!this->adaptive_dt){
         return false;
     }
 
-    if (isnan(energy)){
-        return true;
-    }
-
-    if (abs(energy - this->old_energy) < this->lower_energy_cut){
+    if (diff < this->lower_energy_cut){
         return false;
     }
 
-    double rel_change = (energy - this->old_energy)/this->old_energy;
-    return abs(rel_change) > 0.5;
+    return true;
 }
 
 template<int dim>
