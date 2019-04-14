@@ -99,10 +99,10 @@ template<int dim>
 MMSP::vector<int> & CHGLRealSpace<dim>::wrap(MMSP::vector<int> &pos) const{
     for (unsigned int i=0;i<pos.length();i++){
         if (pos[i] < 0){
-            pos[i] = this->L - 1;
+            pos[i] += this->L;
         }
         else if (pos[i] >= this->L){
-            pos[i] = 0;
+            pos[i] -= this->L;
         }
     }
     return pos;
