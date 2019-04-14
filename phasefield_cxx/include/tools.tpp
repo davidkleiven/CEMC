@@ -1,4 +1,6 @@
 #include <fstream>
+#include <omp.h>
+
 #ifdef HAS_FFTW
 
 template<int dim>
