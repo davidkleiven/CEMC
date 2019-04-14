@@ -14,5 +14,7 @@ template<int dim>
 void strain(const Khachaturyan &khac, const MMSP::grid<dim, fftw_complex> &shape, MMSP::grid<dim, MMSP::vector<double> > &strain, FFTW &fft);
 
 void generalized_force(const mat3x3 &eff_stress, const double reciprocal_dir[3], const fftw_complex &shape_func, double force[3]);
+
+unsigned int voigt_index(unsigned int i, unsigned int j);
 #include "elasticity_util.tpp"
 #endif
