@@ -24,6 +24,11 @@ class FFTW{
         template<int dim>
         void execute(const ft_grid_t<dim> & grid_in, ft_grid_t<dim> &grid_out, fftw_direction direction,
                      const std::vector<int> &ft_fields);
+        
+        void execute(const std::vector<double> &vec, std::vector<fftw_complex> &out, fftw_direction dir);
+
+        template<int dim>
+        void execute(const MMSP::grid<dim, fftw_complex> &grid_in, MMSP::grid<dim, fftw_complex> &grid_out, fftw_direction direction);
 
         /** Export buffer */
         void save_buffer(const std::string &fname, ExportType exp) const;
@@ -110,6 +115,44 @@ void FFTW::execute(const ft_grid_t<dim> & grid_in, ft_grid_t<dim> &grid_out, fft
                 buffer[i].im /= normalization;
                 grid_out(i)[field] = buffer[i];
             }
+        }
+    #endif
+};
+
+template<int dim>
+void FFTW::execute(const MMSP::grid<dim, fftw_complex> &grid_in, MMSP::grid<dim, fftw_complex> &grid_out, fftw_direction direction){
+    #ifdef HAS_FFTW
+    double normalization = 1.0;
+
+        if (direction == FFTW_BACKWARD){
+            normalization = MMSP::nodes(grid_in);
+        }
+
+        // Loop over all fields that should be fourier transformed
+        #ifndef NO_PHASEFIELD_PARALLEL
+        #pragma omp parallel for
+        #endif
+        for (unsigned int i=0;i<MMSP::nodes(grid_in);i++){
+            buffer[i] = grid_in(i);
+        }
+
+        // Perform the FFT
+        // TODO: See if FFTW can utilize multithreading
+        if (direction == FFTW_FORWARD){
+            fftwnd_one(forward_plan, buffer, NULL);
+        }
+        else{
+            fftwnd_one(backward_plan, buffer, NULL);
+        }
+    
+        // Insert FT in the out field variable
+        #ifndef NO_PHASEFIELD_PARALLEL
+        #pragma omp parallel for
+        #endif
+        for (unsigned int i=0;i<MMSP::nodes(grid_out);i++){
+            buffer[i].re /= normalization;
+            buffer[i].im /= normalization;
+            grid_out(i) = buffer[i];
         }
     #endif
 };

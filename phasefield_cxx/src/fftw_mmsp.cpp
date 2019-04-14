@@ -66,3 +66,37 @@ void FFTW::save_buffer(const string &fname, ExportType exp) const{
     }
     ofs.close();
 }
+
+void FFTW::execute(const vector<double> &vec, vector<fftw_complex> &out, fftw_direction direction){
+
+    if (vec.size() != num_elements_from_dims){
+        stringstream ss;
+        ss << "The length of the vector must match! ";
+        ss << "Got " << vec.size() << ". Expected: " << num_elements_from_dims;
+        throw invalid_argument(ss.str());
+    }
+
+    // Transfer to buffer
+    for (unsigned int i=0;i<vec.size();i++){
+        buffer[i].re = vec[i];
+        buffer[i].im = 0.0;
+    }
+
+    double normalization = 1.0;
+    if (direction == FFTW_BACKWARD){
+        normalization = vec.size();
+    }
+
+    if (direction == FFTW_FORWARD){
+        fftwnd_one(forward_plan, buffer, NULL);
+    }
+    else{
+        fftwnd_one(backward_plan, buffer, NULL);
+    }
+
+    // Transfer back
+    for (unsigned int i=0;i<vec.size();i++){
+        out[i].re = buffer[i].re/normalization;
+        out[i].im = buffer[i].im/normalization;
+    }
+}

@@ -11,3 +11,4 @@
 #include "conjugate_gradient.cpp"
 #include "two_phase_landau.cpp"
 #include "chc_noise.cpp"
+#include "elasticity_util.cpp"

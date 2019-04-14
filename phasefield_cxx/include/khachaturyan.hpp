@@ -7,6 +7,7 @@
 
 typedef std::array< std::array<double, 3>, 3> mat3x3;
 typedef std::vector< std::vector< std::vector<double> > > shp_t;
+typedef std::vector< std::array<double, 6> > voigt_vec_t;
 
 class Khachaturyan{
 public:
