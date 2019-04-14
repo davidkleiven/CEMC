@@ -13,7 +13,7 @@ cdef class PySparseMatrix:
     def insert(self, row, col, value):
         self.thisptr.insert(row, col, value)
 
-    def dot(self, vec, out):
+    def dot(self, vec):
         # Transfer the arrays to C++ vectors
         cdef vector[double] v1
         cdef vector[double] v2
@@ -22,12 +22,19 @@ cdef class PySparseMatrix:
             v1.push_back(vec[i])
             v2.push_back(0.0)
 
-        self.thisptr.dot(vec, out)
+        self.thisptr.dot(v1, v2)
 
         # Transfer back
+        out = []
         for i in range(len(vec)):
-            out[i] = v2[i]
+            out.append(v2[i])
         return out
 
     def clear(self):
         self.thisptr.clear()
+
+    def save(self, fname):
+        self.thisptr.save(fname)
+
+    def is_symmetric(self):
+        return self.thisptr.is_symmetric()

@@ -1,5 +1,8 @@
 #include "sparse_matrix.hpp"
 #include <fstream>
+#include <map>
+#include <utility>
+#include <cmath>
 
 using namespace std;
 
@@ -37,5 +40,29 @@ void SparseMatrix::save(const string &fname) const{
         out << row[i] << ", " << col[i] << ", " << values[i] << "\n";
     }
     out.close();
+}
+
+bool SparseMatrix::is_symmetric() const{
+    map<pair<unsigned int, unsigned int>, double> sorted;
+    const double tol = 1E-6;
+    for (unsigned int i=0;i<values.size();i++){
+        pair<unsigned int, unsigned int> rowcol;
+        unsigned int min_rowcol = row[i] < col[i] ? row[i] : col[i];
+        unsigned int max_rowcol = row[i] >= col[i] ? row[i] : col[i];
+
+        rowcol.first = min_rowcol;
+        rowcol.second = max_rowcol;
+
+        const auto iterator = sorted.find(rowcol);
+        if (iterator != sorted.end()){
+            if (abs(iterator->second - values[i]) > tol){
+                return false;
+            }
+        }
+        else{
+            sorted[rowcol] = values[i];
+        }
+    }
+    return true;
 }
 

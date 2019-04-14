@@ -7,4 +7,4 @@ cdef extern from "sparse_matrix.hpp":
 cdef extern from "conjugate_gradient.hpp":
     cdef cppclass ConjugateGradient:
         ConjugateGradient(double tol)
-        void solve(SparseMatrix &mat, vector[double] &rhs, vector[double] &out)
+        void solve(SparseMatrix &mat, vector[double] &rhs, vector[double] &out) except+

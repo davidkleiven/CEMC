@@ -13,6 +13,8 @@ public:
     void dot(const std::vector<double> &vec, std::vector<double> &res) const;
 
     void save(const std::string &fname) const;
+
+    bool is_symmetric() const;
 private:
     std::vector<double> values;
     std::vector<unsigned int> row;

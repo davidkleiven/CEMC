@@ -17,12 +17,12 @@ cdef class PyConjugateGradient:
 
         for i in range(len(rhs)):
             rhs_vec.push_back(rhs[i])
-            res_vec.push_back(0.0)
+            res_vec.push_back(res[i])
 
         self.thisptr.solve(deref(sp_mat.thisptr), rhs_vec, res_vec)
 
         # Transfer back
-        for i in range(len(res)):
+        for i in range(len(rhs)):
             res[i] = res_vec[i]
         return res
 
