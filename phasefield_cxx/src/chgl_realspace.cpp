@@ -202,8 +202,12 @@ void CHGLRealSpace<dim>::update(int nsteps){
             this->set_timestep(this->dt/2.0);// Reduce time step
             build2D(); // Rebuild matrices
             gr_cpy.swap(*this->grid_ptr);
+            this->grid_ptr->copy(gr_cpy);
             did_lower_timestep = true;
             cout << "Refine timestep. New dt: " << this->dt << endl;
+        }
+        else{
+            gr_cpy.copy(*this->grid_ptr);
         }
     }
 
