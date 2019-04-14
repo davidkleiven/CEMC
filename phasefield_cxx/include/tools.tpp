@@ -1,5 +1,6 @@
 #include <fstream>
 #include <omp.h>
+#include <limits>
 
 #ifdef HAS_FFTW
 
@@ -159,6 +160,9 @@ double inf_norm_diff(const MMSP::grid<dim, MMSP::vector<double> > &grid1, const 
     for (unsigned int node=0;node<MMSP::nodes(grid1);node++){
         for (unsigned int field=0;field<MMSP::fields(grid1);field++){
             double diff = grid1(node)[field] - grid2(node)[field];
+            if (isnan(diff)){
+                return std::numeric_limits<double>::max();
+            }
             if (abs(diff) > max_value){
                 max_value = abs(diff);
             }

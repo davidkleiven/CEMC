@@ -204,7 +204,7 @@ void CHGLRealSpace<dim>::update(int nsteps){
             //gr_cpy.swap(*this->grid_ptr);
             this->grid_ptr->copy(gr_cpy);
             did_lower_timestep = true;
-            cout << "Refine timestep. New dt: " << this->dt << endl;
+            cout << "Refine timestep. New dt: " << this->dt << ". Max change: " << max_diff << endl;
         }
         else{
             gr_cpy.copy(*this->grid_ptr);
