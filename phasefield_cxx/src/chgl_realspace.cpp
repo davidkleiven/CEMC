@@ -82,6 +82,13 @@ void CHGLRealSpace<dim>::build2D(){
     }
 
     matrices[2].save("data/matrixfiel2.csv");
+
+    // Sanity check: All matrices should be symmetric
+    for (const auto& mat : matrices){
+        if (!mat.is_symmetric()){
+            throw runtime_error("Mass matrices are not symmetric!");
+        }
+    }
 }
 
 template<int dim>
