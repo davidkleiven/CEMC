@@ -18,6 +18,7 @@ include "pypolynomial_term.pyx"
 include "pypolynomial.pyx"
 include "pychgl.pyx"
 include "pychgl_realspace.pyx"
+include "pysparse_matrix.pyx"
 
 # Hack: MMSP contains implementation in the header files
 # therefore we need to include the cpp file here
