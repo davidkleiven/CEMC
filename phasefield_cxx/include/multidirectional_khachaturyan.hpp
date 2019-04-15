@@ -37,11 +37,10 @@ class MultidirectionalKhachaturyan{
         double last_strain_energy{0.0};
 
         template<int dim>
-        double fourier_integral(const MMSP::grid<dim, MMSP::vector<fftw_complex> >&ft_fields, const std::vector<int> &shape_fields,
-                             const std::map<unsigned int, unsigned int> &field2tensor_indx) const;
+        double fourier_integral(const MMSP::grid<dim, MMSP::vector<fftw_complex> >&ft_fields, const std::vector<int> &shape_fields) const;
 
         template<int dim, class T>
-        double misfit_contribution(const MMSP::grid<dim, MMSP::vector<T> > &fields, std::vector<int> &shape_fields) const;
+        double misfit_contribution(const MMSP::grid<dim, MMSP::vector<T> > &fields, const std::vector<int> &shape_fields) const;
 
         void get_effective_stresses(std::vector<mat3x3> &eff_stress) const;
         void index_map(const std::vector<int> &shape_fields, std::map<unsigned int, unsigned int> &mapping) const;
@@ -73,9 +72,14 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
             shape_squared(i)[field].re = pow(grid_in(i)[field].re/max_order_param, 2);
             shape_squared(i)[field].im = 0.0;
         }
+
+        double misfit_energy_contrib = misfit_contribution(shape_squared, shape_fields);
         
         // Perform the fourier transform of all fields
         fft->execute(shape_squared, grid_out, FFTW_FORWARD, shape_fields);
+
+        double shape_contrib = fourier_integral(grid_out, shape_fields);
+        last_strain_energy = misfit_energy_contrib - shape_contrib;
 
         MMSP::vector<double> k_vec(3);
         for (unsigned int i=0;i<3;i++){
@@ -184,12 +188,14 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
     }
 
     template<int dim>
-    double MultidirectionalKhachaturyan::fourier_integral(const MMSP::grid<dim, MMSP::vector<fftw_complex> >&ft_fields, const std::vector<int> &shape_fields,
-                                                          const std::map<unsigned int, unsigned int> &field2tensor_indx) const{
+    double MultidirectionalKhachaturyan::fourier_integral(const MMSP::grid<dim, MMSP::vector<fftw_complex> > &ft_fields, const std::vector<int> &shape_fields) const{
         double integral = 0.0;
 
         std::vector<mat3x3> eff_stress;
         get_effective_stresses(eff_stress);
+
+        std::map<unsigned int, unsigned int> field2tensor_indx;
+        index_map(shape_fields, field2tensor_indx);
 
         MMSP::vector<double> k_vec(3);
         for (unsigned int i=0;i<3;i++){
@@ -240,7 +246,7 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
     }
 
     template<int dim, class T>
-    double MultidirectionalKhachaturyan::misfit_contribution(const MMSP::grid<dim, MMSP::vector<T> > &fields, std::vector<int> &shape_fields) const{
+    double MultidirectionalKhachaturyan::misfit_contribution(const MMSP::grid<dim, MMSP::vector<T> > &fields, const std::vector<int> &shape_fields) const{
         double integral = 0.0;
 
         std::vector<mat3x3> eff_stress;
@@ -269,6 +275,4 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
         }
         return 0.5*integral;
     }
-
-
 #endif

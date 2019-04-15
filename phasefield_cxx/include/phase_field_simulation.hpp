@@ -7,6 +7,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include <Python.h>
 
 template<int dim>
@@ -50,9 +51,14 @@ protected:
     /** Initialize the given field from a Numpy array */
     void init_field_from_npy_arr(unsigned int field, PyObject *npy_arr);
 
+    /** Save the track values */
+    void save_track_values() const;
+
     /** Convert a field to Numpy array */
     PyObject* field_to_npy_arr(unsigned int field) const;
 
     MMSP::grid<dim, MMSP::vector<double> > *grid_ptr{nullptr};
+
+    std::vector< std::map<std::string, double> > track_values;
 };
 #endif

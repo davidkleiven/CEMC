@@ -236,6 +236,50 @@ PyObject* PhaseFieldSimulation<dim>::field_to_npy_arr(unsigned int field) const{
     throw runtime_error(ss.str());
 }
 
+template<int dim>
+void PhaseFieldSimulation<dim>::save_track_values() const{
+    if (track_values.size() == 0){
+        return;
+    }
+
+    vector<string> keys;
+    for (auto iter=track_values[0].begin(); iter != track_values[0].end(); ++iter){
+        keys.push_back(iter->first);
+    }
+
+    string fname = prefix + "track_values.csv";
+    ofstream out(fname);
+
+    if (!out.good()){
+        stringstream ss;
+        ss << "Could not open file " << fname;
+        throw runtime_error(ss.str());
+    }
+
+    // Write header
+    out << "#";
+    for (unsigned int i=0;i<keys.size();i++){
+        out << " " << keys[i];
+        if (i < keys.size() - 1){
+            out << ",";
+        }
+    }
+
+    out << "\n";
+
+    for (const auto& trvalues : track_values){
+        for (unsigned int i=0;i<keys.size();i++){
+            out << " " << trvalues.at(keys[i]);
+
+            if (i < keys.size() - 1){
+                out << ",";
+            }
+        }
+        out << "\n";
+    }
+    
+    cout << "Track values written to " << fname << endl;
+}
 // Explicit instatiations
 template class PhaseFieldSimulation<1>;
 template class PhaseFieldSimulation<2>;

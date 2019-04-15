@@ -228,19 +228,29 @@ void CHGLRealSpace<dim>::update(int nsteps){
         cout << "Reached minimum timestep\n";
         this->quit = true;
     }
+
+    map<string, double> energy_values;
+    energy_values["chem_energy"] = new_energy;
+    
+    if (this->khachaturyan.num_models() > 0){
+        energy_values["strain_energy"] = this->khachaturyan.get_last_strain_energy();
+    }
+
+    this->track_values.push_back(energy_values);
 }
 
 template<int dim>
 double CHGLRealSpace<dim>::energy() const{
 
     double integral = 0.0;
+    double surf_integral = 0.0;
 
     // Construct a temperatry copy
     MMSP::grid<dim, MMSP::vector<double> >& gr = *this->grid_ptr;
 
     // Calculate the contribution from the free energy
     #ifndef NO_PHASEFIELD_PARALLEL
-    #pragma omp parallel for reduction(+ : integral)
+    #pragma omp parallel for reduction(+ : integral, surf_integral)
     #endif
     for (unsigned int i=0;i<MMSP::nodes(gr);i++){
 
@@ -254,19 +264,19 @@ double CHGLRealSpace<dim>::energy() const{
         MMSP::vector<double> grad = MMSP::gradient(gr, pos, 0);
 
         // Add contribution from Cahn-Hilliard
-        integral += this->alpha*pow(norm(grad), 2);
+        surf_integral += this->alpha*pow(norm(grad), 2);
 
         // Add contribbution from GL fields
         for (unsigned int gl=1;gl < MMSP::fields(gr);gl++){
             grad = MMSP::gradient(gr, pos, gl);
 
             for (unsigned int dir=0;dir<dim;dir++){
-                integral += this->interface[gl-1][dir]*pow(grad[dir], 2);
+                surf_integral += this->interface[gl-1][dir]*pow(grad[dir], 2);
             }
         }
     }
 
-    return integral/MMSP::nodes(gr);
+    return (integral + surf_integral)/MMSP::nodes(gr);
 }    
 
 template<int dim>
