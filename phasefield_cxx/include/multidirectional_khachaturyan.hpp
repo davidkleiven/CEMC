@@ -14,7 +14,7 @@
 
 class MultidirectionalKhachaturyan{
     public:
-        MultidirectionalKhachaturyan(){};
+        MultidirectionalKhachaturyan(double max_order_param): max_order_param(max_order_param){};
         ~MultidirectionalKhachaturyan();
 
         /** Add a new model */
@@ -26,11 +26,25 @@ class MultidirectionalKhachaturyan{
         template<int dim>
         void functional_derivative(const MMSP::grid<dim, MMSP::vector<fftw_complex> >&grid_in, 
             MMSP::grid<dim, MMSP::vector<fftw_complex> >&grid_out, const std::vector<int> &shape_fields);
+
+        double get_last_strain_energy() const{return last_strain_energy;};
     private:
         FFTW *fft{nullptr};
         std::map<unsigned int, Khachaturyan> strain_models;
+        double max_order_param{1.0};
         double B_tensor_element(MMSP::vector<double> &dir, const mat3x3 &green, const mat3x3 &eff_stress1, const mat3x3 &eff_stress2) const;
         double contract_tensors(const mat3x3 &mat1, const mat3x3 &mat2) const;
+        double last_strain_energy{0.0};
+
+        template<int dim>
+        double fourier_integral(const MMSP::grid<dim, MMSP::vector<fftw_complex> >&ft_fields, const std::vector<int> &shape_fields,
+                             const std::map<unsigned int, unsigned int> &field2tensor_indx) const;
+
+        template<int dim, class T>
+        double misfit_contribution(const MMSP::grid<dim, MMSP::vector<T> > &fields, std::vector<int> &shape_fields) const;
+
+        void get_effective_stresses(std::vector<mat3x3> &eff_stress) const;
+        void index_map(const std::vector<int> &shape_fields, std::map<unsigned int, unsigned int> &mapping) const;
 };
 
 
@@ -56,7 +70,7 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
         // Calculate the square of the shape parameters
         for (unsigned int i=0;i<MMSP::nodes(grid_in);i++)
         for (auto field : shape_fields){
-            shape_squared(i)[field].re = pow(grid_in(i)[field].re, 2);
+            shape_squared(i)[field].re = pow(grid_in(i)[field].re/max_order_param, 2);
             shape_squared(i)[field].im = 0.0;
         }
         
@@ -167,6 +181,93 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
 
         // Perform forward fourier transform again
         //fft_mmsp_grid(temp_grid, grid_out, FFTW_FORWARD, dims, shape_fields);
+    }
+
+    template<int dim>
+    double MultidirectionalKhachaturyan::fourier_integral(const MMSP::grid<dim, MMSP::vector<fftw_complex> >&ft_fields, const std::vector<int> &shape_fields,
+                                                          const std::map<unsigned int, unsigned int> &field2tensor_indx) const{
+        double integral = 0.0;
+
+        std::vector<mat3x3> eff_stress;
+        get_effective_stresses(eff_stress);
+
+        MMSP::vector<double> k_vec(3);
+        for (unsigned int i=0;i<3;i++){
+            k_vec[i] = 0.0;
+        }
+
+        mat3x3 green;
+
+        for (int field1 : shape_fields)
+        for (int field2 : shape_fields){
+            unsigned int b_indx1 = field2tensor_indx.at(field1);
+            unsigned int b_indx2 = field2tensor_indx.at(field2);
+
+            double stress_strain_contracted = 0.0;
+            for (unsigned int i=0;i<3;i++)
+            for (unsigned int j=0;j<3;j++){
+                stress_strain_contracted += eff_stress[b_indx1][i][j]*strain_models.at(b_indx2).get_misfit()[i][j];
+            }
+
+            #ifndef NO_PHASEFIELD_PARALLEL
+            #pragma omp parallel for reduction(+ : integral)
+            #endif
+            for (int node=0;node<MMSP::nodes(ft_fields);node++){
+                MMSP::vector<int> pos = ft_fields.position(node);
+
+                // Convert position to k-vector
+                k_vector(pos, k_vec, MMSP::xlength(ft_fields));
+
+                // Calculate the green function
+                double k = norm(k_vec);
+                
+
+                if (abs(k) < 1E-6){
+                    continue;
+                }
+
+                divide(k_vec, k); // Convert to unit vector
+                const Khachaturyan& khac_obj = strain_models.begin()->second;
+                khac_obj.green_function(green, &(k_vec[0]));
+
+                // Construct B_tensor element
+                double element = B_tensor_element(k_vec, green, eff_stress[b_indx1], eff_stress[b_indx2]);
+                integral += element*(ft_fields(node)[field1].re*ft_fields(node)[field2].re + \
+                    ft_fields(node)[field1].im*ft_fields(node)[field2].im);
+            }
+        }
+        return 0.5*integral;
+    }
+
+    template<int dim, class T>
+    double MultidirectionalKhachaturyan::misfit_contribution(const MMSP::grid<dim, MMSP::vector<T> > &fields, std::vector<int> &shape_fields) const{
+        double integral = 0.0;
+
+        std::vector<mat3x3> eff_stress;
+        get_effective_stresses(eff_stress);
+
+        std::map<unsigned int, unsigned int> field2tensor;
+        index_map(shape_fields, field2tensor);
+
+        for (int field1 : shape_fields)
+        for (int field2 : shape_fields){
+            unsigned int tensor_indx1 = field2tensor.at(field1);
+            unsigned int tensor_indx2 = field2tensor.at(field2);
+
+            double factor = 0.0;
+            for (unsigned int i=0;i<3;i++)
+            for (unsigned int j=0;j<3;j++){
+                factor += eff_stress[tensor_indx1][i][j]*strain_models.at(tensor_indx2).get_misfit()[i][j];
+            }
+
+            #ifndef NO_PHASEFIELD_PARALLEL
+            #pragma omp parallel for reduction(+ : integral)
+            #endif
+            for (int node=0;node<MMSP::nodes(fields);node++){
+                integral += factor*real_field(fields(node)[field1])*real_field(fields(node)[field2]);
+            }
+        }
+        return 0.5*integral;
     }
 
 

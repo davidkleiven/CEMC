@@ -70,5 +70,9 @@ template<int dim>
 double inf_norm_diff(const MMSP::grid<dim, MMSP::vector<double> > &grid1, const MMSP::grid<dim, MMSP::vector<double> > &grid2);
 
 double least_squares_slope(double x[], double y[], unsigned int N);
+
+double real_field(double field_value){return field_value;};
+double real_field(const fftw_complex& field_value){return field_value.re;};
+
 #include "tools.tpp"
 #endif

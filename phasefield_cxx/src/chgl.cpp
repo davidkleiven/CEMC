@@ -13,7 +13,7 @@ template<int dim>
 CHGL<dim>::CHGL(int L, const std::string &prefix, unsigned int num_gl_fields, \
            double M, double alpha, double dt, double gl_damping, 
            const interface_vec_t &interface): PhaseFieldSimulation<dim>(L, prefix, num_gl_fields+1), \
-           M(M), alpha(alpha), dt(dt), gl_damping(gl_damping), interface(interface){
+           M(M), alpha(alpha), dt(dt), gl_damping(gl_damping), interface(interface), khachaturyan(0.8){
                int dims[3] = {L, L, L};
                if (dim == 1){
                     cmplx_grid_ptr = new MMSP::grid<dim, MMSP::vector<fftw_complex> >(this->num_fields, 0, L);
