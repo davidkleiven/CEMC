@@ -120,13 +120,6 @@ void CHGLRealSpace<dim>::update(int nsteps){
     rank = MPI::COMM_WORLD.Get_rank();
     #endif
 
-    if (!this->old_energy_initialized){
-        this->old_energy = energy();
-        this->old_energy_initialized = true;
-        cout << "Initial energy " << this->old_energy << endl;
-    }
-    
-
     // Keep a copy of the grid
     MMSP::grid<dim, MMSP::vector<double> > gr_cpy(*this->grid_ptr);
     gr_cpy.copy(*this->grid_ptr);
@@ -228,8 +221,7 @@ void CHGLRealSpace<dim>::update(int nsteps){
     }
 
     map<string, double> energy_values;
-    double new_energy = energy(energy_values);
-    energy_values["chem_energy"] = new_energy;
+    energy(energy_values);
     
     if (this->khachaturyan.num_models() > 0){
         energy_values["strain_energy"] = this->khachaturyan.get_last_strain_energy();
@@ -240,7 +232,7 @@ void CHGLRealSpace<dim>::update(int nsteps){
 }
 
 template<int dim>
-double CHGLRealSpace<dim>::energy(std::map<std::string, double> &tr_item) const{
+void CHGLRealSpace<dim>::energy(std::map<std::string, double> &tr_item) const{
 
     double integral = 0.0;
     double surf_integral = 0.0;
@@ -369,7 +361,7 @@ void CHGLRealSpace<dim>::add_strain_contribution(std::vector<double> &rhs, int f
 template<int dim>
 void CHGLRealSpace<dim>::log_tritem(const map<string, double> &item) const{
     for (auto iter=item.begin(); iter != item.end(); ++iter){
-        cout << item->first << ": " << item->second << endl;
+        cout << iter->first << ": " << iter->second << endl;
     }
 }
 // Explicit instantiations

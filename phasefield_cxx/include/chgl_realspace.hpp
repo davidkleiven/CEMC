@@ -20,7 +20,7 @@ public:
     virtual void update(int nsteps) override;
 
     /** Calculate the energy of the system */
-    void energy(std::map<std::string, double> &tr_item) const override; 
+    void energy(std::map<std::string, double> &tr_item) const; 
 private:
     unsigned int implicitDir{0};
     std::array<SparseMatrix, dim+1> matrices;
