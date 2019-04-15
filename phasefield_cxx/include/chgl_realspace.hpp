@@ -20,7 +20,7 @@ public:
     virtual void update(int nsteps) override;
 
     /** Calculate the energy of the system */
-    virtual double energy() const override; 
+    void energy(std::map<std::string, double> &tr_item) const override; 
 private:
     unsigned int implicitDir{0};
     std::array<SparseMatrix, dim+1> matrices;
@@ -40,6 +40,9 @@ private:
 
     /** Check if the timestep should be lowered */
     bool should_lower_timestep(double energy) const;
+
+    /** Log a track item */
+    void log_tritem(const std::map<std::string, double> &item) const;
 };
 
 #endif

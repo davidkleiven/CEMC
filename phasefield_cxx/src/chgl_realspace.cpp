@@ -212,9 +212,7 @@ void CHGLRealSpace<dim>::update(int nsteps){
     }
 
     // Calculate the energy
-    double new_energy = energy();
-    cout << "Energy: " << new_energy << endl;
-    this->old_energy = new_energy;
+    
 
     this->update_counter += 1;
 
@@ -230,17 +228,19 @@ void CHGLRealSpace<dim>::update(int nsteps){
     }
 
     map<string, double> energy_values;
+    double new_energy = energy(energy_values);
     energy_values["chem_energy"] = new_energy;
     
     if (this->khachaturyan.num_models() > 0){
         energy_values["strain_energy"] = this->khachaturyan.get_last_strain_energy();
     }
 
+    log_tritem(energy_values);
     this->track_values.push_back(energy_values);
 }
 
 template<int dim>
-double CHGLRealSpace<dim>::energy() const{
+double CHGLRealSpace<dim>::energy(std::map<std::string, double> &tr_item) const{
 
     double integral = 0.0;
     double surf_integral = 0.0;
@@ -276,7 +276,8 @@ double CHGLRealSpace<dim>::energy() const{
         }
     }
 
-    return (integral + surf_integral)/MMSP::nodes(gr);
+    tr_item["vol_energy"] = integral/MMSP::nodes(gr);
+    tr_item["surf_energy"] = surf_integral/MMSP::nodes(gr);
 }    
 
 template<int dim>
@@ -362,6 +363,13 @@ void CHGLRealSpace<dim>::add_strain_contribution(std::vector<double> &rhs, int f
     #endif
     for (unsigned int i=0;i<rhs.size();i++){
         rhs[i] -= this->dt*this->gl_damping*(*strain_deriv)(i)[field].re;
+    }
+}
+
+template<int dim>
+void CHGLRealSpace<dim>::log_tritem(const map<string, double> &item) const{
+    for (auto iter=item.begin(); iter != item.end(); ++iter){
+        cout << item->first << ": " << item->second << endl;
     }
 }
 // Explicit instantiations
