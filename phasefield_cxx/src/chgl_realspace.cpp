@@ -361,8 +361,9 @@ void CHGLRealSpace<dim>::add_strain_contribution(std::vector<double> &rhs, int f
 template<int dim>
 void CHGLRealSpace<dim>::log_tritem(const map<string, double> &item) const{
     for (auto iter=item.begin(); iter != item.end(); ++iter){
-        cout << iter->first << ": " << iter->second << endl;
+        cout << iter->first << ": " << iter->second << " ";
     }
+    cout << endl;
 }
 // Explicit instantiations
 template class CHGLRealSpace<1>;
