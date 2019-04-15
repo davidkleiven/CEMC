@@ -212,7 +212,7 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
             double stress_strain_contracted = 0.0;
             for (unsigned int i=0;i<3;i++)
             for (unsigned int j=0;j<3;j++){
-                stress_strain_contracted += eff_stress[b_indx1][i][j]*strain_models.at(b_indx2).get_misfit()[i][j];
+                stress_strain_contracted += eff_stress[b_indx1][i][j]*strain_models.at(field2).get_misfit()[i][j];
             }
 
             #ifndef NO_PHASEFIELD_PARALLEL
@@ -263,7 +263,7 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
             double factor = 0.0;
             for (unsigned int i=0;i<3;i++)
             for (unsigned int j=0;j<3;j++){
-                factor += eff_stress[tensor_indx1][i][j]*strain_models.at(tensor_indx2).get_misfit()[i][j];
+                factor += eff_stress[tensor_indx1][i][j]*strain_models.at(field2).get_misfit()[i][j];
             }
 
             #ifndef NO_PHASEFIELD_PARALLEL
