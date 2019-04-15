@@ -66,6 +66,7 @@ void PhaseFieldSimulation<dim>::run(unsigned int start, unsigned int nsteps, int
             break;
         }
     }
+    save_track_values();
 }
 
 template<int dim>
