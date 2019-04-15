@@ -247,7 +247,8 @@ void CHGLRealSpace<dim>::energy(std::map<std::string, double> &tr_item) const{
     for (unsigned int i=0;i<MMSP::nodes(gr);i++){
 
         // Contribution from free energy
-        MMSP::vector<double> phi_real(MMSP::fields(gr));
+        //MMSP::vector<double> phi_real(MMSP::fields(gr));
+        MMSP::vector<double> phi_real = gr(i);
         double *phi_raw_ptr = &(phi_real[0]);
         integral += this->free_energy->evaluate(phi_raw_ptr);
 
