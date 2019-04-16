@@ -5,6 +5,7 @@ from itertools import product
 try:
     from cemc.tools import Khachaturyan
     from phasefield_cxx import PyKhachaturyan
+    from phasefield_cxx import pytest_functional_derivative
     from cemc.tools import to_full_rank4
     available = True
     reason = ""
@@ -42,6 +43,9 @@ class TestKhacaturyan(unittest.TestCase):
         r = N/8.0
         shape_func[r_sq<r] = 1
         return shape_func
+
+    def eff_stress(self, elastic, misfit):
+        return np.einsum('ijkl,kl->ij', elastic, misfit)
 
     def get_plate_voxels(self, N):
         shape_func = np.zeros((N, N, N), dtype=np.uint8)
@@ -150,6 +154,48 @@ class TestKhacaturyan(unittest.TestCase):
         E_eshelby = self.eshelby_strain_energy_needle(eps)
         self.assertAlmostEqual(E, E_eshelby, places=3)
 
+    def test_functional_derivative_one_field(self):
+        if not available:
+            self.skipTest(reason)
+        
+        elastic = to_full_rank4(self.get_isotropic_tensor())
+        misfit = np.eye(3)
+        misfit[0, 0] = 0.05
+        misfit[1, 1] = -0.02
+        misfit[2, 2] = 0.0
+
+        init_field = np.zeros((128, 128))
+        init_field[:15, :15] = 0.8
+        func_deriv = pytest_functional_derivative(elastic, misfit, init_field.ravel())
+        
+        # Test 1 make sure that all entries outside 15x15 is zero
+        self.assertTrue(np.allclose(init_field[15:, 15:], 0.0))
+
+        ft = np.fft.fft(init_field**2)
+        freq = np.fft.fftfreq(ft.shape[0])
+
+        V = 15*15
+        stress = self.eff_stress(elastic, misfit)
+
+        # Anlytical calculation
+        for indx in product(range(ft.shape[0], ft.shape[1])):
+            kvec = np.array(ft[indx[0]], ft[indx[1]])
+            k = np.sqrt(kvec.dot(kvec))
+
+            if k < 1E-6:
+                continue
+            unit_vec = kvec/k
+            G = self.isotropic_green_function(unit_vec)
+            B = np.einsum('i,ij,jk,kl,l', unit_vec, stress, G, stress, unit_vec)
+
+            ft[indx] *= B
+        ift = np.real(np.fft.ifft(ft))
+        
+        misfit_contrib = np.einsum('ijkl,ij,kl', elastic, misfit, misfit)*init_field**2
+        expect = 2*init_field*(misfit_contrib - ift)
+        self.assertTrue(np.allclose(func_deriv, expect))
+
+        
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
     unittest.main(testRunner=TimeLoggingTestRunner)
