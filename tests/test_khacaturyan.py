@@ -80,9 +80,8 @@ class TestKhacaturyan(unittest.TestCase):
         if not available:
             self.skipTest(available)
         misfit = np.eye(3)*0.05
-        ft = np.zeros((8, 8, 8))
         elastic = to_full_rank4(self.get_isotropic_tensor())
-        pykhach = PyKhachaturyan(ft, elastic, misfit)
+        pykhach = PyKhachaturyan(3, elastic, misfit)
         k = np.array([-1.0, 3.0, 2.5])
         k /= np.sqrt(k.dot(k))
         gf = pykhach.green_function(k)
@@ -94,12 +93,12 @@ class TestKhacaturyan(unittest.TestCase):
         misfit = np.eye(3)*0.05
         ft = np.zeros((8, 8, 8))
         elastic = to_full_rank4(self.get_isotropic_tensor())
-        pykhach = PyKhachaturyan(ft, elastic, misfit)
+        pykhach = PyKhachaturyan(3, elastic, misfit)
 
         freq = np.fft.fftfreq(ft.shape[0])
         for i in range(ft.shape[0]):
             indx = np.array([i, 0, 0])
-            self.assertAlmostEqual(freq[i], pykhach.wave_vector(indx)[0])
+            self.assertAlmostEqual(freq[i], pykhach.wave_vector(indx, ft.shape[0])[0])
 
     def test_sphere(self):
         if not available:

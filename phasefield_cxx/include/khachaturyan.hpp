@@ -22,7 +22,7 @@ public:
     void effective_stress(mat3x3 &eff_stress) const;
 
     /** Calculate the frequency corresponding to a set indx ({ix, iy, iz })*/
-    void wave_vector(unsigned int indx[3], double vec[3]) const;
+    void wave_vector(unsigned int indx[3], double vec[3], int N) const;
 
     /** Return reference to the misfit tensor */
     const mat3x3& get_misfit() const{return misfit;};

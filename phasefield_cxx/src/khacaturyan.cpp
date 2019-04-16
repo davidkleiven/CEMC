@@ -86,19 +86,15 @@ void Khachaturyan::effective_stress(mat3x3 &eff_stress) const{
     }
 }
 
-void Khachaturyan::wave_vector(unsigned int indx[3], double vec[3]) const{
+void Khachaturyan::wave_vector(unsigned int indx[3], double vec[3], int N) const{
     // Return the frequency follow Numpy conventions
-    int sizes[3];
-    sizes[0] = ft_shape_func.size();
-    sizes[1] = ft_shape_func[0].size();
-    sizes[2] = ft_shape_func[0][0].size();
 
     for(int i=0;i<3;i++){
-        if (indx[i] < sizes[i]/2){
-            vec[i] = static_cast<double>(indx[i])/sizes[i];
+        if (indx[i] < N/2){
+            vec[i] = static_cast<double>(indx[i])/N;
         }
         else{
-            vec[i] = -1.0 + static_cast<double>(indx[i])/sizes[i];
+            vec[i] = -1.0 + static_cast<double>(indx[i])/N;
         }
     }
 }
@@ -131,7 +127,7 @@ double Khachaturyan::zeroth_order_integral(PyObject *ft_shp){
             for (int z=-1;z<=1;z+=2){
                 unsigned int indx[3] = {1, 0, 0};
                 double kvec[3];
-                wave_vector(indx, kvec);
+                wave_vector(indx, kvec, nx);
                 mat3x3 G;
                 green_function(G, kvec);
                 double res = contract_green_function(G, eff_stress, kvec);
@@ -141,7 +137,7 @@ double Khachaturyan::zeroth_order_integral(PyObject *ft_shp){
         else{
             unsigned int indx[3] = {i, j, k};
             double kvec[3];
-            wave_vector(indx, kvec);
+            wave_vector(indx, kvec, nx);
             unit_vector(kvec);
             mat3x3 G;
             green_function(G, kvec);

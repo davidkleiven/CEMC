@@ -17,14 +17,14 @@ cdef class PyKhachaturyan:
     def green_function(self, direction):
         return self.thisptr.green_function(direction)
 
-    def wave_vector(self, indx):
+    def wave_vector(self, indx, N):
         cdef unsigned int indx_c[3]
         cdef double dir_c[3]
 
         for i in range(3):
             indx_c[i] = indx[i]
         
-        self.thisptr.wave_vector(indx_c, dir_c)
+        self.thisptr.wave_vector(indx_c, dir_c, N)
         out = np.zeros(3)
         for i in range(3):
             out[i] = dir_c[i]
