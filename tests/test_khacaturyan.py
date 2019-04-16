@@ -190,15 +190,16 @@ class TestKhacaturyan(unittest.TestCase):
         # Test 1 make sure that all entries outside 15x15 is zero
         self.assertTrue(np.allclose(init_field[15:, 15:], 0.0))
 
-        ft = np.fft.fft(init_field**2)
+        init_field /= 0.8
+        ft = np.fft.fft((init_field)**2)
         freq = np.fft.fftfreq(ft.shape[0])
 
         V = 15*15
         stress = self.eff_stress(elastic, misfit)
 
         # Anlytical calculation
-        for indx in product(range(ft.shape[0], ft.shape[1])):
-            kvec = np.array(ft[indx[0]], ft[indx[1]])
+        for indx in product(range(ft.shape[0]), repeat=2):
+            kvec = np.array([freq[indx[0]], freq[indx[1]], 0.0])
             k = np.sqrt(kvec.dot(kvec))
 
             if k < 1E-6:
@@ -206,14 +207,14 @@ class TestKhacaturyan(unittest.TestCase):
             unit_vec = kvec/k
             G = self.isotropic_green_function(unit_vec)
             B = np.einsum('i,ij,jk,kl,l', unit_vec, stress, G, stress, unit_vec)
-
             ft[indx] *= B
         ift = np.real(np.fft.ifft(ft))/np.prod(ft.shape)
+        #print(ift)
         
         misfit_contrib = np.einsum('ijkl,ij,kl', elastic, misfit, misfit)*init_field**2
         expect = 2*init_field*(misfit_contrib - ift)
-        #print(expect)
-        #print(func_deriv)
+        print(expect)
+        print(func_deriv)
         self.assertTrue(np.allclose(func_deriv, expect))
 
         

@@ -176,7 +176,7 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
         for (unsigned int i=0;i<MMSP::nodes(temp_grid);i++)
         for (auto field : shape_fields){
             // Grid in is real, grid out should be real
-            temp_grid(i)[field].re = 2*grid_in(i)[field].re*(temp_grid2(i)[field].re - grid_out(i)[field].re);
+            temp_grid(i)[field].re = 2*(grid_in(i)[field].re/max_order_param)*(temp_grid2(i)[field].re - grid_out(i)[field].re);
             temp_grid(i)[field].im = 0.0; // temp_grid should be real at this stage
         }
 
