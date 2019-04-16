@@ -32,4 +32,14 @@ cdef class PyKhachaturyan:
 
     def zeroth_order_integral(self, ft_shp):
         return self.thisptr.zeroth_order_integral(ft_shp)
+
+    def effective_stress(self):
+        cdef double e_stress[3][3]
+        self.thisptr.effective_stress(e_stress)
+
+        stress = np.zeros((3, 3))
+        for i in range(3):
+            for j in range(3):
+                stress[i, j] = e_stress[i][j]
+        return stress
         

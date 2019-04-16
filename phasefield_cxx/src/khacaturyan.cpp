@@ -86,6 +86,16 @@ void Khachaturyan::effective_stress(mat3x3 &eff_stress) const{
     }
 }
 
+void Khachaturyan::effective_stress(double eff_stress[3][3]) const{
+    mat3x3 e_stress;
+    effective_stress(e_stress);
+
+    for (unsigned int i=0;i<3;i++)
+    for (unsigned int j=0;j<3;j++){
+        eff_stress[i][j] = e_stress[i][j];
+    }
+}
+
 void Khachaturyan::wave_vector(unsigned int indx[3], double vec[3], int N) const{
     // Return the frequency follow Numpy conventions
 

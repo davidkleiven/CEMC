@@ -9,3 +9,5 @@ cdef extern from "khachaturyan.hpp":
     void wave_vector(unsigned int indx[3], double direction[3], int N) const
 
     double zeroth_order_integral(object ft_shp)
+
+    void effective_stress(double eff_stress[3][3]) const

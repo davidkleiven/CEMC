@@ -154,6 +154,25 @@ class TestKhacaturyan(unittest.TestCase):
         E_eshelby = self.eshelby_strain_energy_needle(eps)
         self.assertAlmostEqual(E, E_eshelby, places=3)
 
+    def test_effective_stress(self):
+        if not available:
+            self.skipTest(reason)
+        
+        eps = 0.05
+        misfit = np.eye(3)*eps
+        misfit[0, 1] = 0.01
+        misfit[0, 2] = -0.2
+        misfit[1, 2] = 0.1
+        misfit = 0.5*(misfit + misfit.T)
+
+        elastic = to_full_rank4(self.get_isotropic_tensor())
+        stress = self.eff_stress(elastic, misfit)
+
+        khac = PyKhachaturyan(3, elastic, misfit)
+        stress_cpp = khac.effective_stress()
+
+        self.assertTrue(np.allclose(stress, stress_cpp))
+
     def test_functional_derivative_one_field(self):
         if not available:
             self.skipTest(reason)
@@ -189,10 +208,12 @@ class TestKhacaturyan(unittest.TestCase):
             B = np.einsum('i,ij,jk,kl,l', unit_vec, stress, G, stress, unit_vec)
 
             ft[indx] *= B
-        ift = np.real(np.fft.ifft(ft))
+        ift = np.real(np.fft.ifft(ft))/np.prod(ft.shape)
         
         misfit_contrib = np.einsum('ijkl,ij,kl', elastic, misfit, misfit)*init_field**2
         expect = 2*init_field*(misfit_contrib - ift)
+        #print(expect)
+        #print(func_deriv)
         self.assertTrue(np.allclose(func_deriv, expect))
 
         

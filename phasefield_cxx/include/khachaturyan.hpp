@@ -20,6 +20,7 @@ public:
 
     /** Effective stress tensor */
     void effective_stress(mat3x3 &eff_stress) const;
+    void effective_stress(double eff_stress[3][3]) const;
 
     /** Calculate the frequency corresponding to a set indx ({ix, iy, iz })*/
     void wave_vector(unsigned int indx[3], double vec[3], int N) const;
