@@ -12,3 +12,6 @@
 #include "two_phase_landau.cpp"
 #include "chc_noise.cpp"
 #include "elasticity_util.cpp"
+
+// Test files
+#include "test_multidirectional_khachaturyan.cpp"

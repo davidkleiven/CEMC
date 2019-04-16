@@ -25,3 +25,6 @@ include "pyconjugate_gradient.pyx"
 # therefore we need to include the cpp file here
 cdef extern from "mmsp_files.cpp":
     pass
+
+# Test files
+include "test_multidirectional_khachaturyan.pyx"
