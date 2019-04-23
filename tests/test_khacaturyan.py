@@ -267,7 +267,7 @@ class TestKhacaturyan(unittest.TestCase):
         misfit_contrib = np.einsum('ijkl,ij,kl', elastic, misfit, misfit)*init_field**2
         self.assertTrue(np.allclose(misfit_contrib, result["misfit_energy_contrib"]))
 
-        expect = 2*init_field*(misfit_contrib - ift)
+        expect = 2*init_field*(misfit_contrib - ift/V)
         self.assertTrue(np.allclose(func_deriv, expect))
 
         
