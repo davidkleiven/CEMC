@@ -214,7 +214,7 @@ class TestKhacaturyan(unittest.TestCase):
     def test_functional_derivative_one_field(self):
         if not available:
             self.skipTest(reason)
-        
+
         elastic = to_full_rank4(self.get_isotropic_tensor())
         misfit = np.eye(3)
         misfit[0, 0] = 0.05
@@ -225,7 +225,7 @@ class TestKhacaturyan(unittest.TestCase):
         init_field[:15, :15] = 0.8
         result = pytest_functional_derivative(elastic, misfit, init_field.ravel())
         func_deriv = result["func_deriv"]
-        
+
         # Test 1 make sure that all entries outside 15x15 is zero
         self.assertTrue(np.allclose(init_field[15:, 15:], 0.0))
 
