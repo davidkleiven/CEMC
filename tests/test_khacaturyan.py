@@ -223,14 +223,22 @@ class TestKhacaturyan(unittest.TestCase):
 
         init_field = np.zeros((128, 128))
         init_field[:15, :15] = 0.8
-        func_deriv = pytest_functional_derivative(elastic, misfit, init_field.ravel())
+        result = pytest_functional_derivative(elastic, misfit, init_field.ravel())
+        func_deriv = result["func_deriv"]
         
         # Test 1 make sure that all entries outside 15x15 is zero
         self.assertTrue(np.allclose(init_field[15:, 15:], 0.0))
 
         init_field /= 0.8
-        ft = np.fft.fft((init_field)**2)
+
+        # Make sure field was passed correctly
+        self.assertTrue(np.allclose(init_field, result["shape_squared_in"]))
+
+        ft = np.fft.fft2(init_field**2)
         freq = np.fft.fftfreq(ft.shape[0])
+
+        # Make sure that the real part of FFT match
+        self.assertTrue(np.allclose(np.real(ft), result["ft_shape_real"]))
 
         V = 15*15
         stress = self.eff_stress(elastic, misfit)
@@ -246,14 +254,18 @@ class TestKhacaturyan(unittest.TestCase):
             G = self.isotropic_green_function(unit_vec)
             B = np.einsum('i,ij,jk,kl,l', unit_vec, stress, G, stress, unit_vec)
             ft[indx] *= B
-        norm = np.sqrt(np.prod(ft.shape))
-        ift_full = np.fft.ifft(ft)
+
+        print(np.real(ft))
+        print(result["b_tensor_dot_ft_squared"])
+        self.assertTrue(np.allclose(np.real(ft), result["b_tensor_dot_ft_squared"]))
+
+        ift_full = np.fft.ifft2(ft)
 
         self.assertTrue(np.allclose(np.imag(ift_full), 0.0))
-        ift = np.real(ift_full)/norm
+        ift = np.real(ift_full)/np.prod(ft.shape)
 
         misfit_contrib = np.einsum('ijkl,ij,kl', elastic, misfit, misfit)*init_field**2
-        
+
         expect = 2*init_field*(misfit_contrib - ift)
         self.assertTrue(np.allclose(func_deriv, expect))
 

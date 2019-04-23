@@ -100,6 +100,15 @@ double contract_tensors(const mat3x3 &mat1, const mat3x3 &mat2){
     return value;
 }
 
+bool is_origin(MMSP::vector<double> &dir){
+    double tol = 1E-6;
+    bool origin = true;
+    for (int i=0;i<dir.length();i++){
+        origin = abs(dir[i]) < tol;
+    }
+    return origin;
+}
+
 double B_tensor_element(MMSP::vector<double> &dir, const mat3x3 &green, \
                         const mat3x3 &eff_stress1, const mat3x3 &eff_stress2)
 {
@@ -110,4 +119,14 @@ double B_tensor_element(MMSP::vector<double> &dir, const mat3x3 &green, \
     dot(green, temp_vec, temp_vec2);
     dot(eff_stress1, temp_vec2, temp_vec);
     return dot(dir, temp_vec);
+}
+
+double B_tensor_element_origin(const mat3x3 &green, const mat3x3 &eff_stress1, const mat3x3 &eff_stress2, \
+                               std::vector< MMSP::vector<double> > &directions)
+{
+    double value = 0.0;
+    for (auto& dir : directions){
+        value += B_tensor_element(dir, green, eff_stress1, eff_stress2);
+    }
+    return value/directions.size();
 }

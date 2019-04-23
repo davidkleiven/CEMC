@@ -16,10 +16,23 @@ PyObject *field2npy(MMSP::grid<2, MMSP::vector<fftw_complex> > &gr, unsigned int
     return npy_array;
 }
 
+PyObject* logger2dict_func_deriv(MultidirectionalKhachDataLogger<2> logger){
+    PyObject* dict = PyDict_New();
+
+    PyDict_SetItemString(dict, "shape_squared_in", field2npy(*logger.shape_squared_in, 0));
+    PyDict_SetItemString(dict, "ft_shape_real", field2npy(*logger.fourier_shape_squared, 0));
+    PyDict_SetItemString(dict, "b_tensor_dot_ft_squared", field2npy(*logger.b_tensor_dot_ft_squared, 0));
+    PyDict_SetItemString(dict, "misfit_energy_contrib", field2npy(*logger.misfit_energy_contrib, 0));
+    return dict;
+}
+
 PyObject* test_functional_derivative(PyObject *elastic, PyObject *misfit, const vector<double> &values){
     Khachaturyan khach(2, elastic, misfit);
 
+    MultidirectionalKhachDataLogger<2> logger;
     MultidirectionalKhachaturyan multi(0.8);
+    multi.set_logger(logger);
+
     multi.add_model(khach, 0);
 
     
@@ -40,7 +53,12 @@ PyObject* test_functional_derivative(PyObject *elastic, PyObject *misfit, const 
     shape_fields.push_back(0);
 
     multi.functional_derivative(gr, grid_out, shape_fields);
-    return field2npy(grid_out, 0);
+
+    PyObject* dict = logger2dict_func_deriv(logger);
+    clean_up(logger);
+
+    PyDict_SetItemString(dict, "func_deriv", field2npy(grid_out, 0));
+    return dict;
 }
 
 PyObject *test_contract_tensors(PyObject* tensor1, PyObject *tensor2){
