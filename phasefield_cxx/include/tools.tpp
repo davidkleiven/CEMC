@@ -170,3 +170,25 @@ double inf_norm_diff(const MMSP::grid<dim, MMSP::vector<double> > &grid1, const 
     }
     return max_value;
 }
+
+template<int dim>
+fftw_complex average_nearest_neighbours(const MMSP::grid<dim, MMSP::vector<fftw_complex> > &gr, unsigned int field, unsigned int center_node){
+    MMSP::vector<int> pos = gr.position(center_node);
+
+    fftw_complex value;
+    value.re = 0.0;
+    value.im = 0.0;
+   
+    int num = pow(2, dim);
+    for (int dir=0;dir<dim;dir++){
+        int old_val = pos[dir];
+        for (int i=-1;i<2;i+=2){
+            pos[dir] += i;
+            fftw_complex new_val = gr(pos)[field];
+            value.re += new_val.re/num;
+            value.im += new_val.im/num;
+            pos[dir] = old_val;
+        }
+    }
+    return value;
+}

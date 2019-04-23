@@ -1,4 +1,5 @@
 #include "tools.hpp"
+#include "origin_singularity_integration.hpp"
 #include <cmath>
 #include <omp.h>
 
@@ -102,16 +103,23 @@ double contract_tensors(const mat3x3 &mat1, const mat3x3 &mat2){
 
 bool is_origin(MMSP::vector<double> &dir){
     double tol = 1E-6;
-    bool origin = true;
     for (int i=0;i<dir.length();i++){
-        origin = abs(dir[i]) < tol;
+        if (abs(dir[i]) > tol) return false;
     }
-    return origin;
+    return true;
 }
 
 double B_tensor_element(MMSP::vector<double> &dir, const mat3x3 &green, \
                         const mat3x3 &eff_stress1, const mat3x3 &eff_stress2)
 {
+    // if (is_origin(dir)){
+    //     OriginSingularityIntegration integrator(10);
+    //     vector< MMSP::vector<double> > directions;
+    //     // TODO: Pass dimension as argument to support more than 2D
+    //     integrator.get_integration_directions(2, directions);
+    //     return B_tensor_element_origin(green, eff_stress1, eff_stress2, directions);
+    // }
+
     MMSP::vector<double> temp_vec(3);
     dot(eff_stress2, dir, temp_vec);
 

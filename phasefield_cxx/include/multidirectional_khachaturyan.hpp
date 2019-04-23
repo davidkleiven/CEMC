@@ -151,8 +151,9 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
             if (abs(k) < 1E-6){
                 continue;
             }
+            divide(k_vec, k); // Convert to unit vector;
 
-            divide(k_vec, k); // Convert to unit vector
+            
 
             double *unit_vec_raw_ptr = &(k_vec[0]);
             mat3x3 G;
@@ -197,6 +198,13 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
                 }
             }
         }
+
+        // Update the origin by averaging the neighbours
+        for (auto field : shape_fields){
+            fftw_complex avg = average_nearest_neighbours(temp_grid, field, 0);
+            temp_grid(0)[field] = avg;
+        }
+        
 
         if (logger<dim>() != nullptr){
             logger<dim>()->b_tensor_dot_ft_squared = new MMSP::grid<dim, MMSP::vector<fftw_complex> >(temp_grid);

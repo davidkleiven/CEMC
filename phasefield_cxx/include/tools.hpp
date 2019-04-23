@@ -79,6 +79,11 @@ double real_field(const fftw_complex& field_value){return field_value.re;};
 
 double contract_tensors(const mat3x3 &mat1, const mat3x3 &mat2);
 double B_tensor_element(MMSP::vector<double> &dir, const mat3x3 &green, const mat3x3 &eff_stress1, const mat3x3 &eff_stress2);
+double B_tensor_element_origin(const mat3x3 &green, const mat3x3 &eff_stress1, const mat3x3 &eff_stress2, \
+                               std::vector< MMSP::vector<double> > &directions);
+
+template<int dim>
+fftw_complex average_nearest_neighbours(const MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid, unsigned int field, unsigned int center_node);
 
 #include "tools.tpp"
 #endif
