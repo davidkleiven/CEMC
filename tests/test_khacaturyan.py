@@ -255,20 +255,20 @@ class TestKhacaturyan(unittest.TestCase):
             B = np.einsum('i,ij,jk,kl,l', unit_vec, stress, G, stress, unit_vec)
             ft[indx] *= B
 
-        # Leave the origin out of the comparison
-        self.assertTrue(np.allclose(np.real(ft)[1:, 1:],
-                        result["b_tensor_dot_ft_squared"][1:, 1:]))
-
+        # Set the origin to the average value of the neighbours
         ft[0, 0] = 0.25*(ft[0, 1] + ft[1, 0] + ft[-1, 0] + ft[0, -1])
+        self.assertTrue(np.allclose(np.real(ft), result["b_tensor_dot_ft_squared"]))
+
         ift_full = np.fft.ifft2(ft)
 
         self.assertTrue(np.allclose(np.imag(ift_full), 0.0))
         ift = np.real(ift_full)
 
         misfit_contrib = np.einsum('ijkl,ij,kl', elastic, misfit, misfit)*init_field**2
+        self.assertTrue(np.allclose(misfit_contrib, result["misfit_energy_contrib"]))
 
         expect = 2*init_field*(misfit_contrib - ift)
-        self.assertTrue(np.allclose(func_deriv[1:, 1:], expect[1:, 1:]))
+        self.assertTrue(np.allclose(func_deriv, expect))
 
         
 if __name__ == "__main__":

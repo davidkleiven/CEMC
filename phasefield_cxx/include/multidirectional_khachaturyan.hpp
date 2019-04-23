@@ -147,28 +147,37 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
             // Calculate the green function
             double k = norm(k_vec);
             
-
+            bool is_origin = false;
             if (abs(k) < 1E-6){
-                continue;
+                //continue;
+                is_origin = true;
             }
-            divide(k_vec, k); // Convert to unit vector;
-
-            
+            else{
+                divide(k_vec, k); // Convert to unit vector;
+            }
 
             double *unit_vec_raw_ptr = &(k_vec[0]);
             mat3x3 G;
             mat3x3 B_tensor;
             strain_models.begin()->second.green_function(G, unit_vec_raw_ptr);
 
-            unsigned int row = 0;
-            unsigned int col = 0;
-            for (auto iter1=eff_stresses.begin(); iter1 != eff_stresses.end(); ++iter1){
-                col = 0;
-                for (auto iter2=eff_stresses.begin(); iter2 != eff_stresses.end(); ++iter2){
-                    B_tensor[row][col] = B_tensor_element(k_vec, G, iter1->second, iter2->second);
-                    col += 1;
+            if (is_origin){
+                for (unsigned int i=0;i<3;i++)
+                for (unsigned int j=0;j<3;j++){
+                    B_tensor[i][j] = 0.0;
                 }
-                row += 1;
+            }
+            else{
+                unsigned int row = 0;
+                unsigned int col = 0;
+                for (auto iter1=eff_stresses.begin(); iter1 != eff_stresses.end(); ++iter1){
+                    col = 0;
+                    for (auto iter2=eff_stresses.begin(); iter2 != eff_stresses.end(); ++iter2){
+                        B_tensor[row][col] = B_tensor_element(k_vec, G, iter1->second, iter2->second);
+                        col += 1;
+                    }
+                    row += 1;
+                }
             }
 
             // Update the shape fields
