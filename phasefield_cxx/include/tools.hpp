@@ -11,6 +11,9 @@
 #include <cmath>
 #include <string>
 #include <fstream>
+#include <array>
+
+typedef std::array< std::array<double, 3>, 3> mat3x3;
 
 template<int dim, typename T>
 T partial_double_derivative(const MMSP::grid<dim, T> &GRID, const MMSP::vector<int> &x, unsigned int dir){
@@ -73,6 +76,9 @@ double least_squares_slope(double x[], double y[], unsigned int N);
 
 double real_field(double field_value){return field_value;};
 double real_field(const fftw_complex& field_value){return field_value.re;};
+
+double contract_tensors(const mat3x3 &mat1, const mat3x3 &mat2);
+double B_tensor_element(MMSP::vector<double> &dir, const mat3x3 &green, const mat3x3 &eff_stress1, const mat3x3 &eff_stress2);
 
 #include "tools.tpp"
 #endif

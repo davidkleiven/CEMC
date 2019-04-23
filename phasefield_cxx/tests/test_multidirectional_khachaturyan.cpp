@@ -1,5 +1,6 @@
 #include "test_multidirectional_khachaturyan.hpp"
 #include "multidirectional_khachaturyan.hpp"
+#include "tools.hpp"
 
 const unsigned int L = 128;
 
@@ -40,4 +41,42 @@ PyObject* test_functional_derivative(PyObject *elastic, PyObject *misfit, const 
 
     multi.functional_derivative(gr, grid_out, shape_fields);
     return field2npy(grid_out, 0);
+}
+
+PyObject *test_contract_tensors(PyObject* tensor1, PyObject *tensor2){
+    array< array<double, 3>, 3> t1, t2;
+
+    for (unsigned int i=0;i<3;i++){
+        PyObject *l1 = PyList_GetItem(tensor1, i);
+        PyObject *l2 = PyList_GetItem(tensor2, i);
+        for (unsigned int j=0;j<3;j++){
+            t1[i][j] = PyFloat_AsDouble(PyList_GetItem(l1, j));
+            t2[i][j] = PyFloat_AsDouble(PyList_GetItem(l2, j));
+        }
+    }
+
+    double contract = contract_tensors(t1, t2);
+    return PyFloat_FromDouble(contract);
+}
+
+void py2mat3x3(PyObject *obj, mat3x3 &mat){
+    for (unsigned int i=0;i<3;i++){
+        PyObject *list = PyList_GetItem(obj, i);
+        for (unsigned int j=0;j<3;j++){
+            mat[i][j] = PyFloat_AsDouble(PyList_GetItem(list, j));
+        }
+    }
+}
+
+PyObject *test_B_tensor_element(const vector<double> &vec, PyObject *pygf, PyObject *tensor1, PyObject *tensor2){
+    mat3x3 t1, t2, gf;
+    py2mat3x3(pygf, gf);
+    py2mat3x3(tensor1, t1);
+    py2mat3x3(tensor2, t2);
+
+    MMSP::vector<double> mmsp_vec(3);
+    memcpy(&(mmsp_vec[0]), &(vec[0]), 3*sizeof(double));
+
+    double element = B_tensor_element(mmsp_vec, gf, t1, t2);
+    return PyFloat_FromDouble(element);
 }

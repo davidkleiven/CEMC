@@ -4,6 +4,7 @@
 #include "tools.hpp"
 #include <stdexcept>
 #include "khachaturyan.hpp"
+#include "multidirectional_khach_data_logger.hpp"
 
 #ifdef HAS_FFTW
     #include <complex>
@@ -28,12 +29,13 @@ class MultidirectionalKhachaturyan{
             MMSP::grid<dim, MMSP::vector<fftw_complex> >&grid_out, const std::vector<int> &shape_fields);
 
         double get_last_strain_energy() const{return last_strain_energy;};
+
+        template<int dim>
+        void set_logger(MultidirectionalKhachDataLogger<dim> &new_logger);
     private:
         FFTW *fft{nullptr};
         std::map<unsigned int, Khachaturyan> strain_models;
         double max_order_param{1.0};
-        double B_tensor_element(MMSP::vector<double> &dir, const mat3x3 &green, const mat3x3 &eff_stress1, const mat3x3 &eff_stress2) const;
-        double contract_tensors(const mat3x3 &mat1, const mat3x3 &mat2) const;
         double last_strain_energy{0.0};
 
         template<int dim>
@@ -44,6 +46,14 @@ class MultidirectionalKhachaturyan{
 
         void get_effective_stresses(std::vector<mat3x3> &eff_stress) const;
         void index_map(const std::vector<int> &shape_fields, std::map<unsigned int, unsigned int> &mapping) const;
+
+        // Explicitly set loggers to avoid making the entire class a template class
+        MultidirectionalKhachDataLogger<1> *logger1{nullptr};
+        MultidirectionalKhachDataLogger<2> *logger2{nullptr};
+        MultidirectionalKhachDataLogger<3> *logger3{nullptr};
+
+        template<int dim>
+        MultidirectionalKhachDataLogger<dim>* logger();
 };
 
 
@@ -55,6 +65,10 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
         #ifndef HAS_FFTW
             throw std::runtime_error("The package was compiled without FFTW!");
         #endif
+
+        if (logger<dim>() != nullptr){
+            clean_up(*logger<dim>());
+        }
         //std::cout << strain_models[0].elastic.size() << std::endl;
 
         int dims[3];
@@ -73,10 +87,20 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
             shape_squared(i)[field].im = 0.0;
         }
 
+        if (logger<dim>() != nullptr){
+            logger<dim>()->shape_squared_in = new MMSP::grid<dim, MMSP::vector<fftw_complex> >(shape_squared);
+            logger<dim>()->shape_squared_in->copy(shape_squared);
+        }
+
         double misfit_energy_contrib = misfit_contribution(shape_squared, shape_fields);
         
         // Perform the fourier transform of all fields
         fft->execute(shape_squared, grid_out, FFTW_FORWARD, shape_fields);
+
+        if (logger<dim>() != nullptr){
+            logger<dim>()->fourier_shape_squared = new MMSP::grid<dim, MMSP::vector<fftw_complex> >(grid_out);
+            logger<dim>()->fourier_shape_squared->copy(grid_out);
+        }
 
         double shape_contrib = fourier_integral(grid_out, shape_fields);
         last_strain_energy = misfit_energy_contrib - shape_contrib;
@@ -103,6 +127,11 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
             unsigned int indx = b_tensor_indx[field1];
             unsigned int indx2 = b_tensor_indx[field2];
             misfit_energy[indx][indx2] = contract_tensors(eff_stresses[shape_fields[field1]], strain_models[shape_fields[field2]].get_misfit());
+        }
+
+        if (logger<dim>() != nullptr){
+            logger<dim>()->eff_stresses = eff_stresses;
+            logger<dim>()->b_tensor_indx = b_tensor_indx;
         }
 
         MMSP::grid<dim, MMSP::vector<fftw_complex> > temp_grid(grid_in);
@@ -167,6 +196,13 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
                     temp_grid2(i)[field_indx1].im += misfit_energy[indx][indx2]*shape_squared(i)[field_indx2].im;
                 }
             }
+        }
+
+        if (logger<dim>() != nullptr){
+            logger<dim>()->b_tensor_dot_ft_squared = new MMSP::grid<dim, MMSP::vector<fftw_complex> >(temp_grid);
+            logger<dim>()->b_tensor_dot_ft_squared->copy(temp_grid);
+            logger<dim>()->misfit_energy_contrib = new MMSP::grid<dim, MMSP::vector<fftw_complex> >(temp_grid2);
+            logger<dim>()->misfit_energy_contrib->copy(temp_grid2);
         }
 
         // Inverse fourier transform
@@ -275,4 +311,25 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
         }
         return 0.5*integral;
     }
+
+
+    // Get logger
+    template<>
+    MultidirectionalKhachDataLogger<1> *MultidirectionalKhachaturyan::logger(){return logger1;};
+
+    template<>
+    MultidirectionalKhachDataLogger<2> *MultidirectionalKhachaturyan::logger(){return logger2;};
+
+    template<>
+    MultidirectionalKhachDataLogger<3> *MultidirectionalKhachaturyan::logger(){return logger3;};
+
+    // Set logger
+    template<>
+    void MultidirectionalKhachaturyan::set_logger(MultidirectionalKhachDataLogger<1> &new_logger){logger1 = &new_logger;};
+
+    template<>
+    void MultidirectionalKhachaturyan::set_logger(MultidirectionalKhachDataLogger<2> &new_logger){logger2 = &new_logger;};
+
+    template<>
+    void MultidirectionalKhachaturyan::set_logger(MultidirectionalKhachDataLogger<3> &new_logger){logger3 = &new_logger;};
 #endif

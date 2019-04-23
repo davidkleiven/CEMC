@@ -6,6 +6,8 @@ try:
     from cemc.tools import Khachaturyan
     from phasefield_cxx import PyKhachaturyan
     from phasefield_cxx import pytest_functional_derivative
+    from phasefield_cxx import pytest_contract_tensors
+    from phasefield_cxx import pytest_B_tensor_element
     from cemc.tools import to_full_rank4
     available = True
     reason = ""
@@ -173,6 +175,42 @@ class TestKhacaturyan(unittest.TestCase):
 
         self.assertTrue(np.allclose(stress, stress_cpp))
 
+    def test_contract_tensors(self):
+        if not available:
+            self.skipTest(reason)
+
+        t1 = [[0.1, 0.2, 0.1],
+              [0.1, 5.0, -0.2],
+              [0.1, -0.2, -2.0]]
+        t2 = [[-0.11, 2.0, 3.0],
+              [2.0, 4.0, 0.2],
+              [3.0, 0.2, -1.0]]
+        cpp_contract = pytest_contract_tensors(t1, t2)
+
+        pycontract = np.einsum("ij,ij", t1, t2)
+        self.assertAlmostEqual(cpp_contract, pycontract)
+
+    def test_B_tensor_element(self):
+        if not available:
+            self.skipTest(reason)
+        gf = [[0.5, 0.2, 0.1],
+              [0.2, -0.2, 0.3],
+              [0.1, 0.3, 1.0]]
+        t1 = [[0.1, 0.2, 0.1],
+              [0.1, 5.0, -0.2],
+              [0.1, -0.2, -2.0]]
+        t2 = [[-0.11, 2.0, 3.0],
+              [2.0, 4.0, 0.2],
+              [3.0, 0.2, -1.0]]
+
+        direction = np.array([0.3, 0.4, -0.1])
+        direction /= np.sqrt(direction.dot(direction))
+
+        cpp_element = pytest_B_tensor_element(direction, gf, t1, t2)
+
+        py_elem = np.einsum("i,ij,jk,kl,l", direction, t1, gf, t2, direction)
+        self.assertAlmostEqual(cpp_element, py_elem)
+
     def test_functional_derivative_one_field(self):
         if not available:
             self.skipTest(reason)
@@ -208,13 +246,15 @@ class TestKhacaturyan(unittest.TestCase):
             G = self.isotropic_green_function(unit_vec)
             B = np.einsum('i,ij,jk,kl,l', unit_vec, stress, G, stress, unit_vec)
             ft[indx] *= B
-        ift = np.real(np.fft.ifft(ft))/np.prod(ft.shape)
-        #print(ift)
-        
+        norm = np.sqrt(np.prod(ft.shape))
+        ift_full = np.fft.ifft(ft)
+
+        self.assertTrue(np.allclose(np.imag(ift_full), 0.0))
+        ift = np.real(ift_full)/norm
+
         misfit_contrib = np.einsum('ijkl,ij,kl', elastic, misfit, misfit)*init_field**2
+        
         expect = 2*init_field*(misfit_contrib - ift)
-        print(expect)
-        print(func_deriv)
         self.assertTrue(np.allclose(func_deriv, expect))
 
         

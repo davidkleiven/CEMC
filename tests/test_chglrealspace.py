@@ -14,6 +14,7 @@ except ImportError as exc:
     reason = str(exc)
     print(reason)
 
+
 class TestCHGLRealSpace(unittest.TestCase):
     prefix = "chglrealspace"
     L = 32
@@ -26,8 +27,8 @@ class TestCHGLRealSpace(unittest.TestCase):
         dt = 0.001
         gl_damping = M
         grad_coeff = [[alpha, 0.5*alpha], [0.5*alpha, alpha]]
-        return PyCHGLRealSpace(dim, self.L, self.prefix, num_gl_fields, M, alpha, dt, gl_damping, 
-                      grad_coeff)
+        return PyCHGLRealSpace(dim, self.L, self.prefix, num_gl_fields, M,
+                               alpha, dt, gl_damping, grad_coeff)
 
     def test_chglrealspace(self):
         if not available:
