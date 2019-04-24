@@ -21,9 +21,9 @@ class SlavedTwoPhaseLandauEvaluator(GradCoeffEvaluator):
 
     :param TwoPhaseLandauPolynomial poly: Polynomial describing the free energy
     """
-    def __init__(self, poly):
+    def __init__(self, poly, involution_order=2):
         from cemc.phasefield import TwoPhaseLandauPolynomial
-        GradCoeffEvaluator.__init__(self, involution_order=2)
+        GradCoeffEvaluator.__init__(self)
 
         if not isinstance(poly, TwoPhaseLandauPolynomial):
             raise TypeError("poly has to be an instance of "
