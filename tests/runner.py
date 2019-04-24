@@ -40,6 +40,7 @@ import test_concentration_observer
 import test_interior_minima
 import test_grad_no_profile
 import test_regression_kernels
+import test_involution
 
 try:
     os.mkdir("data")
@@ -91,6 +92,8 @@ suite.addTest(loader.loadTestsFromModule(test_concentration_observer))
 suite.addTest(loader.loadTestsFromModule(test_interior_minima))
 suite.addTest(loader.loadTestsFromModule(test_grad_no_profile))
 suite.addTest(loader.loadTestsFromModule(test_regression_kernels))
+suite.addTest(loader.loadTestsFromModule(test_involution))
+
 
 runner = TimeLoggingTestRunner()
 result = runner.run(suite)
