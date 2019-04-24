@@ -270,6 +270,30 @@ class TestKhacaturyan(unittest.TestCase):
         expect = 2*init_field*(misfit_contrib - ift)
         self.assertTrue(np.allclose(func_deriv, expect))
 
+    def test_strain_field(self):
+        if not available:
+            self.skipTest(reason)
+        
+        misfit = np.zeros((3, 3))
+        misfit[0, 0] = 0.05
+        khach = Khachaturyan(elastic_tensor=self.get_isotropic_tensor(),
+                             misfit_strain=misfit)
+        
+        shape = np.zeros((128, 128))
+        shape[:, :20] = 1.0
+        strain = khach.strain_field(shape)
+        
+        # Compare with exact solution
+        self.assertTrue(np.allclose(strain[(0, 0)], 0.0))
+        self.assertTrue(np.allclose(strain[(2, 2)], 0.0))
+        self.assertTrue(np.allclose(strain[(0, 1)], 0.0))
+        self.assertTrue(np.allclose(strain[(0, 2)], 0.0))
+        self.assertTrue(np.allclose(strain[(1, 2)], 0.0))
+
+        # TODO: Confirm that strain[(1, 1)] also satisfies
+        # the solution. It seems to have the right structure
+        # at least...
+
         
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner

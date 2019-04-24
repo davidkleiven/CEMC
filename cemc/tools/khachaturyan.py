@@ -1,6 +1,6 @@
 import numpy as np
 from cemc.tools import to_full_rank4
-from itertools import product
+from itertools import product, combinations_with_replacement
 from cemc.tools import rotate_tensor, rot_matrix, rotate_rank4_tensor
 import time
 import datetime
@@ -72,6 +72,46 @@ class Khachaturyan(object):
         diff = self.misfit_strain - self.uniform_strain
         energy = 0.5*np.einsum("ijkl,ij,kl", self.C, diff, diff)
         return energy - 0.5*integral/V
+
+    def strain_field(self, shape_function):
+        freq = np.fft.fftfreq(shape_function.shape[0])
+
+        ft_shape = np.fft.fftn(shape_function)
+        eff_stress = self.effective_stress()
+        indices = range(len(freq))
+        dim = len(shape_function.shape)
+
+        num_strains = [1, 3, 5]
+
+        all_comb = list(combinations_with_replacement(range(3), r=2))
+        ft_strains = {k: np.zeros(shape_function.shape, dtype=np.complex)
+                      for k in all_comb}
+
+        for indx in product(indices, repeat=dim):
+            k = np.zeros(3)
+            k[:dim] = np.array([freq[m] for m in indx])
+            if np.allclose(k, 0.0):
+                continue
+
+            k /= np.sqrt(k.dot(k))
+            G = self.zeroth_order_green_function(k)
+
+            u_vec = np.einsum("ij,jk,k", G, eff_stress, k)
+
+            for comb in all_comb:
+                i1 = comb[0]
+                i2 = comb[1]
+                ft_strains[comb][indx] = 0.5*(k[i1]*u_vec[i2]*ft_shape[indx] +
+                                              k[i2]*u_vec[i1]*ft_shape[indx])
+
+        if len(shape_function.shape) != 2:
+            raise NotImplementedError("Currently only 2D case is implemented!")
+
+        for k in ft_strains.keys():
+            s = ft_strains[k]
+            ft_strains[k][0, 0] = (s[0, 1] + s[1, 0] + s[-1, 0] + s[0, -1])/4
+        strains = {k: np.real(np.fft.ifftn(v)) for k, v in ft_strains.items()}
+        return strains
 
     def explore_orientations(self, voxels, theta_ax="y", phi_ax="z", step=5,
                              theta_min=0, theta_max=180, phi_min=0, phi_max=360,
