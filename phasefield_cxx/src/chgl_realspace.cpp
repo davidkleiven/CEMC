@@ -1,5 +1,6 @@
 #include "chgl_realspace.hpp"
 #include "conjugate_gradient.hpp"
+#include <limits>
 
 template<int dim>
 CHGLRealSpace<dim>::CHGLRealSpace(int L, const std::string &prefix, unsigned int num_gl_fields, \
@@ -225,6 +226,8 @@ void CHGLRealSpace<dim>::update(int nsteps){
     
     if (this->khachaturyan.num_models() > 0){
         energy_values["strain_energy"] = this->khachaturyan.get_last_strain_energy();
+        energy_values["min_shape_func_deriv"] = min_strain_deriv;
+        energy_values["max_shape_func_deriv"] = max_strain_deriv;
     }
 
     log_tritem(energy_values);
@@ -343,6 +346,7 @@ void CHGLRealSpace<dim>::calculate_strain_contribution(){
     }
 
     this->khachaturyan.functional_derivative(grid_in, *strain_deriv, shape_fields);
+    update_min_max_strain_deriv();
 }
 
 template<int dim>
@@ -365,6 +369,40 @@ void CHGLRealSpace<dim>::log_tritem(const map<string, double> &item) const{
         cout << iter->first << ": " << iter->second << " ";
     }
     cout << endl;
+}
+
+template<int dim>
+void CHGLRealSpace<dim>::update_min_max_strain_deriv(){
+    min_strain_deriv = numeric_limits<double>::max();
+    max_strain_deriv = numeric_limits<double>::min();;
+    unsigned int num_nan = 0;
+
+    #ifndef NO_PHASEFIELD_PARALLEL
+    #pragma omp parallel for reduction(min: min_strain_deriv) reduction(max: max_strain_deriv) reduction(+: num_nan)
+    #endif
+    for (unsigned int i=0;i<MMSP::nodes(*strain_deriv);i++){
+        for (unsigned int field=1;field<dim+1;field++){
+
+            double value = real((*strain_deriv)(i)[field]);
+
+            if (isnan(value)){
+                num_nan += 1;
+            }
+
+            if (value < min_strain_deriv){
+                min_strain_deriv = value;
+            }
+            else if (value > max_strain_deriv){
+                max_strain_deriv = value;
+            }
+        }
+    }
+
+    if (num_nan > 0){
+        stringstream ss;
+        ss << num_nan << " functional derivatives is NaN!";
+        throw runtime_error(ss.str());
+    }
 }
 // Explicit instantiations
 template class CHGLRealSpace<1>;

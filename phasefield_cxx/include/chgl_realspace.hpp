@@ -26,6 +26,9 @@ private:
     std::array<SparseMatrix, dim+1> matrices;
     bool did_build_matrices{false};
 
+    double min_strain_deriv{0.0};
+    double max_strain_deriv{0.0};
+
     MMSP::vector<int> & wrap(MMSP::vector<int> &pos) const;
 
     unsigned int node_index(MMSP::vector<int> &pos) const;
@@ -33,6 +36,7 @@ private:
     void add_cook_noise_to_fd_scheme(std::vector<double> &rhs, int field) const;
     void add_strain_contribution(std::vector<double> &rhs, int field) const;
     void calculate_strain_contribution();
+    void update_min_max_strain_deriv();
     MMSP::grid<dim, MMSP::vector<fftw_complex> > *strain_deriv{nullptr};
 
     /** Return the prefactor for the central stencil of the laplacian */
