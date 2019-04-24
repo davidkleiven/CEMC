@@ -24,12 +24,13 @@ FFTW::FFTW(unsigned int dim, const int *dims): dimension(dim){
             fftw_plan_with_nthreads(omp_get_max_threads());
         #endif
         //buffer = new fftw_complex[num_elements_from_dims];
-        buffer = fftw_alloc_complex(num_elements_from_dims);
 
         num_elements_from_dims = 1;
         for (unsigned int i=0;i<dimension;i++){
             num_elements_from_dims *= dims[i];
         }
+
+        buffer = fftw_alloc_complex(num_elements_from_dims);
 
         forward_plan =  fftw_plan_dft(dim, dims, buffer, buffer, FFTW_FORWARD, FFTW_ESTIMATE);
         backward_plan = fftw_plan_dft(dim, dims, buffer, buffer, FFTW_BACKWARD, FFTW_ESTIMATE);
