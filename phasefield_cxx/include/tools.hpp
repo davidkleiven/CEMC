@@ -37,9 +37,9 @@ T partial_double_derivative(const MMSP::grid<dim, T> &GRID, unsigned int node_in
 
 #ifdef HAS_FFTW
     #include <complex>
-    #include <fftw.h>
+    #include <fftw3.h>
     template<int dim>
-    void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in, MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid_out, fftw_direction direction,
+    void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in, MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid_out, int direction,
                     const int *dims, const std::vector<int> &ft_fields);
 #endif
 

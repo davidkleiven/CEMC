@@ -74,12 +74,22 @@ for arg in sys.argv:
         extracted_args.append(arg)
     elif arg == "--HAS_FFTW":
         define_macros.append(("HAS_FFTW", None))
-        optional_lib_phasefield.append("fftw")
+        optional_lib_phasefield.append("fftw3_threads")
+        optional_lib_phasefield.append("fftw3")
         extracted_args.append(arg)
 
 # Filter out of sys.argv
 for arg in extracted_args:
     sys.argv.remove(arg)
+
+# Further more fftw_threads should be removed if 
+# NO_PARALLEL_PHASEFIELD was given
+if "--NO_PARALLEL_PHASEFIELD" in extracted_args:
+    try:
+        optional_lib_phasefield.remove("fftw_threads")
+    except ValueError:
+        # fftw_threads was not present
+        pass
 
 cemc_cpp_code = Extension("cemc_cpp_code", sources=ce_updater_sources,
                           include_dirs=[inc_folder, np.get_include()],

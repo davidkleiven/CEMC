@@ -5,7 +5,8 @@
 #include "fftw_mmsp.hpp"
 
 #ifdef HAS_FFTW
-    #include <fftw.h>
+    #include <complex>
+    #include <fftw3.h>
 #else
     #include "fftw_complex_placeholder.hpp"
 #endif

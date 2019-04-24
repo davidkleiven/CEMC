@@ -5,7 +5,7 @@
 #ifdef HAS_FFTW
 
 template<int dim>
-void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in, MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid_out, fftw_direction direction,
+void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in, MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid_out, int direction,
                     const int *dims, const std::vector<int> &ft_fields){
 
     // Initialize the dimensionality array

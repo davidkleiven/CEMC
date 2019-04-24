@@ -9,7 +9,7 @@
 
 #ifdef HAS_FFTW
     #include <complex>
-    #include <fftw.h>
+    #include <fftw3.h>
 #endif
 #include "fftw_complex_placeholder.hpp"
 

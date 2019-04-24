@@ -6,7 +6,8 @@
 #include <omp.h>
 #include <iostream>
 #ifdef HAS_FFTW
-    #include <fftw.h>
+    #include <complex>
+    #include <fftw3.h>
 #else
     #include "fftw_complex_placeholder.hpp"
 #endif
@@ -22,13 +23,13 @@ class FFTW{
         ~FFTW();
 
         template<int dim>
-        void execute(const ft_grid_t<dim> & grid_in, ft_grid_t<dim> &grid_out, fftw_direction direction,
+        void execute(const ft_grid_t<dim> & grid_in, ft_grid_t<dim> &grid_out, int direction,
                      const std::vector<int> &ft_fields);
         
-        void execute(const std::vector<double> &vec, std::vector<fftw_complex> &out, fftw_direction dir);
+        void execute(const std::vector<double> &vec, std::vector<fftw_complex> &out, int dir);
 
         template<int dim>
-        void execute(const MMSP::grid<dim, fftw_complex> &grid_in, MMSP::grid<dim, fftw_complex> &grid_out, fftw_direction direction);
+        void execute(const MMSP::grid<dim, fftw_complex> &grid_in, MMSP::grid<dim, fftw_complex> &grid_out, int direction);
 
         /** Export buffer */
         void save_buffer(const std::string &fname, ExportType exp) const;
@@ -77,7 +78,7 @@ void FFTW::check_grids(const ft_grid_t<dim> & grid_in, ft_grid_t<dim> &grid_out)
 }
 
 template<int dim>
-void FFTW::execute(const ft_grid_t<dim> & grid_in, ft_grid_t<dim> &grid_out, fftw_direction direction,
+void FFTW::execute(const ft_grid_t<dim> & grid_in, ft_grid_t<dim> &grid_out, int direction,
                    const std::vector<int> &ft_fields)
 {
     #ifdef HAS_FFTW
@@ -120,7 +121,7 @@ void FFTW::execute(const ft_grid_t<dim> & grid_in, ft_grid_t<dim> &grid_out, fft
 };
 
 template<int dim>
-void FFTW::execute(const MMSP::grid<dim, fftw_complex> &grid_in, MMSP::grid<dim, fftw_complex> &grid_out, fftw_direction direction){
+void FFTW::execute(const MMSP::grid<dim, fftw_complex> &grid_in, MMSP::grid<dim, fftw_complex> &grid_out, int direction){
     #ifdef HAS_FFTW
     double normalization = 1.0;
 
