@@ -199,10 +199,6 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
 
                     int indx2 = b_tensor_indx[field2];
                     int field_indx2 = shape_fields[field2];
-                    // temp_grid(i)[field_indx1].re += B_tensor[indx][indx]*grid_out(i)[field_indx2].re;
-                    // temp_grid2(i)[field_indx1].re += misfit_energy[indx][indx]*shape_squared(i)[field_indx2].re;
-                    // temp_grid(i)[field_indx1].im += B_tensor[indx][indx]*grid_out(i)[field_indx2].im;
-                    // temp_grid2(i)[field_indx1].im += misfit_energy[indx][indx]*shape_squared(i)[field_indx2].im;
 
                     temp_grid(i)[field_indx1].re += B_tensor[indx][indx2]*grid_out(i)[field_indx2].re;
                     temp_grid2(i)[field_indx1].re += misfit_energy[indx][indx2]*shape_squared(i)[field_indx2].re;
