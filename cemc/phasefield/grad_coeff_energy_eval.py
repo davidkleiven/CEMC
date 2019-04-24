@@ -1,4 +1,5 @@
 import numpy as np
+from cemc.phasefield import FractionalInvolution
 
 
 class GradCoeffEvaluator(object):
@@ -22,12 +23,13 @@ class SlavedTwoPhaseLandauEvaluator(GradCoeffEvaluator):
     """
     def __init__(self, poly):
         from cemc.phasefield import TwoPhaseLandauPolynomial
-        GradCoeffEvaluator.__init__(self)
+        GradCoeffEvaluator.__init__(self, involution_order=2)
 
         if not isinstance(poly, TwoPhaseLandauPolynomial):
             raise TypeError("poly has to be an instance of "
                             "TwoPhaseLandauPolynomial")
         self.poly = poly
+        self.involution_order = involution_order
 
     def evaluate(self, x, free_var):
         if free_var == 0:
@@ -43,9 +45,12 @@ class SlavedTwoPhaseLandauEvaluator(GradCoeffEvaluator):
             # Make sure that there is only one unknown variable
             assert sum(1 for item in x if item is None) == 1
 
+            invol = FractionalInvolution(xmax=np.max(x[free_var]),
+                                         k=self.involution_order)
+
             shape = np.zeros((len(x[free_var]), 3))
             shape[:, 1] = x[free_var]
-            shape[:, 0] = shape[::-1, 1]
+            shape[:, 0] = invol(x[free_var])
             N = len(x[free_var])
             return np.array(self.poly.evaluate(x[0], shape=shape))
 
@@ -67,7 +72,9 @@ class SlavedTwoPhaseLandauEvaluator(GradCoeffEvaluator):
         else:
             # The composition don't vary so we assume mirrored
             # functions
+            invol = FractionalInvolution(xmax=np.max(x[free_var]),
+                                         k=self.involution_order)
             result[free_var, :] = 1.0
-            result[unknown, :] = -1.0
+            result[unknown, :] = invol.deriv(x[free_var])
             return result
 

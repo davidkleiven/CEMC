@@ -34,4 +34,4 @@ class FractionalInvolution(Involution):
 
     def deriv(self, x):
         inv_k = 1.0/self.k
-        return (self.xmax**inv_k - x**inv_k)**(self.k-1) * x**(inv_k - 1)
+        return -(self.xmax**inv_k - x**inv_k)**(self.k-1) * x**(inv_k - 1)

@@ -43,7 +43,7 @@ class TestInvolution(unittest.TestCase):
         if not available:
             self.skipTest(reason)
 
-        invol = FractionalInvolution(xmax=2.0, k=7)
+        invol = FractionalInvolution(xmax=2.0, k=2)
         x = 1.87
         deriv = invol.deriv(x)
 

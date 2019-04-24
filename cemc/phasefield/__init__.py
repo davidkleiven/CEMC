@@ -1,5 +1,6 @@
 # Empty file
 from cemc.phasefield.tools import cahn_hilliard_surface_parameter
+from cemc.phasefield.involution import Involution, LinearInvolution, FractionalInvolution
 from cemc.phasefield.cahn_hilliard import CahnHilliard
 from cemc.phasefield.hyper_tangent_bvp_solver import HyperbolicTangentBVPSolver
 from cemc.phasefield.coupled_euler import CoupledEuler
@@ -11,4 +12,3 @@ from cemc.phasefield.landau_poly_fit_constraints import PeakPosition
 from cemc.phasefield.landau_poly_fit_constraints import StraightLineSaddle
 from cemc.phasefield.landau_poly_fit_constraints import InteriorMinima
 from cemc.phasefield.landau_polynomial import TwoPhaseLandauPolynomial
-from cemc.phasefield.involution import Involution, LinearInvolution, FractionalInvolution
