@@ -1,4 +1,4 @@
-from scipy.optimize import fsolve
+from scipy.optimize import fsolve, minimize
 import numpy as np
 
 
@@ -96,7 +96,9 @@ class GradientCoeffNoExplicitProfile(object):
             integrals[interface] = 2*self.num_density*integral
         return integrals
 
-    def solve(self):
+    def solve(self, penalty=[]):
+        target_interface = None
+        calculatued_interface = None
         def func(sqrt_grad_coeff):
             self.grad_coeff = sqrt_grad_coeff**2
             integrals = self.calculate_integrals()
@@ -107,13 +109,20 @@ class GradientCoeffNoExplicitProfile(object):
                 lhs.append(self.interface_energy[interface])
             lhs = np.array(lhs)
             rhs = np.array(rhs)
-            return lhs - rhs
-        sol, info, ier, mesg = fsolve(func, self.sqrt_grad_coeff,
-                                      maxfev=100000, full_output=1)
+            return np.mean((lhs - rhs)**2) + sum(p(self.grad_coeff) for p in penalty)
+        # sol, info, ier, mesg = fsolve(func, self.sqrt_grad_coeff,
+        #                               maxfev=100000, full_output=1)
+        res = minimize(func, self.sqrt_grad_coeff)
+        sol = res["x"]
+        info = res
         print("===================================================")
         print("==        GRADIENT COEFFICIENT SOLVER INFO       ==")
         print("===================================================")
         print(info)
+        print("Calculated interface energies")
+        print(self.calculate_integrals())
+        print("Target interface energies")
+        print(self.interface_energy)
         print("===================================================")
         self.grad_coeff = sol**2
         return self.grad_coeff
