@@ -338,8 +338,8 @@ void CHGLRealSpace<dim>::calculate_strain_contribution(){
     #endif
     for (unsigned int i=0;i<MMSP::nodes(grid_in);i++)
     for (unsigned int gl_field=0;gl_field<dim;gl_field++){
-        grid_in(i)[gl_field].re = (*this->grid_ptr)(i)[gl_field+1];
-        grid_in(i)[gl_field].im = 0.0;
+        real(grid_in(i)[gl_field]) = (*this->grid_ptr)(i)[gl_field+1];
+        imag(grid_in(i)[gl_field]) = 0.0;
     }
 
     this->khachaturyan.functional_derivative(grid_in, *strain_deriv, shape_fields);
@@ -355,7 +355,7 @@ void CHGLRealSpace<dim>::add_strain_contribution(std::vector<double> &rhs, int f
     #pragma omp parallel for
     #endif
     for (unsigned int i=0;i<rhs.size();i++){
-        rhs[i] -= this->dt*this->gl_damping*(*strain_deriv)(i)[field].re;
+        rhs[i] -= this->dt*this->gl_damping*real((*strain_deriv)(i)[field]);
     }
 }
 

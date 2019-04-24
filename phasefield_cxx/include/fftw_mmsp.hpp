@@ -2,6 +2,7 @@
 #define FFTW_MMSP_H
 #include "MMSP.grid.h"
 #include "MMSP.vector.h"
+#include "tools.hpp"
 #include <vector>
 #include <omp.h>
 #include <iostream>
@@ -37,8 +38,8 @@ class FFTW{
         unsigned int dimension{0};
         unsigned int num_elements_from_dims{0};
         fftw_complex *buffer{nullptr};
-        fftwnd_plan forward_plan;
-        fftwnd_plan backward_plan;
+        fftw_plan forward_plan;
+        fftw_plan backward_plan;
 
         template<int dim>
         void check_grids(const ft_grid_t<dim> & grid_in, ft_grid_t<dim> &grid_out) const;
@@ -96,15 +97,16 @@ void FFTW::execute(const ft_grid_t<dim> & grid_in, ft_grid_t<dim> &grid_out, int
             #pragma omp parallel for
             #endif
             for (unsigned int i=0;i<MMSP::nodes(grid_in);i++){
-                buffer[i] = grid_in(i)[field];
+                real(buffer[i]) = real(grid_in(i)[field]);
+                imag(buffer[i]) = imag(grid_in(i)[field]);
             }
             // Perform the FFT
             // TODO: See if FFTW can utilize multithreading
             if (direction == FFTW_FORWARD){
-                fftwnd_one(forward_plan, buffer, NULL);
+                fftw_execute(forward_plan);
             }
             else{
-                fftwnd_one(backward_plan, buffer, NULL);
+                fftw_execute(backward_plan);
             }
         
             // Insert FT in the out field variable
@@ -112,9 +114,11 @@ void FFTW::execute(const ft_grid_t<dim> & grid_in, ft_grid_t<dim> &grid_out, int
             #pragma omp parallel for
             #endif
             for (unsigned int i=0;i<MMSP::nodes(grid_out);i++){
-                buffer[i].re /= normalization;
-                buffer[i].im /= normalization;
-                grid_out(i)[field] = buffer[i];
+                real(buffer[i]) /= normalization;
+                imag(buffer[i]) /= normalization;
+
+                real(grid_out(i)[field]) = real(buffer[i]);
+                imag(grid_out(i)[field]) = imag(buffer[i]);
             }
         }
     #endif
@@ -140,10 +144,10 @@ void FFTW::execute(const MMSP::grid<dim, fftw_complex> &grid_in, MMSP::grid<dim,
         // Perform the FFT
         // TODO: See if FFTW can utilize multithreading
         if (direction == FFTW_FORWARD){
-            fftwnd_one(forward_plan, buffer, NULL);
+            fftw_execute(forward_plan);
         }
         else{
-            fftwnd_one(backward_plan, buffer, NULL);
+            fftw_execute(backward_plan);
         }
     
         // Insert FT in the out field variable
@@ -151,8 +155,8 @@ void FFTW::execute(const MMSP::grid<dim, fftw_complex> &grid_in, MMSP::grid<dim,
         #pragma omp parallel for
         #endif
         for (unsigned int i=0;i<MMSP::nodes(grid_out);i++){
-            buffer[i].re /= normalization;
-            buffer[i].im /= normalization;
+            real(buffer[i]) /= normalization;
+            imag(buffer[i]) /= normalization;
             grid_out(i) = buffer[i];
         }
     #endif

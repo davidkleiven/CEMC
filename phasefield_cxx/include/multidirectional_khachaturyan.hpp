@@ -86,9 +86,9 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
         // Calculate the square of the shape parameters
         for (unsigned int i=0;i<MMSP::nodes(grid_in);i++)
         for (auto field : shape_fields){
-            shape_squared(i)[field].re = pow(grid_in(i)[field].re/max_order_param, 2);
-            shape_squared(i)[field].im = 0.0;
-            volume[field] += abs(grid_in(i)[field].re/max_order_param);
+            real(shape_squared(i)[field]) = pow(real(grid_in(i)[field])/max_order_param, 2);
+            imag(shape_squared(i)[field]) = 0.0;
+            volume[field] += abs(real(grid_in(i)[field])/max_order_param);
         }
 
         if (logger<dim>() != nullptr){
@@ -188,10 +188,10 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
             for (unsigned int field1=0;field1<shape_fields.size();field1++){
                 int indx = b_tensor_indx[field1];
                 int field_indx1 = shape_fields[field1];
-                temp_grid(i)[field_indx1].re = B_tensor[indx][indx]*grid_out(i)[field_indx1].re;
-                temp_grid2(i)[field_indx1].re = misfit_energy[indx][indx]*shape_squared(i)[field_indx1].re;
-                temp_grid(i)[field_indx1].im = B_tensor[indx][indx]*grid_out(i)[field_indx1].im;
-                temp_grid2(i)[field_indx1].im = misfit_energy[indx][indx]*shape_squared(i)[field_indx1].im;
+                real(temp_grid(i)[field_indx1]) = B_tensor[indx][indx]*real(grid_out(i)[field_indx1]);
+                real(temp_grid2(i)[field_indx1]) = misfit_energy[indx][indx]*real(shape_squared(i)[field_indx1]);
+                imag(temp_grid(i)[field_indx1]) = B_tensor[indx][indx]*imag(grid_out(i)[field_indx1]);
+                imag(temp_grid2(i)[field_indx1]) = misfit_energy[indx][indx]*imag(shape_squared(i)[field_indx1]);
                 for (unsigned int field2=0;field2<shape_fields.size();field2++){
                     if (field2 == field1){
                         continue;
@@ -200,18 +200,20 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
                     int indx2 = b_tensor_indx[field2];
                     int field_indx2 = shape_fields[field2];
 
-                    temp_grid(i)[field_indx1].re += B_tensor[indx][indx2]*grid_out(i)[field_indx2].re;
-                    temp_grid2(i)[field_indx1].re += misfit_energy[indx][indx2]*shape_squared(i)[field_indx2].re;
-                    temp_grid(i)[field_indx1].im += B_tensor[indx][indx2]*grid_out(i)[field_indx2].im;
-                    temp_grid2(i)[field_indx1].im += misfit_energy[indx][indx2]*shape_squared(i)[field_indx2].im;
+                    real(temp_grid(i)[field_indx1]) += B_tensor[indx][indx2]*real(grid_out(i)[field_indx2]);
+                    real(temp_grid2(i)[field_indx1]) += misfit_energy[indx][indx2]*real(shape_squared(i)[field_indx2]);
+                    imag(temp_grid(i)[field_indx1]) += B_tensor[indx][indx2]*imag(grid_out(i)[field_indx2]);
+                    imag(temp_grid2(i)[field_indx1]) += misfit_energy[indx][indx2]*imag(shape_squared(i)[field_indx2]);
                 }
             }
         }
 
         // Update the origin by averaging the neighbours
         for (auto field : shape_fields){
-            fftw_complex avg = average_nearest_neighbours(temp_grid, field, 0);
-            temp_grid(0)[field] = avg;
+            fftw_complex avg;
+            average_nearest_neighbours(temp_grid, field, 0, avg);
+            real(temp_grid(0)[field]) = real(avg);
+            imag(temp_grid(0)[field]) = imag(avg);
         }
         
 
@@ -229,8 +231,8 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
         for (unsigned int i=0;i<MMSP::nodes(temp_grid);i++)
         for (auto field : shape_fields){
             // Grid in is real, grid out should be real
-            temp_grid(i)[field].re = 2*(grid_in(i)[field].re/max_order_param)*(temp_grid2(i)[field].re - grid_out(i)[field].re);
-            temp_grid(i)[field].im = 0.0; // temp_grid should be real at this stage
+            real(temp_grid(i)[field]) = 2*(real(grid_in(i)[field])/max_order_param)*(real(temp_grid2(i)[field]) - real(grid_out(i)[field]));
+            imag(temp_grid(i)[field]) = 0.0; // temp_grid should be real at this stage
         }
 
         // Not nessecary if the next line is used
@@ -291,8 +293,8 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
 
                 // Construct B_tensor element
                 double element = B_tensor_element(k_vec, green, eff_stress[b_indx1], eff_stress[b_indx2]);
-                integral += element*(ft_fields(node)[field1].re*ft_fields(node)[field2].re + \
-                    ft_fields(node)[field1].im*ft_fields(node)[field2].im);
+                integral += element*(real(ft_fields(node)[field1])*real(ft_fields(node)[field2]) + \
+                    imag(ft_fields(node)[field1])*imag(ft_fields(node)[field2]));
             }
         }
         return 0.5*integral;

@@ -8,8 +8,6 @@ template<int dim>
 void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in, MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid_out, int direction,
                     const int *dims, const std::vector<int> &ft_fields){
 
-    // Initialize the dimensionality array
-    fftwnd_plan plan = fftwnd_create_plan(dim, dims, direction, FFTW_ESTIMATE | FFTW_IN_PLACE);
 
     int num_elements = MMSP::nodes(grid_in);
     double normalization = 1.0;
@@ -17,6 +15,12 @@ void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in,
     if (direction == FFTW_BACKWARD){
         normalization = num_elements;
     }
+
+    // Initialize the dimensionality array
+    // Construct array that FFTW can use
+    //fftw_complex *A = new fftw_complex[num_elements];
+    fftw_complex *A = fftw_malloc(sizeof(fftw_complex)*num_elements);
+    fftw_plan plan = fftw_plan_dft(dim, dims, A, A, direction, FFTW_ESTIMATE);
 
     // Ensure consistent nodes
     if (MMSP::nodes(grid_out) != num_elements){
@@ -59,9 +63,6 @@ void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in,
         }
     }
 
-    // Construct array that FFTW can use
-    fftw_complex *A = new fftw_complex[num_elements];
-
     // Loop over all fields that should be fourier transformed
     for (auto field : ft_fields){
         #ifndef NO_PHASEFIELD_PARALLEL
@@ -72,20 +73,20 @@ void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in,
         }
         // Perform the FFT
         // TODO: See if FFTW can utilize multithreading
-        fftwnd_one(plan, A, NULL);
+        fftw_execute(plan);
 
         // Insert FT in the out field variable
         #ifndef NO_PHASEFIELD_PARALLEL
         #pragma omp parallel for
         #endif
         for (unsigned int i=0;i<MMSP::nodes(grid_out);i++){
-            A[i].re /= normalization;
+            real(A[i]) /= normalization;
             grid_out(i)[field] = A[i];
         }
     }
 
-    delete [] A;
-    fftwnd_destroy_plan(plan);
+    fftw_free(A);
+    fftw_destroy_plan(plan);
 };
 #endif
 
@@ -172,23 +173,32 @@ double inf_norm_diff(const MMSP::grid<dim, MMSP::vector<double> > &grid1, const 
 }
 
 template<int dim>
-fftw_complex average_nearest_neighbours(const MMSP::grid<dim, MMSP::vector<fftw_complex> > &gr, unsigned int field, unsigned int center_node){
+void average_nearest_neighbours(const MMSP::grid<dim, MMSP::vector<fftw_complex> > &gr, unsigned int field, unsigned int center_node, fftw_complex value){
     MMSP::vector<int> pos = gr.position(center_node);
 
-    fftw_complex value;
-    value.re = 0.0;
-    value.im = 0.0;
+    real(value) = 0.0;
+    imag(value) = 0.0;
    
     int num = pow(2, dim);
     for (int dir=0;dir<dim;dir++){
         int old_val = pos[dir];
         for (int i=-1;i<2;i+=2){
             pos[dir] += i;
-            fftw_complex new_val = gr(pos)[field];
-            value.re += new_val.re/num;
-            value.im += new_val.im/num;
+            real(value) += real(gr(pos)[field])/num;
+            imag(value) += imag(gr(pos)[field])/num;
             pos[dir] = old_val;
         }
     }
-    return value;
+}
+
+template<int dim>
+void copy_data(const MMSP::grid<dim, MMSP::vector<fftw_complex> > &from, MMSP::grid<dim, MMSP::vector<fftw_complex> > &to){
+    #ifndef NO_PHASEFIELD_PARALLEL
+    #pragma omp parallel for
+    #endif
+    for (unsigned int node=0;node<MMSP::nodes(from);node++){
+        double *ptr_to = &to(node)[0];
+        double *ptr_from = &from(node)[0];
+        memcpy(ptr_to, ptr_from, sizeof(fftw_complex)*MMSP::fields(from));
+    }
 }

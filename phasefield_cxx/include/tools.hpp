@@ -13,7 +13,20 @@
 #include <fstream>
 #include <array>
 
+#ifdef HAS_FFTW
+    #include <complex>
+    #include <fftw3.h>
+#endif
+
 typedef std::array< std::array<double, 3>, 3> mat3x3;
+
+double& real(fftw_complex number){
+    return number[0];
+}
+
+double& imag(fftw_complex number){
+    return number[1];
+}
 
 template<int dim, typename T>
 T partial_double_derivative(const MMSP::grid<dim, T> &GRID, const MMSP::vector<int> &x, unsigned int dir){
@@ -36,8 +49,6 @@ T partial_double_derivative(const MMSP::grid<dim, T> &GRID, unsigned int node_in
 }
 
 #ifdef HAS_FFTW
-    #include <complex>
-    #include <fftw3.h>
     template<int dim>
     void fft_mmsp_grid(const MMSP::grid<dim, MMSP::vector<fftw_complex> > & grid_in, MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid_out, int direction,
                     const int *dims, const std::vector<int> &ft_fields);
@@ -75,7 +86,7 @@ double inf_norm_diff(const MMSP::grid<dim, MMSP::vector<double> > &grid1, const 
 double least_squares_slope(double x[], double y[], unsigned int N);
 
 double real_field(double field_value){return field_value;};
-double real_field(const fftw_complex& field_value){return field_value.re;};
+double real_field(fftw_complex field_value){return real(field_value);};
 
 double contract_tensors(const mat3x3 &mat1, const mat3x3 &mat2);
 double B_tensor_element(MMSP::vector<double> &dir, const mat3x3 &green, const mat3x3 &eff_stress1, const mat3x3 &eff_stress2);
@@ -83,7 +94,7 @@ double B_tensor_element_origin(const mat3x3 &green, const mat3x3 &eff_stress1, c
                                std::vector< MMSP::vector<double> > &directions);
 
 template<int dim>
-fftw_complex average_nearest_neighbours(const MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid, unsigned int field, unsigned int center_node);
+void average_nearest_neighbours(const MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid, unsigned int field, unsigned int center_node, fftw_complex val);
 
 #include "tools.tpp"
 #endif

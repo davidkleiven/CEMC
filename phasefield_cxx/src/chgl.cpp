@@ -89,23 +89,27 @@ void CHGL<dim>::update(int nsteps){
         #pragma omp parallel for
         #endif
 		for (int i=0;i<MMSP::nodes(gr);i++){
-			MMSP::vector<fftw_complex> phi = gr(i);
-            MMSP::vector<double> phi_real(phi.length());
-            for (unsigned int i=0;i<phi.length();i++){
-                phi_real[i] = phi[i].re;
+			//MMSP::vector<fftw_complex> phi = gr(i);
+            unsigned int tot_num_fields = MMSP::fields(gr);
+            MMSP::vector<double> phi_real(tot_num_fields);
+            
+            for (unsigned int j=0;j<tot_num_fields;j++){
+                phi_real[j] = real(gr(i)[j]);
             }
-            MMSP::vector<fftw_complex> free_eng_deriv(phi.length());
+            MMSP::vector<fftw_complex> free_eng_deriv(tot_num_fields);
             double *phi_raw_ptr = &(phi_real[0]);
 
             // Get partial derivative with respect to concentration
-            free_eng_deriv[0].re = this->free_energy->partial_deriv_conc(phi_raw_ptr);
-            free_eng_deriv[0].im = 0.0;
+            real(free_eng_deriv[0]) = this->free_energy->partial_deriv_conc(phi_raw_ptr);
+            imag(free_eng_deriv[0]) = 0.0;
 
-            for (unsigned int j=1;j<phi.length();j++){
-                free_eng_deriv[j].re = this->free_energy->partial_deriv_shape(phi_raw_ptr, j-1);
-                free_eng_deriv[j].im = 0.0;
+            for (unsigned int j=1;j<tot_num_fields;j++){
+                real(free_eng_deriv[j]) = this->free_energy->partial_deriv_shape(phi_raw_ptr, j-1);
+                imag(free_eng_deriv[j]) = 0.0;
+
+                real(free_energy_real_space(i)[j]) = real(free_eng_deriv[j]);
+                imag(free_energy_real_space(i)[j]) = 0.0;
             }
-            free_energy_real_space(i) = free_eng_deriv;
         }
 
         // Fourier transform all the fields --> output in ft_fields
@@ -127,9 +131,9 @@ void CHGL<dim>::update(int nsteps){
             double k = norm(k_vec);
 
             // Update Cahn-Hilliard term
-            ft_fields(i)[0].re = (ft_fields(i)[0].re*(1 + stab_coeff*dt*pow(k, 2)) + gr(i)[0].re*M*dt*pow(k, 2))/(1.0 + 2*M*dt*alpha*pow(k, 4) + dt*stab_coeff*pow(k, 2));
+            real(ft_fields(i)[0]) = (real(ft_fields(i)[0])*(1 + stab_coeff*dt*pow(k, 2)) + real(gr(i)[0])*M*dt*pow(k, 2))/(1.0 + 2*M*dt*alpha*pow(k, 4) + dt*stab_coeff*pow(k, 2));
 
-            ft_fields(i)[0].im = (ft_fields(i)[0].im*(1 + stab_coeff*dt*pow(k, 2)) + gr(i)[0].im*M*dt*pow(k, 2))/(1.0 + 2*M*dt*alpha*pow(k, 4) + dt*stab_coeff*pow(k, 2));
+            imag(ft_fields(i)[0]) = (imag(ft_fields(i)[0])*(1 + stab_coeff*dt*pow(k, 2)) + imag(gr(i)[0])*M*dt*pow(k, 2))/(1.0 + 2*M*dt*alpha*pow(k, 4) + dt*stab_coeff*pow(k, 2));
 
             // Update the GL equations
             for (unsigned int field=1;field<MMSP::fields(gr);field++){
@@ -138,10 +142,10 @@ void CHGL<dim>::update(int nsteps){
                     interface_term += interface[field-1][dir]*pow(k_vec[dir], 2);
                 }
 
-                ft_fields(i)[field].re = (ft_fields(i)[field].re*(1 + stab_coeff*dt*pow(k, 2)) - gr(i)[field].re*gl_damping*dt) / \
+                real(ft_fields(i)[field]) = (real(ft_fields(i)[field])*(1 + stab_coeff*dt*pow(k, 2)) - real(gr(i)[field])*gl_damping*dt) / \
                     (1.0 + 2*gl_damping*dt*interface_term + stab_coeff*dt*pow(k, 2));
 
-                ft_fields(i)[field].im = (ft_fields(i)[field].im*(1 + stab_coeff*dt*pow(k, 2)) - gr(i)[field].im*gl_damping*dt) / \
+                imag(ft_fields(i)[field]) = (imag(ft_fields(i)[field])*(1 + stab_coeff*dt*pow(k, 2)) - imag(gr(i)[field])*gl_damping*dt) / \
                     (1.0 + 2*gl_damping*dt*interface_term + stab_coeff*dt*pow(k, 2));
             }
         }
@@ -158,8 +162,8 @@ void CHGL<dim>::update(int nsteps){
 
                 for (int field=0;field<MMSP::fields(ft_fields);field++){
                     double w = gaussian_filter_weight(k);
-                    ft_fields(i)[field].re *= w;
-                    ft_fields(i)[field].im *= w;
+                    real(ft_fields(i)[field]) *= w;
+                    imag(ft_fields(i)[field]) *= w;
                 }
             }
         }
@@ -266,8 +270,8 @@ void CHGL<dim>::from_parent_grid(){
     for (unsigned int i=0;i<MMSP::nodes(*this->grid_ptr);i++)
     for (unsigned int field=0;field<this->num_fields;field++)
     {
-        (*(this->cmplx_grid_ptr))(i)[field].re = (*(this->grid_ptr))(i)[field];
-        (*(this->cmplx_grid_ptr))(i)[field].im = 0.0;
+        real((*(this->cmplx_grid_ptr))(i)[field]) = (*(this->grid_ptr))(i)[field];
+        imag((*(this->cmplx_grid_ptr))(i)[field]) = 0.0;
     }
 }
 
@@ -279,8 +283,8 @@ void CHGL<dim>::to_parent_grid() const{
     for (unsigned int i=0;i<MMSP::nodes(*this->grid_ptr);i++)
     for (unsigned int field=0;field<this->num_fields;field++)
     {
-        (*(this->grid_ptr))(i)[field] = (*(this->cmplx_grid_ptr))(i)[field].re;
-        (*(this->cmplx_grid_ptr))(i)[field].im = 0.0;
+        (*(this->grid_ptr))(i)[field] = real((*(this->cmplx_grid_ptr))(i)[field]);
+        imag((*(this->cmplx_grid_ptr))(i)[field]) = 0.0;
     }
 }
 
@@ -350,7 +354,7 @@ double CHGL<dim>::energy() const{
     for (unsigned int i=0;i<MMSP::nodes(temp_field);i++)
     for (unsigned int field=0;field<this->num_fields;field++)
     {
-        temp_field(i)[field] = (*(this->cmplx_grid_ptr))(i)[field].re;
+        temp_field(i)[field] = real((*(this->cmplx_grid_ptr))(i)[field]);
     }
 
     // Calculate the contribution from the free energy

@@ -11,7 +11,7 @@ PyObject *field2npy(MMSP::grid<2, MMSP::vector<fftw_complex> > &gr, unsigned int
     for (unsigned int node=0;node<MMSP::nodes(gr);node++){
         MMSP::vector<int> pos = gr.position(node);
         double* val = static_cast<double*>(PyArray_GETPTR2(npy_array, pos[0], pos[1]));
-        *val = gr(node)[field].re;
+        *val = real(gr(node)[field]);
     }
     return npy_array;
 }
@@ -43,8 +43,8 @@ PyObject* test_functional_derivative(PyObject *elastic, PyObject *misfit, const 
     }
     // Insert field values
     for (int node=0;node<MMSP::nodes(gr);node++){
-        gr(node)[0].re = values[node];
-        gr(node)[0].im = 0.0;
+        real(gr(node)[0]) = values[node];
+        imag(gr(node)[0]) = 0.0;
     }
 
     MMSP::grid<2, MMSP::vector<fftw_complex> > grid_out(gr);
