@@ -342,8 +342,8 @@ void CHGLRealSpace<dim>::calculate_strain_contribution(){
     #endif
     for (unsigned int i=0;i<MMSP::nodes(grid_in);i++)
     for (unsigned int gl_field=0;gl_field<dim;gl_field++){
-        real(grid_in(i)[gl_field]) = (*this->grid_ptr)(i)[gl_field+1];
-        imag(grid_in(i)[gl_field]) = 0.0;
+        real(grid_in(i)[gl_field+1]) = (*this->grid_ptr)(i)[gl_field+1];
+        imag(grid_in(i)[gl_field+1]) = 0.0;
     }
 
     this->khachaturyan.functional_derivative(grid_in, *strain_deriv, shape_fields);
