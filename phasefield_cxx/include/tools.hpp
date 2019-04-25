@@ -96,5 +96,10 @@ double B_tensor_element_origin(const mat3x3 &green, const mat3x3 &eff_stress1, c
 template<int dim>
 void average_nearest_neighbours(const MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid, unsigned int field, unsigned int center_node, fftw_complex val);
 
+template<int dim>
+double max(const MMSP::grid<dim, MMSP::vector<double> > &grid, unsigned int field);
+
+template<int dim>
+double min(const MMSP::grid<dim, MMSP::vector<double> > &grid, unsigned int field);
 #include "tools.tpp"
 #endif

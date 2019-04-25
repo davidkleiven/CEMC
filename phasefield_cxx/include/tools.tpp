@@ -202,3 +202,33 @@ void copy_data(const MMSP::grid<dim, MMSP::vector<fftw_complex> > &from, MMSP::g
         memcpy(ptr_to, ptr_from, sizeof(fftw_complex)*MMSP::fields(from));
     }
 }
+
+template<int dim>
+double max(const MMSP::grid<dim, MMSP::vector<double> > &grid, unsigned int field){
+    double max_val = std::numeric_limits<double>::min();
+
+    #ifndef NO_PHASEFIELD_PARALLEL
+    #pragma omp parallel for reduction(max : max_val)
+    #endif
+    for (unsigned int node=0;node<MMSP::nodes(grid);node++){
+        if (grid(node)[field] > max_val){
+            max_val = grid(node)[field];
+        }
+    }
+    return max_val;
+}
+
+template<int dim>
+double min(const MMSP::grid<dim, MMSP::vector<double> > &grid, unsigned int field){
+        double min_val = std::numeric_limits<double>::max();
+
+    #ifndef NO_PHASEFIELD_PARALLEL
+    #pragma omp parallel for reduction(min : min_val)
+    #endif
+    for (unsigned int node=0;node<MMSP::nodes(grid);node++){
+        if (grid(node)[field] < min_val){
+            min_val = grid(node)[field];
+        }
+    }
+    return min_val;
+}
