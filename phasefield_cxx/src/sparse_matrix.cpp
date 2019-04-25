@@ -3,6 +3,7 @@
 #include <map>
 #include <utility>
 #include <cmath>
+#include <algorithm>
 
 using namespace std;
 
@@ -23,6 +24,13 @@ void SparseMatrix::dot(const vector<double> &vec, vector<double> &out) const{
 
     // TODO: Parallilize this loop. Remember that two processes
     // cannot update the same index of out simultaneously
+    #pragma omp declare reduction(elem_wise_sum: vector<double> : \
+                                  transform(omp_out.begin(), omp_out.end(), omp_in.begin(), omp_out.begin(), plus<double>())) \
+                                  initializer(omp_priv=omp_orig)
+    
+    #ifndef NO_PHASEFIELD_PARALLEL
+    #pragma omp parallel for reduction(elem_wise_sum : out)
+    #endif
     for (unsigned int i=0;i<values.size();i++){
         out[row[i]] += values[i]*vec[col[i]];
     }

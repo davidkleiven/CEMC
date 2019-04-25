@@ -157,6 +157,7 @@ void CHGLRealSpace<dim>::update(int nsteps){
 
         // Calculate the strain functional derivatives
         calculate_strain_contribution();
+        //std::cout << min_strain_deriv << " " << max_strain_deriv << std::endl;
 
         // Solve each field with the conjugate gradient method
         for (unsigned int field=0;field<MMSP::fields(gr);field++){

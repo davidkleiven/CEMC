@@ -108,11 +108,6 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
         double shape_contrib = fourier_integral(grid_out, shape_fields);
         last_strain_energy = misfit_energy_contrib - shape_contrib;
 
-        // MMSP::vector<double> k_vec(3);
-        // for (unsigned int i=0;i<3;i++){
-        //     k_vec[i] = 0.0;
-        // }
-
         // Pre-calculate effective stresses
         std::map<unsigned int, mat3x3> eff_stresses;
         std::map<unsigned int, unsigned int> b_tensor_indx;
@@ -247,9 +242,6 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
 
         // Not nessecary if the next line is used
         temp_grid.swap(grid_out);
-
-        // Perform forward fourier transform again
-        //fft_mmsp_grid(temp_grid, grid_out, FFTW_FORWARD, dims, shape_fields);
     }
 
     template<int dim>
