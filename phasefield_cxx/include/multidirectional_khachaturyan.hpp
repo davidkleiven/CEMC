@@ -254,11 +254,6 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
         std::map<unsigned int, unsigned int> field2tensor_indx;
         index_map(shape_fields, field2tensor_indx);
 
-        MMSP::vector<double> k_vec(3);
-        for (unsigned int i=0;i<3;i++){
-            k_vec[i] = 0.0;
-        }
-
         mat3x3 green;
 
         for (int field1 : shape_fields)
@@ -278,6 +273,11 @@ void MultidirectionalKhachaturyan::functional_derivative(const MMSP::grid<dim, M
             for (int node=0;node<MMSP::nodes(ft_fields);node++){
                 MMSP::vector<int> pos = ft_fields.position(node);
 
+                MMSP::vector<double> k_vec(3);
+                for (unsigned int i=0;i<3;i++){
+                    k_vec[i] = 0.0;
+                }
+                
                 // Convert position to k-vector
                 k_vector(pos, k_vec, MMSP::xlength(ft_fields));
 
