@@ -37,3 +37,15 @@ class BinaryCriticalPoints(object):
         """
         double_deriv = np.polyder(phase, m=2)
         return np.roots(double_deriv)
+
+    def plot(self, x, y, polys=[]):
+        from matplotlib import pyplot as plt
+
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1)
+        ax.plot(x, y)
+        for p in polys:
+            ax.plot(x, np.polyval(x))
+        ax.set_xlabel("Concentration")
+        ax.set_ylabel("Free energy")
+        return fig  

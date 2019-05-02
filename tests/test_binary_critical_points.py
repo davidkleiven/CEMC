@@ -31,8 +31,9 @@ class TestBinaryCriticalPoints(unittest.TestCase):
 
             poly = [1, -3, 5, 6]
 
-            # Just make sure that the function runs
+            # Just make sure that the functions run
             bc.spinodal(poly)
+            bc.plot([1, 2], [2, 1], polys=[poly])
 
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
