@@ -605,6 +605,18 @@ class TwoPhaseLandauPolynomial(object):
         scanned[scanned > minval] = minval
         return np.mean((scanned-minval)**2)
 
+    def gradient_coefficient(self, alpha, gamma, conc, surf_form):
+        from scipy.optimize import newton
+        n_deriv = self.equil_shape_fixed_conc_and_shape_deriv(conc)
+
+        def eq(x):
+            integrand = np.sqrt(np.sqrt(surf_form)*(alpha + x*n_deriv**2))
+            interface_energy = 2*np.trapz(integrand, x=conc)
+            return interface_energy - gamma
+
+        root, _, _, _ = fsolve(eq, alpha)
+        return root
+
 
 class MinimizationProgressCallback(object):
     def __init__(self, log_every_sec, constraints=[]):
