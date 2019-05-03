@@ -7,9 +7,21 @@ CahnHilliardPhaseField<dim>::CahnHilliardPhaseField(int L, \
 						 PhaseFieldSimulation<dim>(L, prefix, 1), free_eng(free_eng), M(M), dt(dt), alpha(alpha){};
 
 
-
 template<int dim>
 void CahnHilliardPhaseField<dim>::update(int nsteps){
+	if (scheme == "explicit"){
+		update_explicit(nsteps);
+	}
+	else if (scheme == "implicit"){
+		update_implicit(nsteps);
+	}
+	else{
+		throw invalid_argument("Unknown update scheme!");
+	}
+}
+
+template<int dim>
+void CahnHilliardPhaseField<dim>::update_explicit(int nsteps){
 	int rank = 0;
 	#ifdef MPI_VERSION
     rank = MPI::COMM_WORLD.Get_rank();

@@ -14,10 +14,13 @@ public:
 
     /** Implement the update function */
     virtual void update(int nsteps) override;
+    void update_explicit(int nsteps);
+    void update_implicit(int nsteps);
 private:
     const CahnHilliard *free_eng{nullptr};
     double M;
     double dt;
     double alpha;
+    std::string scheme{"explicit"};
 };
 #endif
