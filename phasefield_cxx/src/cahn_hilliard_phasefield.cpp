@@ -1,5 +1,6 @@
 #include "cahn_hilliard_phase_field.hpp"
 #include "tools.hpp"
+#include "conjugate_gradient.hpp"
 
 template<int dim>
 CahnHilliardPhaseField<dim>::CahnHilliardPhaseField(int L, \
@@ -116,6 +117,89 @@ void CahnHilliardPhaseField<dim>::build2D(){
 		ss << "System matrix is not symmetric!";
 		throw runtime_error(ss.str());
 	}
+}
+
+template<int dim>
+void CahnHilliardPhaseField<dim>::update_implicit(int nsteps){
+	if (!did_build_matrix){
+        throw runtime_error("The matrices for implicit solution has not been built!");
+    }
+
+	// Keep a copy of the grid
+	MMSP::grid<dim, MMSP::vector<double> > &gr = *this->grid_ptr;
+    MMSP::grid<dim, MMSP::vector<double> > gr_cpy(*this->grid_ptr);
+	MMSP::grid<dim, double > deriv_free_eng(gr, 1);
+    gr_cpy.copy(*this->grid_ptr);
+
+	ConjugateGradient cg(1E-8);
+
+	int rank = 0;
+	#ifdef MPI_VERSION
+    rank = MPI::COMM_WORLD.Get_rank();
+    #endif
+	for (int step=0;step<nsteps;step++){
+		if (rank == 0){
+			MMSP::print_progress(step, nsteps);
+		}
+
+		#ifndef NO_PHASEFIELD_PARALLEL
+		#pragma omp parallel for
+		#endif
+		for (int i=0;i<MMSP::nodes(gr);i++){
+			MMSP::vector<double> phi = gr(i);
+			MMSP::vector<double> lapl_phi = MMSP::laplacian(gr, i);
+
+			deriv_free_eng(i) = free_eng->deriv(phi[0]);
+		}
+
+		vector<double> rhs(MMSP::nodes(gr));
+        vector<double> field_values(MMSP::nodes(gr));
+
+		#ifndef NO_PHASEFIELD_PARALLEL
+		#pragma omp parallel for
+		#endif
+		for (int i=0;i<MMSP::nodes(gr);i++){
+			rhs[i] = gr(i)[0] + this->dt*this->M*MMSP::laplacian(deriv_free_eng, i);
+			field_values[i] = gr(i)[0];
+		}
+		
+		cg.solve(system_matrix, rhs, field_values);
+
+		// Transfer the field values back
+		#ifndef NO_PHASEFIELD_PARALLEL
+		#pragma omp parallel for
+		#endif
+		for (unsigned int i=0;i<MMSP::nodes(gr);i++){
+			gr(i)[0] = field_values[i];
+		}
+
+		double max_diff = inf_norm_diff(gr, gr_cpy);
+
+		if (max_diff > this->max_change){
+			this->dt /= 2.0;
+			build2D();
+			this->grid_ptr->copy(gr_cpy);
+            cout << "Refine timestep. New dt: " << this->dt << ". Max change: " << max_diff << endl;
+		}
+		else{
+			gr_cpy.copy(*this->grid_ptr);
+		}
+	}
+
+	if (this->dt < this->min_dt){
+		cout << "Reached minimum timestep\n";
+		this->quit = true;
+	}
+
+	this->dt *= 2;
+	this->build2D();
+}
+
+template<int dim>
+void CahnHilliardPhaseField<dim>::set_adaptive(double min_dt, double max_change){
+	this->min_dt = min_dt;
+	this->max_change = max_change;
+	this->scheme = "implicit";
 }
 
 

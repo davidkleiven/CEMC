@@ -18,12 +18,15 @@ public:
     void update_explicit(int nsteps);
     void update_implicit(int nsteps);
     void build2D();
+    void set_adaptive(double min_dt, double max_change);
 private:
     const CahnHilliard *free_eng{nullptr};
     double M;
     double dt;
     double alpha;
     bool did_build_matrix{false};
+    double min_dt{0.0};
+    double max_change{1.0};
     std::string scheme{"explicit"};
     SparseMatrix system_matrix;
 };
