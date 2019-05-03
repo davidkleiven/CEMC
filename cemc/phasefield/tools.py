@@ -2,7 +2,7 @@ import numpy as np
 import json
 
 
-def cahn_hilliard_surface_parameter(conc, free_energy, interfacial_energy, density):
+def cahn_hilliard_surface_parameter(conc, free_energy, interfacial_energy):
     """Calculate the gradient parameter according to Cahn-Hilliard
 
         Free Energy of a Nonuniform System. I. Interfacial Free Energy
@@ -13,11 +13,10 @@ def cahn_hilliard_surface_parameter(conc, free_energy, interfacial_energy, densi
     :param np.ndarray conc: Concentrations
     :param np.ndarray free_energy: Free energy difference
     :param float interfacial_energy: Interfacial energy in the same energy units
-    :param float density: Number density
     """
 
     integral = np.trapz(np.sqrt(free_energy), x=conc)
-    return (0.5*interfacial_energy/(density*integral))**2
+    return (0.5*interfacial_energy/integral)**2
 
 
 def get_polyterms(fname):
