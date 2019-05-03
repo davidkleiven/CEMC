@@ -195,6 +195,7 @@ void CahnHilliardPhaseField<dim>::update_implicit(int nsteps){
 
 	this->dt *= 2;
 	this->build2D();
+	cout << "New time step: " << this->dt << endl;
 }
 
 template<int dim>
