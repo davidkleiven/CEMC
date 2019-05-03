@@ -86,7 +86,7 @@ void CHGLRealSpace<dim>::build2D(){
 
     // Sanity check: All matrices should be symmetric
     unsigned int counter = 0;
-    for (const auto& mat : matrices){
+    for (auto& mat : matrices){
         if (!mat.is_symmetric()){
             stringstream ss;
             ss << "Mass matrix " << counter << " is not symmetric!";
