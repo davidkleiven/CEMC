@@ -18,5 +18,4 @@ from cemc.tools.wulff_construction import WulffConstruction
 from cemc.tools.multivariate_gaussian import MultivariateGaussian
 from cemc.tools.isotropic_strain_energy import IsotropicStrainEnergy
 from cemc.tools.khachaturyan import Khachaturyan
-from cemc.tools.landau_polynomial import TwoPhaseLandauPolynomial
 from cemc.tools.binary_coexistence import BinaryCriticalPoints
