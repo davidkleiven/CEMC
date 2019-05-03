@@ -27,16 +27,32 @@ class BinaryCriticalPoints(object):
         B = 0.5*c2*delta_b/(c1*c2 - c2**2)
         C = (4*c1*delta_a + delta_b**2)/(4*c1*c2 - 4*c2**2)
 
-        x2 = B - np.sqrt(B**2 + C)
-        x1 = 0.5*(delta_b + 2*c2*x2)/c1
+        x2_minus = B - np.sqrt(B**2 + C)
+        x1_minus = 0.5*(delta_b + 2*c2*x2_minus)/c1
+        x2_pluss = B + np.sqrt(B**2 + C)
+        x1_pluss = 0.5*(delta_b + 2*c2*x2_pluss)/c1
+
+        if self._in_interval(x1_minus) and self._in_interval(x2_minus):
+            x1 = x1_minus
+            x2 = x2_minus
+        elif self._in_interval(x1_pluss) and self._in_interval(x2_pluss):
+            x1 = x1_pluss
+            x2 = x2_pluss
+        else:
+            raise ValueError("Did not find any co-existence point!")
+
         return x1, x2
+
+    def _in_interval(self, x):
+        return x > 0.0 and x < 1.0
 
     def spinodal(self, phase):
         """
         Find the spinodal line
         """
         double_deriv = np.polyder(phase, m=2)
-        return np.roots(double_deriv)
+        roots = np.roots(double_deriv)
+        return np.real(roots[~np.iscomplex(roots)])
 
     def plot(self, x, y, polys=[]):
         from matplotlib import pyplot as plt
@@ -45,7 +61,11 @@ class BinaryCriticalPoints(object):
         ax = fig.add_subplot(1, 1, 1)
         ax.plot(x, y)
         for p in polys:
-            ax.plot(x, np.polyval(x))
+            ax.plot(x, np.polyval(p, x))
         ax.set_xlabel("Concentration")
         ax.set_ylabel("Free energy")
-        return fig  
+
+        y_range = np.max(y) - np.min(y)
+
+        ax.set_ylim(np.min(y) - 0.05*y_range, np.max(y) + 0.05*y_range)
+        return fig
