@@ -77,3 +77,19 @@ cdef class PyCahnHilliardPhaseField:
             return self.thisptr2D.to_npy_array()[0]
         elif self.dim == 3:
             return self.thisptr3D.to_npy_array()[0]
+
+    def set_adaptive(self, min_step, max_change):
+        if self.dim == 1:
+            return self.thisptr1D.set_adaptive(min_step, max_change)
+        elif self.dim == 2:
+            return self.thisptr2D.set_adaptive(min_step, max_change)
+        elif self.dim == 3:
+            return self.thisptr3D.set_adaptive(min_step, max_change)
+
+    def build2D(self):
+        if self.dim == 1:
+            return self.thisptr1D.build2D()
+        elif self.dim == 2:
+            return self.thisptr2D.build2D()
+        elif self.dim == 3:
+            return self.thisptr3D.build2D()

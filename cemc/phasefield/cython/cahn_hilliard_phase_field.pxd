@@ -20,3 +20,7 @@ cdef extern from "cahn_hilliard_phase_field.hpp":
         void from_npy_array(object npy_arrays) except +
 
         object to_npy_array()
+
+        void set_adaptive(double min_dt, double max_change)
+
+        void build2D()
