@@ -138,3 +138,15 @@ double B_tensor_element_origin(const mat3x3 &green, const mat3x3 &eff_stress1, c
     }
     return value/directions.size();
 }
+
+MMSP::vector<int>& wrap(MMSP::vector<int> &pos, unsigned int L){
+    for (unsigned int i=0;i<pos.length();i++){
+        if (pos[i] < 0){
+            pos[i] += L;
+        }
+        else if (pos[i] >= L){
+            pos[i] -= L;
+        }
+    }
+    return pos;
+}

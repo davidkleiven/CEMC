@@ -107,5 +107,7 @@ double max_real(const MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid, unsign
 
 template<int dim>
 double min_real(const MMSP::grid<dim, MMSP::vector<fftw_complex> > &grid, unsigned int field);
+
+MMSP::vector<int>& wrap(MMSP::vector<int> &pos, unsigned int L);
 #include "tools.tpp"
 #endif
