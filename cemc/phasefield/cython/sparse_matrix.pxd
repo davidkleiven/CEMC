@@ -13,3 +13,5 @@ cdef extern from "sparse_matrix.hpp":
         void save(string &fname)
 
         bool is_symmetric()
+
+        void to_csr()

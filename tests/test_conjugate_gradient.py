@@ -25,6 +25,7 @@ class TestConjugateGradient(unittest.TestCase):
             for j in range(matrix.shape[1]):
                 sp_matrix.insert(i, j, matrix[i, j])
         
+        sp_matrix.to_csr()
         self.assertFalse(sp_matrix.is_symmetric())
 
         matrix = matrix.T + matrix
@@ -32,6 +33,7 @@ class TestConjugateGradient(unittest.TestCase):
         for i in range(matrix.shape[0]):
             for j in range(matrix.shape[1]):
                 sp_matrix.insert(i, j, matrix[i, j])
+        sp_matrix.to_csr()
         
         self.assertTrue(sp_matrix.is_symmetric())
         
@@ -57,6 +59,7 @@ class TestConjugateGradient(unittest.TestCase):
             for j in range(matrix.shape[1]):
                 sp_matrix.insert(i, j, matrix[i, j])
 
+        sp_matrix.to_csr()
         dot2 = sp_matrix.dot(rhs)
         self.assertTrue(np.allclose(dot1, dot2))
         
@@ -65,7 +68,7 @@ class TestConjugateGradient(unittest.TestCase):
 
         x_cg = cg.solve(sp_matrix, rhs, x0)
 
-        #self.assertTrue(np.allclose(x, x_cg))
+        self.assertTrue(np.allclose(x, x_cg))
 
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner

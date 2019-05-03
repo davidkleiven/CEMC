@@ -38,3 +38,6 @@ cdef class PySparseMatrix:
 
     def is_symmetric(self):
         return self.thisptr.is_symmetric()
+
+    def to_csr(self):
+        self.thisptr.to_csr()
