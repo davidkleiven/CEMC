@@ -93,6 +93,7 @@ void CHGLRealSpace<dim>::build2D(){
             throw runtime_error(ss.str());
         }
         counter++;
+        mat.to_csr();
     }
 }
 

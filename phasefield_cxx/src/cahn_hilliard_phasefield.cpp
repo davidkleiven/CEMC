@@ -117,6 +117,8 @@ void CahnHilliardPhaseField<dim>::build2D(){
 		ss << "System matrix is not symmetric!";
 		throw runtime_error(ss.str());
 	}
+
+	system_matrix.to_csr();
 }
 
 template<int dim>
