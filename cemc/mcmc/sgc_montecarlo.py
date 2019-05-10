@@ -5,6 +5,10 @@ from ase.units import kB
 from scipy import stats
 from cemc.mcmc import mpi_tools
 
+class InvalidChemicalPotentialError(Exception):
+    pass
+
+
 class SGCMonteCarlo(mc.Montecarlo):
     """
     Class for running Monte Carlo in the Semi-Grand Canonical Ensebmle
@@ -240,6 +244,14 @@ class SGCMonteCarlo(mc.Montecarlo):
 
     @chemical_potential.setter
     def chemical_potential(self, chem_pot):
+        eci = self.atoms.get_calculator().eci
+        if any([k not in eci.keys() for k in chem_pot.keys()]):
+            raise InvalidChemicalPotentialError(
+                "A chemical potential that is currently not tracked is added. Make sure "
+                "that all the following keys are in the ECI before the ECI are passed to the "
+                "calculator: {} (if not add them with a zero value)"
+                "".format(list(chem_pot.keys())))
+
         self._chemical_potential = chem_pot
         if self.chem_pot_in_ecis:
             self._reset_eci_to_original(self.atoms.get_calculator().eci)
@@ -263,7 +275,8 @@ class SGCMonteCarlo(mc.Montecarlo):
         for key in keys:
             self.chem_pots.append(chem_potential[key])
             self.chem_pot_names.append(key)
-            eci[key] -= chem_potential[key]
+            current_eci = eci.get(key, 0.0)
+            eci[key] = current_eci - chem_potential[key]
         self.atoms.get_calculator().update_ecis(eci)
         self.chem_pot_in_ecis = True
         self.current_energy = self.atoms.get_calculator().get_energy()

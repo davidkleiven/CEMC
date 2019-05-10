@@ -5,7 +5,7 @@ try:
     from cemc.mcmc import linear_vib_correction as lvc
     from ase.clease.settings_bulk import CEBulk
     from ase.clease import Concentration
-    from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
+    from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo, InvalidChemicalPotentialError
     from cemc.mcmc import Montecarlo
     from cemc import CE, get_atoms_with_ce_calc
     from cemc.mcmc import PairConstraint, FixedElement
@@ -90,6 +90,10 @@ class TestSGCMC(unittest.TestCase):
                     atoms, T, symbols=["Al", "Mg", "Si"], mpicomm=comm)
                 mc.runMC(steps=100, chem_potential=chem_pots)
                 mc.get_thermodynamic()
+
+                # Make sure that an error is raised
+                with self.assertRaises(InvalidChemicalPotentialError):
+                    mc.runMC(steps=2, chem_potential={'c1_0': 0.1, 'c1_1': 0.1, 'c1_2': -0.1})
             except Exception as exc:
                 msg = str(exc)
                 no_throw = False

@@ -108,7 +108,7 @@ cluster_stat = network_obs.get_statistics()
 surf = network_obs.surface()
 
 # Get the average number of sites changed and the standard deviation
-avg_changed, std_changed = site_order.get_average()
+_ = site_order.get_averages()
 
 # If we want to store an Monte carlo object and read it back later
 mc_obj.save("montecarlo.pkl")
