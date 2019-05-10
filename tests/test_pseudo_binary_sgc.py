@@ -8,6 +8,7 @@ try:
     from cemc import CE
     from cemc.mcmc import PseudoBinaryFreeEnergyBias
     from cemc.mcmc import PseudoBinaryConcInitializer
+    from cemc.mcmc.sgc_montecarlo import InvalidChemicalPotentialError
     from helper_functions import get_ternary_BC, get_example_ecis
     available = True
 except ImportError as exc:
@@ -110,6 +111,25 @@ class TestPseudoBinary(unittest.TestCase):
             new_energy = calc.get_energy()
             self.assertAlmostEqual(new_energy - energy, mu)
             mc.reset_ecis()
+
+    def test_raise_error_on_invalid_chem_pot(self):
+        if not available:
+            self.skipTest(avail_msg)
+
+        bc = get_ternary_BC()
+        ecis = get_example_ecis(bc=bc)
+        ecis.pop('c1_1')
+        atoms = bc.atoms.copy()
+        calc = CE(atoms, bc, eci=ecis)
+        atoms.set_calculator(calc)
+
+        groups = [{"Al": 2}, {"Mg": 1, "Si": 1}]
+        symbs = ["Al", "Mg", "Si"]
+        T = 400
+        with self.assertRaises(InvalidChemicalPotentialError):
+            PseudoBinarySGC(atoms, T, chem_pot=-0.2, symbols=symbs,
+                            groups=groups)
+
 
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner
