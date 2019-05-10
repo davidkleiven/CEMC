@@ -698,7 +698,7 @@ class SiteOrderParameter(MCObserver):
         self.avg_num_changed += self.current_num_changed
         self.avg_num_changed_sq += self.current_num_changed**2
 
-    def get_average(self):
+    def get_averages(self):
         """Get the number of sites different from the ground state.
 
         :return: Average and standard deviation of the order parameters
@@ -722,7 +722,7 @@ class SiteOrderParameter(MCObserver):
         # slightly negative. Add a safety check for this
         if var < 0.0:
             var = 0.0
-        return average, np.sqrt(var)
+        return {"site_order_average": average, "site_order_std": np.sqrt(var)}
 
 
 class EnergyEvolution(MCObserver):
