@@ -1,5 +1,6 @@
-cimport cemc.phasefield.cython.adaptive_timestep_logger
-from adaptive_timestep_logger cimport AdaptiveTimeStepLogger, LogFileEntry
+#cimport cemc.phasefield.cython.adaptive_timestep_logger as adaptive_timestep_logger
+#from adaptive_timestep_logger cimport AdaptiveTimeStepLogger, LogFileEntry
+from cemc.phasefield.cython.adaptive_timestep_logger cimport AdaptiveTimeStepLogger, LogFileEntry
 
 cdef class PyAdaptiveTimeStepLogger:
     cdef AdaptiveTimeStepLogger *thisptr
