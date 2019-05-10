@@ -47,16 +47,15 @@ LogFileEntry AdaptiveTimeStepLogger::getLast() const{
     }
     read_stream.close();
 
-    if (line.substr(0, 1) == "#"){
-        entry.iter = 0;
-        entry.time = 0.0;
-    }
-    else{
+    try{
         // Split line
         unsigned int delim = line.find(",");
         entry.iter = stoi(line.substr(0, delim));
         entry.time = stod(line.substr(delim + 1));
     }
-    
+    catch (exception &e){
+        entry.iter = 0;
+        entry.time = 0.0;
+    }
     return entry;
 }
