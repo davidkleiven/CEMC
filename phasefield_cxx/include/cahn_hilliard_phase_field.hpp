@@ -3,6 +3,7 @@
 #include "phase_field_simulation.hpp"
 #include "cahn_hilliard.hpp"
 #include "sparse_matrix.hpp"
+#include "adaptive_timestep_logger.hpp"
 
 template<int dim>
 class CahnHilliardPhaseField: public PhaseFieldSimulation<dim>{
@@ -29,5 +30,7 @@ private:
     double max_change{1.0};
     std::string scheme{"explicit"};
     SparseMatrix system_matrix;
+    AdaptiveTimeStepLogger logger;
+    LogFileEntry time_entry;
 };
 #endif

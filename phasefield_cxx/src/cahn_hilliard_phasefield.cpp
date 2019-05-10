@@ -6,7 +6,10 @@ template<int dim>
 CahnHilliardPhaseField<dim>::CahnHilliardPhaseField(int L, \
                          const std::string &prefix,\
                          const CahnHilliard *free_eng, double M, double dt, double alpha): \
-						 PhaseFieldSimulation<dim>(L, prefix, 1), free_eng(free_eng), M(M), dt(dt), alpha(alpha){};
+						 PhaseFieldSimulation<dim>(L, prefix, 1), free_eng(free_eng), M(M), dt(dt), alpha(alpha), \
+						 logger(prefix + "_adaptive_time.csv"){
+							 time_entry = logger.getLast();
+						 };
 
 
 template<int dim>
@@ -185,9 +188,12 @@ void CahnHilliardPhaseField<dim>::update_implicit(int nsteps){
 		}
 		else{
 			gr_cpy.copy(*this->grid_ptr);
+			time_entry.time += this->dt;
 		}
+		time_entry.iter += 1;
 	}
 
+	logger.log(time_entry.iter, time_entry.time);
 	if (this->dt < this->min_dt){
 		cout << "Reached minimum timestep\n";
 		this->quit = true;
