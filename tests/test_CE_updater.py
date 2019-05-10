@@ -6,6 +6,7 @@ try:
     from ase.clease import Concentration
     from ase.clease.corrFunc import CorrFunction
     from cemc import CE, get_atoms_with_ce_calc
+    from cemc import get_atoms_with_ce_calc_JSON
     from helper_functions import get_bulkspacegroup_binary
     from helper_functions import get_max_cluster_dia_name
     import copy
@@ -325,6 +326,23 @@ class TestCE(unittest.TestCase):
         self.assertEqual(calc.BC.cluster_info, calc2.BC.cluster_info)
         self.assertEqual(calc.eci, calc2.eci)
         self.assertEqual(calc.get_cf(), calc2.get_cf())
+
+    def test_load_from_JSON(self):
+        if not has_ase_with_ce:
+            self.skipTest("ASE does not have CE")
+        _, ceBulk, eci = self.get_calc('fcc')
+
+        outfile = 'ceBulkSettings.json'
+        db_name = 'test_loadjson.db'
+        ceBulk.save(outfile)
+        atoms_full = get_atoms_with_ce_calc_JSON(
+            outfile, eci=eci, size=[8, 9, 10], db_name=db_name)
+        
+        self.assertEqual(type(atoms_full.get_calculator()).__name__, 'CE')
+        os.remove(db_name)
+        os.remove(outfile)
+        
+
 
 if __name__ == "__main__":
     unittest.main(testRunner=TimeLoggingTestRunner)
