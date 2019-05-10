@@ -155,7 +155,7 @@ class PseudoBinaryFreeEnergyBias(SampledBiasPotential):
 
     @property
     def conc_init(self):
-        from cemc.mcmc import PseudoBinaryConcInitializer
+        from cemc.mcmc.reaction_path_utils import PseudoBinaryConcInitializer
         if not isinstance(self._conc_init, PseudoBinaryConcInitializer):
             raise TypeError("pseudo_bin_conc_init has to be of type "
                             "PseudoBinaryConcInitializer!")
@@ -163,7 +163,7 @@ class PseudoBinaryFreeEnergyBias(SampledBiasPotential):
 
     @conc_init.setter
     def conc_init(self, init):
-        from cemc.mcmc import PseudoBinaryConcInitializer
+        from cemc.mcmc.reaction_path_utils import PseudoBinaryConcInitializer
         if not isinstance(init, PseudoBinaryConcInitializer):
             raise TypeError("pseudo_bin_conc_init has to be of type "
                             "PseudoBinaryConcInitializer!")

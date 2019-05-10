@@ -7,7 +7,7 @@ try:
     from cemc.mcmc import PseudoBinarySGC
     from cemc import CE
     from cemc.mcmc import PseudoBinaryFreeEnergyBias
-    from cemc.mcmc import PseudoBinaryConcInitializer
+    from cemc.mcmc.reaction_path_utils import PseudoBinaryConcInitializer
     from helper_functions import get_ternary_BC, get_example_ecis
     available = True
 except ImportError as exc:
