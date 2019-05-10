@@ -29,3 +29,5 @@ energy_data.json
 .nfs*
 .vscode/*
 settings.json
+*.pyc
+*.grid
