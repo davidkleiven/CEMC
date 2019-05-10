@@ -128,6 +128,24 @@ def get_atoms_with_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
     CE(atoms, large_bc, eci, initial_cf=init_cf)
     return atoms
 
+
+def get_atoms_with_ce_calc_JSON(jsonfile, eci={}, size=[1, 1, 1],
+                                db_name="temp_db.db"):
+    """
+    Return an Atoms object with an ASE calculator attached. The cluster
+    expansion settings are read from a JSON file, typically produced via
+    the export methods of the ASE cluster expansion module.
+    """
+    from ase.clease.tools import load_settings
+    import json
+    settings = load_settings(jsonfile)
+
+    with open(jsonfile, 'r') as infile:
+        init_arguments = json.load(infile)
+    init_arguments.pop('classtype')
+    return get_atoms_with_ce_calc(settings, init_arguments, eci=eci, size=size, db_name=db_name)
+
+
 def get_max_size_eci(eci):
     """Find the maximum cluster name given in the ECIs.
 
