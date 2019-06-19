@@ -26,7 +26,7 @@ class TestBinaryCriticalPoints(unittest.TestCase):
 
     def test_spinodal(self):
         if not available:
-            self.skipTest()
+            self.skipTest(reason)
             bc = BinaryCriticalPoints()
 
             poly = [1, -3, 5, 6]
