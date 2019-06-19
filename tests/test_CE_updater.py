@@ -26,7 +26,7 @@ class TestCE(unittest.TestCase):
         a = 4.05
         ceBulk = CEBulk(crystalstructure=lat, a=a, size=[3, 3, 3],
                         concentration=conc, db_name=db_name,
-                        max_cluster_size=3, max_cluster_dia=4.5)
+                        max_cluster_size=3, max_cluster_dia=6.0)
         ceBulk.reconfigure_settings()
         cf = CorrFunction(ceBulk)
         corrfuncs = cf.get_cf(ceBulk.atoms)
@@ -110,12 +110,12 @@ class TestCE(unittest.TestCase):
                     symb2 = atoms[indx2].symbol
                 calc.calculate(atoms, ["energy"], [(indx1, symb1, symb2),(indx2, symb2, symb1)])
                 updated_cf = calc.get_cf()
-                brute_force = corr_func.get_cf_by_cluster_names( atoms, updated_cf.keys() )
+                brute_force = corr_func.get_cf_by_cluster_names(atoms, updated_cf.keys())
                 for key,value in brute_force.items():
-                    self.assertAlmostEqual( value, updated_cf[key] )
+                    self.assertAlmostEqual(value, updated_cf[key])
 
-    def test_supercell( self ):
-        if ( not has_ase_with_ce ):
+    def test_supercell(self):
+        if not has_ase_with_ce:
             self.skipTest("ASE version does not have CE")
             return
 
@@ -131,7 +131,7 @@ class TestCE(unittest.TestCase):
             "concentration": conc,
             "db_name": db_name,
             "max_cluster_size": 3,
-            "max_cluster_dia": 4.05
+            "max_cluster_dia": 6.0
         }
 
         kwargs_template = copy.deepcopy(kwargs)
@@ -143,7 +143,7 @@ class TestCE(unittest.TestCase):
         ceBulk = CEBulk(**kwargs)
         ceBulk.reconfigure_settings()
         atoms_sc = get_atoms_with_ce_calc(ceBulk, kwargs, eci, size=[4, 4, 4],
-                           db_name="sc4x4x.db")
+                                          db_name="sc4x4x.db")
         calc_sc = atoms_sc.get_calculator()
         corr_func = CorrFunction(template_supercell_bc)
         for i in range(10):
@@ -156,14 +156,14 @@ class TestCE(unittest.TestCase):
                 self.assertAlmostEqual(value, updated_cf[key])
         os.remove("sc4x4x.db")
 
-    def test_double_swaps_ternary( self ):
-        if ( not has_ase_with_ce ): # Disable this test
+    def test_double_swaps_ternary(self):
+        if not has_ase_with_ce:  # Disable this test
             self.skipTest("ASE version has not cluster expansion")
             return
 
         db_name = "test_db_ternary.db"
         max_dia = get_max_cluster_dia_name()
-        size_arg = {max_dia:4.05}
+        size_arg = {max_dia: 4.05}
         conc = Concentration(basis_elements=[["Al","Mg","Si"]])
         ceBulk = CEBulk(crystalstructure="fcc", a=4.05, size=[4,4,4],
                         concentration=conc, db_name=db_name, max_cluster_size=3, **size_arg)
