@@ -205,7 +205,7 @@ class Montecarlo(object):
         :param float: Energy bias
         """
         eci = self.atoms.get_calculator().eci
-        c0_eci = eci.get('c0', 0.0)
+        c0_eci = eci['c0']
         c0_eci -= bias/len(self.atoms)
         eci['c0'] = c0_eci
 
@@ -832,6 +832,8 @@ class Montecarlo(object):
         # Check the number of different elements are correct to avoid
         # infinite loops
         self._check_symbols()
+
+        self.update_current_energy()
 
         if (self.mpicomm is not None):
             self.mpicomm.barrier()
