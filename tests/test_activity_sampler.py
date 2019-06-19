@@ -31,7 +31,8 @@ class TestActivitySampler(unittest.TestCase):
                 "a": 4.05, "size": [4, 4, 4],
                 "concentration": conc,
                 "db_name": "data/temporary_bcnucleationdb_activity.db",
-                "max_cluster_size": 3
+                "max_cluster_size": 3,
+                "max_cluster_dia": 4.5
             }
             ceBulk = CEBulk(**kwargs)
             ceBulk.reconfigure_settings()
