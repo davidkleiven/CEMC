@@ -503,13 +503,13 @@ class SGCMonteCarlo(mc.Montecarlo):
         singlets = self.averager.singlets/N
         singlets_sq = self.averager.quantities["singlets_sq"]/N
 
-        quantities["sgc_energy"] = self.averager.energy.mean
+        quantities["sgc_energy"] = self.averager.energy.mean + self.energy_bias
         quantities["sgc_heat_capacity"] = self.averager.energy_sq.mean - \
             self.averager.energy.mean**2
 
         quantities["sgc_heat_capacity"] /= (kB*self.T**2)
 
-        quantities["energy"] = self.averager.energy.mean
+        quantities["energy"] = self.averager.energy.mean + self.energy_bias
         natoms = len(self.atoms)
         for i in range(len(self.chem_pots)):
             quantities["energy"] += self.chem_pots[i]*singlets[i]*natoms
