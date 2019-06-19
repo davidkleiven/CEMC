@@ -392,4 +392,5 @@ class FixedNucleusMC(Montecarlo):
         if self.network.num_root_nodes() > 1:
             raise ValueError("Something went wrong during construction! "
                              "the system has more than one cluster!")
+        self.update_current_energy()
         Montecarlo.runMC(self, steps=steps, equil=equil)
