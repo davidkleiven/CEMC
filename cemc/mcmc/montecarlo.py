@@ -205,18 +205,24 @@ class Montecarlo(object):
         :param float: Energy bias
         """
         eci = self.atoms.get_calculator().eci
-
         c0_eci = eci.get('c0', 0.0)
         c0_eci -= bias/len(self.atoms)
         eci['c0'] = c0_eci
 
-        self.atoms.get_calculator().update_eci(eci)
+        self.atoms.get_calculator().update_ecis(eci)
         self.current_energy = self.atoms.get_calculator().get_energy()
+        self.last_energies[0] = self.current_energy
 
         # After bias has been removed, current_energy should be
         # zero
         assert abs(self.current_energy) < 1E-6
         self.log('Bias subtracted from empty cluster...')
+
+    def _undo_energy_bias_from_eci(self):
+        eci = self.atoms.get_calculator().eci
+        eci['c0'] += self.energy_bias/len(self.atoms)
+        self.atoms.get_calculator().update_ecis(eci)
+        self.log('Empty cluster ECI reset to original value...')
 
     def insert_symbol(self, symb, indices):
         """Insert symbols on a predefined set of indices.
@@ -935,6 +941,9 @@ class Montecarlo(object):
 
         if (self.mpicomm is not None):
             self.mpicomm.barrier()
+
+        # NOTE: Does not reset the energy bias to 0
+        self._undo_energy_bias_from_eci()
         return totalenergies
 
     def _collect_energy(self):
