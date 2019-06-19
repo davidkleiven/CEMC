@@ -25,7 +25,7 @@ class TestFreeEnergy( unittest.TestCase ):
             kwargs = {
                 "crystalstructure":"fcc", "a":4.05, "size":[3, 3, 3],
                 "concentration": conc, "db_name":"temporary_bcnucleationdb.db",
-                "max_cluster_size": 3
+                "max_cluster_size": 3, "max_cluster_dia": 4.5
             }
             ceBulk = CEBulk( **kwargs )
             cf = CorrFunction(ceBulk)

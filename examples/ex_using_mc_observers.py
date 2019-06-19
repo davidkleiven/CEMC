@@ -19,7 +19,8 @@ kwargs = {
     "size":[3, 3, 3],
     "db_name": db_name,
     "max_cluster_size": 3,
-    "concentration": conc
+    "concentration": conc,
+    "max_cluster_dia": 4.5
 }
 
 # In this example, we just use some example ecis

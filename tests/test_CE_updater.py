@@ -25,8 +25,8 @@ class TestCE(unittest.TestCase):
         conc = Concentration(basis_elements=[["Al", "Mg"]])
         a = 4.05
         ceBulk = CEBulk(crystalstructure=lat, a=a, size=[3, 3, 3],
-                             concentration=conc,
-                             db_name=db_name, max_cluster_size=3)
+                        concentration=conc, db_name=db_name,
+                        max_cluster_size=3, max_cluster_dia=4.5)
         ceBulk.reconfigure_settings()
         cf = CorrFunction(ceBulk)
         corrfuncs = cf.get_cf(ceBulk.atoms)
