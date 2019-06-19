@@ -213,9 +213,10 @@ class Montecarlo(object):
         self.current_energy = self.atoms.get_calculator().get_energy()
         self.last_energies[0] = self.current_energy
 
-        # After bias has been removed, current_energy should be
-        # zero
-        assert abs(self.current_energy) < 1E-6
+        if abs(self.current_energy) > 1E-6:
+            raise RuntimeError("Energy is not 0 after subtracting "
+                               "the bias. Got {}".format(self.current_energy))
+
         self.log('Bias subtracted from empty cluster...')
 
     def _undo_energy_bias_from_eci(self):
