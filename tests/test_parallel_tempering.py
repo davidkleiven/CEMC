@@ -31,21 +31,14 @@ class TestParallelTempering(unittest.TestCase):
         if not available:
             self.skipTest(import_msg)
 
-        msg = ""
-        no_throw = True
-        try:
-            ceBulk, atoms = self.init_bulk_crystal()
-            mc = Montecarlo(atoms, 100.0)
-            mc.insert_symbol_random_places("Mg", num=5, swap_symbs=["Al"])
-            mc.insert_symbol_random_places("Si", num=5, swap_symbs=["Al"])
-            par_temp = ParallelTempering(mc_obj=mc, Tmax=100.0, Tmin=0.001)
-            mc_args = {"steps": 100, "equil": False}
-            par_temp.run(mc_args=mc_args, num_exchange_cycles=3)
-            os.remove("temp_scheme.csv")
-        except Exception as exc:
-            msg = "{}: {}".format(type(exc).__name__, str(exc))
-            no_throw = False
-        self.assertTrue(no_throw, msg=msg)
+        ceBulk, atoms = self.init_bulk_crystal()
+        mc = Montecarlo(atoms, 100.0)
+        mc.insert_symbol_random_places("Mg", num=5, swap_symbs=["Al"])
+        mc.insert_symbol_random_places("Si", num=5, swap_symbs=["Al"])
+        par_temp = ParallelTempering(mc_obj=mc, Tmax=100.0, Tmin=0.001)
+        mc_args = {"steps": 100, "equil": False}
+        par_temp.run(mc_args=mc_args, num_exchange_cycles=3)
+        os.remove("temp_scheme.csv")
 
 
 if __name__ == "__main__":
