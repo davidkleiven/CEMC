@@ -23,7 +23,7 @@ def get_bulkspacegroup_binary():
     size_arg = {max_dia:4.1}
     conc = Concentration(basis_elements=basis_elements, grouped_basis=[[0,1,2,3]])
     bs = CECrystal(concentration=conc, basis=basis, spacegroup=217, cellpar=cellpar,
-        max_cluster_size=3, db_name=db_name, size=[1, 1, 1], **size_arg )
+                   max_cluster_size=3, db_name=db_name, size=[1, 1, 1], **size_arg)
     return bs, db_name
 
 
@@ -33,7 +33,7 @@ def get_small_BC_with_ce_calc(lat="fcc"):
     a = 4.05
     conc = Concentration(basis_elements=[["Al", "Mg"]])
     ceBulk = CEBulk( crystalstructure=lat, a=a, size=[3,3,3], concentration=conc, \
-        db_name=db_name, max_cluster_size=3)
+                     db_name=db_name, max_cluster_size=3, max_cluster_dia=4.5)
     ceBulk.reconfigure_settings()
     cf = CorrFunction(ceBulk)
     corrfuncs = cf.get_cf(ceBulk.atoms)
@@ -45,7 +45,7 @@ def get_small_BC_with_ce_calc(lat="fcc"):
 def get_ternary_BC(ret_args=False):
     db_name = "test_db_ternary.db"
     max_dia = get_max_cluster_dia_name()
-    size_arg = {max_dia:4.05}
+    size_arg = {max_dia: 4.05}
     conc = Concentration(basis_elements=[["Al", "Mg", "Si"]])
     args = dict(crystalstructure="fcc", a=4.05, size=[4,4,4], concentration=conc, \
                 db_name=db_name, max_cluster_size=3, **size_arg)

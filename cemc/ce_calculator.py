@@ -177,6 +177,14 @@ class CE(Calculator):
         Calculator.__init__(self)
         self.BC = BC
 
+        # Make sure there is an ECI corresponding to 
+        # the emptry cluster
+        if 'c0' not in eci.keys():
+            eci['c0'] = 0.0
+
+            if initial_cf is not None:
+                initial_cf['c0'] = 1.0
+
         # NOTE: This should be handled in the CE code
         self.BC._info_entries_to_list()
         self.corrFunc = CorrFunction(self.BC)

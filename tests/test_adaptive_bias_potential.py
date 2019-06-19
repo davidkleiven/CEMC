@@ -6,10 +6,11 @@ try:
     from cemc import CE
     from helper_functions import get_ternary_BC
     from helper_functions import get_example_ecis
+    import numpy as np
 
     class DummyReacCrdInit(ReactionCrdInitializer):
         def get(self, atoms, system_changes=[]):
-            return 0.0
+            return np.random.rand()
 
         def set(self, value):
             pass
@@ -45,7 +46,7 @@ class TestAdaptiveBiasReacPath(unittest.TestCase):
             # set to a negative value! Here it is done
             # to make the test converged after one step
             bias = AdaptiveBiasReactionPathSampler(
-                mc_obj=mc, react_crd_init=DummyReacCrdInit(), 
+                mc_obj=mc, react_crd_init=DummyReacCrdInit(),
                 react_crd=[-1.0, 1.0], convergence_factor=-1.0)
             bias.run()
         except Exception as exc:

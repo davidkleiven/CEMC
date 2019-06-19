@@ -19,8 +19,9 @@ from util import get_example_ecis
 # primitive FCC unitcell
 conc = Concentration([["Al","Mg"]])
 bc = CEBulk(crystalstructure="fcc", a=4.05,
-                 db_name="test_gs_db.db", size=[3, 3, 3],
-                 concentration=conc, max_cluster_size=3)
+            db_name="test_gs_db.db", size=[3, 3, 3],
+            concentration=conc, max_cluster_size=3,
+            max_cluster_dia=4.5)
 bc.reconfigure_settings()  # Nessecary for unittests to pass
 
 # Just use some example ECIs

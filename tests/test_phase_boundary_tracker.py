@@ -23,9 +23,11 @@ class TestPhaseBoundaryMC( unittest.TestCase ):
     def init_bulk_crystal(self):
         conc1 = Concentration(basis_elements=[["Al","Mg"]])
         conc2 = Concentration(basis_elements=[["Al","Mg"]])
-        ceBulk1 = CEBulk( crystalstructure="fcc", a=4.05, size=[3,3,3], concentration=conc1, db_name=db_name)
+        ceBulk1 = CEBulk(crystalstructure="fcc", a=4.05, size=[3,3,3], concentration=conc1, db_name=db_name,
+                         max_cluster_dia=4.5)
         ceBulk1.reconfigure_settings()
-        ceBulk2 = CEBulk( crystalstructure="fcc", a=4.05, size=[3,3,3], concentration=conc2, db_name=db_name)
+        ceBulk2 = CEBulk(crystalstructure="fcc", a=4.05, size=[3,3,3], concentration=conc2, db_name=db_name,
+                         max_cluster_dia=4.5)
         ceBulk2.reconfigure_settings()
 
         atoms1 = ceBulk1.atoms.copy()

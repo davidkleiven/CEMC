@@ -184,6 +184,47 @@ class Montecarlo(object):
                 setattr(other, k, deepcopy(v))
         return other
 
+    def _probe_energy_bias(self, num_steps=1000):
+        """
+        Run MC steps to probe the energy bias. The bias
+        will be subtracted off the zeroth ECI and then
+        added to the total energy durin gpost processing.
+        """
+        self.log("Probing energy bias using {} MC steps...".format(num_steps))
+        for _ in range(num_steps):
+            self._mc_step()
+
+        self.log("Energy after probing: {}".format(self.current_energy))
+        self.energy_bias = self.current_energy
+        self._remove_bias_from_empty_eci(self.energy_bias)
+
+    def _remove_bias_from_empty_eci(self, bias):
+        """
+        Remove the energy bias from the zeroth ECI.
+
+        :param float: Energy bias
+        """
+        eci = self.atoms.get_calculator().eci
+        c0_eci = eci['c0']
+        c0_eci -= bias/len(self.atoms)
+        eci['c0'] = c0_eci
+
+        self.atoms.get_calculator().update_ecis(eci)
+        self.current_energy = self.atoms.get_calculator().get_energy()
+        self.last_energies[0] = self.current_energy
+
+        if abs(self.current_energy) > 1E-6:
+            raise RuntimeError("Energy is not 0 after subtracting "
+                               "the bias. Got {}".format(self.current_energy))
+
+        self.log('Bias subtracted from empty cluster...')
+
+    def _undo_energy_bias_from_eci(self):
+        eci = self.atoms.get_calculator().eci
+        eci['c0'] += self.energy_bias/len(self.atoms)
+        self.atoms.get_calculator().update_ecis(eci)
+        self.log('Empty cluster ECI reset to original value...')
+
     def insert_symbol(self, symb, indices):
         """Insert symbols on a predefined set of indices.
 
@@ -792,6 +833,8 @@ class Montecarlo(object):
         # infinite loops
         self._check_symbols()
 
+        self.update_current_energy()
+
         if (self.mpicomm is not None):
             self.mpicomm.barrier()
         allowed_modes = ["fixed", "prec"]
@@ -851,6 +894,11 @@ class Montecarlo(object):
         # self.current_step gets updated in the _mc_step function
         log_status_conv = True
         self.reset()
+
+        # Probe bias energy and remove bias
+        self._probe_energy_bias()
+        self.reset()
+
         while(self.current_step < steps):
             en, accept = self._mc_step(verbose=verbose)
 
@@ -896,6 +944,9 @@ class Montecarlo(object):
 
         if (self.mpicomm is not None):
             self.mpicomm.barrier()
+
+        # NOTE: Does not reset the energy bias to 0
+        self._undo_energy_bias_from_eci()
         return totalenergies
 
     def _collect_energy(self):
@@ -933,10 +984,11 @@ class Montecarlo(object):
         """
         self._collect_energy()
         quantities = {}
-        quantities["energy"] = self.mean_energy.mean
+        mean_energy = self.mean_energy.mean
+        quantities["energy"] = mean_energy + self.energy_bias
         mean_sq = self.energy_squared.mean
         quantities["heat_capacity"] = (
-            mean_sq - quantities["energy"]**2) / (units.kB * self.T**2)
+            mean_sq - mean_energy**2) / (units.kB * self.T**2)
         quantities["energy_std"] = np.sqrt(self._get_var_average_energy())
         quantities["temperature"] = self.T
         at_count = self.count_atoms()

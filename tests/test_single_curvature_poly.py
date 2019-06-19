@@ -11,6 +11,8 @@ except Exception as exc:
 
 class TestSingleCurvaturePoly(unittest.TestCase):
     def test_parabola(self):
+        if not available:
+            self.skipTest(reason)
         x = np.linspace(0.0, 10.0, 40)
 
         a = 1.0
@@ -24,6 +26,8 @@ class TestSingleCurvaturePoly(unittest.TestCase):
         self.assertTrue(np.allclose(coeff, [a, b, c]))
 
     def test_concave_fit_to_convex_curve(self):
+        if not available:
+            self.skipTest(reason)
         x = np.linspace(0.0, 10.0, 40)
 
         a = 1.0
@@ -36,6 +40,8 @@ class TestSingleCurvaturePoly(unittest.TestCase):
         self.assertLessEqual(coeff[0], 0.0)
 
     def test_decreasing(self):
+        if not available:
+            self.skipTest(reason)
         x = np.linspace(0.0, 10.0, 40)
 
         a = 1.0
@@ -46,6 +52,8 @@ class TestSingleCurvaturePoly(unittest.TestCase):
         self.assertTrue(np.allclose(coeff, [a, b]))
 
     def test_decreasing_to_increasing_poly(self):
+        if not available:
+            self.skipTest(reason)
         x = np.linspace(0.0, 10.0, 40)
 
         a = 1.0

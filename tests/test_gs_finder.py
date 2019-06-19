@@ -19,8 +19,8 @@ class TestGSFinder( unittest.TestCase ):
 
             a = 4.05
             conc = Concentration(basis_elements=[["Al","Mg"]])
-            ceBulk = CEBulk( crystalstructure="fcc", a=a, size=[3,3,3], concentration=conc, \
-            db_name=db_name, max_cluster_size=4)
+            ceBulk = CEBulk(crystalstructure="fcc", a=a, size=[3,3,3], concentration=conc,
+                            db_name=db_name, max_cluster_size=4, max_cluster_dia=4.5)
             cf = CorrFunction(ceBulk)
             cf = cf.get_cf(ceBulk.atoms)
             eci = {key:1.0 for key in cf.keys()}

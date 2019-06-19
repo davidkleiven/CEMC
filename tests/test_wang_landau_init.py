@@ -26,7 +26,8 @@ bc_kwargs = {
     "concentration": conc,
     "db_name": db_name,
     "max_cluster_size": 3,
-    "a": 4.05
+    "a": 4.05,
+    "max_cluster_dia": 4.5
 }
 
 

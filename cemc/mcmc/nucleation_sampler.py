@@ -127,6 +127,9 @@ class NucleationSampler(object):
         """
         lower, upper = self._get_window_boundaries(self.current_window)
         size = int(0.5 * (lower + upper) + 1)
+
+        # TODO: Network observers no longer has a grow_cluster function
+        # should be handle in python
         network.grow_cluster(size)
         network(None)
         stat = network.get_statistics()

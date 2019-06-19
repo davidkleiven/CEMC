@@ -27,9 +27,8 @@ class TestDMMC(unittest.TestCase):
         size_arg = {max_dia_name: 4.05}
         conc = Concentration(basis_elements=[["Al", "Mg", "Si"]])
         ceBulk = CEBulk(crystalstructure="fcc", a=4.05, size=[3, 3, 3],
-                             concentration=conc,
-                             db_name=db_name,
-                             max_cluster_size=3, **size_arg)
+                        concentration=conc, db_name=db_name,
+                        max_cluster_size=3, **size_arg)
         ceBulk.reconfigure_settings()
         atoms = ceBulk.atoms.copy()
         calc = CE(atoms, ceBulk, ecis)

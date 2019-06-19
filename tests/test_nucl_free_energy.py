@@ -40,7 +40,8 @@ class TestNuclFreeEnergy( unittest.TestCase ):
                 "crystalstructure": "fcc", "a": 4.05,
                 "size": [3, 3, 3],
                 "concentration": conc, "db_name": db_name,
-                "max_cluster_size": 3
+                "max_cluster_size": 3,
+                "max_cluster_dia": 4.5
             }
             ceBulk = CEBulk(**kwargs)
             ceBulk.reconfigure_settings()
@@ -74,7 +75,7 @@ class TestNuclFreeEnergy( unittest.TestCase ):
             symbs[0] = "Mg"
             symbs[1] = "Mg"
             mc.set_symbols(symbs)
-            mc.runMC(steps=2)
+            #mc.runMC(steps=2)
             sampler.save(fname="test_nucl_canonical.h5")
             elements = {"Mg": 6}
             calc = atoms.get_calculator()
@@ -225,52 +226,46 @@ class TestNuclFreeEnergy( unittest.TestCase ):
 
         msg = ""
         no_throw = True
-        try:
-            from cemc.mcmc import FixEdgeLayers
-            from cemc.mcmc import CovarianceMatrixObserver
-            bc, args = get_ternary_BC(ret_args=True)
-            ecis = get_example_ecis(bc=bc)
-            atoms = get_atoms_with_ce_calc(bc, args, eci=ecis, size=[8, 8, 8], db_name="covariance_obs.db")
+        from cemc.mcmc import FixEdgeLayers
+        from cemc.mcmc import CovarianceMatrixObserver
+        bc, args = get_ternary_BC(ret_args=True)
+        ecis = get_example_ecis(bc=bc)
+        atoms = get_atoms_with_ce_calc(bc, args, eci=ecis, size=[8, 8, 8], db_name="covariance_obs.db")
 
-            T = 200
-            nn_names = [name for name in bc.cluster_family_names
-                        if int(name[1]) == 2]
+        T = 200
+        nn_names = [name for name in bc.cluster_family_names
+                    if int(name[1]) == 2]
 
-            mc = FixedNucleusMC(
-                atoms, T, network_name=nn_names,
-                network_element=["Mg", "Si"])
+        mc = FixedNucleusMC(
+            atoms, T, network_name=nn_names,
+            network_element=["Mg", "Si"])
 
-            fixed_layers = FixEdgeLayers(atoms=mc.atoms, thickness=3.0)
-            mc.add_constraint(fixed_layers)
-            elements = {"Mg": 6, "Si": 6}
-            mc.insert_symbol_random_places("Mg", num=1, swap_symbs=["Al"])
-            mc.grow_cluster(elements)
-            
-            cov_obs = CovarianceMatrixObserver(atoms=mc.atoms, cluster_elements=["Mg", "Si"])
-            mc.attach(cov_obs)
-            for _ in range(10):
-                mc.runMC(steps=100, elements=elements, init_cluster=False)
+        fixed_layers = FixEdgeLayers(atoms=mc.atoms, thickness=3.0)
+        mc.add_constraint(fixed_layers)
+        elements = {"Mg": 6, "Si": 6}
+        mc.insert_symbol_random_places("Mg", num=1, swap_symbs=["Al"])
+        mc.grow_cluster(elements)
 
-                obs_I = cov_obs.cov_matrix
-                indices = []
-                for atom in mc.atoms:
-                    if atom.symbol in ["Mg", "Si"]:
-                        indices.append(atom.index)
-                cluster = mc.atoms[indices]
-                pos = cluster.get_positions()
-                com = np.mean(pos, axis=0)
-                pos -= com
-                cov_matrix = np.zeros((3, 3))
-                for i in range(pos.shape[0]):
-                    x = pos[i, :]
-                    cov_matrix += np.outer(x, x)
-                self.assertTrue(np.allclose(obs_I, cov_matrix))
-            os.remove("covariance_obs.db")
-        except Exception as exc:
-            no_throw = False
-            msg = type(exc).__name__ + str(exc)
+        cov_obs = CovarianceMatrixObserver(atoms=mc.atoms, cluster_elements=["Mg", "Si"])
+        mc.attach(cov_obs)
+        for _ in range(10):
+            mc.runMC(steps=100, elements=elements, init_cluster=False)
 
-        self.assertTrue(no_throw, msg=msg)
+            obs_I = cov_obs.cov_matrix
+            indices = []
+            for atom in mc.atoms:
+                if atom.symbol in ["Mg", "Si"]:
+                    indices.append(atom.index)
+            cluster = mc.atoms[indices]
+            pos = cluster.get_positions()
+            com = np.mean(pos, axis=0)
+            pos -= com
+            cov_matrix = np.zeros((3, 3))
+            for i in range(pos.shape[0]):
+                x = pos[i, :]
+                cov_matrix += np.outer(x, x)
+            self.assertTrue(np.allclose(obs_I, cov_matrix))
+        os.remove("covariance_obs.db")
 
 
 if __name__ == "__main__":

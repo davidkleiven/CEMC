@@ -16,7 +16,8 @@ db_name = "test_sgc.db"
 class TestMCParameterSweep( unittest.TestCase ):
     def get_cebulk(self):
         conc = Concentration(basis_elements=[["Al","Mg"]])
-        ceBulk = CEBulk( crystalstructure="fcc", a=4.05, size=[3,3,3], concentration=conc, db_name=db_name)
+        ceBulk = CEBulk(crystalstructure="fcc", a=4.05, size=[3,3,3], concentration=conc, db_name=db_name,  
+                        max_cluster_size=3, max_cluster_dia=4.5)
         ceBulk.reconfigure_settings()
         cf = CorrFunction(ceBulk)
         cf = cf.get_cf(ceBulk.atoms)
