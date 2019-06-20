@@ -55,3 +55,6 @@ cdef class PyCEUpdater:
 
     def get_symbols(self):
         return self._cpp_class.get_symbols()
+
+    def set_num_threads(self, num_threads):
+        self._cpp_class.set_num_threads(num_threads)

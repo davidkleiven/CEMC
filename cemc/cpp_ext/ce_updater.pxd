@@ -39,3 +39,5 @@ cdef extern from "ce_updater.hpp":
       object get_singlets()
 
       const vector[string]& get_symbols() const
+
+      void set_num_threads(unsigned int num_threads)
