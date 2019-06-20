@@ -23,6 +23,7 @@ C++ CE calculator
   :maxdepth: 4
 
   cpp_CE_calc
+  multithreading
 
 MCMC
 ===========

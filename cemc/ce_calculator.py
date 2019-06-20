@@ -606,3 +606,12 @@ class CE(Calculator):
                     if len(set(sub)) != len(sub):
                         return True
         return False
+
+    def set_num_threads(self, num_threads):
+        """
+        Set the number of threads to use when updating the number
+        of threads
+
+        :param int num_threads: New number of threads
+        """
+        self.updater.set_num_threads(num_threads)
