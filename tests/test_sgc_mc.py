@@ -12,7 +12,6 @@ try:
     from helper_functions import get_max_cluster_dia_name
     from helper_functions import get_example_network_name
     from helper_functions import get_example_ecis
-    from cemc.mcmc.mpi_tools import mpi_communicator
     has_ase_with_ce = True
 except Exception as exc:
     print(str(exc))
@@ -73,31 +72,6 @@ class TestSGCMC(unittest.TestCase):
             msg = str(exc)
             no_throw = False
         self.assertTrue(no_throw, msg=msg)
-
-    def test_no_throw_mpi(self):
-        if has_ase_with_ce:
-            no_throw = True
-            msg = ""
-            try:
-                ceBulk, atoms = self.init_bulk_crystal()
-                chem_pots = {
-                    "c1_0": 0.02,
-                    "c1_1": -0.03
-                }
-                T = 600.0
-                comm = mpi_communicator()
-                mc = SGCMonteCarlo(
-                    atoms, T, symbols=["Al", "Mg", "Si"], mpicomm=comm)
-                mc.runMC(steps=100, chem_potential=chem_pots)
-                mc.get_thermodynamic()
-
-                # Make sure that an error is raised
-                with self.assertRaises(InvalidChemicalPotentialError):
-                    mc.runMC(steps=2, chem_potential={'c1_0': 0.1, 'c1_1': 0.1, 'c1_2': -0.1})
-            except Exception as exc:
-                msg = str(exc)
-                no_throw = False
-            self.assertTrue(no_throw, msg=msg)
 
     def test_no_throw_prec_mode(self):
         if not has_ase_with_ce:

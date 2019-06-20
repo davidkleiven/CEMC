@@ -3,7 +3,7 @@ from cemc.mcmc.mc_observers import SGCObserver
 import numpy as np
 from ase.units import kB
 from scipy import stats
-from cemc.mcmc import mpi_tools
+
 
 class InvalidChemicalPotentialError(Exception):
     pass
@@ -21,7 +21,6 @@ class SGCMonteCarlo(mc.Montecarlo):
     :param indeces: Not used
     :type indeces: list of ints or None
     :param list symbols: List of possible symbols for insertion moves
-    :param Intracomm mpicomm: MPI communicator object
     :param str logfile: File for logging (default is console window)
     :param bool plot_debug: Generate debugging plots. Recommended to leave this
         as False
@@ -29,12 +28,11 @@ class SGCMonteCarlo(mc.Montecarlo):
         the calculation terminates
     """
 
-    def __init__(self, atoms, temp, indeces=None, symbols=None, mpicomm=None,
+    def __init__(self, atoms, temp, indeces=None, symbols=None,
                  logfile="", plot_debug=False, min_acc_rate=0.0,
                  recycle_waste=False):
         mc.Montecarlo.__init__(self, atoms, temp, indeces=indeces,
-                              mpicomm=mpicomm, logfile=logfile,
-                              plot_debug=plot_debug, min_acc_rate=min_acc_rate,
+                              logfile=logfile, plot_debug=plot_debug, min_acc_rate=min_acc_rate,
                               recycle_waste=recycle_waste)
         if not symbols is None:
             # Override the symbols function in the main class
@@ -99,7 +97,6 @@ class SGCMonteCarlo(mc.Montecarlo):
 
         The correlation time is taken into account into account
         """
-        self._collect_averager_results()
         N = self.averager.counter
         singlets = self.averager.quantities["singlets"]/N
         singlets_sq = self.averager.quantities["singlets_sq"]/N
@@ -112,8 +109,6 @@ class SGCMonteCarlo(mc.Montecarlo):
             self.log(msg)
 
         nproc = 1
-        if self.mpicomm is not None:
-            nproc = self.mpicomm.Get_size()
 
         no_corr_info = self.correlation_info is None
 
@@ -152,17 +147,9 @@ class SGCMonteCarlo(mc.Montecarlo):
             log_status=False)
         percentile = stats.norm.ppf(1.0-confidence_level)
         var_n = self._get_var_average_singlets()
-        if self.mpicomm is not None:
-            var_n /= self.mpicomm.Get_size()
         singlet_converged = (np.max(var_n) < (prec/percentile)**2)
 
         result = singlet_converged
-        if self.mpicomm is not None:
-            send_buf = np.zeros(1, dtype=np.uint8)
-            recv_buf = np.zeros(1, dtype=np.uint8)
-            send_buf[0] = result
-            self.mpicomm.Allreduce(send_buf, recv_buf)
-            result = (recv_buf[0] == self.mpicomm.Get_size())
 
         if log_status:
             print("Singlet std: {}".format(np.sqrt(var_n)))
@@ -195,11 +182,8 @@ class SGCMonteCarlo(mc.Montecarlo):
         min_percentile = stats.norm.ppf(confidence_level)
         max_percentile = stats.norm.ppf(1.0-confidence_level)
         nproc = 1
-        if self.mpicomm is not None:
-            nproc = self.mpicomm.Get_size()
         # Collect the result from the other processes
         # and average them into the values on the root node
-        self._collect_averager_results()
         N = self.averager.counter
         singlets = self.averager.singlets/N
         var_n = self._get_var_average_singlets()
@@ -223,12 +207,6 @@ class SGCMonteCarlo(mc.Montecarlo):
         converged = False
         if z > min_percentile and z < max_percentile:
             converged = True
-
-        if self.mpicomm is not None:
-            # Broadcast the result to the other processors
-            converged = self.mpicomm.bcast(converged, root=0)
-            singlets = self.mpicomm.bcast(singlets, root=0)
-            var_n = self.mpicomm.bcast(var_n, root=0)
         return converged, singlets, var_n, z
 
     def reset(self):
@@ -346,24 +324,12 @@ class SGCMonteCarlo(mc.Montecarlo):
                 corr_times.append(tau)
 
         self.composition_correlation_time = np.array(corr_times)
-        if self.mpicomm is not None:
-            send_buf = np.zeros(1, dtype=np.uint8)
-            recv_buf = np.zeros(1, dtype=np.uint8)
-            send_buf[0] = window_length_too_short
-            self.mpicomm.Allreduce(send_buf, recv_buf)
-            window_length_too_short = (recv_buf[0] >= 1)
 
         if window_length_too_short:
             msg = "The window length is too short to estimate the correlation "
             msg += " time. Using the window length as correlation time."
             self.log(msg)
 
-        # Collect the correlation times from all processes
-        if self.mpicomm is not None:
-            recv_buf = np.zeros_like(self.composition_correlation_time)
-            size = self.mpicomm.Get_size()
-            self.mpicomm.Allreduce(self.composition_correlation_time, recv_buf)
-            self.composition_correlation_time = recv_buf/size
         self.log("Correlation time for the compositions:")
         self.log("{}".format(self.composition_correlation_time))
 
@@ -378,10 +344,6 @@ class SGCMonteCarlo(mc.Montecarlo):
             A typical form of this is
             {"c1_0":-1.0,c1_1_1.0}
         """
-        mpi_tools.set_seeds(self.mpicomm)
-        self.reset()
-        if self.mpicomm is not None:
-            self.mpicomm.barrier()
 
         if chem_potential is None and self.chemical_potential is None:
             ex_chem_pot = {
@@ -400,83 +362,16 @@ class SGCMonteCarlo(mc.Montecarlo):
         self._include_vib()
 
         if equil:
-            reached_equil = True
             res = self._estimate_correlation_time(restart=True)
             if not res["correlation_time_found"]:
                 res["correlation_time_found"] = True
                 res["correlation_time"] = 1000
-            self._distribute_correlation_time()
-            try:
-                self._equillibriate(**equil_params)
-            except mc.DidNotReachEquillibriumError:
-                reached_equil = False
-            atleast_one_proc = self._atleast_one_reached_equillibrium(
-                reached_equil)
-
-            if not atleast_one_proc:
-                raise mc.DidNotReachEquillibriumError()
+            self._equillibriate(**equil_params)
 
         self.reset()
         mc.Montecarlo.runMC(self, steps=steps, verbose=verbose, equil=False,
                             mode=mode, prec_confidence=prec_confidence,
                             prec=prec)
-
-    def _collect_averager_results(self):
-        """
-        If MPI is used, this function collects the results from the averager
-        """
-        if self.mpicomm is None:
-            return
-
-        size = self.mpicomm.Get_size()
-        all_res = self.mpicomm.gather(self.averager.quantities, root=0)
-
-        # Check that all processors have performed the same number of steps
-        # (which they should)
-        same_number_of_steps = True
-        msg = ""
-        if self.rank == 0:
-            for i in range(1,len(all_res)):
-                if all_res[i]["counter"] != all_res[0]["counter"]:
-                    same_number_of_steps = False
-                    msg = "Processor {} have performed a different ".format(i)
-                    msg += "number steps compared to 0."
-                    msg += "Number of stest {}: ".format(i)
-                    msg += "{}. Number of steps 0: {}".format(
-                        all_res[i]["counter"], all_res[0]["counter"])
-                    break
-        same_number_of_steps = self.mpicomm.bcast(same_number_of_steps, root=0)
-
-        if not same_number_of_steps:
-            raise RuntimeError(msg)
-
-        par_works = True
-        if self.rank == 0:
-            par_works = self._parallelization_works(all_res)
-        par_works = self.mpicomm.bcast(par_works, root=0)
-        if not par_works:
-            # This can happen either because the seed on all processors are the
-            # same or because the results hav already been collected
-            return
-            msg = "It seems like exactly the same process is running on "
-            msg += "multiple processors!"
-            raise RuntimeError(msg)
-
-        # Average all the results from the all the processors
-        if self.rank == 0:
-            self.averager.quantities = all_res[0]
-            for i in range(1, len(all_res)):
-                for key, value in all_res[i].items():
-                    self.averager.quantities[key] += value
-
-            # Normalize by the number of processors
-            for key in self.averager.quantities.keys():
-                if key != "energy" and key != "energy_sq":
-                    self.averager.quantities[key] /= size
-
-        # Broadcast the averaged results
-        self.averager.quantities = self.mpicomm.bcast(self.averager.quantities,
-                                                      root=0)
 
     def singlet2composition(self, avg_singlets):
         """Convert singlets to composition."""
@@ -510,7 +405,6 @@ class SGCMonteCarlo(mc.Montecarlo):
         :return: Thermodynamic quantities
         :rtype: dict
         """
-        self._collect_averager_results()
         N = self.averager.counter
         quantities = {}
         singlets = self.averager.singlets/N

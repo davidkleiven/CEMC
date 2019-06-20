@@ -8,14 +8,12 @@ import time
 import logging
 from scipy import stats
 from ase.units import kJ, mol
-from cemc.mcmc import mpi_tools
 from cemc.mcmc.exponential_filter import ExponentialFilter
 from cemc.mcmc.averager import Averager
 from cemc.mcmc.util import waste_recycled_average, waste_recycled_accept_prob
 from cemc.mcmc.util import get_new_state
 from cemc.mcmc import BiasPotential
 from cemc.mcmc.swap_move_index_tracker import SwapMoveIndexTracker
-from cemc.mcmc.mpi_tools import mpi_max, mpi_sum
 
 # Set the pickle protocol
 if sys.version_info[0] == 2:
@@ -46,7 +44,6 @@ class Montecarlo(object):
     :param float temp: Temperature of Monte Carlo simulation in Kelvin
     :param list indeces: Atoms involved Monte Carlo swaps. default is all
                     atoms (currently this has no effect!).
-    :param Intracomm mpicomm: MPI communicator object
     :param str logfile: Filename for logging (default is logging to console)
     :param bool plot_debug: If True it will create some diagnositc plots during
                        equilibration
@@ -60,7 +57,7 @@ class Montecarlo(object):
         move after reset and set_symbols will be accepted
     """
 
-    def __init__(self, atoms, temp, indeces=None, mpicomm=None, logfile="",
+    def __init__(self, atoms, temp, indeces=None, logfile="",
                  plot_debug=False, min_acc_rate=0.0, recycle_waste=False,
                  max_constraint_attempts=10000,
                  accept_first_trial_move_after_reset=False):
@@ -103,13 +100,8 @@ class Montecarlo(object):
         self.trial_move = []  # Last trial move performed
         self.mean_energy = Averager(ref_value=E0)
         self.energy_squared = Averager(ref_value=E0)
-        self.mpicomm = mpicomm
-        self.rank = 0
         self.energy_bias = 0.0
         self.update_energy_bias = True
-
-        if (self.mpicomm is not None):
-            self.rank = self.mpicomm.Get_rank()
 
         self.logfile = logfile
         self.logger = None
@@ -170,7 +162,7 @@ class Montecarlo(object):
         from copy import deepcopy
         cls = self.__class__
         other = cls.__new__(cls)
-        shallow_copies = ["mpicomm", "logger", "flush_log"]
+        shallow_copies = ["logger", "flush_log"]
         for k, v in self.__dict__.items():
             if k == "atoms":
                 # Need special handling to to the C-extension in the
@@ -178,7 +170,6 @@ class Montecarlo(object):
                 new_calc = self.atoms.get_calculator().copy()
                 setattr(other, "atoms", new_calc.atoms)
             elif k in shallow_copies:
-                # MPI communicator will not be deep copied
                 setattr(other, k, v)
             else:
                 setattr(other, k, deepcopy(v))
@@ -335,8 +326,6 @@ class Montecarlo(object):
         if mode not in allowed_modes:
             raise ValueError("Mode has to be one of {}".format(allowed_modes))
 
-        if self.rank != 0:
-            return
         if mode == "info":
             self.logger.info(msg)
         elif mode == "warning":
@@ -435,13 +424,10 @@ class Montecarlo(object):
         """
 
         # First collect the energies from all processors
-        self._collect_energy()
         U = self.mean_energy.mean
         E_sq = self.energy_squared.mean
         var = (E_sq - U**2)
         nproc = 1
-        if (self.mpicomm is not None):
-            nproc = self.mpicomm.Get_size()
 
         if (var < 0.0):
             self.log("Variance of energy is smaller than zero. "
@@ -638,7 +624,6 @@ class Montecarlo(object):
                 if self.plot_debug:
                     all_energies.append(
                         self.current_energy_without_vib() / len(self.atoms))
-            self._collect_energy()
             E_new = self.mean_energy.mean
             means.append(E_new)
             var_E_new = self._get_var_average_energy()
@@ -674,20 +659,6 @@ class Montecarlo(object):
 
             if z_diff < max_percentile and z_diff > min_percentile:
                 energy_conv = True
-
-            # Allreduce use the max value which should yield True if any is
-            # True
-            if self.mpicomm is not None:
-                eng_conv = np.array(energy_conv, dtype=np.uint8)
-                eng_conv_recv = np.zeros(1, dtype=np.uint8)
-                self.mpicomm.Allreduce(eng_conv, eng_conv_recv, op=mpi_max())
-                energy_conv = eng_conv_recv[0]
-
-                comp_conv_arr = np.array(comp_conv, dtype=np.uint8)
-                comp_conv_recv = np.zeros(1, dtype=np.uint8)
-                self.mpicomm.Allreduce(
-                    comp_conv_arr, comp_conv_recv, op=mpi_max())
-                comp_conv = comp_conv_recv[0]
 
             if (energy_conv and comp_conv):
                 self.log(
@@ -742,14 +713,6 @@ class Montecarlo(object):
             criteria = prec/percentile
             self.log("Current energy std: {}. ".format(std_E)
                      + "Convergence criteria: {}".format(criteria))
-
-        if self.mpicomm is not None:
-            # Make sure that all processors has the same converged flag
-            send_buf = np.zeros(1)
-            recv_buf = np.zeros(1)
-            send_buf[0] = converged
-            self.mpicomm.Allreduce(send_buf, recv_buf)
-            converged = (recv_buf[0] == self.mpicomm.Get_size())
         return converged
 
     def _on_converged_log(self):
@@ -765,51 +728,6 @@ class Montecarlo(object):
             std_value=np.sqrt(var_E * len(self.atoms))))
         exp_extrapolate = self.filter.exponential_extrapolation()
         self.log("Exponential extrapolation: {}".format(exp_extrapolate))
-
-    def _distribute_correlation_time(self):
-        """
-        Distrubutes the correlation time to all the processes
-        """
-        if (self.mpicomm is None):
-            return
-
-        # Check if any processor has found an equillibriation time
-        corr_time_found = self.mpicomm.gather(
-            self.correlation_info["correlation_time_found"], root=0)
-        all_corr_times = self.mpicomm.gather(
-            self.correlation_info["correlation_time"], root=0)
-        self.log("Correlation time on all processors: {}"
-                 "".format(all_corr_times))
-        corr_time = self.correlation_info["correlation_time"]
-        found = False
-        if (self.rank == 0):
-            found = np.any(corr_time_found)
-            corr_time = np.median(all_corr_times)
-            self.log("Using correlation time: {} on all processors"
-                     "".format(corr_time))
-        corr_time = self.mpicomm.bcast(corr_time, root=0)
-        self.correlation_info["correlation_time_found"] = found
-        self.correlation_info["correlation_time"] = corr_time
-
-    def _atleast_one_reached_equillibrium(self, reached_equil):
-        """
-        Handles the case when a few processors did not reach equillibrium
-        The behavior is that if one processor reached equillibrium the
-        simulation can continue
-
-        :param bool reached_equil: Flag True if equillibrium was reached.
-        """
-        if self.mpicomm is None:
-            return reached_equil
-
-        all_equils = self.mpicomm.gather(reached_equil, root=0)
-        at_least_one = False
-        if self.rank == 0:
-            if np.any(all_equils):
-                at_least_one = True
-        # Send the result to the other processors
-        at_least_one = self.mpicomm.bcast(at_least_one, root=0)
-        return at_least_one
 
     def runMC(self, mode="fixed", steps=10, verbose=False, equil=True,
               equil_params={}, prec=0.01, prec_confidence=0.05):
@@ -828,15 +746,12 @@ class Montecarlo(object):
                           if enough
                           MC samples have been collected
         """
-        #print ("Proc start MC: {}".format(self.rank))
         # Check the number of different elements are correct to avoid
         # infinite loops
         self._check_symbols()
 
         self.update_current_energy()
 
-        if (self.mpicomm is not None):
-            self.mpicomm.barrier()
         allowed_modes = ["fixed", "prec"]
         if mode not in allowed_modes:
             raise ValueError("Mode has to be one of {}".format(allowed_modes))
@@ -849,7 +764,6 @@ class Montecarlo(object):
         # Add check that this is show
         self._mc_step()
 
-        mpi_tools.set_seeds(self.mpicomm)
         totalenergies = []
         totalenergies.append(self.current_energy)
         start = time.time()
@@ -862,20 +776,8 @@ class Montecarlo(object):
             if (not res["correlation_time_found"]):
                 res["correlation_time"] = 1000
                 res["correlation_time_found"] = True
-            self._distribute_correlation_time()
 
-            try:
-                self._equillibriate(**equil_params)
-            except DidNotReachEquillibriumError:
-                reached_equil = False
-
-            at_lest_one_proc_reached_equil = \
-                self._atleast_one_reached_equillibrium(reached_equil)
-            # This exception is MPI safe, as the function
-            # _atleast_one_reached_equillibrium broadcasts
-            # the result to all the other processors
-            if (not at_lest_one_proc_reached_equil):
-                raise DidNotReachEquillibriumError()
+            self._equillibriate(**equil_params)
 
         check_convergence_every = 1
         next_convergence_check = len(self.atoms)
@@ -885,12 +787,10 @@ class Montecarlo(object):
             while (not res["correlation_time_found"]):
                 res = self._estimate_correlation_time()
             self.reset()
-            self._distribute_correlation_time()
             check_convergence_every = 10 * \
                 self.correlation_info["correlation_time"]
             next_convergence_check = check_convergence_every
 
-        # print ( "Proc: {} - {}".format(self.rank,check_convergence_every) )
         # self.current_step gets updated in the _mc_step function
         log_status_conv = True
         self.reset()
@@ -927,9 +827,6 @@ class Montecarlo(object):
                 next_convergence_check += check_convergence_every
                 # TODO: Is this barrier nessecary, or does it
                 # impact performance?
-                # print ("Proc check_conv: {}".format(self.rank))
-                if (self.mpicomm is not None):
-                    self.mpicomm.barrier()
                 converged = self._has_converged_prec_mode(
                     prec=prec, confidence_level=prec_confidence,
                     log_status=log_status_conv)
@@ -942,23 +839,9 @@ class Montecarlo(object):
             self.log(
                 "Reached maximum number of steps ({} mc steps)".format(steps))
 
-        if (self.mpicomm is not None):
-            self.mpicomm.barrier()
-
         # NOTE: Does not reset the energy bias to 0
         self._undo_energy_bias_from_eci()
         return totalenergies
-
-    def _collect_energy(self):
-        """
-        Sums the energy from each processor
-        """
-        if (self.mpicomm is None):
-            return
-
-        self.mean_energy = self.mpicomm.allreduce(self.mean_energy, op=mpi_sum())
-        self.energy_squared = self.mpicomm.allreduce(
-            self.energy_squared, op=mpi_sum())
 
     @property
     def meta_info(self):
@@ -982,7 +865,6 @@ class Montecarlo(object):
         :return: thermodynamic data
         :rtype: dict
         """
-        self._collect_energy()
         quantities = {}
         mean_energy = self.mean_energy.mean
         quantities["energy"] = mean_energy + self.energy_bias

@@ -38,7 +38,6 @@ class SGCNucleation(SGCMonteCarlo):
 
     def __init__(self, atoms, temp, **kwargs):
         self.nuc_sampler = kwargs.pop("nucleation_sampler")
-        kwargs["mpicomm"] = None
         self.network_name = kwargs.pop("network_name")
         self.network_element = kwargs.pop("network_element")
         chem_pot = kwargs.pop("chem_pot")
@@ -95,8 +94,6 @@ class SGCNucleation(SGCMonteCarlo):
 
         :param int nsteps: Number of MC steps in each window
         """
-        if self.nuc_sampler.nucleation_mpicomm is not None:
-            self.nuc_sampler.nucleation_mpicomm.barrier()
 
         for i in range(self.nuc_sampler.n_windows):
             self.log("Window {} of {}".format(i, self.nuc_sampler.n_windows))
@@ -116,9 +113,6 @@ class SGCNucleation(SGCMonteCarlo):
                 self._mc_step()
                 self.nuc_sampler.update_histogram(self)
                 self.network.reset()
-
-        if self.nuc_sampler.nucleation_mpicomm is not None:
-            self.nuc_sampler.nucleation_mpicomm.barrier()
 
     def remove_snapshot_observers(self):
         """
@@ -352,7 +346,7 @@ class SGCNucleation(SGCMonteCarlo):
     def find_transition_path(self, initial_cluster_size=None,
                              max_size_reactant=None, min_size_product=None,
                              path_length=1000, max_attempts=100, folder=".",
-                             nsteps=None, mpicomm=None):
+                             nsteps=None):
         """
         Find one transition path
 
@@ -368,8 +362,6 @@ class SGCNucleation(SGCMonteCarlo):
         :param nsteps: Number of steps per sweep. If None, the number of
             atoms will be used
         :type nsteps: int or None
-        :param mpicomm: MPI communicator object
-        :type mpicomm: Intracomm or None
         """
         import numpy as np
         if initial_cluster_size is None:
@@ -382,13 +374,7 @@ class SGCNucleation(SGCMonteCarlo):
                              "state to be characterized as product is not "
                              "given!")
 
-        trans_path_mpi_comm = mpicomm
-        self.mpicomm = None
-        self.rank = 0
         size = 1
-        if trans_path_mpi_comm is not None:
-            self.rank = trans_path_mpi_comm.Get_rank()
-            size = trans_path_mpi_comm.Get_size()
 
         self.log("Running transition path seach on {} processors".format(size))
 
@@ -403,10 +389,10 @@ class SGCNucleation(SGCMonteCarlo):
 
         num_reactants = 0
         num_products = 0
-        default_trajfile = folder+"/default_trajfile{}.traj".format(self.rank)
-        reactant_file = folder+"/trajectory_reactant{}.traj".format(self.rank)
-        product_file = folder+"/trajectory_product{}.traj".format(self.rank)
-        reference_path_file = folder+"/reference_path{}.json".format(self.rank)
+        default_trajfile = folder+"/default_trajfile.traj"
+        reactant_file = folder+"/trajectory_reactant.traj"
+        product_file = folder+"/trajectory_product.traj"
+        reference_path_file = folder+"/reference_path.json"
 
         self.network.reset()
         print("Warning! Cluster initialization does not work at the moment!")
@@ -463,14 +449,6 @@ class SGCNucleation(SGCMonteCarlo):
                 self.log("The reference path is stored in {}"
                          "".format(reference_path_file))
                 # self.show_statistics(combined_path["symbols"])
-
-            # Collect the found_path flag from all processes
-            if trans_path_mpi_comm is not None:
-                send_buf = np.zeros(1, dtype=np.uint8)
-                send_buf[0] = found_path
-                recv_buf = np.zeros(1, dtype=np.uint8)
-                trans_path_mpi_comm.Allreduce(send_buf, recv_buf)
-                found_path = (recv_buf[0] >= 1)
 
             if found_path:
                 break

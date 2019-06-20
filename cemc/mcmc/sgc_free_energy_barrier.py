@@ -18,7 +18,6 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
     :param int n_bins: Number of bins within each window
     :param float min_singlet: Minimum value of the singlet value
     :param float max_singlet: Maximum value of the singlet value
-    :param Intracomm mpicomm: MPI communicator
     :param other: See :py:class:`cemc.mcmc.SGCMonteCarlo`
     """
 
@@ -27,8 +26,6 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
         n_bins = 5
         min_singlet = -1.0
         max_singlet = -0.4
-        self.free_eng_mpi = None
-        self.rank = 0
         if "n_windows" in kwargs.keys():
             n_windows = kwargs.pop("n_windows")
         if "n_bins" in kwargs.keys():
@@ -37,8 +34,6 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
             min_singlet = kwargs.pop("min_singlet")
         if "max_singlet" in kwargs.keys():
             max_singlet = kwargs.pop("max_singlet")
-        if "mpicomm" in kwargs.keys():
-            self.free_eng_mpi = kwargs.pop("mpicomm")
 
         self.recycle_waste = False
         if "recycle_waste" in kwargs.keys():
@@ -55,9 +50,6 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
         self.kwargs_parent = kwargs
         super(SGCFreeEnergyBarrier, self).__init__(atoms, T, **kwargs)
         self.chem_potential_restart_file = None
-
-        if (self.free_eng_mpi is not None):
-            self.rank = self.free_eng_mpi.Get_rank()
 
         # Set up whats needed
         self.window_singletrange = (
@@ -120,25 +112,6 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
         indx = (value - min_lim) * N / (max_lim - min_lim)
         return int(indx)
 
-    def _collect_results(self):
-        """
-        Collects the results from all processors
-        """
-        if (self.free_eng_mpi is None):
-            return
-        temp_data = []
-        temp_energy = []
-        size = self.free_eng_mpi.Get_size()
-        for i in range(len(self.data)):
-            recv_buf = np.zeros_like(self.data[i])
-            self.free_eng_mpi.Allreduce(self.data[i], recv_buf)
-            recv_buf = recv_buf.astype(np.float64)
-            temp_data.append(np.copy(recv_buf / size))
-            self.free_eng_mpi.Allreduce(self.energydata[i], recv_buf)
-            temp_energy.append(np.copy(recv_buf / size))
-        self.data = temp_data
-        self.energydata = temp_energy
-
     def _update_records(self):
         """
         Update the data arrays
@@ -191,7 +164,6 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
         :return: Merged results (keys: histogram, free_energy, energy)
         :rtype: dict
         """
-        self._collect_results()
         all_data = self.data[0].tolist()
         energy = (self.energydata[0] / self.data[0]).tolist()
         for i in range(1, len(self.data)):
@@ -215,44 +187,38 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
         :param str fname: Filename
         """
         self._get_merged_records()
-        if (self.rank == 0):
-            self.result["temperature"] = self.T
-            self.result["chemical_potential"] = self.chemical_potential
-            x = np.linspace(
-                self.min_singlet, self.max_singlet, len(
-                    self.result["free_energy"]))
-            self.result["xaxis"] = x.tolist()
-            self.result["min_singlet"] = self.min_singlet
-            self.result["max_singlet"] = self.max_singlet
-            self.result["kwargs_parent"] = self.kwargs_parent
 
-            # Store also the raw histgramgs
-            self.result["raw_histograms"] = [hist.tolist()
-                                             for hist in self.data]
-            self.result["raw_energydata"] = [value.tolist()
-                                             for value in self.energydata]
-            self.result["num_procs"] = 1
-            if (self.free_eng_mpi is not None):
-                self.result["num_procs"] = self.free_eng_mpi.Get_size()
+        self.result["temperature"] = self.T
+        self.result["chemical_potential"] = self.chemical_potential
+        x = np.linspace(
+            self.min_singlet, self.max_singlet, len(
+                self.result["free_energy"]))
+        self.result["xaxis"] = x.tolist()
+        self.result["min_singlet"] = self.min_singlet
+        self.result["max_singlet"] = self.max_singlet
+        self.result["kwargs_parent"] = self.kwargs_parent
 
-            with open(fname, 'w') as outfile:
-                json.dump(
-                    self.result,
-                    outfile,
-                    indent=2,
-                    separators=(
-                        ",",
-                        ":"))
-            self.log("Results written to: {}".format(fname))
+        # Store also the raw histgramgs
+        self.result["raw_histograms"] = [hist.tolist() for hist in self.data]
+        self.result["raw_energydata"] = [value.tolist() for value in self.energydata]
+
+        with open(fname, 'w') as outfile:
+            json.dump(
+                self.result,
+                outfile,
+                indent=2,
+                separators=(
+                    ",",
+                    ":"))
+        self.log("Results written to: {}".format(fname))
 
     @staticmethod
-    def load(atoms, fname, mpicomm=None):
+    def load(atoms, fname):
         """
         Loads the results from a file such the calculations can be restarted
         Returns an instance of the object in the same state as it was left
 
         :param str fname: Filename to data file
-        :param Intracomm mpicomm: MPI communicator object
         """
         with open(fname, 'r') as infile:
             params = json.load(infile)
@@ -272,7 +238,6 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
             n_bins=n_bins,
             min_singlet=min_singlet,
             max_singlet=max_singlet,
-            mpicomm=mpicomm,
             **kwargs_parent)
 
         obj.chem_potential_restart_file = chem_potential_restart_file
@@ -339,7 +304,7 @@ class SGCFreeEnergyBarrier(SGCMonteCarlo):
                 self.atoms.get_chemical_formula()))
             self.reset()
 
-            if self.save_last_state_in_window and self.rank == 0:
+            if self.save_last_state_in_window:
                 fname = "last_state_in_{}_{}K.xyz".format(i, self.T)
                 write(fname, self.atoms)
                 self.log("Structure written to {}".format(fname))

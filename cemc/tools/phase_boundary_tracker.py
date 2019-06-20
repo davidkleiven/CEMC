@@ -14,9 +14,6 @@ from ase.units import kB
 from cemc.mcmc.sgc_montecarlo import SGCMonteCarlo
 from cemc.tools.phase_track_utils import PhaseBoundarySolution
 from cemc.tools.phase_track_utils import CECalculators
-from cemc.mcmc.mpi_tools import num_processors, mpi_rank
-from cemc.mcmc.mpi_tools import mpi_bcast, mpi_communicator
-from cemc.mcmc.mpi_tools import mpi_barrier
 
 
 class PhaseChangedOnFirstIterationError(Exception):
@@ -115,12 +112,10 @@ class PhaseBoundaryTracker(object):
         """
         Print message for logging
         """
-        rank = mpi_rank()
-        if rank == 0:
-            if mode == "info":
-                self._logger.info(msg)
-            elif mode == "warning":
-                self._logger.warning(msg)
+        if mode == "info":
+            self._logger.info(msg)
+        elif mode == "warning":
+            self._logger.warning(msg)
 
     def _set_integration_direction(self, T0, Tend):
         """Sets the integration direction."""
@@ -153,32 +148,29 @@ class PhaseBoundaryTracker(object):
         :param data: Dictionary of data to be backed up
         :param dsetname: Basename for all datasets in the h5 file
         """
-        rank = mpi_rank()
-        if rank == 0:
-            with h5.File(self._backupfile, 'a') as hfile:
-                grp = hfile.create_group(
-                    dsetname +
-                    "{}".format(
-                        self._current_backup_indx))
-                for key, value in data.items():
-                    if value is None:
-                        continue
-                    if key == "images":
-                        for img_num, img in enumerate(value):
-                            if img is None:
-                                continue
-                            #img = img.T
-                            dset = grp.create_dataset(
-                                "img_{}".format(img_num), data=img)
-                            dset.attrs['CLASS'] = "IMAGE"
-                            dset.attrs['IMAGE_VERSION'] = '1.2'
-                            dset.attrs['IMAGE_SUBCLASS'] = 'IMAGE_INDEXED'
-                            dset.attrs['IMAGE_MINMAXRANGE'] = np.array(
-                                [0, 255], dtype=np.uint8)
-                    else:
-                        grp.create_dataset(key, data=value)
-            self._current_backup_indx += 1
-        mpi_barrier()
+        with h5.File(self._backupfile, 'a') as hfile:
+            grp = hfile.create_group(
+                dsetname +
+                "{}".format(
+                    self._current_backup_indx))
+            for key, value in data.items():
+                if value is None:
+                    continue
+                if key == "images":
+                    for img_num, img in enumerate(value):
+                        if img is None:
+                            continue
+                        #img = img.T
+                        dset = grp.create_dataset(
+                            "img_{}".format(img_num), data=img)
+                        dset.attrs['CLASS'] = "IMAGE"
+                        dset.attrs['IMAGE_VERSION'] = '1.2'
+                        dset.attrs['IMAGE_SUBCLASS'] = 'IMAGE_INDEXED'
+                        dset.attrs['IMAGE_MINMAXRANGE'] = np.array(
+                            [0, 255], dtype=np.uint8)
+                else:
+                    grp.create_dataset(key, data=value)
+        self._current_backup_indx += 1
 
 
     def _singlet_comparison(self, thermo):
@@ -334,7 +326,7 @@ class PhaseBoundaryTracker(object):
             thermo.append(sgc.get_thermodynamic())
         return thermo
 
-    def _init_sgc(self, init_temp, symbols, mpicomm):
+    def _init_sgc(self, init_temp, symbols):
         """
         Initialize the SGC MC objects
         """
@@ -344,8 +336,7 @@ class PhaseBoundaryTracker(object):
                 SGCMonteCarlo(
                     ground_state["atoms"],
                     init_temp,
-                    symbols=symbols,
-                    mpicomm=mpicomm))
+                    symbols=symbols))
 
     def separation_line_adaptive_euler(
             self,
@@ -382,10 +373,8 @@ class PhaseBoundaryTracker(object):
             # Use the user provided chemical potential is initial value
             chem_pot = np.array(init_mu)
 
-        mpicomm = mpi_communicator() 
-
         calcs = CECalculators(self._ground_states)
-        self._init_sgc(init_temp, symbols, mpicomm)
+        self._init_sgc(init_temp, symbols)
 
         # Equillibriation is required here no matter what the user
         # gives as argument
@@ -557,8 +546,7 @@ def predict_composition(
     predicted_comp = spl(target_temp)
 
     rgbimage = np.zeros(1)
-    rank = mpi_rank()
-    if rank == 0 and has_matplotlib:
+    if has_matplotlib:
         # Create a plot of how the spline performs
         fig = plt.figure()
         axis = fig.add_subplot(1, 1, 1)
@@ -577,7 +565,6 @@ def predict_composition(
         axis.legend()
         rgbimage = fig2rgb(fig)
         plt.close("all")
-    rgbimage = mpi_bcast(rgbimage, root=0)
     return predicted_comp, rgbimage
 
 def get_singlet_evolution(singlet_history, phase_indx, singlet_indx):

@@ -167,66 +167,6 @@ class ActivitySampler(Montecarlo):
             return False
         return move_accepted
 
-    def collect_results(self):
-        """
-        Collect results from all processors
-        """
-        if (self.mpicomm is None):
-            return
-
-        keys = list(self.averager_track.keys())
-        # Broadcast keys from master process to ensure that all processes
-        # put the values in the same order
-        keys = self.mpicomm.bcast(keys, root=0)
-        raw_energies = np.zeros(len(keys))
-        for i, key in enumerate(keys):
-            raw_energies[i] = self.raw_insertion_energy[key]
-        recv_buf = np.zeros_like(raw_energies)
-
-        self.mpicomm.Allreduce(raw_energies, recv_buf)
-        raw_energies[:] = recv_buf
-
-        # Distribute back into the original datastructures
-        for i, key in enumerate(keys):
-            self.raw_insertion_energy[key] = raw_energies[i]
-
-        # Collect the averaging objects
-        avg = self.mpicomm.gather(self.averager_track, root=0)
-        boltz_avg = self.mpicomm.gather(self.boltzmann_weight_ins_energy,
-                                        root=0)
-        boltz_avg_sq = self.mpicomm.gather(self.boltzmann_weight_ins_eng_sq,
-                                           root=0)
-        error_occured = False
-        msg = ""
-        if self.rank == 0:
-            try:
-                for i in range(len(avg)):
-                    if i == 0:
-                        self.averager_track = avg[i]
-                        self.boltzmann_weight_ins_energy = boltz_avg[i]
-                        self.boltzmann_weight_ins_eng_sq = boltz_avg_sq[i]
-                        continue
-                    for key in avg[i].keys():
-                        self.averager_track[key] += avg[i][key]
-                        self.boltzmann_weight_ins_energy[key] += boltz_avg[i][key]
-                        self.boltzmann_weight_ins_eng_sq[key] += \
-                            boltz_avg_sq[i][key]
-            except Exception as exc:
-                msg = str(exc)
-                error_occured = True
-
-        error_occured = self.mpicomm.bcast(error_occured, root=0)
-        msg = self.mpicomm.bcast(msg, root=0)
-        if error_occured:
-            # Raise runtime error on all nodes
-            raise RuntimeError(msg)
-
-        self.averager_track = self.mpicomm.bcast(self.averager_track, root=0)
-        self.boltzmann_weight_ins_energy = \
-            self.mpicomm.bcast(self.boltzmann_weight_ins_energy, root=0)
-        self.boltzmann_weight_ins_eng_sq = \
-            self.mpicomm.bcast(self.boltzmann_weight_ins_eng_sq, root=0)
-
     def get_thermodynamic(self):
         """
         Override the thermodynamics function.
@@ -253,7 +193,6 @@ class ActivitySampler(Montecarlo):
 
         :return: dict with the thermodynamical properties
         """
-        self.collect_results()
         res = {}
         res = Montecarlo.get_thermodynamic(self)
         at_count = self.count_atoms()

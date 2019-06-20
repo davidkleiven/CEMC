@@ -12,8 +12,6 @@ class CanonicalNucleationMC(Montecarlo):
         self.network_name = kwargs.pop("network_name")
         self.network_element = kwargs.pop("network_element")
         conc = kwargs.pop("concentration")
-        if "mpicomm" in kwargs.keys():
-            kwargs.pop("mpicomm")   # Remove MPI communicator if present
 
         super(CanonicalNucleationMC, self).__init__(atoms, T, **kwargs)
         self.n_atoms = {key: int(value*len(self.atoms)) for key, value
@@ -119,8 +117,6 @@ class CanonicalNucleationMC(Montecarlo):
         """
         Run samples in each window until a desired precission is found
         """
-        if self.nuc_sampler.nucleation_mpicomm is not None:
-            self.nuc_sampler.nucleation_mpicomm.barrier()
 
         n_solute_atoms = self.n_atoms[self.network_element]
 
@@ -149,6 +145,3 @@ class CanonicalNucleationMC(Montecarlo):
                 self._mc_step()
                 self.nuc_sampler.update_histogram(self)
                 self.network.reset()
-
-        if self.nuc_sampler.nucleation_mpicomm is not None:
-            self.nuc_sampler.nucleation_mpicomm.barrier()
