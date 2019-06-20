@@ -80,7 +80,7 @@ class WangLandauDBManager( object ):
         """
         conn = sq.connect( self.db_name )
         cur = conn.cursor()
-        cur.execute("SELECT uid FROM simulations" )
+        cur.execute("SELECT uid FROM simulations")
         ids = list(cur.fetchall())
         ids = [item[0] for item in ids]
         conn.close()

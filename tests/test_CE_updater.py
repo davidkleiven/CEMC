@@ -83,7 +83,6 @@ class TestCE(unittest.TestCase):
                 for key, value in updated_cf.items():
                     self.assertAlmostEqual(value, brute_force[key], msg=msg)
 
-
     def test_double_swaps(self):
         if not has_ase_with_ce:
             self.skipTest("ASE version does not have CE")
@@ -275,6 +274,28 @@ class TestCE(unittest.TestCase):
             msg = str(exc)
             no_throw = False
         self.assertTrue( no_throw, msg=msg )
+
+    def test_self_interactions(self):
+        if not has_ase_with_ce:
+            self.skipTest("ASE does not have CE")
+
+        from cemc.ce_calculator import SelfInteractionError
+
+        a = 4.05
+        conc = Concentration(basis_elements=[["Au", "Cu", "Ti"]])
+        db_name = "test_self_interactoins.db"
+        kwargs = dict(crystalstructure="fcc", a=a, size=[3, 3, 3],
+                      concentration=conc, db_name=db_name,
+                      max_cluster_size=2, max_cluster_dia=5.0)
+
+        ceBulk = CEBulk(**kwargs)
+        atoms = get_atoms_with_ce_calc(ceBulk, kwargs, eci={'c0': 1.0},
+                                       size=[8, 8, 8], db_name=db_name)
+
+        with self.assertRaises(SelfInteractionError):
+            atoms = get_atoms_with_ce_calc(ceBulk, kwargs, eci={'c0': 1.0},
+                                           size=[1, 1, 1], db_name=db_name)
+        os.remove(db_name)
 
     def test_sequence_of_swap_moves(self):
         if (not has_ase_with_ce):

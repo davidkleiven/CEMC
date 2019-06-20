@@ -17,6 +17,10 @@ except Exception as exc:
     print("Could not find C++ version, falling back to Python version")
 
 
+class SelfInteractionError(Exception):
+    pass
+
+
 def get_max_dia_name():
     """
     In the past max_cluster_dist was named max_cluster_dia.
@@ -145,6 +149,12 @@ class CE(Calculator):
     def __init__(self, atoms, BC, eci=None, initial_cf=None):
         Calculator.__init__(self)
         self.BC = BC
+
+        if self._has_self_interaction(BC.cluster_info):
+            raise SelfInteractionError(
+                'The simulation cell is so small that the same site '
+                'is present multiple times within one cluster. '
+                'Increase the size of the simulation cell.')
 
         # Make sure there is an ECI corresponding to 
         # the emptry cluster
@@ -580,5 +590,19 @@ class CE(Calculator):
         atoms = bc.atoms.copy()
         for symb in backup_data["symbols"]:
             atoms.symbol = symb
-        
+
         return CE(atoms, bc, eci=backup_data["eci"], initial_cf=backup_data["cf"])
+
+    def _has_self_interaction(self, cluster_info):
+        """Check if self interactions exists
+
+        :param list: Cluster info. Cluster information from CLEASE
+        """
+        for info in cluster_info:
+            for k, cluster in info.items():
+                for sub in cluster['indices']:
+                    if cluster['ref_indx'] in sub:
+                        return True
+                    if len(set(sub)) != len(sub):
+                        return True
+        return False
