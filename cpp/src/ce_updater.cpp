@@ -347,7 +347,9 @@ void CEUpdater::update_cf( SymbolChange &symb_change )
   }
 
   // Loop over all ECIs
-  #pragma omp parallel for num_threads(cf_update_num_threads)
+  // As work load for different clusters are different due to a different
+  // multiplicity factor, we need to apply a dynamic schedule
+  #pragma omp parallel for num_threads(cf_update_num_threads) schedule(dynamic)
   for ( unsigned int i=0;i<ecis.size();i++ )
   {
     //const string &name = iter->first;
