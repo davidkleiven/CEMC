@@ -5,12 +5,9 @@ from Cython.Build import cythonize
 
 """Install instructions
 
-1. To parallelize the update of correlation functions
-    usng openMP run the installation with
-    pip install --install-option="--PARALLEL_CF_UPDATE"
-2. To compile with -g flag use
+1. To compile with -g flag use
    --install-option="--DEBUG"
-3. To not parallize the Khacaturyan integrals run 
+2. To not parallize the Khacaturyan integrals run 
     pip install --install-option="--NO_PARALLEL_KHACHATURYAN_INTEGRAL"
 """
 
@@ -37,10 +34,7 @@ define_macros = [("PARALLEL_KHACHATURYAN_INTEGRAL", None)]
 extra_comp_args = ["-std=c++11", "-fopenmp", "-O3"]
 extracted_args = []
 for arg in sys.argv:
-    if arg == "--PARALLEL_CF_UPDATE":
-        define_macros.append(("PARALLEL_CF_UPDATE", None))
-        extracted_args.append(arg)
-    elif arg == "--DEBUG":
+    if arg == "--DEBUG":
         extracted_args.append(arg)
         extra_comp_args.append("-g")
     elif arg == "--NO_PARALLEL_KHACHATURYAN_INTEGRAL":
