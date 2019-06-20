@@ -19,31 +19,29 @@ class TestPairObserver(unittest.TestCase):
 
         no_throw = True
         msg = ""
-        try:
-            bc = get_ternary_BC()
-            ecis = get_example_ecis(bc=bc)
-            calc = CE(bc, eci=ecis)
-            bc.atoms.set_calculator(calc)
 
-            T = 1000
-            nn_names = [name for name in bc.cluster_family_names
-                        if int(name[1]) == 2]
+        bc = get_ternary_BC()
+        ecis = get_example_ecis(bc=bc)
+        atoms = bc.atoms.copy()
+        calc = CE(atoms, bc, eci=ecis)
+        atoms.set_calculator(calc)
 
-            mc = FixedNucleusMC(
-                bc.atoms, T, network_name=nn_names,
-                network_element=["Mg", "Si"])
-            mc.insert_symbol_random_places("Mg", swap_symbs=["Al"])
-            elements = {"Mg": 3, "Si": 3}
-            mc.grow_cluster(elements)
-            obs = PairObserver(mc.atoms, cutoff=4.1, elements=["Mg", "Si"])
-            mc.attach(obs)
-            mc.runMC(steps=200)
-            self.assertEqual(obs.num_pairs, obs.num_pairs_brute_force())
-            self.assertTrue(obs.symbols_is_synced())
-        except Exception as exc:
-            no_throw = False
-            msg = str(exc)
-        self.assertTrue(no_throw, msg=msg)
+        T = 1000
+        nn_names = [name for name in bc.cluster_family_names
+                    if int(name[1]) == 2]
+
+        mc = FixedNucleusMC(
+            atoms, T, network_name=nn_names,
+            network_element=["Mg", "Si"])
+        mc.insert_symbol_random_places("Mg", swap_symbs=["Al"])
+        elements = {"Mg": 3, "Si": 3}
+        mc.grow_cluster(elements)
+        obs = PairObserver(mc.atoms, cutoff=4.1, elements=["Mg", "Si"])
+        mc.attach(obs)
+        mc.runMC(steps=200)
+        self.assertEqual(obs.num_pairs, obs.num_pairs_brute_force())
+        self.assertTrue(obs.symbols_is_synced())
+
 
 if __name__ == "__main__":
     from cemc import TimeLoggingTestRunner

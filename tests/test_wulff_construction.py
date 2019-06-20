@@ -1,4 +1,5 @@
 import unittest
+import os
 from ase.io import read
 try:
     from cemc.tools import WulffConstruction
