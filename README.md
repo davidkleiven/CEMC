@@ -7,7 +7,6 @@
 # Dependencies
 * ~~[SWIG](http://www.swig.org/) (newer than version 3.0)~~ (not anymore!)
 * [GCC](https://gcc.gnu.org/) (has to support multithreading)
-* [MPI](https://www.mpich.org/)
 * Python packages listed in [requirements.txt](requirements.txt)
 
 # Installation
@@ -15,7 +14,6 @@ Install all the dependencies on Ubuntu
 ```bash
 sudo apt-get update
 sudo apt-get install g++
-sudo apt-get install mpich2
 ```
 
 Install the python dependencies (at the moment this only works for Python 2)

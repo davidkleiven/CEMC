@@ -48,13 +48,7 @@ class ReactionPathSampler(object):
         self.react_crd = react_crd
         self.n_windows = n_windows
         self.n_bins = n_bins
-        self.mpicomm = mc_obj.mpicomm
-        mc_obj.mpicomm = None
-        self.rank = 0
-        mc_obj.rank = 0  # All MC object should think they have rank 0
         self.fname = data_file
-        if self.mpicomm is not None:
-            self.rank = self.mpicomm.Get_rank()
 
         if not isinstance(react_crd_init, ReactionCrdInitializer):
             msg = "react_crd_init has to be of type "
@@ -167,20 +161,14 @@ class ReactionPathSampler(object):
         """
         Update the data arrays
         """
-        try:
-            reac_crd = self.initializer.get(self.mc.atoms)
-            indx = self._get_window_indx(self.current_window, reac_crd)
-            self._update_bin_statistics(indx)
+        reac_crd = self.initializer.get(self.mc.atoms)
+        indx = self._get_window_indx(self.current_window, reac_crd)
+        self._update_bin_statistics(indx)
 
-            # Add a safety in case it is marginally larger
-            if indx >= len(self.data[self.current_window]):
-                indx -= 1
-            self.data[self.current_window][indx] += 1
-        except Exception as exc:
-            print("Error on rank: {}".format(self.rank))
-            print("{}: {}".format(type(exc).__name__, str(exc)))
-            print("Errors here will not be handled, because it will lead "
-                  "to tremendous communication overhead.")
+        # Add a safety in case it is marginally larger
+        if indx >= len(self.data[self.current_window]):
+            indx -= 1
+        self.data[self.current_window][indx] += 1
 
     def _get_merged_records(self, data):
         """
@@ -212,13 +200,7 @@ class ReactionPathSampler(object):
         if self.init_scheme == "random":
             value = np.random.rand()*(maxval-minval) + minval
         elif self.init_scheme == "uniform":
-            if self.mpicomm is None:
-                value = 0.5*(minval + maxval)
-            else:
-                size = self.mpicomm.Get_size()
-                rank = self.mpicomm.Get_rank()
-                delta = (maxval-minval)/(size+1)
-                value = minval+ delta*(rank + 1)
+            value = 0.5*(minval + maxval)
         return value
 
     def _bring_system_into_window(self):
@@ -230,35 +212,19 @@ class ReactionPathSampler(object):
         self.mc.constraints.remove(self.constraint)
         error = 0
         msg = ""
-        try:
-            # Bring the system into the new window
-            self.initializer.set(self.mc.atoms, val)
-        except Exception as exc:
-            # Indicate that an error occured. It will be handled by
-            # another function
-            msg = "{}: {}".format(type(exc).__name__, str(exc))
-            error = 1
-
-        if self.mpicomm is not None:
-            error = self.mpicomm.allreduce(error)
-
-        # Raise error on all processes
-        if error:
-            raise Exception(msg)
+        # Bring the system into the new window
+        self.initializer.set(self.mc.atoms, val)
 
         # Now add the constraint again
         self.mc.add_constraint(self.constraint)
 
-    def log(self, msg, ranks=[0]):
+    def log(self, msg):
         """Log messages.
 
         :param str msg: Message to log
-        :param list ranks: Ranks that should print the message. Default is
-            only the master process.
         """
-        if self.rank in ranks:
-            print(msg)
-            sys.stdout.flush()
+        print(msg)
+        sys.stdout.flush()
 
     def log_window_statistics(self, window):
         """Print logging message concerning the sampling window.
@@ -278,33 +244,28 @@ class ReactionPathSampler(object):
     def save_current_window(self):
         """Save result of current window to file."""
         self.log("Collecting results from all processes...")
-        self._collect_results(self.current_window)
         if os.path.exists(self.fname):
             flag = "r+"
         else:
             flag = "w"
 
-        if self.rank == 0:
-            with h5.File(self.fname, flag) as hfile:
-                grp_name = ReactionPathSampler.dset_name(self.current_window)
-                try:
-                    grp = hfile[grp_name]
-                except KeyError:
-                    # The group does not exist
-                    grp = hfile.create_group(grp_name)
-                data = {
-                    "hist": self.data[self.current_window]
-                }
-                self._update_data_entry(grp, data)
+        with h5.File(self.fname, flag) as hfile:
+            grp_name = ReactionPathSampler.dset_name(self.current_window)
+            try:
+                grp = hfile[grp_name]
+            except KeyError:
+                # The group does not exist
+                grp = hfile.create_group(grp_name)
+            data = {
+                "hist": self.data[self.current_window]
+            }
+            self._update_data_entry(grp, data)
 
     @property
     def converged_all_bins(self):
         """Check if all bins have been covered."""
-        nproc = 1
-        if self.mpicomm is not None:
-            nproc = self.mpicomm.Get_size()
         for dset in self.data:
-            if np.min(dset) < nproc + 0.1:
+            if np.min(dset) < 1.0 + 0.1:
                 return False
         return True
 
@@ -315,12 +276,9 @@ class ReactionPathSampler(object):
         :return: List with windows that has not been converged
         :rtype: list of int
         """
-        nproc = 1
-        if self.mpicomm is not None:
-            nproc = self.mpicomm.Get_size()
         not_converged = []
         for i, dset in enumerate(self.data):
-            if np.min(dset) < nproc + 0.1:
+            if np.min(dset) < 1.1:
                 not_converged.append(i)
         return not_converged
 
@@ -347,7 +305,7 @@ class ReactionPathSampler(object):
             now = time.time()
             self.log("Initial chemical formula window {}: {}".format(
                 self.current_window, self.mc.atoms.get_chemical_formula()))
-            print("Starting MC calculation on rank: {}".format(self.rank))
+
             num_failed_attempts = 0
             while (current_step < nsteps):
                 current_step += 1
@@ -365,20 +323,10 @@ class ReactionPathSampler(object):
                     # We don't care about this error we just count the
                     # number of occurences and print a warning
                     num_failed_attempts += 1
-                except Exception as exc:
-                    print("Totally unexpected exception {} {} on rank {}"
-                          "".format(type(exc).__name__, str(exc), self.rank))
-                    print("Exceptions here are not handles, due to "
-                          "communication overhead")
 
-            print("MC calculation finished on rank: {}".format(self.rank))
+            print("MC calculation finished")
 
             nproc = 1
-            # Collect the legal move error from all processes
-            if self.mpicomm is not None:
-                num_failed_attempts = \
-                    self.mpicomm.allreduce(num_failed_attempts)
-                nproc = self.mpicomm.Get_size()
 
             if num_failed_attempts > 0:
                 frac_failed = float(num_failed_attempts)/(nsteps * nproc)
@@ -412,18 +360,6 @@ class ReactionPathSampler(object):
         """
         return "window{}".format(window)
 
-    def _collect_results(self, window):
-        """
-        Collects the results from all processors
-
-        :param int window: Index of the window
-        """
-        if self.mpicomm is None:
-            return
-        recv_buf = np.zeros_like(self.data[window])
-        self.mpicomm.Allreduce(self.data[window], recv_buf)
-        self.data[window][:] = recv_buf
-
     def _update_data_entry(self, grp, data):
         """Update one data entry.
 
@@ -449,42 +385,37 @@ class ReactionPathSampler(object):
         # Load content
         data = []
         merged = []
-        if self.rank == 0:
-            with h5.File(self.fname, "r") as infile:
-                for i in range(0, len(self.data)):
-                    name = "window{}".format(i)
-                    full_name = name + "/hist"
-                    data.append(np.array(infile[full_name]))
+        with h5.File(self.fname, "r") as infile:
+            for i in range(0, len(self.data)):
+                name = "window{}".format(i)
+                full_name = name + "/hist"
+                data.append(np.array(infile[full_name]))
 
-            merged = self._get_merged_records(data)
-        if self.mpicomm is not None:
-            data = self.mpicomm.bcast(data, root=0)
-            merged = self.mpicomm.bcast(merged, root=0)
+        merged = self._get_merged_records(data)
         return merged
 
     def save(self):
         """Save data to HDF5 file."""
         res = self.get_free_energy()
 
-        if self.rank == 0:
-            if os.path.exists(self.fname):
-                flag = "r+"
-            else:
-                flag = "w"
-            with h5.File(self.fname, flag) as hfile:
-                for key, value in res.items():
+        if os.path.exists(self.fname):
+            flag = "r+"
+        else:
+            flag = "w"
+        with h5.File(self.fname, flag) as hfile:
+            for key, value in res.items():
+                try:
+                    data = hfile[key]
+                    data[...] = value
+                except KeyError:
+                    hfile.create_dataset(key, data=value)
+
+            for bias in self.mc.bias_potentials:
+                if hasattr(bias, "get"):
+                    values = bias.get(res["x"])
+                    key = str(bias.__class__.__name__)
                     try:
                         data = hfile[key]
-                        data[...] = value
+                        data[...] = values
                     except KeyError:
-                        hfile.create_dataset(key, data=value)
-
-                for bias in self.mc.bias_potentials:
-                    if hasattr(bias, "get"):
-                        values = bias.get(res["x"])
-                        key = str(bias.__class__.__name__)
-                        try:
-                            data = hfile[key]
-                            data[...] = values
-                        except KeyError:
-                            hfile.create_dataset(key, data=values)
+                        hfile.create_dataset(key, data=values)

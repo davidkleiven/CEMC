@@ -27,11 +27,6 @@ class DamageSpreadingMC(object):
         self.orig_atoms2 = atoms2.copy()
         if "track_time" in kwargs.keys():
             self.track_time = kwargs.pop("track_time")
-        self.mpicomm = None
-        self.rank = 0
-        if "mpicomm" in kwargs.keys():
-            self.mpicomm = kwargs.pop("mpicomm")
-            self.rank = self.mpicomm.Get_rank()
 
         self.sgc1 = SGCMonteCarloWithGivenSite(atoms1, T, **kwargs)
         self.sgc2 = SGCMonteCarloWithGivenSite(atoms2, T, **kwargs)
@@ -87,17 +82,7 @@ class DamageSpreadingMC(object):
         self.current_time += 1
 
     def _log(self, msg):
-        if self.rank == 0:
-            print(msg)
-
-    def _collect_data(self):
-        if self.mpicomm is None:
-            return
-
-        recv_buf = np.zeros_like(self.damage)
-        size = float(self.mpicomm.Get_size())
-        self.mpicomm.Allreduce(self.damage, recv_buf)
-        self.damage[:] = recv_buf/size
+        print(msg)
 
     def reset(self):
         """Reset the calculation to enable"""
@@ -123,5 +108,4 @@ class DamageSpreadingMC(object):
                 now = time.time()
             self._update_systems()
 
-        self._collect_data()
         return self.damage

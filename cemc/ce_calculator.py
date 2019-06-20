@@ -6,8 +6,6 @@ from ase.db import connect
 import os
 import numpy as np
 from cemc.mcmc import linear_vib_correction as lvc
-from cemc.mcmc.mpi_tools import num_processors, mpi_allreduce
-from cemc.mcmc.mpi_tools import mpi_allgather, mpi_bcast
 from inspect import getargspec
 from cemc_cpp_code import PyCEUpdater
 
@@ -42,6 +40,7 @@ def transfer_floating_point_classifier(db_name1, db_name2):
     except Exception as exc:
         print(exc)
 
+
 def get_atoms_with_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
                            db_name="temp_db.db"):
     """
@@ -61,66 +60,36 @@ def get_atoms_with_ce_calc(small_bc, bc_kwargs, eci=None, size=[1, 1, 1],
     :return: Atoms object with CE calculator attached
     :rtype: Atoms
     """
-    nproc = num_processors()
     unknown_type = False
     large_bc = small_bc
     init_cf = None
     error_happened = False
     msg = ""
 
-    if not os.path.exists(db_name) and nproc > 1:
-        raise IOError("The database has to be prepared prior to calling "
-                      "get_atoms_with_ce_calc")
-    try:
-        transfer_floating_point_classifier(bc_kwargs["db_name"], db_name)
-        max_size_eci = get_max_size_eci(eci)
-        if "max_cluster_size" in bc_kwargs.keys():
-            if max_size_eci > bc_kwargs["max_cluster_size"]:
-                msg = "ECI specifies a cluster size larger than "
-                msg += "ClusterExpansionSetting tracks!"
-                raise ValueError(msg)
+    transfer_floating_point_classifier(bc_kwargs["db_name"], db_name)
+    max_size_eci = get_max_size_eci(eci)
+    if "max_cluster_size" in bc_kwargs.keys():
+        if max_size_eci > bc_kwargs["max_cluster_size"]:
+            msg = "ECI specifies a cluster size larger than "
+            msg += "ClusterExpansionSetting tracks!"
+            raise ValueError(msg)
 
-        atoms = small_bc.atoms.copy()
-        calc1 = CE(atoms, small_bc, eci)
-        init_cf = calc1.get_cf()
-        min_length = small_bc.max_cluster_dia
-        bc_kwargs["size"] = size
-        size_name = get_max_dia_name()
-        bc_kwargs[size_name] = min_length
-        bc_kwargs["db_name"] = db_name
+    atoms = small_bc.atoms.copy()
+    calc1 = CE(atoms, small_bc, eci)
+    init_cf = calc1.get_cf()
+    min_length = small_bc.max_cluster_dia
+    bc_kwargs["size"] = size
+    size_name = get_max_dia_name()
+    bc_kwargs[size_name] = min_length
+    bc_kwargs["db_name"] = db_name
 
-        if isinstance(small_bc, CEBulk):
-            large_bc = CEBulk(**bc_kwargs)
-        elif isinstance(small_bc, CECrystal):
-            large_bc = CECrystal(**bc_kwargs)
-        else:
-            unknown_type = True
-    except MemoryError:
-        # No default error message here
-        error_happened = True
-        msg = "Memory Error. Most likely went out "
-        msg += " of memory when initializing an array"
-    except Exception as exc:
-        error_happened = True
-        msg = str(exc)
-        print(msg)
+    if isinstance(small_bc, CEBulk):
+        large_bc = CEBulk(**bc_kwargs)
+    elif isinstance(small_bc, CECrystal):
+        large_bc = CECrystal(**bc_kwargs)
+    else:
+        unknown_type = True
 
-    # Broad cast the error flag and raise error on all processes
-    error_happened = mpi_allreduce(error_happened)
-    all_msg = mpi_allgather(msg)
-    for item in all_msg:
-        if item != "":
-            msg = item
-            break
-
-    if error_happened:
-        raise RuntimeError(msg)
-
-    unknown_type = mpi_bcast(unknown_type, root=0)
-    if unknown_type:
-        msg = "The small_bc argument has to by of type "
-        msg += "CEBulk or CECrystal"
-        raise TypeError(msg)
     atoms = large_bc.atoms.copy()
 
     # Note this automatically attach the calculator to the 

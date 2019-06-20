@@ -3,19 +3,16 @@ import unittest
 import os
 try:
     from cemc.mcmc import ActivitySampler
-    from cemc.mcmc.mpi_tools import mpi_communicator
     from cemc import CE
     from ase.clease import CEBulk
     from ase.clease import Concentration
     from ase.clease import CorrFunction
     available = True
     reason = ""
-    comm = mpi_communicator()
 except Exception as exc:
     reason = str(exc)
     print(reason)
     available = False
-    comm = None
 
 class TestActivitySampler(unittest.TestCase):
     def test_no_throw(self):
@@ -47,7 +44,7 @@ class TestActivitySampler(unittest.TestCase):
             comp = {"Mg": c_mg, "Al": 1.0-c_mg}
             calc.set_composition(comp)
             act_sampler = ActivitySampler(atoms, T,
-                                        moves=[("Al", "Mg")], mpicomm=comm)
+                                        moves=[("Al", "Mg")])
             act_sampler.runMC(mode="fixed", steps=1000)
             act_sampler.get_thermodynamic()
         except Exception as exc:

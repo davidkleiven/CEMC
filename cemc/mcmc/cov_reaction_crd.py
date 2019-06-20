@@ -1,6 +1,5 @@
 import sys
 from cemc.mcmc import ReactionCrdInitializer, ReactionCrdRangeConstraint
-from cemc.mcmc.mpi_tools import num_processors, mpi_rank
 import numpy as np
 from itertools import product
 import time
@@ -52,15 +51,6 @@ class CovarianceCrdInitializer(ReactionCrdInitializer):
         # Attach the covariance matrix observer to the 
         # fixed nucleation sampler
         self.fixed_nucl_mc.attach(self.cov_obs)
-
-        size = num_processors()
-        rank = mpi_rank()
-        if size > 1:
-            # Rename the trajectory file writer one for each process
-            fname_base = traj_file.rpartition(".")[0]
-            traj_file = fname_base + str(rank) + ".traj"
-            fname_base = traj_file_clst.rpartition(".")[0]
-            traj_file_clst = fname_base + str(rank) + ".traj"
         self.traj_file = traj_file
         self.traj_file_clst = traj_file_clst
 
@@ -218,7 +208,6 @@ class CovarianceCrdInitializer(ReactionCrdInitializer):
         mc = self.fixed_nucl_mc
         output_every = 15
         now = time.time()
-        rank = mpi_rank()
         while attempt < max_attempts:
             if self.fixed_nucl_mc.network.num_root_nodes() > 1:
                 raise RuntimeError("For some unknown reason there are "
@@ -255,8 +244,8 @@ class CovarianceCrdInitializer(ReactionCrdInitializer):
             new_diff = abs(new_value - value)
 
             if time.time() - now > output_every:
-                print("Rank: {} Current value: {} Target value: {}"
-                      "".format(rank, new_value, value))
+                print("Current value: {} Target value: {}"
+                      "".format(new_value, value))
                 sys.stdout.flush()
                 now = time.time()
 
@@ -337,9 +326,8 @@ class CovarianceRangeConstraint(ReactionCrdRangeConstraint):
         if not ok and self.verbose:
             # The evaluation of this constraint can be time consuming
             # so let the user know at regular intervals
-            rank = mpi_rank()
             if time.time() - self.last_print > 10:
-                print("Move violates constraint on rank {}".format(rank))
+                print("Move violates constraint")
                 self.last_print = time.time()
         return ok
 

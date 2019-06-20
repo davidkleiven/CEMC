@@ -5,7 +5,6 @@ from ase.visualize import view
 from scipy.stats import linregress
 import os
 from ase.units import kB
-from cemc.mcmc import mpi_tools
 
 
 class Mode(object):
@@ -27,7 +26,6 @@ class NucleationSampler(object):
             use the default)
         * *max_one_cluster* Ensure that there is only *one* cluster present in
             the system. For larger cluster sizes this should not matter.
-        * *mpicomm* MPI communicator object
     """
     def __init__(self, **kwargs):
         self.size_window_width = kwargs.pop("size_window_width")
@@ -39,16 +37,6 @@ class NucleationSampler(object):
             self.merge_strategy = kwargs.pop("merge_strategy")
         if "max_one_cluster" in kwargs.keys():
             self.max_one_cluster = kwargs.pop("max_one_cluster")
-
-        # The Nucleation barrier algorithm requires a lot of communication if
-        # parallelized in the same way as SGCMonteCarlo
-        # therefore we snap the mpicomm object passed,
-        # and parallelize in a different way
-        self.nucleation_mpicomm = None
-        self.rank = 0
-        if "mpicomm" in kwargs.keys():
-            self.nucleation_mpicomm = kwargs.pop("mpicomm")
-            self.rank = self.nucleation_mpicomm.Get_rank()
 
         allowed_merge_strategies = ["normalize_overlap", "fit"]
         if self.merge_strategy not in allowed_merge_strategies:
@@ -71,7 +59,6 @@ class NucleationSampler(object):
                 self.singlets.append(np.zeros((self.n_bins + 1, n_singlets)))
         self.current_window = 0
         self.mode = Mode.bring_system_into_window
-        mpi_tools.set_seeds(self.nucleation_mpicomm)
         self.current_cluster_size = 0
 
     def _get_window_boundaries(self, num):
@@ -179,22 +166,6 @@ class NucleationSampler(object):
             new_singlets = mc_obj.atoms._calc.get_singlets()
             self.singlets[self.current_window][indx, :] += new_singlets
 
-    def _collect_results(self):
-        """Collect results from all processors if algorithm runsin parallel."""
-        if self.nucleation_mpicomm is None:
-            return
-
-        for i in range(len(self.histograms)):
-            recv_buf = np.zeros_like(self.histograms[i])
-            send_buf = self.histograms[i]
-            self.nucleation_mpicomm.Allreduce(send_buf, recv_buf)
-            self.histograms[i][:] = recv_buf[:]
-
-            recv_buf = np.zeros_like(self.singlets[i])
-            send_buf = self.singlets[i]
-            self.nucleation_mpicomm.Allreduce(send_buf, recv_buf)
-            self.singlets[i][:, :] = recv_buf[:, :]
-
     def helmholtz_free_energy(self, singlets, hist):
         """
         Compute the Helmholtz Free Energy barrier
@@ -218,90 +189,85 @@ class NucleationSampler(object):
 
         :param fname: Filename should be a HDF5 file
         """
-        self._collect_results()
-        rank = 0
-        if self.nucleation_mpicomm is not None:
-            rank = self.nucleation_mpicomm.Get_rank()
 
-        if rank == 0:
-            all_data = [np.zeros_like(self.histograms[i]) for i in
-                        range(len(self.histograms))]
-            singlets = [np.zeros_like(self.singlets[i]) for i in
-                        range(len(self.singlets))]
-            try:
-                with h5.File(fname, 'r') as hfile:
-                    for i in range(len(self.histograms)):
-                        name = "window{}/hist".format(i)
-                        if name in hfile:
-                            all_data[i] = np.array(hfile[name])
-                        singlet_name = "window{}/singlets".format(i)
-                        if name in hfile:
-                            singlets[i] = np.array(hfile[singlet_name])
-            except Exception as exc:
-                print(str(exc))
-                print("Creating new file")
-
-            for i in range(len(self.histograms)):
-                all_data[i] += self.histograms[i]
-                singlets[i] += self.singlets[i]
-            self.histograms = all_data
-            overall_hist = self.merge_histogram(strategy=self.merge_strategy)
-            overall_singlets = self.merge_singlets(singlets, all_data)
-            # beta_helm = \
-            #    self.helmholtz_free_energy(overall_singlets, overall_hist)
-            beta_gibbs = -np.log(overall_hist)
-            beta_gibbs -= beta_gibbs[0]
-
-            if os.path.exists(fname):
-                flag = "r+"
-            else:
-                flag = "w"
-
-            with h5.File(fname, flag) as hfile:
+        all_data = [np.zeros_like(self.histograms[i]) for i in
+                    range(len(self.histograms))]
+        singlets = [np.zeros_like(self.singlets[i]) for i in
+                    range(len(self.singlets))]
+        try:
+            with h5.File(fname, 'r') as hfile:
                 for i in range(len(self.histograms)):
                     name = "window{}/hist".format(i)
                     if name in hfile:
-                        data = hfile[name]
-                        data[...] = all_data[i]
-                    else:
-                        dset = hfile.create_dataset(name, data=all_data[i])
+                        all_data[i] = np.array(hfile[name])
                     singlet_name = "window{}/singlets".format(i)
-                    if singlet_name in hfile:
-                        data = hfile[singlet_name]
-                        data[...] = self.singlets[i]
-                    else:
-                        dset = hfile.create_dataset(singlet_name,
-                                                    data=self.singlets[i])
+                    if name in hfile:
+                        singlets[i] = np.array(hfile[singlet_name])
+        except Exception as exc:
+            print(str(exc))
+            print("Creating new file")
 
-                if "overall_hist" in hfile:
-                    data = hfile["overall_hist"]
-                    data[...] = overall_hist
+        for i in range(len(self.histograms)):
+            all_data[i] += self.histograms[i]
+            singlets[i] += self.singlets[i]
+        self.histograms = all_data
+        overall_hist = self.merge_histogram(strategy=self.merge_strategy)
+        overall_singlets = self.merge_singlets(singlets, all_data)
+        # beta_helm = \
+        #    self.helmholtz_free_energy(overall_singlets, overall_hist)
+        beta_gibbs = -np.log(overall_hist)
+        beta_gibbs -= beta_gibbs[0]
+
+        if os.path.exists(fname):
+            flag = "r+"
+        else:
+            flag = "w"
+
+        with h5.File(fname, flag) as hfile:
+            for i in range(len(self.histograms)):
+                name = "window{}/hist".format(i)
+                if name in hfile:
+                    data = hfile[name]
+                    data[...] = all_data[i]
                 else:
-                    dset = hfile.create_dataset("overall_hist",
-                                                data=overall_hist)
-
-                if "overall_singlets" in hfile:
-                    data = hfile["overall_singlets"]
-                    data[...] = overall_singlets
+                    dset = hfile.create_dataset(name, data=all_data[i])
+                singlet_name = "window{}/singlets".format(i)
+                if singlet_name in hfile:
+                    data = hfile[singlet_name]
+                    data[...] = self.singlets[i]
                 else:
-                    dset = hfile.create_dataset("overall_singlets",
-                                                data=overall_singlets)
+                    dset = hfile.create_dataset(singlet_name,
+                                                data=self.singlets[i])
 
-                # if not "chem_pot" in hfile:
-                #     dset = hfile.create_dataset("chemical_potentials",
-                #                                 data=self.chem_pots)
+            if "overall_hist" in hfile:
+                data = hfile["overall_hist"]
+                data[...] = overall_hist
+            else:
+                dset = hfile.create_dataset("overall_hist",
+                                            data=overall_hist)
 
-                # if "beta_helm" in hfile:
-                #     data = hfile["beta_helm"]
-                #     data[...] = beta_helm
-                # else:
-                #     dset = hfile.create_dataset("beta_helm", data=beta_helm)
-                if "beta_gibbs" in hfile:
-                    data = hfile["beta_gibbs"]
-                    data[...] = beta_gibbs
-                else:
-                    dset = hfile.create_dataset("beta_gibbs", data=beta_gibbs)
-            self.log("Data saved to {}".format(fname))
+            if "overall_singlets" in hfile:
+                data = hfile["overall_singlets"]
+                data[...] = overall_singlets
+            else:
+                dset = hfile.create_dataset("overall_singlets",
+                                            data=overall_singlets)
+
+            # if not "chem_pot" in hfile:
+            #     dset = hfile.create_dataset("chemical_potentials",
+            #                                 data=self.chem_pots)
+
+            # if "beta_helm" in hfile:
+            #     data = hfile["beta_helm"]
+            #     data[...] = beta_helm
+            # else:
+            #     dset = hfile.create_dataset("beta_helm", data=beta_helm)
+            if "beta_gibbs" in hfile:
+                data = hfile["beta_gibbs"]
+                data[...] = beta_gibbs
+            else:
+                dset = hfile.create_dataset("beta_gibbs", data=beta_gibbs)
+        self.log("Data saved to {}".format(fname))
 
     def merge_histogram(self, strategy="normalize_overlap"):
         """
@@ -362,5 +328,4 @@ class NucleationSampler(object):
 
         :param msg: Message to be logged
         """
-        if self.rank == 0:
-            print(msg)
+        print(msg)

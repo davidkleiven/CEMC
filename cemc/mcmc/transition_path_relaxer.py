@@ -17,7 +17,6 @@ class TransitionPathRelaxer(object):
         self.init_path = None
         self.initial_peak_energy = None
         self.nsteps_per_sweep = None
-        self.rank = 0
 
     def load_path( self, fname ):
         """
@@ -95,8 +94,7 @@ class TransitionPathRelaxer(object):
         """
         Log result to a file
         """
-        if self.rank == 0:
-            print(msg)
+        print(msg)
 
     def relax_path( self, initial_path=None, n_shooting_moves=10000 ):
         """
@@ -223,7 +221,7 @@ class TransitionPathRelaxer(object):
         return min_slice_outside_reactant,max_slice_outside_products
 
 
-    def generate_paths( self, initial_path=None, n_paths=1, max_attempts=10000, outfile="tse_ensemble.json", mpicomm=None ):
+    def generate_paths( self, initial_path=None, n_paths=1, max_attempts=10000, outfile="tse_ensemble.json"):
         """
         Generate a given number of paths
         """
@@ -237,8 +235,6 @@ class TransitionPathRelaxer(object):
 
         n_paths_found = 0
         overall_num_paths = 0
-        if mpicomm is not None:
-            self.rank = mpicomm.Get_rank()
         while( overall_num_paths < n_paths and counter < max_attempts ):
             self.log("Total number of paths found: {}".format(overall_num_paths))
             counter += 1
@@ -248,24 +244,9 @@ class TransitionPathRelaxer(object):
                 all_paths.append(self.init_path)
                 n_paths_found += 1
 
-            if mpicomm is not None:
-                send_buf = np.zeros(1)
-                send_buf[0] = n_paths_found
-                recv_buf = np.zeros(1)
-                mpicomm.Allreduce(send_buf, recv_buf)
-                overall_num_paths = recv_buf[0]
-            else:
-                overall_num_paths = n_paths_found
+            overall_num_paths = n_paths_found
 
-        if mpicomm is not None:
-            temp_paths = mpicomm.gather(all_paths, root=0)
-            all_paths = []
-            if self.rank == 0:
-                for sublist in temp_paths:
-                    all_paths += sublist
-
-        if self.rank == 0:
-            self.save_tse_ensemble( all_paths, fname=outfile )
+        self.save_tse_ensemble( all_paths, fname=outfile )
 
     def save_tse_ensemble(self, new_paths, fname="tse_ensemble.json" ):
         """

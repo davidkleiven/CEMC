@@ -4,7 +4,6 @@ from cemc_cpp_code import PyClusterTracker
 from ase.io.trajectory import TrajectoryWriter
 from cemc.mcmc.averager import Averager
 from cemc.mcmc.util import waste_recycled_average
-from cemc.mcmc.mpi_tools import num_processors, mpi_rank
 from itertools import product
 highlight_elements = ["Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na", "Mg",
                       "Al", "Si", "P", "S", "Cl", "Ar"]
@@ -327,11 +326,9 @@ class NetworkObserver(MCObserver):
         connected via some pair cluster this is Mg
     :param int nbins: Number of bins used to produce statistics over the
         distribution of cluster sizes
-    :param Intracomm mpicomm: MPI communicator
     """
 
-    def __init__(self, calc=None, cluster_name=None, element=None, nbins=30,
-                 mpicomm=None):
+    def __init__(self, calc=None, cluster_name=None, element=None, nbins=30):
         if calc is None:
             raise ValueError("No calculator given. " +
                              "Has to be a CE calculator (with C++ support)")
@@ -359,7 +356,6 @@ class NetworkObserver(MCObserver):
         self.atoms_max_cluster = None
         self.n_calls = 0
         self.n_atoms_in_cluster = 0
-        self.mpicomm = mpicomm
 
         # Count the number of atoms of the element type being tracked
         n_atoms = 0
@@ -568,28 +564,6 @@ class NetworkObserver(MCObserver):
         indices += neighbour_indices
         return list(set(indices))
 
-    def collect_stat_MPI(self):
-        """Collect the statistics from MPI."""
-        if self.mpicomm is None:
-            return
-        recv_buf = np.zeros_like(self.size_histogram)
-        self.mpicomm.Allreduce(self.size_histogram, recv_buf)
-        self.size_histogram[:] = recv_buf[:]
-
-        # Find the maximum cluster
-        max_size = self.mpicomm.gather(self.max_size, root=0)
-        rank = self.mpicomm.Get_rank()
-        if rank == 0:
-            self.max_size = np.max(max_size)
-        self.max_size = self.mpicomm.bcast(self.max_size, root=0)
-
-        if rank == 0:
-            msg = "Waring! The MPI collection of results for the "
-            msg += "NetworkObserver is incomplete. The histogram is correctly "
-            msg += "collected and the maximum cluster size. Entries received "
-            msg += "by get_statisttics() is not collected yet."
-            print(msg)
-
     def get_current_cluster_info(self):
         """Return the info dict for the current state."""
         self.fast_cluster_tracker.find_clusters()
@@ -601,7 +575,6 @@ class NetworkObserver(MCObserver):
         :return: Statistics about atomic clusters in the system
         :rtype: dict
         """
-        self.collect_stat_MPI()
 
         stat = {}
         if self.res["number_of_clusters"] == 0:
@@ -646,11 +619,9 @@ class SiteOrderParameter(MCObserver):
     value.
 
     :param Atoms atoms: Atoms object
-    :param mpicomm: MPI communicator
-    :type mpicomm: Intracomm or None
     """
 
-    def __init__(self, atoms, mpicomm=None):
+    def __init__(self, atoms):
         self.atoms = atoms
         self.orig_nums = self.atoms.get_atomic_numbers()
         self.avg_num_changed = 0
@@ -658,7 +629,6 @@ class SiteOrderParameter(MCObserver):
         self.num_calls = 0
         self.current_num_changed = 0
         self.site_changed = np.zeros(len(self.atoms), dtype=np.uint8)
-        self.mpicomm = mpicomm
 
     def _check_all_sites(self):
         """Check if symbols have changed on all sites."""
@@ -706,16 +676,6 @@ class SiteOrderParameter(MCObserver):
         """
         average = float(self.avg_num_changed)/self.num_calls
         average_sq = float(self.avg_num_changed_sq)/self.num_calls
-
-        if self.mpicomm is not None:
-            size = self.mpicomm.Get_size()
-            send_buf = np.zeros(2)
-            send_buf[0] = average
-            send_buf[1] = average_sq
-            recv_buf = np.zeros(2)
-            self.mpicomm.Allreduce(send_buf, recv_buf)
-            average = recv_buf[0]/size
-            average_sq = recv_buf[1]/size
         var = average_sq - average**2
 
         # If variance is close to zero it can in some cases by
@@ -818,23 +778,13 @@ class MCBackup(MCObserver):
     def __init__(self, mc_obj, backup_file="montecarlo_backup.pkl", db_name="",
                  db_tab_name="mc_backup", db_id=None, overwrite_db_row=True):
         self.mc_obj = mc_obj
-        self.backup_file = self._include_rank_in_filename(backup_file)
+        self.backup_file = backup_file
         MCObserver.__init__(self)
         self.name = "MCBackup"
         self.db_name = db_name
         self.db_id = None
         self.db_tab_name = db_tab_name
         self.overwrite_db_row = overwrite_db_row
-
-    def _include_rank_in_filename(self, fname):
-        """Include the current rank in the filename if nessecary."""
-        size = num_processors()
-        if size > 1:
-            # We have to include the rank in the filename to avoid problems
-            rank = mpi_rank()
-            prefix = fname.rpartition(".")[0]
-            return prefix + "_rank{}.pkl".format(rank)
-        return fname
 
     def __call__(self, system_changes):
         """Write a copy of the Monte Carlo object to file."""
