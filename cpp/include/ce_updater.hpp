@@ -133,7 +133,7 @@ public:
   void set_atom_position_tracker( tracker_t *new_tracker ){ tracker=new_tracker; };
 
   /** Set the number of threads to use during CF updating */
-  void set_num_threads(unsigned int num_threads){cf_update_num_threads = num_threads;};
+  void set_num_threads(unsigned int num){cf_update_num_threads = num;};
 
   /** Adds a term that tracks the contribution from lattice vibrations */
   void add_linear_vib_correction( const std::map<std::string,double> &eci_per_kbT );
@@ -151,7 +151,7 @@ private:
   /** Returns the maximum index occuring in the cluster indices */
   unsigned int get_max_indx_of_zero_site() const;
 
-  unsigned int cf_update_num_threads{1}:
+  unsigned int cf_update_num_threads{1};
 
   //std::vector<std::string> symbols;
   Symbols *symbols_with_id{nullptr};
