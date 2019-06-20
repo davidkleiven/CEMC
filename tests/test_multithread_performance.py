@@ -16,7 +16,7 @@ class TestMultithread(unittest.TestCase):
     def test_run(self):
         if not available:
             self.skipTest(reason)
-        
+
         bc = get_ternary_BC()
         eci = get_example_ecis(bc)
         atoms = bc.atoms.copy()
