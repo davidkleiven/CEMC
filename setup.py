@@ -34,7 +34,7 @@ ce_updater_sources = [src_folder+"/"+srcfile for srcfile in ce_updater_sources]
 ce_updater_sources.append("cemc/cpp_ext/cemc_cpp_code.pyx")
 
 define_macros = [("PARALLEL_KHACHATURYAN_INTEGRAL", None)]
-extra_comp_args = ["-std=c++11", "-fopenmp"]
+extra_comp_args = ["-std=c++11", "-fopenmp", "-O3"]
 extracted_args = []
 for arg in sys.argv:
     if arg == "--PARALLEL_CF_UPDATE":
